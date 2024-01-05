@@ -1,0 +1,41 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+      "config": {
+        "type": "object",
+        "properties": {
+          "sensors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": { "type": "string" },
+                "p": { "type": "number" },
+                "i": { "type": "number" },
+                "d": { "type": "number" }
+              },
+              "required": ["name", "p", "i", "d"]
+            }
+          },
+          "resolution": { "type": "number" }
+        },
+        "required": ["sensors", "resolution"]
+      },
+      "experiment": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "time": { "type": "number", "minimum": 0 },
+            "temperature": { "type": "number", "minimum": 0 },
+            "pressure": { "type": "number" },
+            "displacement 1": { "type": "number" },
+            "displacement 2": { "type": "number" }
+          },
+          "required": ["time", "temperature", "pressure", "displacement 1", "displacement 2"]
+        }
+      }
+    },
+    "required": ["config", "experiment"]
+  }
