@@ -1,0 +1,1 @@
+{"config":{"temperature":{"p":1,"i":2,"d":3},"pressure":{"p":1,"i":2,"d":3},"resolution":1},"experiment":[{"time":0,"temperature":1000,"pressure":0,"displacement 1":0,"displacement 2":0},{"time":1,"temperature":1000,"pressure":10,"displacement 1":0,"displacement 2":0},{"time":2,"temperature":1000,"pressure":0,"displacement 1":0.4,"displacement 2":0}]}
