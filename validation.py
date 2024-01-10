@@ -2,10 +2,11 @@ import json
 import jsonschema
 import textwrap
 
+
 def validate_experiment(experiment_path, schema_path):
     # Get schema
     try:
-        with open(schema_path, 'r') as f:
+        with open(schema_path, "r") as f:
             schema = json.load(f)
     except FileNotFoundError:
         print(f"Error: File not found - {schema_path}")
@@ -17,7 +18,7 @@ def validate_experiment(experiment_path, schema_path):
 
     # Get experiment
     try:
-        with open(experiment_path, 'r') as f:
+        with open(experiment_path, "r") as f:
             data = json.load(f)
     except FileNotFoundError:
         print(f"Error: File not found - {experiment_path}")
