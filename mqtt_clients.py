@@ -7,10 +7,31 @@ def on_ui_message(client, msg, obj):
     print_message(client, msg)
     experiment = msg.payload.decode("utf-8")
     experiment = json.loads(experiment)
-    obj.experiment = experiment["uid"]
-    client.publish("/received/ui", f"Received experiment: {obj.experiment}")
-    with open(f"data/experiment_{obj.experiment}.json", "w") as f:
-        json.dump(experiment, f)
+    if obj.running == "idle":
+        if msg.topic == "/ui/start":
+            obj.experiment = experiment["uid"]
+            client.publish("/received/ui", f"Received experiment: {obj.experiment}")
+            with open(f"data/experiment_{obj.experiment}.json", "w") as f:
+                json.dump(experiment, f)
+            obj.running = "starting"
+    else:
+        if msg.topic == "/ui/stop":
+            if experiment["uid"] == obj.experiment:
+                obj.running = "stopping"
+                client.publish(
+                    "/received/ui",
+                    f"Received stop command for experiment {obj.experiment}",
+                )
+            else:
+                client.publish(
+                    "/error/ui",
+                    f"Experiment {obj.experiment} is {obj.running}. Cannot act on {msg.topic} for experiment {experiment['uid']}",
+                )
+        else:
+            client.publish(
+                "/error/ui",
+                f"Experiment {obj.experiment} is {obj.running}. Cannot act on {msg.topic}",
+            )
 
 
 def on_heartbeat_message(client, msg, obj):
