@@ -45,29 +45,57 @@ def invalid_experiments(valid_experiment):
     return invalid_experiments
 
 
+def test_valid_hard(valid_experiment_path, valid_schema_path, valid_experiment):
+    experiment = validate_experiment_hard(valid_experiment_path, valid_schema_path)
+    assert experiment == valid_experiment
+
+
 def test_valid(valid_experiment_path, valid_schema_path, valid_experiment):
     experiment = validate_experiment(valid_experiment_path, valid_schema_path)
     assert experiment == valid_experiment
 
 
+def test_valid_soft(valid_experiment_path, valid_schema_path, valid_experiment):
+    experiment, err = validate_experiment_soft(valid_experiment_path, valid_schema_path)
+    assert experiment, err == valid_experiment
+    assert err is None
+
+
 def test_invalid_json(valid_experiment_path, valid_schema_path, invalid_json, capsys):
     try:
-        experiment = validate_experiment(invalid_json, valid_schema_path)
-    except SystemExit:
-        captured = capsys.readouterr()
-        assert f"Error decoding JSON: {invalid_json}" in captured.out
+        experiment = validate_experiment_hard(invalid_json, valid_schema_path)
+    except ValidationException as e:
+        assert f"Error decoding JSON: {invalid_json}" in e.args[0]
     finally:
         assert "experiment" not in locals()
     try:
-        experiment = validate_experiment(valid_experiment_path, invalid_json)
-    except SystemExit:
-        captured = capsys.readouterr()
-        assert f"Error decoding JSON: {invalid_json}" in captured.out
+        experiment = validate_experiment_hard(valid_experiment_path, invalid_json)
+    except ValidationException as e:
+        assert f"Error decoding JSON: {invalid_json}" in e.args[0]
     finally:
         assert "experiment" not in locals()
 
 
 def test_invalid_experiment_content(valid_schema_path, invalid_experiments, capsys):
+    for invalid_experiment in invalid_experiments:
+        with patch(
+            "builtins.open",
+            side_effect=[
+                open(valid_schema_path, "r"),
+                mock_open(read_data=invalid_experiment).return_value,
+            ],
+        ):
+            try:
+                experiment = validate_experiment_hard(
+                    invalid_experiment, valid_schema_path
+                )
+            except ValidationException as e:
+                assert f"Validation errors:" in e.args[0]
+            finally:
+                assert "experiment" not in locals()
+
+
+def test_validate_experiment(valid_schema_path, invalid_experiments, capsys):
     for invalid_experiment in invalid_experiments:
         with patch(
             "builtins.open",
@@ -83,3 +111,19 @@ def test_invalid_experiment_content(valid_schema_path, invalid_experiments, caps
                 assert f"Validation errors:" in captured.out
             finally:
                 assert "experiment" not in locals()
+
+
+def test_validate_experiment_soft(valid_schema_path, invalid_experiments, capsys):
+    for invalid_experiment in invalid_experiments:
+        with patch(
+            "builtins.open",
+            side_effect=[
+                open(valid_schema_path, "r"),
+                mock_open(read_data=invalid_experiment).return_value,
+            ],
+        ):
+            experiment, err = validate_experiment_soft(
+                invalid_experiment, valid_schema_path
+            )
+            assert f"Validation errors:" in err
+            assert experiment is None

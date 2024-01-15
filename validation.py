@@ -3,30 +3,32 @@ import jsonschema
 import textwrap
 
 
-def validate_experiment(experiment_path, schema_path):
+class ValidationException(Exception):
+    pass
+
+
+def validate_experiment_hard(experiment_path, schema_path):
     # Get schema
     try:
         with open(schema_path, "r") as f:
             schema = json.load(f)
     except FileNotFoundError:
-        print(f"Error: File not found - {schema_path}")
-        exit(1)
+        raise ValidationException(f"Error: File not found - {schema_path}")
     except json.JSONDecodeError as e:
-        print(f"Error decoding JSON: {schema_path}")
-        print(f"{textwrap.indent(str(e),'   ')}")
-        exit(1)
+        raise ValidationException(
+            f"Error decoding JSON: {schema_path}\n{textwrap.indent(str(e), '   ')}"
+        )
 
     # Get experiment
     try:
         with open(experiment_path, "r") as f:
             data = json.load(f)
     except FileNotFoundError:
-        print(f"Error: File not found - {experiment_path}")
-        exit(1)
+        raise ValidationException(f"Error: File not found - {experiment_path}")
     except json.JSONDecodeError as e:
-        print(f"Error decoding JSON: {experiment_path}")
-        print(f"{textwrap.indent(str(e),'   ')}")
-        exit(1)
+        raise ValidationException(
+            f"Error decoding JSON: {experiment_path}\n{textwrap.indent(str(e), '   ')}"
+        )
 
     # Validate experiment json against schema
     try:
@@ -35,7 +37,24 @@ def validate_experiment(experiment_path, schema_path):
     except jsonschema.ValidationError as e:
         validator = jsonschema.Draft7Validator(schema)
         errors = list(validator.iter_errors(data))
-        print(f"Validation errors:")
-        for error in errors:
-            print(f"\t{error.json_path} -> {error.message}")
+        raise ValidationException(
+            f"Validation errors:\n"
+            + "\n".join([f"\t{error.json_path} -> {error.message}" for error in errors])
+        )
+
+
+def validate_experiment(experiment_path, schema_path):
+    try:
+        exp_config = validate_experiment_hard(experiment_path, schema_path)
+        return exp_config
+    except ValidationException as e:
+        print(e.args[0])
         exit(1)
+
+
+def validate_experiment_soft(experiment_path, schema_path):
+    try:
+        exp_config = validate_experiment_hard(experiment_path, schema_path)
+        return exp_config, None
+    except ValidationException as e:
+        return None, str(e.args[0])
