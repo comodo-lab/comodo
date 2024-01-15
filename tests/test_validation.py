@@ -30,6 +30,10 @@ def invalid_json():
 def invalid_experiments(valid_experiment):
     invalid_experiments = []
 
+    missing_uid = json.loads(json.dumps(valid_experiment))
+    del missing_uid["uid"]
+    invalid_experiments.append(json.dumps(missing_uid))
+
     negative_time = json.loads(json.dumps(valid_experiment))
     negative_time["experiment"][0]["time"] = -1
     invalid_experiments.append(json.dumps(negative_time))
