@@ -2,35 +2,61 @@ import paho.mqtt.client as mqtt
 import time as t
 import json
 
+from validation import validate_experiment_soft
+
 
 def on_ui_message(client, msg, obj):
     print_message(client, msg)
     experiment = msg.payload.decode("utf-8")
     experiment = json.loads(experiment)
-    if obj.running == "idle":
+    if obj.status == "idle":
         if msg.topic == "/ui/start":
             obj.experiment = experiment["uid"]
-            client.publish("/received/ui", f"Received experiment: {obj.experiment}")
-            with open(f"data/experiment_{obj.experiment}.json", "w") as f:
+            # client.publish("/received/ui", f"Received experiment: {obj.experiment}")
+            exp_file = f"data/experiment_{obj.experiment}.json"
+            with open(exp_file, "w") as f:
                 json.dump(experiment, f)
-            obj.running = "starting"
+            obj.status = "validating"
+            exp_config, err = validate_experiment_soft(exp_file, obj.schema_path)
+            if err == None:
+                m = {
+                    "uid": obj.experiment,
+                    "valid": True,
+                }
+                client.publish("/controller/validator/passed", json.dumps(m))
+                obj.exp_config = exp_config
+                obj.status = "starting"
+            else:
+                m = {
+                    "uid": obj.experiment,
+                    "valid": False,
+                    "error": err,
+                }
+                client.publish("/controller/validator/failed", json.dumps(m))
+                obj.experiment = None
+                obj.status = "idle"
+        else:
+            client.publish(
+                "/controller/error",
+                f"Status is {obj.status}. Cannot act on {msg.topic}",
+            )
     else:
         if msg.topic == "/ui/stop":
             if experiment["uid"] == obj.experiment:
-                obj.running = "stopping"
+                obj.status = "stopping"
                 client.publish(
-                    "/received/ui",
+                    "/controller/stop",
                     f"Received stop command for experiment {obj.experiment}",
                 )
             else:
                 client.publish(
-                    "/error/ui",
-                    f"Experiment {obj.experiment} is {obj.running}. Cannot act on {msg.topic} for experiment {experiment['uid']}",
+                    "/controller/error",
+                    f"Experiment {obj.experiment} is {obj.status}. Cannot act on {msg.topic} for experiment {experiment['uid']}",
                 )
         else:
             client.publish(
-                "/error/ui",
-                f"Experiment {obj.experiment} is {obj.running}. Cannot act on {msg.topic}",
+                "/controller/error",
+                f"Experiment {obj.experiment} is {obj.status}. Cannot act on {msg.topic}",
             )
 
 
