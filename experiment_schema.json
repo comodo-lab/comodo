@@ -14,9 +14,10 @@
                 "name": { "type": "string" },
                 "p": { "type": "number" },
                 "i": { "type": "number" },
-                "d": { "type": "number" }
+                "d": { "type": "number" },
+                "tolerance": { "type": "number" }
               },
-              "required": ["name", "p", "i", "d"]
+              "required": ["name", "p", "i", "d", "tolerance"]
             }
           },
           "resolution": { "type": "number" }
