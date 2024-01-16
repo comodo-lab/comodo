@@ -3,7 +3,7 @@ from json import dumps
 
 class cstate:
     def __init__(self):
-        self.experiment = None
+        self.experiment_uid = None
         self.status = "idle"
         self.adjusting = {
             "T": 0,
@@ -16,7 +16,7 @@ class cstate:
 
     def heartbeat(self):
         heartbeat = {
-            "experiment": self.experiment,
+            "experiment": self.experiment_uid,
             "status": self.status,
             "adjusting": self.adjusting,
         }
