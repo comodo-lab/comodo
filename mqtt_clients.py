@@ -1,5 +1,4 @@
 import paho.mqtt.client as mqtt
-import time as t
 import json
 import textwrap
 
