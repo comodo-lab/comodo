@@ -2,8 +2,9 @@ import json
 import pytest
 import time as t
 
-from mqtt_clients import *
 from controller_state import *
+from mqtt_clients import *
+from on_ui_message import *
 
 
 @pytest.fixture
