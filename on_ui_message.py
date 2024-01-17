@@ -5,6 +5,23 @@ from validation import validate_experiment_soft
 
 
 def on_ui_message(client, msg, obj):
+    """
+    Handles the UI messages received by the controller.
+    It expects two types of messages (json formatted):
+    - /ui/start: to start an experiment
+        The message should comply with the experiment schema.
+    - /ui/stop: to stop the current experiment
+        The message should have a uid matching the current experiment's.
+
+    Args:
+        client: The ui MQTT client.
+        msg: The MQTT message.
+        obj: The controller state object.
+
+    Returns:
+        None
+    """
+
     experiment = msg.payload.decode("utf-8")
     try:
         experiment = json.loads(experiment)
