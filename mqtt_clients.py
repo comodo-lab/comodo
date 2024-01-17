@@ -20,6 +20,8 @@ class MQTTClient:
         topics="/#",
         broker_address="localhost",
         port=1883,
+        user=None,
+        password=None,
         start_loop=True,
         obj=None,
     ):
@@ -28,6 +30,8 @@ class MQTTClient:
         self.client.on_message = lambda client, userdata, msg: callback(
             client, msg, self.obj
         )
+        if user is not None:
+            self.client.username_pw_set(username=user, password=password)
         self.client.connect(broker_address, port, 60)
         self.client.subscribe(topics, 0)
         if start_loop:
