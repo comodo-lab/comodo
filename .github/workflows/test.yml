@@ -23,6 +23,11 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - name: Install mosquitto
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mosquitto
+
       - name: Install and configure poetry
         run: |
           python -m pip install poetry
@@ -40,4 +45,6 @@ jobs:
 
       - name: Run tests
         run: |
+          mosquitto -d
+          sleep 3
           poetry run python -m pytest tests --verbose -k "not _skip_ci"
