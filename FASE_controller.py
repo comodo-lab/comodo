@@ -2,6 +2,7 @@ import time as t
 from controller_state import *
 from mqtt_clients import *
 from on_ui_message import *
+from on_controller_message import *
 
 # Initialize controller state
 state = cstate()
@@ -21,8 +22,8 @@ ui = MQTTClient(
 )
 controller = MQTTClient(
     id="controller",
-    callback=on_client_message,
-    topics="#",
+    callback=on_controller_message,
+    topics="controller/#",
     obj=state,
     broker_address=broker_address,
     user=user,
