@@ -1,6 +1,3 @@
 [submodule "apperture"]
 	path = apperture
 	url = git@github.com:UoMResearchIT/apperture.git
-[submodule "FASE-ui"]
-	path = FASE-ui
-	url = git@github.com:UoM-RIT-FASE/FASE-ui.git
