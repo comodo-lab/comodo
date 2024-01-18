@@ -1,3 +1,4 @@
+from typing import Any, Callable, Optional
 import paho.mqtt.client as mqtt
 import time as t
 from datetime import datetime
@@ -37,32 +38,36 @@ def on_client_message(client, msg, obj):
 
 class MQTTClient:
     """
-    A class representing an MQTT client.
-
-    Args:
-        id (str, optional): The client ID. Defaults to "client".
-        callback (function, optional): The callback function to be called when a message is received. Defaults to on_client_message.
-        topics (str, optional): The MQTT topics to subscribe to. Defaults to "/#".
-        broker_address (str, optional): The address of the MQTT broker. Defaults to "localhost".
-        port (int, optional): The port number of the MQTT broker. Defaults to 1883.
-        user (str, optional): The username for authentication. Defaults to None.
-        password (str, optional): The password for authentication. Defaults to None.
-        start_loop (bool, optional): Whether to start the MQTT client loop. Defaults to True.
-        obj (object, optional): An additional object to be passed to the callback function. Defaults to None.
+    A class to simplify the process of creating and setting up MQTT clients.
+    It encapsulates the MQTT client configuration and provides a simple interface for interacting with an MQTT broker.
     """
 
     def __init__(
         self,
-        id="client",
-        callback=on_client_message,
-        topics="/#",
-        broker_address="localhost",
-        port=1883,
-        user=None,
-        password=None,
-        start_loop=True,
-        obj=None,
+        id: str = "client",
+        callback: Callable = on_client_message,
+        topics: str = "/#",
+        broker_address: str = "localhost",
+        port: int = 1883,
+        user: Optional[str] = None,
+        password: Optional[str] = None,
+        start_loop: bool = True,
+        obj: Optional[Any] = None,
     ):
+        """
+        Initialization of MQTTClient objects.
+
+        Args:
+        id: The client ID. Defaults to "client".
+        callback: The callback function to be called when a message is received. Defaults to on_client_message.
+        topics: The MQTT topics to subscribe to. Defaults to "/#".
+        broker_address: The address of the MQTT broker. Defaults to "localhost".
+        port: The port number of the MQTT broker. Defaults to 1883.
+        user: The username for authentication. Defaults to None.
+        password: The password for authentication. Defaults to None.
+        start_loop: Whether to start the MQTT client loop. Defaults to True.
+        obj: An additional object to be passed to the callback function. This would normally be the controller state object. Defaults to None.
+        """
         self.id = id
         self.client = mqtt.Client(id)
         self.obj = obj
