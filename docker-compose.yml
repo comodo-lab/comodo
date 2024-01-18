@@ -2,6 +2,7 @@ services:
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: apperture-cloudflared
+    restart: unless-stopped
     environment:
       - TUNNEL_TOKEN=eyJhIjoiZTk3ZjM1OGM3NTc5ZjdkYjJlNDVmNTI2OTE1MzgxMzYiLCJ0IjoiZTllODc5ZGQtMDk5YS00NTE1LWE1ZjYtYmZlNTgyZDc5NzcyIiwicyI6IllXSmlOV0psTmpRdE5tTmxOeTAwTXpZeUxXSmpOVFV0TXpRNVptSmpOak15WVdWaSJ9
     command:
@@ -12,23 +13,19 @@ services:
   rabbitmq:
     image: docker.io/bitnami/rabbitmq:3.12
     container_name: fase-rabbitmq
+    restart: unless-stopped
     ports:
       - '1883:1883'
-      - '4369:4369'
-      - '5551:5551'
-      - '5552:5552'
-      - '5672:5672'
-      - '25672:25672'
-      - '15672:15672'
     environment:
       - RABBITMQ_SECURE_PASSWORD=yes
       - RABBITMQ_USERNAME=adminrabbit
       - RABBITMQ_PASSWORD=adminrabbit
       - RABBITMQ_ENABLE_LDAP=yes
-      - RABBITMQ_LDAP_SERVERS=apperture-lldap
+      - RABBITMQ_LDAP_SERVERS=apperture-ldap
       - RABBITMQ_LDAP_SERVERS_PORT=3890
       - RABBITMQ_LDAP_USER_DN_PATTERN=uid=$${username},ou=people,dc=example,dc=com
       - RABBITMQ_PLUGINS=rabbitmq_mqtt,rabbitmq_management,rabbitmq_auth_backend_ldap
+      - RABBITMQ_LOGS=-
     volumes:
       - rabbitmq_data:/bitnami/rabbitmq/mnesia
       - ./config/rabbit/advanced.config:/bitnami/rabbitmq/conf/advanced.config:ro
@@ -36,13 +33,14 @@ services:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 10s
       timeout: 5s
-      retries: 5     
+      retries: 5
     networks:
       apperture:
 
   influxdb:
     image: influxdb:2.0
     container_name: fase-influx
+    restart: unless-stopped
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -54,14 +52,15 @@ services:
       - DOCKER_INFLUXDB_INIT_BUCKET=defualt
       - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=influxinfluxinfluxinflux
     volumes: 
-      - influx_data:/var/lib/influxdb2 \
-      - influx_config:/etc/influxdb2 \
+      - influx_data:/var/lib/influxdb2 
+      - influx_config:/etc/influxdb2 
     networks:
       apperture:
       
   telegraf:
-    image: telegraf:1.25-alpine
+    image: telegraf:latest
     container_name: fase-telegraf
+    restart: unless-stopped
     depends_on:
       - influxdb
     volumes:
@@ -72,17 +71,29 @@ services:
   grafana:
     image: grafana/grafana
     container_name: fase-grafana
+    restart: unless-stopped
+    environment:
+      - GF_INSTALL_PLUGINS=
     volumes:
       - grafana-storage:/var/lib/grafana
+      - ./config/grafana/ldap.toml:/etc/grafana/ldap.toml
     networks:
       apperture:
 
-
+  ui:
+    build:
+      context: FASE-ui
+      dockerfile: Dockerfile
+    container_name: fase-ui
+    restart: unless-stopped  
+    networks:
+      apperture:
+        
 networks:
   apperture:
     name: apperture_apperture
     external: true
-    
+
 volumes:
   rabbitmq_data:
     driver: local
