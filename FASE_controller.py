@@ -30,7 +30,15 @@ controller = MQTTClient(
     password=password,
 )
 
-heartbeat = MQTTClient("heartbeat", on_client_message, topics="heartbeat/#")
+heartbeat = MQTTClient(
+    id="heartbeat",
+    callback=on_client_message,
+    topics=["heartbeat/#", "+/heartbeat/#", "+/+/heartbeat/#", "+/+/+/heartbeat/#"],
+    obj=state,
+    broker_address=broker_address,
+    user=user,
+    password=password,
+)
 measurement = MQTTClient("measurement", on_client_message, topics="measurement/#")
 
 while True:

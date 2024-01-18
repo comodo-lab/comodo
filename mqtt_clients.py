@@ -1,4 +1,4 @@
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, List, Union
 import paho.mqtt.client as mqtt
 import time as t
 from datetime import datetime
@@ -46,7 +46,7 @@ class MQTTClient:
         self,
         id: str = "client",
         callback: Callable = on_client_message,
-        topics: str = "#",
+        topics: Union[str, List[str]] = "#",
         broker_address: str = "localhost",
         port: int = 1883,
         user: Optional[str] = None,
@@ -77,7 +77,11 @@ class MQTTClient:
         if user is not None:
             self.client.username_pw_set(username=user, password=password)
         self.client.connect(broker_address, port, 60)
-        self.client.subscribe(topics, 0)
+        if isinstance(topics, str):
+            self.client.subscribe(topics, 0)
+        else:
+            for topic in topics:
+                self.client.subscribe(topic, 0)
         if start_loop:
             self.client.loop_start()
 
