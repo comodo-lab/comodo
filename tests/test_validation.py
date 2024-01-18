@@ -66,12 +66,16 @@ def test_invalid_json(valid_experiment_path, valid_schema_path, invalid_json, ca
         experiment = validate_experiment_hard(invalid_json, valid_schema_path)
     except ValidationException as e:
         assert f"Error decoding JSON: {invalid_json}" in e.args[0]
+    else:
+        assert False, "Should raise error if invalid experiment JSON"
     finally:
         assert "experiment" not in locals()
     try:
         experiment = validate_experiment_hard(valid_experiment_path, invalid_json)
     except ValidationException as e:
         assert f"Error decoding JSON: {invalid_json}" in e.args[0]
+    else:
+        assert False, "Should raise error if invalid schema JSON"
     finally:
         assert "experiment" not in locals()
 
@@ -91,6 +95,8 @@ def test_invalid_experiment_content(valid_schema_path, invalid_experiments, caps
                 )
             except ValidationException as e:
                 assert f"Validation errors:" in e.args[0]
+            else:
+                assert False, "Should raise error on invalid experiment config"
             finally:
                 assert "experiment" not in locals()
 
@@ -109,6 +115,8 @@ def test_validate_experiment(valid_schema_path, invalid_experiments, capsys):
             except SystemExit:
                 captured = capsys.readouterr()
                 assert f"Validation errors:" in captured.out
+            else:
+                assert False, "Should raise error on invalid experiment config"
             finally:
                 assert "experiment" not in locals()
 
