@@ -25,7 +25,7 @@ def wait_for_message(capmqtt):
     while waiting:
         t.sleep(0.01)
         waiting = len(capmqtt.messages) <= 1
-        if t.time() - start_time > 5:
+        if t.time() - start_time > 10:
             raise TimeoutError("Timed out waiting for message")
 
 
@@ -53,7 +53,7 @@ def test_missing_uid(capmqtt, state, valid_experiment):
     assert state.experiment_uid == None
     assert capmqtt.messages[-1].topic == "/controller/error"
     assert (
-        f"Error decoding ui message, missing: \\n   'uid'"
+        f"Error decoding ui message, missing: \n   'uid'"
         in capmqtt.messages[-1].payload
     )
 

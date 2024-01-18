@@ -4,38 +4,35 @@ from datetime import datetime
 from json import dumps, loads
 
 
-def print_message(client, msg, type="time"):
+def print_message(client, msg, timestamped=False):
     """
-    Print the message received from the MQTT client.
+    Print the message received from the MQTT client to the console in the format:
+    <client id>: <topic>: <message>
+    or if timestamped=True:
+    <time> - <client id>: <topic>: <message>
 
     Parameters:
     - client: The MQTT client object.
     - msg: The message received from the MQTT client.
-    - type: The type of message to print. Can be "time", "msg", or "raw". Default is "time".
+    - timestamped: If True, includes the timestamp in the printed message. Defaults to False.
 
     Returns:
     None
     """
     m = msg.payload.decode("utf-8")
-    if type != "raw":
-        try:
-            m = loads(m)
-            if type == "time":
-                m = f"{m['timestamp'].split(' ')[1]} {dumps(m['msg'])}"
-            elif type == "msg":
-                m = m["msg"]
-        except:
-            pass
-    print(f"{client.id}: " + f"{msg.topic}: {m}")
+    t = ""
+    if timestamped:
+        t = f"{datetime.fromtimestamp(msg.timestamp).strftime('%Y-%m-%d %H:%M:%S')} - "
+    print(f"{t}{client.id}: " + f"{msg.topic}: {m}")
 
 
 def on_client_message(client, msg, obj):
     """
     Default callback when a message is received from an MQTT client.
     The message is printed to the console in the format:
-    <client id>: <topic>: <time> <message>
+    <client id>: <topic>: <message>
     """
-    print_message(client, msg, type="time")
+    print_message(client, msg)
 
 
 class MQTTClient:
@@ -81,25 +78,7 @@ class MQTTClient:
 
     def publish(self, topic, msg):
         """
-        Publishes a message to the specified MQTT topic.
-        The message is timestamped before being published.
-        The published message is json formatted and has the structure:
-        { "timestamp": <timestamp>, "msg": <msg> }
-
-        Args:
-            topic (str): The MQTT topic to publish the message to.
-            msg (str): The message to be published.
-
-        Returns:
-            None
+        Provides a publish method for the MQTTClient object,
+        which calls the publish method of the underlying MQTT client.
         """
-        timestamp = datetime.fromtimestamp(t.time()).strftime("%Y-%m-%d %H:%M:%S")
-        try:
-            msg = loads(msg)
-        except:
-            pass
-        payload = {
-            "timestamp": timestamp,
-            "msg": msg,
-        }
-        self.client.publish(topic, dumps(payload))
+        self.client.publish(topic, msg)
