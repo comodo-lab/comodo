@@ -46,7 +46,7 @@ class MQTTClient:
         self,
         id: str = "client",
         callback: Callable = on_client_message,
-        topics: str = "/#",
+        topics: str = "#",
         broker_address: str = "localhost",
         port: int = 1883,
         user: Optional[str] = None,
@@ -60,7 +60,7 @@ class MQTTClient:
         Args:
         id: The client ID. Defaults to "client".
         callback: The callback function to be called when a message is received. Defaults to on_client_message.
-        topics: The MQTT topics to subscribe to. Defaults to "/#".
+        topics: The MQTT topics to subscribe to. Defaults to "#".
         broker_address: The address of the MQTT broker. Defaults to "localhost".
         port: The port number of the MQTT broker. Defaults to 1883.
         user: The username for authentication. Defaults to None.
