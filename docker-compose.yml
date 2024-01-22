@@ -73,7 +73,9 @@ services:
     container_name: fase-grafana
     restart: unless-stopped
     environment:
-      - GF_INSTALL_PLUGINS=
+      - GF_AUTH_LDAP_ENABLED=true
+      - GF_AUTH_LDAP_CONFIG_FILE=/etc/grafana/ldap.toml
+      - GF_AUTH_LDAP_ALLOW_SIGN_UP=true
     volumes:
       - grafana-storage:/var/lib/grafana
       - ./config/grafana/ldap.toml:/etc/grafana/ldap.toml
