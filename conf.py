@@ -12,7 +12,7 @@ def make_plot(df):
 
     # Subplot 1: temperature on the main y-axis, pressure on the secondary
     df.plot(x='time', y='temperature', ax=axes[0])
-    df['pressure'].plot(secondary_y=True, ax=axes[0])
+    df['pressure'].plot(x='time', secondary_y=True, ax=axes[0])
     axes[0].set_ylabel('temperature')
     axes[0].right_ax.set_ylabel('pressure')
     lines = axes[0].get_lines() + axes[0].right_ax.get_lines()
@@ -20,7 +20,7 @@ def make_plot(df):
     
     # Subplot 2: displacement 1 on the main y-axis, displacement 2 on the secondary
     df.plot(x='time', y='displacement 1', ax=axes[1], color='red')
-    df['displacement 2'].plot(secondary_y=True, ax=axes[1], color='green')
+    df['displacement 2'].plot(x='time', secondary_y=True, ax=axes[1], color='green')
     axes[1].set_ylabel('displacement 1')
     axes[1].right_ax.set_ylabel('displacement 2')
     lines = axes[1].get_lines() + axes[1].right_ax.get_lines()
