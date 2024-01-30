@@ -60,7 +60,6 @@ with st.container():
 # -----------------------------------------------------------------------------
 # Site layout
 
-st.header("Welecome to the config panel")
 
 col4, col5 = st.columns(2)
 with st.container():
