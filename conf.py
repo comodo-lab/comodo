@@ -88,13 +88,15 @@ else:
         input_file = json.load(template) 
 
 # -----------------------------------------------------------------------------
-# Create dataframe
+# Create dataframes
 
-edited_df = \
-    st.session_state['dataframe_container'].data_editor(
+edited_experiment_df = \
+    st.session_state['experiment_dataframe_container'].data_editor(
         pd.DataFrame(input_file["experiment"]),
         hide_index=True,
-        num_rows="dynamic"
+        num_rows="dynamic",
+        use_container_width=True
+    )
     )
 
 # -----------------------------------------------------------------------------
