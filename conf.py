@@ -109,7 +109,7 @@ edited_config_df = \
 # -----------------------------------------------------------------------------
 # Create plots
 
-make_plot(edited_df)
+make_plot(edited_experiment_df)
 
 # -----------------------------------------------------------------------------
 # Create download button
