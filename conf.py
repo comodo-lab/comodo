@@ -164,6 +164,6 @@ if 'mqtt_client' not in st.session_state:
     client.connect("fase-rabbitmq", 1883, 60)
 
     st.session_state['mqtt_client'] = client
-    st.session_state['mqtt_client'].subscribe("/#", 0)
+    st.session_state['mqtt_client'].subscribe("controller/#", 0)
         
 st.session_state['mqtt_client'].loop_forever()
