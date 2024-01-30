@@ -78,13 +78,25 @@ with st.container(border=True):
 col4, col5 = st.columns(2)
 with st.container():
     with col4:
-        uploaded_file = st.file_uploader("Choose a file")
-        if 'dataframe_container' not in st.session_state:
-            st.session_state['dataframe_container'] = st.empty()
-        if 'download_container' not in st.session_state:
-            st.session_state['download_container'] = st.empty()
-        if 'send_container' not in st.session_state:
-            st.session_state['send_container'] = st.button("Send config", on_click=send_config)
+        with st.container(border=True):
+            st.subheader("File Controls", divider='grey')
+            uploaded_file = st.file_uploader("Upload config file")
+            if 'download_container' not in st.session_state:
+                st.session_state['download_container'] = st.empty()
+            if 'send_container' not in st.session_state:
+                st.session_state['send_container'] = st.button("Send config",
+                                                               on_click=send_config,
+                                                               use_container_width=True,
+                                                               type='primary',
+                                                               disabled=False
+                                                               )
+        with st.container(border=True):
+            st.subheader("Experiment Profile Editor", divider='grey')
+            if 'experiment_dataframe_container' not in st.session_state:
+                st.session_state['experiment_dataframe_container'] = st.empty()
+            st.subheader("Experiment Configuration Editor", divider='grey')
+            if 'config_dataframe_container' not in st.session_state:
+                st.session_state['config_dataframe_container'] = st.empty()
     with col5:
         if 'plot_container' not in st.session_state:
             st.session_state['plot_container'] = st.empty()
