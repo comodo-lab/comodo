@@ -114,17 +114,22 @@ make_plot(edited_df)
 # -----------------------------------------------------------------------------
 # Create download button
     
-output_data = input_file
-experiment_json = edited_df.transpose().to_json()
-output_data['experiment'] = json.loads(experiment_json)
+experiment_json = edited_experiment_df.to_json(orient='records')
+config_json = edited_config_df.to_json(orient='records')
 
+output_data = input_file
+output_data['experiment'] = json.loads(experiment_json)
+output_data['config']['sensors'] = json.loads(config_json)
+
+st.session_state['output_data'] = output_data
 st.session_state['download_container'].download_button(
     label="Download config",
     data=json.dumps(output_data).encode('utf-8'),
     file_name='config.json',
     mime='application/json',
+    use_container_width=True,
+    type='primary',
 )
-    
 # -----------------------------------------------------------------------------
 # MQTT
 
