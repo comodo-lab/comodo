@@ -98,10 +98,20 @@ with st.container():
             if 'config_dataframe_container' not in st.session_state:
                 st.session_state['config_dataframe_container'] = st.empty()
     with col5:
-        if 'plot_container' not in st.session_state:
-            st.session_state['plot_container'] = st.empty()
-        if 'status_container' not in st.session_state:
-            st.session_state['status_container'] = st.status("Awaiting config", expanded=False, state="complete")
+        with st.container(border=True):
+            st.subheader("Experiment controls", divider='grey')
+            with st.form("Stop experiment"):
+                uid = st.text_input("Enter experient ID to stop experiment")
+                submitted = st.form_submit_button("Stop",
+                                                  use_container_width=True,
+                                                  type='primary')
+                if submitted:
+                    payload = '{"uid":"' + uid + '"}'
+                    st.session_state['mqtt_client'].publish(f"ui/stop", payload.encode('utf-8'))
+        with st.container(border=True):
+            st.subheader("Experiment Profile Plot", divider='grey')
+            if 'plot_container' not in st.session_state:
+                st.session_state['plot_container'] = st.empty()
 
 # -----------------------------------------------------------------------------
 # Read appropriate input file
