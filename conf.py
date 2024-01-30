@@ -161,7 +161,7 @@ def on_message(client, obj, msg):
 if 'mqtt_client' not in st.session_state:
     client = mqtt.Client()    
     client.on_message = on_message
-    client.connect("localhost", 1883, 60)
+    client.connect("fase-rabbitmq", 1883, 60)
 
     st.session_state['mqtt_client'] = client
     st.session_state['mqtt_client'].subscribe("/#", 0)
