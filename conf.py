@@ -48,6 +48,8 @@ st.set_page_config(page_title="Experiment Config",
                    initial_sidebar_state="expanded",
                    menu_items=None)
 
+if 'await_uuid' not in st.session_state:
+    st.session_state['await_uuid'] = None
 
 if 'output_data' not in st.session_state:
     st.session_state['output_data'] = None
