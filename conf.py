@@ -32,7 +32,11 @@ def make_plot(df):
 def send_config():
     ID = str(uuid.uuid4())[:8]
     st.session_state['await_uuid'] = ID
-    st.session_state['mqtt_client'].publish(f"/experiment/config/{ID}/upload", json.dumps(output_data).encode('utf-8'))
+
+    send_data = st.session_state['output_data']
+    send_data['uid'] = ID
+
+    st.session_state['mqtt_client'].publish(f"ui/start", json.dumps(send_data).encode('utf-8'))
     st.session_state['status_container'].update(label="Sending config", expanded=True, state="running")
 
 # -----------------------------------------------------------------------------
