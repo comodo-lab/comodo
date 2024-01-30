@@ -97,6 +97,13 @@ edited_experiment_df = \
         num_rows="dynamic",
         use_container_width=True
     )
+
+edited_config_df = \
+    st.session_state['config_dataframe_container'].data_editor(
+        pd.DataFrame(input_file["config"]["sensors"]),
+        hide_index=True,
+        num_rows="dynamic",
+        use_container_width=True
     )
 
 # -----------------------------------------------------------------------------
