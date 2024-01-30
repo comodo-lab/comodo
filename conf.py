@@ -45,17 +45,25 @@ st.set_page_config(page_title="Experiment Config",
                    menu_items=None)
 
 
-col1, col2, col3 = st.columns(3)
-with st.container():
+if 'output_data' not in st.session_state:
+    st.session_state['output_data'] = None
+    
+with st.container(border=True):
+    st.title("Experiment Status")
+    col1, col2, col3 = st.columns(3)
     with col1:
-        if '/status/connection' not in st.session_state:
-            st.session_state['/status/connection'] = st.metric("Connection Status", "Not connected!")
+        if 'connection_status' not in st.session_state:
+            st.session_state['connection_status'] = st.metric("Control system status", "Not connected!")
     with col2:
-        if '/status/experiment' not in st.session_state:
-            st.session_state['/status/experiment'] = st.metric("Experiment Status", "No data!")
+        if 'experiment_status' not in st.session_state:
+            st.session_state['experiment_status'] = st.metric("Experiment ID", "No data!")
     with col3:
-        if '/status/control' not in st.session_state:
-            st.session_state['/status/control'] = st.metric("Control mode", "No data!")
+        if 'control_status' not in st.session_state:
+            st.session_state['control_status'] = st.metric("Adjusting", "No data!")
+    if 'status_container' not in st.session_state:
+        st.session_state['status_container'] = st.status("Messages will appear here",
+                                                         expanded=False,
+                                                         state="complete")
 
 # -----------------------------------------------------------------------------
 # Site layout
