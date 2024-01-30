@@ -129,17 +129,34 @@ st.session_state['download_container'].download_button(
 # MQTT
 
 def on_message(client, obj, msg):
-    if (len(msg.topic.split("/")) == 4):
-        if (msg.topic.split("/")[3] == st.session_state['await_uuid']):
-            if (msg.topic.split("/")[4] == "status") and (msg.payload.decode('utf-8') == "success"):
-                st.session_state['status_container'].update(label="Setting complete!", state="complete", expanded=False)
-            else:
-                st.session_state['status_container'].write(f"{msg.topic}: {msg.payload.decode('utf-8')}")
-    else:
-        if (msg.topic in st.session_state):
-            st.session_state[msg.topic].metric(label=msg.topic,
-                                               value=msg.payload.decode('utf-8'),
-                                               delta=datetime.now().strftime("%H:%M:%S"))
+    if (msg.topic == "controller/heartbeat"):
+        payload = json.loads(msg.payload.decode('utf-8'))
+
+        all_modes = ["Temperature", "Pressure", "Displacement 1", "Displacement 2"]
+        current_modes = [key for key, value in payload["adjusting"].items() if value]
+        adjusting_str = ', '.join(current_modes) if current_modes else "--"
+
+        now = datetime.now().strftime("%H:%M:%S")
+        st.session_state['connection_status'].metric(label="Control system status",
+                                                     value=str(payload["status"]),
+                                                     delta=now)
+        st.session_state['experiment_status'].metric(label="Experiment ID",
+                                                     value=payload["experiment"],
+                                                     delta=now)
+        st.session_state['control_status'].metric(label="Adjusting",
+                                                  value=adjusting_str,
+                                                  delta=now)
+    elif (msg.topic == "controller/validator/passed"):
+        payload = json.loads(msg.payload.decode('utf-8'))
+        if (payload["uid"] == st.session_state['await_uuid']):
+            st.session_state['status_container'].update(label="Setting complete!", state="complete", expanded=False)
+    elif (msg.topic == "controller/validator/failed"):
+        payload = json.loads(msg.payload.decode('utf-8'))
+        if (payload["uid"] == st.session_state['await_uuid']):
+            error_str = json.loads(msg.payload.decode('utf-8'))['error']
+            st.session_state['status_container'].text(error_str)
+    elif (msg.topic == "controller/error"):
+        st.session_state['status_container'].text(msg.payload.decode('utf-8'))
 
 if 'mqtt_client' not in st.session_state:
     client = mqtt.Client()    
