@@ -67,9 +67,11 @@ def test_valid_start(capmqtt, state, valid_experiment):
     wait_for_message(capmqtt)
 
     assert state.experiment_uid == "123"
-    assert state.status == "starting"
-    assert capmqtt.messages[-1].topic == "controller/validator/passed"
-    assert '{"uid": "123", "valid": true}' in capmqtt.messages[-1].payload
+    assert state.status == "validating"
+    assert capmqtt.messages[-2].topic == "controller/validator/passed"
+    assert '{"uid": "123", "valid": true}' in capmqtt.messages[-2].payload
+    assert capmqtt.messages[-1].topic == "controller/start"
+    assert '{"uid": "123"}' in capmqtt.messages[-1].payload
 
 
 def test_start_invalid_experiment(capmqtt, state):

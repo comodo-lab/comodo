@@ -54,7 +54,7 @@ def on_ui_message(client, msg, obj):
                 }
                 client.publish("controller/validator/passed", json.dumps(m))
                 obj.exp_config = exp_config
-                obj.status = "starting"
+                client.publish("controller/start", json.dumps({"uid": m["uid"]}))
             else:
                 m = {
                     "uid": obj.experiment_uid,
