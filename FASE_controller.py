@@ -8,9 +8,6 @@ from on_controller_message import *
 state = cstate()
 
 # Load MQTT clients
-broker_address = "172.28.143.181"
-user = "controller"
-password = "7C6jX9m4AnYfMAd"
 ui = MQTTClient(
     id="ui",
     callback=on_ui_message,
@@ -22,7 +19,7 @@ ui = MQTTClient(
 )
 controller = MQTTClient(
     id="controller",
-    callback=on_controller_message,
+    callback=c_idle,
     topics="controller/#",
     obj=state,
     broker_address=broker_address,
@@ -42,7 +39,7 @@ heartbeat = MQTTClient(
 measurement = MQTTClient("measurement", on_client_message, topics="measurement/#")
 
 while True:
-    controller.publish("controller/heartbeat", f"{state}")
+    pub.publish("heartbeat/controller", f"{state}")
     t.sleep(1)
 
 print(f"Exiting...")

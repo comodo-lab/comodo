@@ -1,8 +1,15 @@
 from typing import Any, Callable, Optional, List, Union
 import paho.mqtt.client as mqtt
-import time as t
 from datetime import datetime
-from json import dumps, loads
+import json
+
+# Broker setup
+broker_address = "localhost"
+user = None
+password = None
+# broker_address = "172.28.143.181"
+# user = "controller"
+# password = "7C6jX9m4AnYfMAd"
 
 
 def print_message(client, msg, timestamped=False):
@@ -71,15 +78,13 @@ class MQTTClient:
         self.id = id
         self.client = mqtt.Client(id)
         self.obj = obj
-        self.client.on_message = lambda client, userdata, msg: callback(
-            self, msg, self.obj
-        )
+        self.callback = callback
         if user is not None:
             self.client.username_pw_set(username=user, password=password)
         self.client.connect(broker_address, port, 60)
         if isinstance(topics, str):
             self.client.subscribe(topics, 0)
-        else:
+        elif isinstance(topics, List[str]):
             for topic in topics:
                 self.client.subscribe(topic, 0)
         if start_loop:
@@ -91,3 +96,40 @@ class MQTTClient:
         which calls the publish method of the underlying MQTT client.
         """
         self.client.publish(topic, msg)
+
+    @property
+    def callback(self):
+        return self._callback
+
+    @callback.setter
+    def callback(self, callback):
+        """
+        Sets the callback function for the MQTT client.
+        The controller client uses this to reflect its different states.
+        """
+        self._callback = callback
+        if callback is not None:
+            self.client.on_message = lambda client, userdata, msg: callback(
+                self, msg, self.obj
+            )
+
+
+def load_message(msg):
+    """
+    Decodes and loads the message received from the MQTT client as a JSON object.
+    Exceptions need to be caught when calling this function.
+    """
+    return json.loads(msg.payload.decode("utf-8"))
+
+
+"""
+MQTT client with the sole task of publishing messages.
+Using pub to send messages prevents issues with clients being otherwise engaged when trying to publish messages.
+"""
+pub = MQTTClient(
+    id="publisher",
+    callback=None,
+    broker_address=broker_address,
+    user=user,
+    password=password,
+)

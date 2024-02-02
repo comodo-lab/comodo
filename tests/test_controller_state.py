@@ -1,7 +1,11 @@
-import json
 from controller_state import *
 import pytest
 from unittest.mock import mock_open, patch
+
+
+@pytest.fixture
+def state():
+    return cstate()
 
 
 def test_cstate_initialization():
@@ -14,8 +18,7 @@ def test_cstate_initialization():
     assert state.exp_config == None
 
 
-def test_cstate_heartbeat():
-    state = cstate()
+def test_cstate_heartbeat(state):
     assert state.heartbeat() == {
         "experiment": None,
         "status": "idle",
@@ -23,14 +26,12 @@ def test_cstate_heartbeat():
     }
 
 
-def test_can_set_experiment_uid():
-    state = cstate()
+def test_can_set_experiment_uid(state):
     state.experiment_uid = 123
     assert state.experiment_uid == 123
 
 
-def test_str():
-    state = cstate()
+def test_str(state):
     state.experiment_uid = 123
     assert (
         str(state)
@@ -38,14 +39,12 @@ def test_str():
     )
 
 
-def test_set_valid_status():
-    state = cstate()
+def test_set_valid_status(state):
     state.status = "running"
     assert state.status == "running"
 
 
-def test_status_invalid():
-    state = cstate()
+def test_status_invalid(state):
     try:
         state.status = "invalid_status"
     except ValueError as e:
@@ -54,14 +53,12 @@ def test_status_invalid():
         assert False, "Should not let you set invalid status"
 
 
-def test_set_valid_adjusting_dict():
-    state = cstate()
+def test_set_valid_adjusting_dict(state):
     state.adjusting = {"T": 1, "P": 0, "D1": 0, "D2": 1}
     assert state.adjusting == {"T": 1, "P": 0, "D1": 0, "D2": 1}
 
 
-def test_cstate_set_invalid_adjusting_dict():
-    state = cstate()
+def test_cstate_set_invalid_adjusting_dict(state):
     try:
         state.adjusting = {"T": 1, "P": 0, "D1": 0, "D2": 1, "X": 1}
     except ValueError as e:
