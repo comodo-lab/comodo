@@ -3,6 +3,8 @@ from controller_state import *
 from mqtt_clients import *
 from on_ui_message import *
 from on_controller_message import *
+from on_heartbeat_message import *
+
 
 # Initialize controller state
 state = cstate()
@@ -29,8 +31,8 @@ controller = MQTTClient(
 
 heartbeat = MQTTClient(
     id="heartbeat",
-    callback=on_client_message,
-    topics=["heartbeat/#", "+/heartbeat/#", "+/+/heartbeat/#", "+/+/+/heartbeat/#"],
+    callback=on_heartbeat_message,
+    topics="heartbeat/sensor/#",
     obj=state,
     broker_address=broker_address,
     user=user,
