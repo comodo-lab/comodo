@@ -12,7 +12,9 @@ def c_idle(client, msg, obj):
 
     # Load and decode experiment file
     try:
-        obj.exp_file = load_message(msg)["file"]
+        payload = load_message(msg)
+        obj.exp_file = payload["file"]
+        temp_uid = payload["uid"]
     except json.JSONDecodeError as e:
         wrong_json(msg, e)
         return
@@ -28,18 +30,18 @@ def c_idle(client, msg, obj):
             "uid": obj.experiment_uid,
             "valid": True,
         }
-        pub.publish("controller/validator/passed", json.dumps(m))
+        pub.publish("validator/passed", json.dumps(m))
         obj.exp_config = exp_config
         # Update state and callback of controller
         client.callback = c_starting
         pub.publish("controller/start", json.dumps({"uid": m["uid"]}))
     else:
         m = {
-            "uid": obj.experiment_uid,
+            "uid": temp_uid,
             "valid": False,
             "error": err,
         }
-        pub.publish("controller/validator/failed", json.dumps(m))
+        pub.publish("error/validator/failed", json.dumps(m))
         obj.experiment_uid = None
         obj.status = "idle"
 
@@ -56,7 +58,7 @@ def c_starting(client, msg, obj):
     obj.sensors = {"ready": False}
     # Send sensor config
     for sensor in obj.exp_config["config"]["sensors"]:
-        pub.publish(f"controller/setup/{sensor['name']}", json.dumps(sensor))
+        pub.publish(f"sensor/{sensor['name']}/setup", json.dumps(sensor))
     # Compute intermediate setpoints
     obj.setpoints = split_setpoints(
         obj.exp_config["experiment"], obj.exp_config["config"]["resolution"]
@@ -68,7 +70,7 @@ def c_starting(client, msg, obj):
         t.sleep(0.1)
         if t.time() - t0 > 10:
             pub.publish(
-                "controller/error",
+                "error/controller",
                 f"Timed out waiting for sensors. Exiting...",
             )
             client.callback = c_stopping

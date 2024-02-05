@@ -40,7 +40,7 @@ def on_ui_message(client, msg, obj):
                 json.dump(experiment, f)
             client.publish(
                 "controller/validate",
-                json.dumps({"file": exp_file}),
+                json.dumps({"uid": uid, "file": exp_file}),
             )
         else:
             incompatible_request(obj, msg)

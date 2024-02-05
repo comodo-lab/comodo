@@ -70,7 +70,7 @@ def test_wrong_json(capmqtt, state, controller_client):
         assert state.experiment_uid == None
         assert state.status == "idle"
         assert controller_client.callback == c_idle
-        assert capmqtt.messages[-1].topic == "controller/error"
+        assert capmqtt.messages[-1].topic == "error/controller"
         assert (
             "Error decoding controller/validate message, wrong JSON"
             in capmqtt.messages[-1].payload
@@ -93,7 +93,7 @@ def test_json_missing_file_key(capmqtt, state, controller_client):
         assert state.experiment_uid == None
         assert state.status == "idle"
         assert controller_client.callback == c_idle
-        assert capmqtt.messages[-1].topic == "controller/error"
+        assert capmqtt.messages[-1].topic == "error/controller"
         assert (
             "Error decoding controller/validate message, missing: \n   'file'"
             in capmqtt.messages[-1].payload
@@ -109,14 +109,14 @@ def test_missing_file(capmqtt, state, controller_client):
 
         capmqtt.publish(
             topic="controller/validate",
-            payload=json.dumps({"file": "missing_file.json"}),
+            payload=json.dumps({"uid": "123", "file": "missing_file.json"}),
         )
         wait_for_message(capmqtt)
 
         assert state.experiment_uid == None
         assert state.status == "idle"
         assert controller_client.callback == c_idle
-        assert capmqtt.messages[-1].topic == "controller/validator/failed"
+        assert capmqtt.messages[-1].topic == "error/validator/failed"
         assert "File not found" in capmqtt.messages[-1].payload
 
 
@@ -129,14 +129,14 @@ def test_valid_file(capmqtt, state, valid_experiment_path, controller_client):
 
         capmqtt.publish(
             topic="controller/validate",
-            payload=json.dumps({"file": valid_experiment_path}),
+            payload=json.dumps({"uid": "123", "file": valid_experiment_path}),
         )
         wait_for_message(capmqtt)
 
         assert state.experiment_uid == "123"
         assert state.status == "validating"
         assert controller_client.callback == mock_c_starting
-        assert capmqtt.messages[-2].topic == "controller/validator/passed"
+        assert capmqtt.messages[-2].topic == "validator/passed"
         assert '{"uid": "123", "valid": true}' in capmqtt.messages[-2].payload
         assert capmqtt.messages[-1].topic == "controller/start"
         assert '{"uid": "123"}' in capmqtt.messages[-1].payload
@@ -151,12 +151,13 @@ def test_invalid_file(capmqtt, state, invalid_experiment_path, controller_client
 
         capmqtt.publish(
             topic="controller/validate",
-            payload=json.dumps({"file": invalid_experiment_path}),
+            payload=json.dumps({"uid": "123", "file": invalid_experiment_path}),
         )
         wait_for_message(capmqtt)
 
     assert state.experiment_uid == None
     assert state.status == "idle"
     assert controller_client.callback == c_idle
-    assert capmqtt.messages[-1].topic == "controller/validator/failed"
+    assert capmqtt.messages[-1].topic == "error/validator/failed"
     assert "Validation errors" in capmqtt.messages[-1].payload
+    assert '"uid": "123"' in capmqtt.messages[-1].payload

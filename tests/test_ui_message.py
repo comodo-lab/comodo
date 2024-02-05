@@ -49,7 +49,7 @@ def test_invalid_ui_message(capmqtt, state):
     capmqtt.publish(topic="ui/start", payload="invalid")
 
     assert state.experiment_uid == None
-    assert capmqtt.messages[-1].topic == "controller/error"
+    assert capmqtt.messages[-1].topic == "error/controller"
     assert (
         f"Error decoding ui/start message, wrong JSON" in capmqtt.messages[-1].payload
     )
@@ -62,7 +62,7 @@ def test_missing_uid(capmqtt, state, valid_experiment):
     capmqtt.publish(topic="ui/start", payload=no_uid)
 
     assert state.experiment_uid == None
-    assert capmqtt.messages[-1].topic == "controller/error"
+    assert capmqtt.messages[-1].topic == "error/controller"
     assert (
         f"Error decoding ui/start message, missing: \n   'uid'"
         in capmqtt.messages[-1].payload
@@ -89,7 +89,7 @@ def test_stop_while_idle(capmqtt, state, valid_experiment):
 
     assert state.experiment_uid == None
     assert state.status == "idle"
-    assert capmqtt.messages[-1].topic == "controller/error"
+    assert capmqtt.messages[-1].topic == "error/controller"
     assert "Controller is idle. Cannot act on ui/stop" in capmqtt.messages[-1].payload
 
 
@@ -102,7 +102,7 @@ def test_start_while_not_idle(capmqtt, state, valid_experiment):
 
     assert state.experiment_uid == "456"
     assert state.status == "running"
-    assert capmqtt.messages[-1].topic == "controller/error"
+    assert capmqtt.messages[-1].topic == "error/controller"
     assert (
         "Controller is running. Cannot act on ui/start" in capmqtt.messages[-1].payload
     )
@@ -117,7 +117,7 @@ def test_stop_for_wrong_uid(capmqtt, state, valid_experiment):
 
     assert state.experiment_uid == "456"
     assert state.status == "running"
-    assert capmqtt.messages[-1].topic == "controller/error"
+    assert capmqtt.messages[-1].topic == "error/controller"
     assert (
         "Current experiment is 456. Cannot act on ui/stop for experiment 123."
         in capmqtt.messages[-1].payload
