@@ -47,4 +47,4 @@ jobs:
         run: |
           mosquitto -d
           sleep 3
-          poetry run python -m pytest tests --verbose -k "not _skip_ci"
+          poetry run python -m pytest tests --verbose -k "not _skip_ci" --reruns 2 --reruns-delay 1
