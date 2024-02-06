@@ -112,7 +112,7 @@ def test_json_missing_file_key(capmqtt, state, controller_client):
         assert capmqtt.messages[-1].topic == "error/controller"
         assert (
             "Error decoding controller/validate message, missing: \n   'file'"
-            in capmqtt.messages[-1].payload
+            in json.loads(capmqtt.messages[-1].payload)["error"]
         )
 
 

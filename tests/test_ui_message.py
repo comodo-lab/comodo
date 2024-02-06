@@ -68,7 +68,7 @@ def test_missing_uid(capmqtt, state, valid_experiment):
     assert capmqtt.messages[-1].topic == "error/controller"
     assert (
         f"Error decoding ui/start message, missing: \n   'uid'"
-        in capmqtt.messages[-1].payload
+        in json.loads(capmqtt.messages[-1].payload)["error"]
     )
 
 
