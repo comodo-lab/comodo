@@ -3,6 +3,7 @@ from controller_state import *
 from mqtt_clients import *
 from on_ui_message import *
 from on_controller_message import *
+from on_timer_message import *
 from on_heartbeat_message import *
 
 
@@ -23,6 +24,16 @@ controller = MQTTClient(
     id="controller",
     callback=c_idle,
     topics="controller/#",
+    obj=state,
+    broker_address=broker_address,
+    user=user,
+    password=password,
+)
+
+timer = MQTTClient(
+    id="timer",
+    callback=on_timer_message,
+    topics="timer/#",
     obj=state,
     broker_address=broker_address,
     user=user,

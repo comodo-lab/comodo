@@ -7,7 +7,18 @@ from validation import validate_experiment_soft
 
 
 def c_idle(client, msg, obj):
+    """
+    Callback for the controller when it is idle.
+
+    It expects a "controller/validate" message containing a JSON object with a "file" key, which contains the path to the experiment file.
+
+    The experiment file is then loaded, decoded, and validated against the experiment schema.
+
+    If the experiment is valid, the experiment id is updated and the controller state and callback are updated to "starting".
+    Otherwise, it resets to the idle state and publishes an error.
+    """
     if msg.topic != "controller/validate":
+        incompatible_request(obj, msg)
         return
 
     # Load and decode experiment file
@@ -50,32 +61,42 @@ def c_starting(client, msg, obj):
     if msg.topic != "controller/start":
         if msg.topic == "controller/stop":
             c_stopping(client, msg, obj)
-        # else:
-        #     incompatible_request(obj, msg)
+        else:
+            incompatible_request(obj, msg)
         return
 
     obj.status = "starting"
-    obj.sensors = {"ready": False}
-    # Send sensor config
-    for sensor in obj.exp_config["config"]["sensors"]:
-        pub.publish(f"sensor/{sensor['name']}/setup", json.dumps(sensor))
     # Compute intermediate setpoints
     obj.setpoints = split_setpoints(
         obj.exp_config["experiment"], obj.exp_config["config"]["resolution"]
     )
-    ### This needs to be a separate function!!
-    # Wait for sensors to be ready or timeout
-    t0 = t.time()
-    while not obj.sensors["ready"]:
-        t.sleep(0.1)
-        if t.time() - t0 > 10:
-            pub.publish(
-                "error/controller",
-                f"Timed out waiting for sensors. Exiting...",
-            )
-            client.callback = c_stopping
-            c_stopping(client, internal_stop_msg(obj.experiment_uid), obj)
-            return
+    # Create list of sensors dicts with expected config values
+    obj.sensors = {"configured": False}
+    for sensor in obj.exp_config["config"]["sensors"]:
+        obj.sensors[sensor["name"]] = {
+            "last_contact": None,
+            "config": {k: v for k, v in sensor.items() if k != "name"},
+            "status": None,
+            "setpoint": None,
+        }
+    # Update state and callback of controller
+    obj.status = "awaiting_sensors"
+    client.callback = c_ready
+    pub.publish("timer/start/sensor_setup", json.dumps({"uid": obj.experiment_uid}))
+    # Send sensor config
+    for sensor in obj.exp_config["config"]["sensors"]:
+        pub.publish(f"sensor/{sensor['name']}/setup", json.dumps(sensor))
+
+
+def c_ready(client, msg, obj):
+    if msg.topic != "controller/ready":
+        if msg.topic == "controller/stop":
+            c_stopping(client, msg, obj)
+        else:
+            incompatible_request(obj, msg)
+        return
+
+    obj.status = "ready"
     # Update experiment id and start experiment
     assign_serial_id(obj)
     # Update state and callback of controller
@@ -84,11 +105,17 @@ def c_starting(client, msg, obj):
 
 
 def c_running(client, msg, obj):
-    if msg.topic == "controller/run":
-        obj.status = "running"
-        ### Send setpoints placeholder
-        pass
-        ###
+    if msg.topic != "controller/run":
+        if msg.topic == "controller/stop":
+            c_stopping(client, msg, obj)
+        else:
+            incompatible_request(obj, msg)
+        return
+
+    obj.status = "running"
+    ### Send setpoints placeholder
+    pass
+    ###
 
 
 def c_stopping(client, msg, obj):

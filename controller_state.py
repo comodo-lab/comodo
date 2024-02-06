@@ -11,6 +11,7 @@ class cstate:
         "idle",
         "validating",
         "starting",
+        "awaiting_sensors",
         "running",
         "stopping",
         "error",
