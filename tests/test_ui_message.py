@@ -16,6 +16,9 @@ def state():
 def controller_client(state):
     # Setup before test
     uic = MQTTClient("ui", on_ui_message, "ui/#", obj=state)
+    # Wait until the client is connected
+    while not uic.client.is_connected():
+        t.sleep(0.01)
 
     yield uic  # Testing happens here
 

@@ -17,8 +17,11 @@ def state():
 def controller_client(state):
     # Setup before test
     cc = MQTTClient("controller", c_idle, "controller/#", obj=state)
+    # Wait until the client is connected
+    while not cc.client.is_connected():
+        t.sleep(0.01)
 
-    yield cc  # To use cc in the test, the test function must include the fixture in the definition, as in `def test_something(controller_client):`
+    yield cc  # Testing happens here.
 
     # Teardown after test
     cc.client.disconnect()
@@ -34,13 +37,6 @@ def invalid_experiment_path():
     return "tests/file_fixtures/invalid_experiment.json"
 
 
-@pytest.fixture
-def valid_experiment():
-    with open("tests/file_fixtures/dummy_experiment.json", "r") as f:
-        data = json.load(f)
-    return json.dumps(data)
-
-
 def wait_for_message(capmqtt):
     waiting = True
     start_time = t.time()
@@ -52,6 +48,26 @@ def wait_for_message(capmqtt):
 
 
 capmqtt_decode_utf8 = True
+
+
+def test_incompatible_request(capmqtt, state, controller_client):
+    assert state.experiment_uid == None
+    assert state.status == "idle"
+
+    capmqtt.publish(
+        topic="controller/run",
+        payload="not important",
+    )
+    wait_for_message(capmqtt)
+
+    assert state.experiment_uid == None
+    assert state.status == "idle"
+    assert controller_client.callback == c_idle
+    assert capmqtt.messages[-1].topic == "error/controller"
+    assert (
+        "Controller is idle. Cannot act on controller/run"
+        in capmqtt.messages[-1].payload
+    )
 
 
 def test_wrong_json(capmqtt, state, controller_client):
