@@ -14,7 +14,7 @@ def test_cstate_initialization():
     assert state.experiment_uid == None
     assert state.status == "idle"
     assert state.adjusting == AdjustingDict()
-    assert state.schema_path == "experiment_schema.json"
+    assert state.schema_path == "schema_experiment.json"
     assert state.exp_config == None
 
 

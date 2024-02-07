@@ -11,7 +11,7 @@ def valid_experiment_path():
 
 @pytest.fixture
 def valid_schema_path():
-    return "experiment_schema.json"
+    return "schema_experiment.json"
 
 
 @pytest.fixture
