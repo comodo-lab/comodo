@@ -2,6 +2,8 @@ import json
 import pytest
 import time as t
 
+from tests_helper import *
+
 from controller_state import *
 from mqtt_clients import *
 from on_controller_message import *
@@ -9,17 +11,10 @@ from unittest.mock import patch
 
 
 @pytest.fixture
-def valid_experiment():
-    with open("tests/file_fixtures/dummy_experiment.json", "r") as f:
-        data = json.load(f)
-    return data
-
-
-@pytest.fixture
-def state(valid_experiment):
+def state():
     obj = cstate()
-    obj.exp_config = valid_experiment
-    obj.experiment_uid = valid_experiment["uid"]
+    obj.exp_config = valid_experiment_dict()
+    obj.experiment_uid = valid_experiment_dict()["uid"]
     obj.status = "validating"
     return obj
 
@@ -36,19 +31,6 @@ def controller_client(state):
 
     # Teardown after test
     cc.client.disconnect()
-
-
-def wait_for_message(capmqtt):
-    waiting = True
-    start_time = t.time()
-    while waiting:
-        t.sleep(0.01)
-        waiting = len(capmqtt.messages) <= 1
-        if t.time() - start_time > 10:
-            raise TimeoutError("Timed out waiting for message")
-
-
-capmqtt_decode_utf8 = True
 
 
 def test_incompatible_request(capmqtt, state, controller_client):
@@ -83,12 +65,12 @@ def test_accepts_stop_signal(capmqtt, state, controller_client):
     assert mock_stopping.called
 
 
-def test_valid_start(capmqtt, state, controller_client, valid_experiment):
+def test_valid_start(capmqtt, state, controller_client):
     assert state.experiment_uid == "123"
     assert state.status == "validating"
     assert controller_client.callback == c_starting
 
-    sensors = valid_experiment["config"]["sensors"]
+    sensors = valid_experiment_dict()["config"]["sensors"]
     sensor_names = [sensor["name"] for sensor in sensors]
     ns = len(sensors)
 

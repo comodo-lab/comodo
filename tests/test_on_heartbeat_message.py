@@ -2,6 +2,8 @@ import json
 import pytest
 import time as t
 
+from tests_helper import *
+
 from controller_state import *
 from mqtt_clients import *
 from on_heartbeat_message import *
@@ -9,17 +11,10 @@ from unittest.mock import patch
 
 
 @pytest.fixture
-def valid_experiment():
-    with open("tests/file_fixtures/dummy_experiment.json", "r") as f:
-        data = json.load(f)
-    return data
-
-
-@pytest.fixture
-def state(valid_experiment):
+def state():
     obj = cstate()
-    obj.exp_config = valid_experiment
-    obj.experiment_uid = valid_experiment["uid"]
+    obj.exp_config = valid_experiment_dict()
+    obj.experiment_uid = valid_experiment_dict()["uid"]
     obj.status = "awaiting_sensors"
     obj.sensors = {"configured": False}
     for sensor in obj.exp_config["config"]["sensors"]:
@@ -44,33 +39,6 @@ def heartbeat_client(state):
 
     # Teardown after test
     hc.client.disconnect()
-
-
-def wait_for_message(capmqtt):
-    waiting = True
-    start_time = t.time()
-    while waiting:
-        t.sleep(0.01)
-        waiting = len(capmqtt.messages) <= 1
-        if t.time() - start_time > 10:
-            raise TimeoutError("Timed out waiting for message")
-
-
-def publish_sensor_heartbeat(capmqtt, sensor, status, setpoint):
-    capmqtt.publish(
-        topic="heartbeat/sensor/" + sensor["name"],
-        payload=json.dumps(
-            {
-                "name": sensor["name"],
-                "status": status,
-                "setpoint": setpoint,
-                "config": {k: v for k, v in sensor.items() if k != "name"},
-            }
-        ),
-    )
-
-
-capmqtt_decode_utf8 = True
 
 
 def test_incompatible_request(capmqtt, state):
@@ -140,10 +108,10 @@ def test_unconfigured_sensor(capmqtt, state):
     assert "Sensor sensor_1 is not configured" in capmqtt.messages[-1].payload
 
 
-def test_awaiting_sensors_wrong_config(capmqtt, state, valid_experiment):
+def test_awaiting_sensors_wrong_config(capmqtt, state):
     assert state.sensors["configured"] == False
 
-    sensors = valid_experiment["config"]["sensors"]
+    sensors = valid_experiment_dict()["config"]["sensors"]
     first_sensor_name = sensors[0]["name"]
     first_sensor_config = {k: v for k, v in sensors[0].items() if k != "name"}
     assert state.sensors[first_sensor_name]["status"] == None
@@ -162,12 +130,12 @@ def test_awaiting_sensors_wrong_config(capmqtt, state, valid_experiment):
     assert state.sensors["configured"] == False
 
 
-def test_awaiting_sensors_not_all_responded(capmqtt, state, valid_experiment):
+def test_awaiting_sensors_not_all_responded(capmqtt, state):
     assert state.experiment_uid == "123"
     assert state.status == "awaiting_sensors"
     assert state.sensors["configured"] == False
 
-    sensors = valid_experiment["config"]["sensors"]
+    sensors = valid_experiment_dict()["config"]["sensors"]
 
     # Correct heartbeat for all but first sensors
     for sensor in sensors[1:]:
@@ -181,12 +149,12 @@ def test_awaiting_sensors_not_all_responded(capmqtt, state, valid_experiment):
     assert state.sensors["configured"] == False
 
 
-def test_awaiting_sensors_wrong_sensor_status(capmqtt, state, valid_experiment):
+def test_awaiting_sensors_wrong_sensor_status(capmqtt, state):
     assert state.experiment_uid == "123"
     assert state.status == "awaiting_sensors"
     assert state.sensors["configured"] == False
 
-    sensors = valid_experiment["config"]["sensors"]
+    sensors = valid_experiment_dict()["config"]["sensors"]
 
     # Wrong sensor status for first sensor
     publish_sensor_heartbeat(capmqtt, sensors[0], "awaiting_config", None)
@@ -198,12 +166,12 @@ def test_awaiting_sensors_wrong_sensor_status(capmqtt, state, valid_experiment):
     assert state.sensors["configured"] == False
 
 
-def test_awaiting_sensors_all_responded(capmqtt, state, valid_experiment):
+def test_awaiting_sensors_all_responded(capmqtt, state):
     assert state.experiment_uid == "123"
     assert state.status == "awaiting_sensors"
     assert state.sensors["configured"] == False
 
-    sensors = valid_experiment["config"]["sensors"]
+    sensors = valid_experiment_dict()["config"]["sensors"]
 
     # Correct heartbeat for all sensors
     for sensor in sensors:

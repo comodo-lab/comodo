@@ -3,94 +3,76 @@ from validation import *
 import pytest
 from unittest.mock import mock_open, patch
 
-
-@pytest.fixture
-def valid_experiment_path():
-    return "tests/file_fixtures/dummy_experiment.json"
+from tests_helper import *
 
 
 @pytest.fixture
-def valid_schema_path():
-    return "schema_experiment.json"
-
-
-@pytest.fixture
-def valid_experiment(valid_experiment_path):
-    with open(valid_experiment_path, "r") as f:
-        data = json.load(f)
-    return data
-
-
-@pytest.fixture
-def invalid_json():
-    return "tests/file_fixtures/invalid_json.json"
-
-
-@pytest.fixture
-def invalid_experiments(valid_experiment):
+def invalid_experiments():
     invalid_experiments = []
 
-    missing_uid = json.loads(json.dumps(valid_experiment))
+    missing_uid = valid_experiment_dict()
     del missing_uid["uid"]
     invalid_experiments.append(json.dumps(missing_uid))
 
-    negative_time = json.loads(json.dumps(valid_experiment))
+    negative_time = valid_experiment_dict()
     negative_time["experiment"][0]["time"] = -1
     invalid_experiments.append(json.dumps(negative_time))
 
-    negative_temperature = json.loads(json.dumps(valid_experiment))
+    negative_temperature = valid_experiment_dict()
     negative_temperature["experiment"][0]["temperature"] = -1
     invalid_experiments.append(json.dumps(negative_temperature))
 
     return invalid_experiments
 
 
-def test_valid_hard(valid_experiment_path, valid_schema_path, valid_experiment):
-    experiment = validate_file(valid_experiment_path, valid_schema_path)
-    assert experiment == valid_experiment
+def test_valid_hard():
+    experiment = validate_file(valid_experiment_path(), valid_schema_path())
+    assert experiment == valid_experiment_dict()
 
 
-def test_valid(valid_experiment_path, valid_schema_path, valid_experiment):
-    experiment = validate_file_print_errors(valid_experiment_path, valid_schema_path)
-    assert experiment == valid_experiment
+def test_valid():
+    experiment = validate_file_print_errors(
+        valid_experiment_path(), valid_schema_path()
+    )
+    assert experiment == valid_experiment_dict()
 
 
-def test_valid_soft(valid_experiment_path, valid_schema_path, valid_experiment):
-    experiment, err = validate_file_soft(valid_experiment_path, valid_schema_path)
-    assert experiment, err == valid_experiment
+def test_valid_soft():
+    experiment, err = validate_file_soft(valid_experiment_path(), valid_schema_path())
+    assert experiment, err == valid_experiment_dict()
     assert err is None
 
 
-def test_invalid_json(valid_experiment_path, valid_schema_path, invalid_json, capsys):
+def test_invalid_json():
     try:
-        experiment = validate_file(invalid_json, valid_schema_path)
+        experiment = validate_file(invalid_json_path(), valid_schema_path())
     except ValidationException as e:
-        assert f"Error decoding JSON: {invalid_json}" in e.args[0]
+        assert f"Error decoding JSON: {invalid_json_path()}" in e.args[0]
     else:
         assert False, "Should raise error if invalid experiment JSON"
     finally:
         assert "experiment" not in locals()
     try:
-        experiment = validate_file(valid_experiment_path, invalid_json)
+        experiment = validate_file(valid_experiment_path(), invalid_json_path())
     except ValidationException as e:
-        assert f"Error decoding JSON: {invalid_json}" in e.args[0]
+        assert f"Error decoding JSON: {invalid_json_path()}" in e.args[0]
     else:
         assert False, "Should raise error if invalid schema JSON"
     finally:
         assert "experiment" not in locals()
 
 
-def test_invalid_experiment_content(valid_schema_path, invalid_experiments, capsys):
+def test_invalid_experiment_content(invalid_experiments):
     for invalid_experiment in invalid_experiments:
         with patch(
             "builtins.open",
             side_effect=[
-                open(valid_schema_path, "r"),
+                open(valid_schema_path(), "r"),
                 mock_open(read_data=invalid_experiment).return_value,
             ],
         ):
             try:
-                experiment = validate_file(invalid_experiment, valid_schema_path)
+                experiment = validate_file(invalid_experiment, valid_schema_path())
             except ValidationException as e:
                 assert f"Validation errors:" in e.args[0]
             else:
@@ -99,18 +81,18 @@ def test_invalid_experiment_content(valid_schema_path, invalid_experiments, caps
                 assert "experiment" not in locals()
 
 
-def test_validate_file_print_errors(valid_schema_path, invalid_experiments, capsys):
+def test_validate_file_print_errors(invalid_experiments, capsys):
     for invalid_experiment in invalid_experiments:
         with patch(
             "builtins.open",
             side_effect=[
-                open(valid_schema_path, "r"),
+                open(valid_schema_path(), "r"),
                 mock_open(read_data=invalid_experiment).return_value,
             ],
         ):
             try:
                 experiment = validate_file_print_errors(
-                    invalid_experiment, valid_schema_path
+                    invalid_experiment, valid_schema_path()
                 )
             except SystemExit:
                 captured = capsys.readouterr()
@@ -121,15 +103,17 @@ def test_validate_file_print_errors(valid_schema_path, invalid_experiments, caps
                 assert "experiment" not in locals()
 
 
-def test_validate_file_soft(valid_schema_path, invalid_experiments, capsys):
+def test_validate_file_soft(invalid_experiments):
     for invalid_experiment in invalid_experiments:
         with patch(
             "builtins.open",
             side_effect=[
-                open(valid_schema_path, "r"),
+                open(valid_schema_path(), "r"),
                 mock_open(read_data=invalid_experiment).return_value,
             ],
         ):
-            experiment, err = validate_file_soft(invalid_experiment, valid_schema_path)
+            experiment, err = validate_file_soft(
+                invalid_experiment, valid_schema_path()
+            )
             assert f"Validation errors:" in err
             assert experiment is None
