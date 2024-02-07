@@ -3,24 +3,26 @@ import textwrap
 from mqtt_clients import *
 
 
-def wrong_json(msg, e):
+def wrong_json(msg, e, source="controller"):
     """
     Publishes an error message when a JSON message cannot be decoded.
     """
+    source = source.lower()
     error = f"Error decoding {msg.topic} message, wrong JSON: \n{textwrap.indent(str(e), '   ')}"
     pub.publish(
-        "error/controller",
+        f"error/{source}",
         json.dumps({"error": error}),
     )
 
 
-def missing_keys(msg, e):
+def missing_keys(msg, e, source="controller"):
     """
     Publishes an error message when the key trying to be accessed is missing.
     """
+    source = source.lower()
     error = f"Error decoding {msg.topic} message, missing: \n{textwrap.indent(str(e), '   ')}"
     pub.publish(
-        "error/controller",
+        f"error/{source}",
         json.dumps({"error": error}),
     )
 
@@ -59,6 +61,6 @@ def unconfigured_sensor(msg, sensor_name):
     """
     error = f"Sensor {sensor_name} is not configured. Unexpected heartbeat message:\n    {msg.topic}  {msg.payload.decode('utf-8')}"
     pub.publish(
-        "error/controller",
+        "error/heartbeat",
         json.dumps({"error": error}),
     )
