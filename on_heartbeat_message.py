@@ -3,18 +3,13 @@ import time as t
 from controller_state import *
 from error_helper import *
 from mqtt_clients import *
+from validation import validate_dict, ValidationException
 
 
 def on_heartbeat_message(client, msg, obj):
     """
     Callback for the controller when it receives a heartbeat message from a sensor.
-    It expects a message with the structure:
-    {
-        "name": "sensor_name",          # string
-        "status": "sensor_status",      # "awaiting_config", "awaiting_setpoint", "adjusting", "ready", "error"
-        "setpoint": "sensor_setpoint",  # float
-        "config": { "p": float, "i": float, "d": float, "tolerance": float }
-    }
+    It expects a message compliant with the schema defined in the schema_sensor_heartbeat.json file.
     """
     if "heartbeat/sensor/" not in (msg.topic):
         incompatible_request(obj, msg, source="heartbeat")
@@ -22,32 +17,31 @@ def on_heartbeat_message(client, msg, obj):
 
     try:
         p = load_message(msg)
-        s_name = p["name"]
-        s_status = p["status"]
-        s_setpoint = p["setpoint"]
-        s_config = p["config"]
-
+        sensor = validate_dict(p, obj.schema_sensor_heartbeat_path)
     except json.JSONDecodeError as e:
         wrong_json(msg, e, source="heartbeat")
         return
     except KeyError as e:
         missing_keys(msg, e, source="heartbeat")
         return
-
-    if s_name not in obj.sensors:
-        unconfigured_sensor(msg, s_name)
+    except ValidationException as e:
+        heartbeat_validation_error(msg, e)
         return
 
-    obj_sensor = obj.sensors[s_name]
+    if sensor["name"] not in obj.sensors:
+        unconfigured_sensor(msg, sensor["name"])
+        return
+
+    obj_sensor = obj.sensors[sensor["name"]]
 
     obj_sensor["last_contact"] = t.time()
     if obj.status == "awaiting_sensors":
-        if s_config != obj_sensor["config"]:
+        if sensor["config"] != obj_sensor["config"]:
             return
 
-        obj_sensor["status"] = s_status
-        obj_sensor["setpoint"] = s_setpoint
-        obj_sensor["config"] = s_config
+        obj_sensor["status"] = sensor["status"]
+        obj_sensor["setpoint"] = sensor["setpoint"]
+        obj_sensor["config"] = sensor["config"]
         if all(
             obj.sensors[s]["status"] == "awaiting_setpoint"
             for s in obj.sensors
@@ -56,6 +50,6 @@ def on_heartbeat_message(client, msg, obj):
             obj.sensors["configured"] = True
             pub.publish("controller/ready", json.dumps({"uid": obj.experiment_uid}))
     else:
-        obj_sensor["status"] = s_status
-        obj_sensor["setpoint"] = s_setpoint
-        obj_sensor["config"] = s_config
+        obj_sensor["status"] = sensor["status"]
+        obj_sensor["setpoint"] = sensor["setpoint"]
+        obj_sensor["config"] = sensor["config"]

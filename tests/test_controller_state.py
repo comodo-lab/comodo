@@ -10,11 +10,12 @@ def state():
 
 def test_cstate_initialization():
     state = cstate()
-    assert len(state.__dict__) == 5
+    assert len(state.__dict__) == 6
     assert state.experiment_uid == None
     assert state.status == "idle"
     assert state.adjusting == AdjustingDict()
     assert state.schema_path == "schema_experiment.json"
+    assert state.schema_sensor_heartbeat_path == "schema_sensor_heartbeat.json"
     assert state.exp_config == None
 
 

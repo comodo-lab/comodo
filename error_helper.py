@@ -55,6 +55,20 @@ def incompatible_uid(obj, msg):
     )
 
 
+def heartbeat_validation_error(msg, error):
+    """
+    Publishes an error message when a validation error occurs on a sensor's heartbeat.
+    """
+    p = msg.payload.decode("utf-8")
+    t = msg.topic.split("heartbeat/sensor/")[1]
+    pub.publish(
+        f"error/heartbeat/validation",
+        json.dumps(
+            {"error": f"Error validating heartbeat from {t}: {p}. {error.args[0]}"}
+        ),
+    )
+
+
 def unconfigured_sensor(msg, sensor_name):
     """
     Publishes an error message when a sensor heartbeat is received and the sensor is not configured.

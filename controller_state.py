@@ -25,6 +25,7 @@ class cstate:
         self.status: str = "idle"
         self.adjusting: AdjustingDict = AdjustingDict()
         self.schema_path: str = "schema_experiment.json"
+        self.schema_sensor_heartbeat_path: str = "schema_sensor_heartbeat.json"
         self.exp_config: Any = None
 
     def heartbeat(self) -> Dict[str, Any]:

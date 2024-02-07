@@ -95,3 +95,37 @@ def validate_experiment_soft(
         return exp_config, None
     except ValidationException as e:
         return None, str(e.args[0])
+
+
+def validate_dict(dict_to_validate: Dict[str, Any], schema_path: str) -> Dict[str, Any]:
+    """
+    Validates a pre-loaded dict against a schema, and raises a ValidationException if there are any errors.
+
+    Args:
+        dict_to_validate: The dict object to validate.
+        schema_path: The path to the schema JSON file.
+
+    Returns:
+        The validated dict.
+    """
+    # Get schema
+    try:
+        with open(schema_path, "r") as f:
+            schema = json.load(f)
+    except FileNotFoundError:
+        raise ValidationException(f"Error: File not found - {schema_path}")
+    except json.JSONDecodeError as e:
+        raise ValidationException(
+            f"Error decoding JSON: {schema_path}\n{textwrap.indent(str(e), '   ')}"
+        )
+    # Validate dict against schema
+    try:
+        jsonschema.validate(instance=dict_to_validate, schema=schema)
+        return dict_to_validate
+    except jsonschema.ValidationError as e:
+        validator = jsonschema.Draft7Validator(schema)
+        errors = list(validator.iter_errors(dict_to_validate))
+        raise ValidationException(
+            f"Validation errors:\n"
+            + "\n".join([f"\t{error.json_path} -> {error.message}" for error in errors])
+        )

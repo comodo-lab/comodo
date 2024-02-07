@@ -1,0 +1,35 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+        "name": {
+            "type": "string"
+        },
+        "status": {
+            "type": "string",
+            "enum": ["awaiting_config", "awaiting_setpoint", "adjusting", "ready", "error"]
+        },
+        "setpoint": {
+            "type": ["number", "null"]
+        },
+        "config": {
+            "type": "object",
+            "properties": {
+                "p": {
+                    "type": "number"
+                },
+                "i": {
+                    "type": "number"
+                },
+                "d": {
+                    "type": "number"
+                },
+                "tolerance": {
+                    "type": "number"
+                }
+            },
+            "required": ["p", "i", "d", "tolerance"]
+        }
+    },
+    "required": ["name", "status", "setpoint", "config"]
+}

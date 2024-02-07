@@ -106,15 +106,18 @@ def test_wrong_json(capmqtt, state):
 def test_missing_keys(capmqtt, state):
     capmqtt.publish(
         topic="heartbeat/sensor/sensor_1",
-        payload=json.dumps({"name": "sensor_1"}),
+        payload=json.dumps({"hello": "world"}),
     )
     wait_for_message(capmqtt)
 
-    assert capmqtt.messages[-1].topic == "error/heartbeat"
-    assert (
-        "Error decoding heartbeat/sensor/sensor_1 message, missing:"
-        in capmqtt.messages[-1].payload
-    )
+    assert capmqtt.messages[-1].topic == "error/heartbeat/validation"
+    m = capmqtt.messages[-1].payload
+    assert "Error validating heartbeat from sensor_1:" in m
+    assert "Validation errors:" in m
+    assert "'name' is a required property" in m
+    assert "'status' is a required property" in m
+    assert "'setpoint' is a required property" in m
+    assert "'config' is a required property" in m
 
 
 def test_unconfigured_sensor(capmqtt, state):
@@ -123,7 +126,12 @@ def test_unconfigured_sensor(capmqtt, state):
     capmqtt.publish(
         topic="heartbeat/sensor/sensor_1",
         payload=json.dumps(
-            {"name": "sensor_1", "status": "hello", "setpoint": 1, "config": "world"}
+            {
+                "name": "sensor_1",
+                "status": "ready",
+                "setpoint": 1,
+                "config": {"p": 1, "i": 1, "d": 1, "tolerance": 1},
+            }
         ),
     )
     wait_for_message(capmqtt)
