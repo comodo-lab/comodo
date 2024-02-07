@@ -3,7 +3,7 @@ import time as t
 from controller_state import *
 from controller_helper import *
 from mqtt_clients import *
-from validation import validate_experiment_soft
+from validation import validate_file_soft
 
 
 def c_idle(client, msg, obj):
@@ -34,7 +34,7 @@ def c_idle(client, msg, obj):
         return
     obj.status = "validating"
     # Validate experiment configuration
-    exp_config, err = validate_experiment_soft(obj.exp_file, obj.schema_path)
+    exp_config, err = validate_file_soft(obj.exp_file, obj.schema_path)
     if err == None:
         obj.experiment_uid = exp_config["uid"]
         m = {

@@ -10,16 +10,16 @@ class ValidationException(Exception):
     """
 
 
-def validate_experiment_hard(experiment_path: str, schema_path: str) -> Dict[str, Any]:
+def validate_file(file_path: str, schema_path: str) -> Dict[str, Any]:
     """
-    Validates an experiment JSON file against a schema, and raises a ValidationException if there are any errors.
+    Validates a JSON file against a schema, and raises a ValidationException if there are any errors.
 
     Args:
-        experiment_path: The path to the experiment JSON file.
+        file_path: The path to the JSON file.
         schema_path: The path to the schema JSON file.
 
     Returns:
-        The validated experiment data.
+        The validated data from the loaded json.
     """
     # Get schema
     try:
@@ -31,17 +31,17 @@ def validate_experiment_hard(experiment_path: str, schema_path: str) -> Dict[str
         raise ValidationException(
             f"Error decoding JSON: {schema_path}\n{textwrap.indent(str(e), '   ')}"
         )
-    # Get experiment
+    # Get data
     try:
-        with open(experiment_path, "r") as f:
+        with open(file_path, "r") as f:
             data = json.load(f)
     except FileNotFoundError:
-        raise ValidationException(f"Error: File not found - {experiment_path}")
+        raise ValidationException(f"Error: File not found - {file_path}")
     except json.JSONDecodeError as e:
         raise ValidationException(
-            f"Error decoding JSON: {experiment_path}\n{textwrap.indent(str(e), '   ')}"
+            f"Error decoding JSON: {file_path}\n{textwrap.indent(str(e), '   ')}"
         )
-    # Validate experiment json against schema
+    # Validate json data against schema
     try:
         jsonschema.validate(instance=data, schema=schema)
         return data
@@ -54,45 +54,45 @@ def validate_experiment_hard(experiment_path: str, schema_path: str) -> Dict[str
         )
 
 
-def validate_experiment(experiment_path: str, schema_path: str) -> Dict[str, Any]:
+def validate_file_print_errors(file_path: str, schema_path: str) -> Dict[str, Any]:
     """
-    Uses validate_experiment_hard to validate an experiment JSON file against a schema.
+    Uses validate_file to validate a JSON file against a schema.
     Instead of raising an exception, it prints a more human friendly message to the console and exits the program.
 
     Args:
-        experiment_path: The path to the experiment JSON file.
+        file_path: The path to the JSON file.
         schema_path: The path to the schema JSON file.
 
     Returns:
-        The validated experiment data.
+        The validated data from the loaded json.
     """
     try:
-        exp_config = validate_experiment_hard(experiment_path, schema_path)
-        return exp_config
+        data = validate_file(file_path, schema_path)
+        return data
     except ValidationException as e:
         print(e.args[0])
         exit(1)
 
 
-def validate_experiment_soft(
-    experiment_path: str, schema_path: str
+def validate_file_soft(
+    file_path: str, schema_path: str
 ) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
     """
-    Uses validate_experiment_hard to validate an experiment JSON file against a schema.
+    Uses validate_file to validate a JSON file against a schema.
     Instead of raising an exception, it returns any validation error messages in a tuple.
 
     Args:
-        experiment_path: The path to the experiment configuration file.
-        schema_path: The path to the schema file.
+        file_path: The path to the JSON file.
+        schema_path: The path to the schema JSON file.
 
     Returns:
-        A tuple containing the validated experiment configuration and any validation error message.
-        If the validation is successful, the experiment configuration is returned along with None.
-        If there is a validation error, None is returned along with the error message.
+        A tuple containing the validated data from the loaded json and any validation error message.
+        If the validation is successful, the tuple will be: data,None
+        If there is a validation error, the tuple will be: None,errors
     """
     try:
-        exp_config = validate_experiment_hard(experiment_path, schema_path)
-        return exp_config, None
+        data = validate_file(file_path, schema_path)
+        return data, None
     except ValidationException as e:
         return None, str(e.args[0])
 
