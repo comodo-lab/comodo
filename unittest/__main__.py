@@ -35,24 +35,17 @@ def _run_all_in_dir(runner: TestRunner, path: str, pattern: str, top: str):
     result = TestResult()
     for fname, ftype, *_ in os.ilistdir(path):
         if fname in ("..", "."):
-            print("OWDB 1")
             continue
         if ftype == _DIR_TYPE:
-            print("OWDB 2")
             result += _run_all_in_dir(
                 runner=runner,
                 path="/".join((path, fname)),
                 pattern=pattern,
                 top=top,
             )
-        print(f"OWDB fnmach {fname} {pattern}")
-        res = fnmatch(fname, pattern)
-        print(res)
         if fnmatch(fname, pattern):
-            print("OWDB 3")
             module_name = fname.rsplit(".", 1)[0]
             result += _run_test_module(runner, module_name, path, top)
-        print("OWDB ret")
     return result
 
 
