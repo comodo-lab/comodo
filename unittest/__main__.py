@@ -43,7 +43,7 @@ def _run_all_in_dir(runner: TestRunner, path: str, pattern: str, top: str):
                 pattern=pattern,
                 top=top,
             )
-        if fnmatch(fname, pattern):
+        if fnmatch.fnmatch(fname, pattern):
             module_name = fname.rsplit(".", 1)[0]
             result += _run_test_module(runner, module_name, path, top)
     return result
