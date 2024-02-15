@@ -5,5 +5,5 @@
 To run unit tests:
 
 ```console
-$ micropython -m unittest
+$ micropython -m lib.unittest
 ```

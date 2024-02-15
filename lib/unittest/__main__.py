@@ -6,7 +6,7 @@ import sys
 from lib.fnmatch import fnmatch
 from micropython import const
 
-from unittest import TestRunner, TestResult, TestSuite
+from lib.unittest import TestRunner, TestResult, TestSuite
 
 
 # Run a single test in a clean environment.
