@@ -24,7 +24,7 @@ def on_timer_message(client, msg, obj):
             t.sleep(0.1)
             if t.time() - t0 > sensor_setup_wait:
                 pub.publish(
-                    "error/controller",
+                    "error/controller/timeout",
                     json.dumps({"error": f"Timed out waiting for sensors. Exiting..."}),
                 )
                 pub.publish("controller/stop", json.dumps({"uid": message["uid"]}))
