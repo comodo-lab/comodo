@@ -12,6 +12,7 @@ class cstate:
         "validating",
         "starting",
         "awaiting_sensors",
+        "ready",
         "running",
         "stopping",
         "error",

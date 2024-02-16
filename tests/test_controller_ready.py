@@ -74,8 +74,29 @@ def test_accepts_stop_signal(capmqtt, state, controller_client):
     assert mock_stopping.called
 
 
-# def test_valid_ready_signal
+def test_updates_states_correctly(capmqtt, state, controller_client):
+    assert state.experiment_uid == "123"
+    assert state.status == "awaiting_sensors"
+    assert controller_client.callback == c_ready
+
+    # mock ready to prevent progression
+    with patch("on_controller_message.c_ready") as mock_ready:
+        with patch("on_controller_message.assign_serial_id") as mock_assign:
+            mock_assign.side_effect = lambda _: t.sleep(0.2)
+            capmqtt.publish(
+                topic="controller/ready",
+                payload=json.dumps({"uid": "123"}),
+            )
+            assert mock_assign.called
+            t.sleep(0.1)
+            assert state.status == "ready"
+            wait_for_message(capmqtt)
+
+    assert state.status == "running"
+    assert state.experiment_uid == "123"
+    assert controller_client.callback == c_running
+    assert capmqtt.messages[-1].topic == "controller/run"
+    assert capmqtt.messages[-1].payload == '{"uid": "123"}'
+
 
 # serial id created correctly
-# callback updated correctly
-# message controller/run {uid} sent

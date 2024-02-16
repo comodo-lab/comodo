@@ -101,7 +101,7 @@ def c_ready(client, msg, obj):
     assign_serial_id(obj)
     # Update state and callback of controller
     client.callback = c_running
-    pub.publish("controller/run", obj.id)
+    pub.publish("controller/run", json.dumps({"uid": obj.experiment_uid}))
 
 
 def c_running(client, msg, obj):
