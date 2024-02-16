@@ -22,54 +22,60 @@ The following diagram sumarises the controller's flow:
 flowchart TB
 
     %% States
-    I([Idle])
-    V(Validating)
-    S(Starting)
-    A(Awaiting Sensors)
-    Rd(Ready)
-    Rg(Running)
-    Stp[Stopping]
+      I([Idle])
+      V(Validating)
+      S(Starting)
+      A(Awaiting Sensors)
+      Rd(Ready)
+      Rg(Running)
+      Stp[Stopping]
+      *(*)
 
     %% Helper clients
-    UI((UI)):::helper_client
-    T((Timer)):::helper_client
-    H((Heartbeat)):::helper_client
-    %%M((Measurement)):::helper_client
-    %%W((Watchdog)):::helper_client
+      UI((UI))
+      T((Timer))
+      H((Heartbeat))
+      %%M((Measurement))
+      %%W((Watchdog))
+      classDef helper_client fill:#3ddd,stroke:#a6ad,stroke-width:4px,color:#000
+      class UI,T,H helper_client
+
+    %% External clients
+      SS{Sensors}
+      classDef external_client fill:#3335,stroke:#313,stroke-width:1px,color:#fff
+      class SS external_client
+
+    %% Invisible
+      **(...)
+      classDef invisible fill:#0000,stroke:#0000,stroke-width:0px,color:#33f
+      class ** invisible
 
     %% Graph
-    UI ==> |controller/validate| I
-    
-    I   ==>  V
-    V   ==>  |validator/passed <br> controller/start| S
-    V   -.-> |error/validator/failed| Stp
-        linkStyle 3 stroke:#b33,stroke-width:2px,color:#b33
-    S   ==>  |sensor/name/setup| A
-    A   -.-> |error/controller/timeout| Stp
-        linkStyle 5 stroke:#b33,stroke-width:2px,color:#b33
-    A   ==>  |timer/start/sensor_setup| T
-    T   ==>  |controller/ready| Rd
-    T   -.-> |error/controller/timeout| Stp
-        linkStyle 8 stroke:#b33,stroke-width:2px,color:#b33
-    T   -.-  H
-    H   ~~~  |heartbeat/sensor/name| H
-    H   -.-  Rd
-        linkStyle 9,11 stroke:#bbb,stroke-width:1px
-    H   -.-> |error?| Rg
-        linkStyle 12 stroke:#b33,stroke-width:2px,color:#b33
-    Rd  ==>  |controller/run| Rg
-    Rg  ==>  |controller/stop| Stp
-    Stp -->  I
-    UI-.->  |controller/stop| *(*)
-    *(*) ~~~ V & S & A & Rd & Rg   -.-> Stp
-        linkStyle 16,22,23,24,25,26 stroke:#33f,stroke-width:2px,color:#33f
-    %%linkStyle 9,10,11,12,13 stroke:#33f,stroke-width:2px,color:#33f
-    
-
-
-    T((Timer))
-
-    classDef helper_client fill:#3ff,stroke:#a6a,stroke-width:4px,color:#000
+      %% Main flow
+        UI  ==>  |ui/start| I
+        I   ==>  |controller/validate| V
+        V   ==>  |validator/passed <br> controller/start| S
+        S   ==>  |timer/start/sensor_setup| T
+        S   ==>  |sensor/name/setup| SS
+        T   ~~~ A
+        SS  -.->  |heartbeat/sensor/name| H
+        H   ==>  |controller/ready| A ==>  Rd
+        Rd  ==>  |controller/run| Rg
+        Rg  ==>  |controller/end| Stp
+        Stp -->  I
+      %% Stop from ui
+        UI-.->  |ui/stop| *(*) -.-> |controller/stop| **
+        **   ~~~  V & S & A & Rd & Rg   -.-> Stp
+        linkStyle 13,19,20,21,22,23 stroke:#33f,stroke-width:2px,color:#33f
+      %% Errors
+        V   -.-> |error/validator/failed| Stp
+        T   -.-> |error/controller/timeout| Stp
+        H   -.-> |error?| Stp
+        linkStyle 24,25,26 stroke:#b33,stroke-width:2px,color:#b33
+      %% Others
+        T   -.-  H
+        SS  -.-> |sensor/name/setpoint| Rg
+        linkStyle 27,28 stroke:#bbb,stroke-width:1px
 
 ```
 
