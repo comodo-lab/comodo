@@ -2,6 +2,8 @@ import json
 import numpy as np
 from mqtt_clients import *
 from error_helper import *
+from datetime import datetime
+import os
 
 
 class internal_stop_msg:
@@ -53,7 +55,22 @@ def split_setpoints(setpoint_list, resolution):
     ]
 
 
+data_path = "data"
+
+
 def assign_serial_id(obj):
-    ### placeholder
-    pass
-    ###
+    temp_path = obj.exp_file
+    current_year = str(datetime.now().year)[-2:]
+    all_json = [f for f in os.listdir(data_path) if f.endswith(".json")]
+    current_year_files = [f for f in all_json if f.startswith(f"D{current_year}-")]
+    if len(current_year_files) == 0:
+        serial = 1
+    else:
+        serials = [int(f.split("-")[1].split(".")[0]) for f in current_year_files]
+        serials.sort()
+        serial = serials[-1] + 1
+    serial = str(serial).zfill(3)
+    new_path = f"{data_path}/D{current_year}-{serial}.json"
+    os.rename(temp_path, new_path)
+    obj.experiment_uid = f"D{current_year}-{serial}"
+    obj.exp_file = new_path

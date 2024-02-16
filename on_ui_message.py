@@ -2,6 +2,8 @@ import json
 from mqtt_clients import *
 from error_helper import *
 
+from controller_helper import data_path
+
 
 def on_ui_message(client, msg, obj):
     """
@@ -35,7 +37,7 @@ def on_ui_message(client, msg, obj):
 
     if obj.status == "idle":
         if msg.topic == "ui/start":
-            exp_file = f"data/experiment_{uid}.json"
+            exp_file = f"{data_path}/tmp/experiment_{uid}.json"
             with open(exp_file, "w") as f:
                 json.dump(experiment, f)
             client.publish(
