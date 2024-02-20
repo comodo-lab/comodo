@@ -14,7 +14,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
+      - name: Set PATH
+        echo "PATH=/home/owool/.local/bin:/home/owool/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" >> "$GITHUB_ENV"
 
       - name: Run tests
         run: |
-          bash -leo micropython -m lib.unittest
+          printf '%s\n' '$PATH'
+          micropython -m lib.unittest
