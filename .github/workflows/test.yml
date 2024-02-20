@@ -17,4 +17,4 @@ jobs:
 
       - name: Run tests
         run: |
-          micropython -m lib.unittest
+          bash -leo micropython -m lib.unittest
