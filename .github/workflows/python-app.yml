@@ -1,0 +1,20 @@
+name: test
+
+on:
+  workflow_dispatch: # manual invocation
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: [self-hosted, linux, ARM64]
+    strategy:
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Run tests
+        run: |
+          micropython -m lib.unittest
