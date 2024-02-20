@@ -6,9 +6,7 @@ from machine import Timer
 # Setup mqtt client
 c = MQTTClient("umqtt_client",
                "192.168.1.246",
-               port=1883,
-               user="sensor",
-               password="foobar!!")
+               port=1883)
 c.connect()
 
 count = 0
