@@ -1,13 +1,12 @@
 from lib.simple import MQTTClient
 import time as t
 
+from machine import Timer
+
 # Setup mqtt client
 c = MQTTClient("umqtt_client",
-#               "192.168.1.246",
-               "0.0.0.0",
-               port=1883,
-               user="sensor",
-               password="foobar!!")
+               "192.168.1.246",
+               port=1883)
 c.connect()
 
 count = 0
