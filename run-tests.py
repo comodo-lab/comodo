@@ -113,7 +113,7 @@ def _dirname_filename_no_ext(path):
 def discover_main():
     runner = TestRunner()
 
-    if len(sys.argv) == 1 or (
+    if len(sys.argv) <= 1 or (
         len(sys.argv) >= 2
         and _dirname_filename_no_ext(sys.argv[0])[1] == "unittest"
         and sys.argv[1] == "discover"
