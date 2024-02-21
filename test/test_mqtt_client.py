@@ -1,11 +1,11 @@
 import lib.unittest as unittest
 import lib.umqtt as mqtt
-from machine import WDT
+#from machine import WDT
 
 class MQTTTest(unittest.TestCase):
     def test_ClientConnected(self):
         client = mqtt.MQTTClient("umqtt_client",
-                                 "0.0.0.1",
+                                 "0.0.0.0",
                                  port=1883,
                                  user="sensor",
                                  password="foobar!!")
