@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  test:
+  raspberry-pi-test:
     runs-on: [self-hosted, linux, ARM64]
     strategy:
       fail-fast: false
@@ -18,3 +18,20 @@ jobs:
         run: |
           printf "%s\n" "$PATH"
           micropython -m lib.unittest
+
+  raspberry-pi-pi-test:
+    runs-on: [self-hosted, linux, ARM64]
+    strategy:
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+      - name: Push files to pico
+        run: |
+          for file in main.py lib/ test/ run-tests.py; do ampy --port /dev/ttyACM1 put $file; done;
+          ampy --port /dev/ttyACM1 ls
+      - name: Run tests
+        run: |
+          ampy --port /dev/ttyACM1 run run-tests.py
+
