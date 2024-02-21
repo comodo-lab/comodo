@@ -14,10 +14,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
-      - name: Set PATH
-        run: |
-          echo "PATH=/home/owool/.local/bin:/home/owool/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" >> "$GITHUB_ENV"
-
       - name: Run tests
         run: |
           printf "%s\n" "$PATH"
