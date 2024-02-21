@@ -7,7 +7,7 @@ on:
 
 jobs:
   raspberry-pi-test:
-    runs-on: [raspberrypi]
+    runs-on: [self-hosted]
     strategy:
       fail-fast: false
     steps:
