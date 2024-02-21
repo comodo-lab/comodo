@@ -1,0 +1,38 @@
+name: test_on_pi
+
+on:
+  workflow_dispatch: # manual invocation
+  push:
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Install and configure poetry
+        run: |
+          poetry config virtualenvs.in-project true
+
+      - name: Cache the virtualenv
+        uses: actions/cache@v3
+        with:
+          path: ./.venv
+          key: self-hosted-venv-${{ hashFiles('**/poetry.lock') }}
+
+      - name: Install dependencies
+        run: |
+          poetry install
+
+      - name: Run tests
+        run: |
+          mosquitto -d
+          sleep 3
+          poetry run python -m pytest tests --verbose -k "not _skip_ci" --reruns 2 --reruns-delay 1
+          killall mosquitto
