@@ -14,18 +14,12 @@ def state():
     return cstate()
 
 
-@pytest.fixture(autouse=True)
-def controller_client(state):
-    # Setup before test
-    uic = MQTTClient("ui", on_ui_message, "ui/#", obj=state)
-    # Wait until the client is connected
-    while not uic.client.is_connected():
-        t.sleep(0.01)
-
-    yield uic  # Testing happens here
-
-    # Teardown after test
-    uic.client.disconnect()
+controller_client = make_client_fixture(
+    client_id="ui",
+    callback=on_ui_message,
+    topics="ui/#",
+    autouse=True,
+)
 
 
 def test_invalid_ui_message(capmqtt, state):

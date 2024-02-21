@@ -1,5 +1,12 @@
+import pytest
 import json
 import time as t
+from typing import Callable
+
+from mqtt_clients import MQTTClient, on_client_message
+
+time_int = 0.01  # Time interval between client connection / message checks
+timeout = 3  # Client connection / message wait timeout
 
 
 def valid_schema_path():
@@ -31,13 +38,37 @@ def invalid_experiment_path():
 capmqtt_decode_utf8 = True
 
 
+def make_client_fixture(client_id, callback, topics, autouse=False):
+    """
+    Factory to create a client fixture with connection checks and timeout.
+    """
+
+    @pytest.fixture(autouse=autouse)
+    def client(state):
+        # Setup before test
+        c = MQTTClient(client_id, callback, topics, obj=state)
+        # Wait until the client is connected
+        t_now = t.time()
+        while not c.client.is_connected():
+            t.sleep(time_int)
+            if t.time() - t_now > timeout:
+                raise TimeoutError(f"The {client_id} client failed to connect.")
+
+        yield c  # Testing happens here
+
+        # Teardown after test
+        c.client.disconnect()
+
+    return client
+
+
 def wait_for_message(capmqtt):
     waiting = True
     start_time = t.time()
     while waiting:
-        t.sleep(0.01)
+        t.sleep(time_int)
         waiting = len(capmqtt.messages) <= 1
-        if t.time() - start_time > 5:
+        if t.time() - start_time > timeout:
             raise TimeoutError("Timed out waiting for message")
 
 

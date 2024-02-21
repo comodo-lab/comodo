@@ -29,18 +29,12 @@ def state():
     return obj
 
 
-@pytest.fixture(autouse=False)
-def controller_client(state):
-    # Setup before test
-    cc = MQTTClient("controller", c_ready, "controller/#", obj=state)
-    # Wait until the client is connected
-    while not cc.client.is_connected():
-        t.sleep(0.01)
-
-    yield cc  # Testing happens here
-
-    # Teardown after test
-    cc.client.disconnect()
+controller_client = make_client_fixture(
+    client_id="controller",
+    callback=c_ready,
+    topics="controller/#",
+    autouse=False,
+)
 
 
 def test_incompatible_request(capmqtt, state, controller_client):

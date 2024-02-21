@@ -27,18 +27,12 @@ def state():
     return obj
 
 
-@pytest.fixture(autouse=True)
-def heartbeat_client(state):
-    # Setup before test
-    hc = MQTTClient("heartbeat", on_heartbeat_message, "heartbeat/#", obj=state)
-    # Wait until the client is connected
-    while not hc.client.is_connected():
-        t.sleep(0.01)
-
-    yield hc  # Testing happens here
-
-    # Teardown after test
-    hc.client.disconnect()
+heartbeat_client = make_client_fixture(
+    client_id="heartbeat",
+    callback=on_heartbeat_message,
+    topics="heartbeat/#",
+    autouse=True,
+)
 
 
 def test_incompatible_request(capmqtt, state):

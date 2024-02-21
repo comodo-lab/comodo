@@ -27,18 +27,12 @@ def state():
     return obj
 
 
-@pytest.fixture(autouse=True)
-def timer_client(state):
-    # Setup before test
-    tc = MQTTClient("timer", on_timer_message, "timer/#", obj=state)
-    # Wait until the client is connected
-    while not tc.client.is_connected():
-        t.sleep(0.01)
-
-    yield tc  # Testing happens here
-
-    # Teardown after test
-    tc.client.disconnect()
+timer_client = make_client_fixture(
+    client_id="timer",
+    callback=on_timer_message,
+    topics="timer/#",
+    autouse=True,
+)
 
 
 def flagged_on_timer_message(*args, **kwargs):
