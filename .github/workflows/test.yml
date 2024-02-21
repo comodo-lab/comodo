@@ -19,7 +19,7 @@ jobs:
           printf "%s\n" "$PATH"
           micropython -m lib.unittest
 
-  raspberry-pi-pi-test:
+  raspberry-pi-pico-test:
     runs-on: [self-hosted, linux, ARM64]
     strategy:
       fail-fast: false
@@ -33,5 +33,5 @@ jobs:
           ampy --port /dev/ttyACM1 ls
       - name: Run tests
         run: |
-          ampy --port /dev/ttyACM1 run run-tests.py
-
+          ampy --port /dev/ttyACM1 run run-tests.py | tee testout.txt
+          grep -q "FAILED" testout.txt && exit 1 || exit 0
