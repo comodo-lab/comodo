@@ -20,7 +20,7 @@ jobs:
           micropython -m lib.unittest
 
   raspberry-pi-pico-test:
-    runs-on: [self-hosted, linux, ARM64]
+    runs-on: [self-hosted]
     strategy:
       fail-fast: false
     steps:
