@@ -10,13 +10,13 @@ jobs:
     strategy:
       fail-fast: false
 
-    runs-on: rpici
+    runs-on: rpi-testing
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.ref }}
 
-      - name: Install and configure poetry
+      - name: Configure poetry
         run: |
           poetry config virtualenvs.in-project true
 
@@ -34,3 +34,27 @@ jobs:
         run: |
           sleep 3
           poetry run python -m pytest tests --verbose -k "not _skip_ci" --reruns 2 --reruns-delay 1
+
+  stage:
+    needs: test
+    runs-on: rpi-staging
+    steps:
+      - name: Stop systemctl service
+        run: sudo systemctl stop fase-controller
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Configure poetry
+        run: |
+          poetry config virtualenvs.in-project true
+
+      - name: Install dependencies
+        run: |
+          poetry install
+
+      - name: Start service
+        run: |
+          sudo systemctl start fase-controller
