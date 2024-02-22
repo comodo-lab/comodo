@@ -23,7 +23,7 @@ jobs:
           jq --null-input \
              --arg ip $PI_IP \
              --arg ws $WIFI_SSID \
-             --arg wp $WIFI_PASS" \
+             --arg wp $WIFI_PASS \
              '{MQTT_IP: $ip, WIFI_SSID: $ws, WIFI_PASS: $wp}' > env.json
           echo env.json
       - name: Run tests
@@ -48,7 +48,7 @@ jobs:
           jq --null-input \
              --arg ip $PI_IP \
              --arg ws $WIFI_SSID \
-             --arg wp $WIFI_PASS" \
+             --arg wp $WIFI_PASS \
              '{MQTT_IP: $ip, WIFI_SSID: $ws, WIFI_PASS: $wp}' > env.json
           echo env.json
       - name: Push files to pico
