@@ -10,13 +10,16 @@ def state():
 
 def test_cstate_initialization():
     state = cstate()
-    assert len(state.__dict__) == 6
+    assert len(state.__dict__) == 9
     assert state.experiment_uid == None
+    assert state.exp_file == None
     assert state.status == "idle"
+    assert state.exp_config == None
+    assert state.setpoints == []
+    assert state.sensors == {"configured": False}
     assert state.adjusting == AdjustingDict()
     assert state.schema_path == "schema_experiment.json"
     assert state.schema_sensor_heartbeat_path == "schema_sensor_heartbeat.json"
-    assert state.exp_config == None
 
 
 def test_cstate_heartbeat(state):
@@ -27,17 +30,46 @@ def test_cstate_heartbeat(state):
     }
 
 
-def test_can_set_experiment_uid(state):
-    state.experiment_uid = 123
-    assert state.experiment_uid == 123
-
-
 def test_str(state):
-    state.experiment_uid = 123
+    state.experiment_uid = "123"
     assert (
         str(state)
-        == '{"experiment": 123, "status": "idle", "adjusting": {"T": 0, "P": 0, "D1": 0, "D2": 0}}'
+        == '{"experiment": "123", "status": "idle", "adjusting": {"T": 0, "P": 0, "D1": 0, "D2": 0}}'
     )
+
+
+def test_can_set_experiment_uid(state):
+    state.experiment_uid = "123"
+    assert state.experiment_uid == "123"
+
+
+def test_cannot_set_wrong_type_experiment_uid(state):
+    try:
+        state.experiment_uid = 123
+    except TypeError as e:
+        assert (
+            "Experiment UID must be a string or None, cannot accept <class 'int'>"
+            in e.args[0]
+        )
+    else:
+        assert False, "Should not let you set wrong type"
+
+
+def test_can_set_exp_file(state):
+    state.exp_file = "path/to/file.json"
+    assert state.exp_file == "path/to/file.json"
+
+
+def test_cannot_set_wrong_type_exp_file(state):
+    try:
+        state.exp_file = 123
+    except TypeError as e:
+        assert (
+            "Experiment file path must be a string or None, cannot accept <class 'int'>"
+            in e.args[0]
+        )
+    else:
+        assert False, "Should not let you set wrong type"
 
 
 def test_set_valid_status(state):
@@ -52,6 +84,99 @@ def test_status_invalid(state):
         assert "Invalid status:" in e.args[0]
     else:
         assert False, "Should not let you set invalid status"
+
+
+def test_can_set_exp_config(state):
+    state.exp_config = {"uid": 123, "config": {"sensors": ["T", "P", "D1", "D2"]}}
+    assert state.exp_config == {
+        "uid": 123,
+        "config": {"sensors": ["T", "P", "D1", "D2"]},
+    }
+
+
+def test_cannot_set_wrong_type_exp_config(state):
+    try:
+        state.exp_config = 123
+    except TypeError as e:
+        assert (
+            "Experiment configuration must be a dictionary or None, cannot accept <class 'int'>"
+            in e.args[0]
+        )
+    else:
+        assert False, "Should not let you set wrong type"
+
+
+def test_can_set_setpoints(state):
+    state.setpoints = [
+        {
+            "time": 0,
+            "pressure": 0,
+            "temperature": 0,
+        },
+        {
+            "time": 1,
+            "pressure": 100,
+            "temperature": 100,
+        },
+    ]
+    assert state.setpoints == [
+        {
+            "time": 0,
+            "pressure": 0,
+            "temperature": 0,
+        },
+        {
+            "time": 1,
+            "pressure": 100,
+            "temperature": 100,
+        },
+    ]
+
+
+def test_cannot_set_wrong_type_setpoints(state):
+    try:
+        state.setpoints = 123
+    except TypeError as e:
+        assert (
+            "Setpoints must be a list of dictionaries, cannot accept <class 'int'>"
+            in e.args[0]
+        )
+    else:
+        assert False, "Should not let you set wrong type"
+
+
+def test_can_set_sensors(state):
+    for sensor in ["T", "P"]:
+        state.sensors[sensor] = {
+            "last_contact": 0,
+            "config": {},
+            "status": "awaiting_config",
+            "setpoint": None,
+        }
+    assert state.sensors == {
+        "configured": False,
+        "T": {
+            "last_contact": 0,
+            "config": {},
+            "status": "awaiting_config",
+            "setpoint": None,
+        },
+        "P": {
+            "last_contact": 0,
+            "config": {},
+            "status": "awaiting_config",
+            "setpoint": None,
+        },
+    }
+
+
+def test_cannot_set_wrong_type_sensors(state):
+    try:
+        state.sensors = 123
+    except TypeError as e:
+        assert "Sensors must be a dictionary, cannot accept <class 'int'>" in e.args[0]
+    else:
+        assert False, "Should not let you set wrong type"
 
 
 def test_set_valid_adjusting_dict(state):

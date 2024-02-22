@@ -1,5 +1,5 @@
 from json import dumps
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 
 class cstate:
@@ -23,11 +23,14 @@ class cstate:
         Initializes a new instance of the cstate class.
         """
         self.experiment_uid: str = None
+        self.exp_file: str = None
         self.status: str = "idle"
+        self.exp_config: Dict[str, Any] = None
+        self.setpoints: List[Dict[str, Any]] = []
+        self.sensors: Dict[str, Any] = {"configured": False}
         self.adjusting: AdjustingDict = AdjustingDict()
         self.schema_path: str = "schema_experiment.json"
         self.schema_sensor_heartbeat_path: str = "schema_sensor_heartbeat.json"
-        self.exp_config: Any = None
 
     def heartbeat(self) -> Dict[str, Any]:
         """
@@ -45,6 +48,48 @@ class cstate:
         Returns the string representation (heartbeat) of the cstate object.
         """
         return dumps(self.heartbeat())
+
+    @property
+    def experiment_uid(self) -> str:
+        return self._experiment_uid
+
+    @experiment_uid.setter
+    def experiment_uid(self, value: str) -> None:
+        """
+        Sets the experiment UID.
+
+        Args:
+            value: The new experiment UID value. Must be a string or None.
+
+        Raises:
+            TypeError: If the provided experiment UID is not a string or None.
+        """
+        if not isinstance(value, (str, type(None))):
+            raise TypeError(
+                f"Experiment UID must be a string or None, cannot accept {type(value)}"
+            )
+        self._experiment_uid = value
+
+    @property
+    def exp_file(self) -> str:
+        return self._exp_file
+
+    @exp_file.setter
+    def exp_file(self, value: str) -> None:
+        """
+        Sets the experiment file path.
+
+        Args:
+            value: The new experiment file path value. Must be a string or None.
+
+        Raises:
+            TypeError: If the provided experiment file path is not a string or None.
+        """
+        if not isinstance(value, (str, type(None))):
+            raise TypeError(
+                f"Experiment file path must be a string or None, cannot accept {type(value)}."
+            )
+        self._exp_file = value
 
     @property
     def status(self) -> str:
@@ -66,6 +111,69 @@ class cstate:
                 f"Invalid status: {value}. Status must be one of {self.allowed_status}."
             )
         self._status = value
+
+    @property
+    def exp_config(self) -> Dict[str, Any]:
+        return self._exp_config
+
+    @exp_config.setter
+    def exp_config(self, value: Dict[str, Any]) -> None:
+        """
+        Sets the experiment configuration.
+
+        Args:
+            value: The new experiment configuration dict.
+
+        Raises:
+            TypeError: If the provided experiment configuration is not a dictionary or None.
+        """
+        if not isinstance(value, (dict, type(None))):
+            raise TypeError(
+                f"Experiment configuration must be a dictionary or None, cannot accept {type(value)}."
+            )
+        self._exp_config = value
+
+    @property
+    def setpoints(self) -> List[Dict[str, Any]]:
+        return self._setpoints
+
+    @setpoints.setter
+    def setpoints(self, value: List[Dict[str, Any]]) -> None:
+        """
+        Sets the setpoints list.
+
+        Args:
+            value: The new setpoints list.
+
+        Raises:
+            TypeError: If the provided setpoints list is not a list.
+        """
+        if not isinstance(value, list):
+            raise TypeError(
+                f"Setpoints must be a list of dictionaries, cannot accept {type(value)}."
+            )
+        self._setpoints = value
+
+    @property
+    def sensors(self) -> Dict[str, Any]:
+        return self._sensors
+
+    @sensors.setter
+    def sensors(self, value: Dict[str, Any]) -> None:
+        """
+        Sets the sensors dictionary.
+
+        Args:
+            value: The new value for the entire sensors dictionary.
+
+        Raises:
+            TypeError: If the provided sensors dictionary is not a dictionary.
+        """
+        if not isinstance(value, dict):
+            raise TypeError(
+                f"Sensors must be a dictionary, cannot accept {type(value)}."
+            )
+        self._sensors = value
 
     @property
     def adjusting(self):
