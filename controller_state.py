@@ -18,6 +18,18 @@ class cstate:
         "error",
     ]
 
+    __slots__ = [
+        "_experiment_uid",
+        "_exp_file",
+        "_status",
+        "_exp_config",
+        "_setpoints",
+        "_sensors",
+        "_adjusting",
+        "schema_path",
+        "schema_sensor_heartbeat_path",
+    ]
+
     def __init__(self) -> None:
         """
         Initializes a new instance of the cstate class.

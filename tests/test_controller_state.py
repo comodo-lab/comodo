@@ -10,7 +10,6 @@ def state():
 
 def test_cstate_initialization():
     state = cstate()
-    assert len(state.__dict__) == 9
     assert state.experiment_uid == None
     assert state.exp_file == None
     assert state.status == "idle"
@@ -20,6 +19,15 @@ def test_cstate_initialization():
     assert state.adjusting == AdjustingDict()
     assert state.schema_path == "schema_experiment.json"
     assert state.schema_sensor_heartbeat_path == "schema_sensor_heartbeat.json"
+
+
+def test_cannot_add_new_attribute(state):
+    try:
+        state.new_attribute = 123
+    except AttributeError as e:
+        assert "'cstate' object has no attribute 'new_attribute'" in e.args[0]
+    else:
+        assert False, "Should not let you add new attribute"
 
 
 def test_cstate_heartbeat(state):
