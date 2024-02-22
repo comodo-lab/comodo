@@ -7,7 +7,7 @@ on:
 
 jobs:
   raspberry-pi-pico-test:
-    runs-on: [self-hosted]
+    runs-on: rpi-testing
     strategy:
       fail-fast: false
     steps:
