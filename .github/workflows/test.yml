@@ -21,9 +21,9 @@ jobs:
           OWOOL_WIFI_PASS: ${{ secrets.OWOOL_WIFI_PASS }}
         run: |
           jq --null-input \
-             --arg ip "${{ OWOOL_PI_IP \
-             --arg ws "${{ OWOOL_WIFI_SSID \
-             --arg wp "${{ OWOOL_WIFI_PASS \
+             --arg ip "$OWOOL_PI_IP \
+             --arg ws "$OWOOL_WIFI_SSID \
+             --arg wp "$OWOOL_WIFI_PASS \
              '{MQTT_IP: $ip, WIFI_SSID: $ws, WIFI_PASS: $wp}' > env.json
           echo env.json
       - name: Run tests
