@@ -10,7 +10,7 @@ jobs:
     strategy:
       fail-fast: false
 
-    runs-on: self-hosted
+    runs-on: rpici
     steps:
       - uses: actions/checkout@v4
         with:
@@ -24,7 +24,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ./.venv
-          key: self-hosted-venv-${{ hashFiles('**/poetry.lock') }}
+          key: rpici-venv-${{ hashFiles('**/poetry.lock') }}
 
       - name: Install dependencies
         run: |
