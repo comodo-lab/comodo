@@ -16,9 +16,9 @@ jobs:
           ref: ${{ github.ref }}
       - name: Generate config
         env:
-          OWOOL_PI_IP: ${{ OWOOL_PI_IP }}
-          OWOOL_WIFI_SSID: ${{ OWOOL_WIFI_SSID }}
-          OWOOL_WIFI_PASS: ${{ OWOOL_WIFI_PASS }}
+          OWOOL_PI_IP: ${{ secrets.OWOOL_PI_IP }}
+          OWOOL_WIFI_SSID: ${{ secrets.OWOOL_WIFI_SSID }}
+          OWOOL_WIFI_PASS: ${{ secrets.OWOOL_WIFI_PASS }}
         run: |
           jq --null-input \
              --arg ip "${{ OWOOL_PI_IP \
