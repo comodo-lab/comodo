@@ -15,6 +15,8 @@ def test_cstate_initialization():
     assert state.status == "idle"
     assert state.exp_config == None
     assert state.setpoints == []
+    assert state.current_setpoint == None
+    assert state.past_setpoints == []
     assert state.sensors == {"configured": False}
     assert state.adjusting == AdjustingDict()
     assert state.schema_path == "schema_experiment.json"
@@ -147,6 +149,48 @@ def test_cannot_set_wrong_type_setpoints(state):
     except TypeError as e:
         assert (
             "Setpoints must be a list of dictionaries, cannot accept <class 'int'>"
+            in e.args[0]
+        )
+    else:
+        assert False, "Should not let you set wrong type"
+
+
+def test_can_set_current_setpoint(state):
+    state.current_setpoint = {
+        "time": 1,
+        "pressure": 2,
+        "temperature": 3,
+    }
+    assert state.current_setpoint == {
+        "time": 1,
+        "pressure": 2,
+        "temperature": 3,
+    }
+
+
+def test_cannot_set_wrong_type_current_setpoint(state):
+    try:
+        state.current_setpoint = 123
+    except TypeError as e:
+        assert (
+            "Current setpoint must be a dictionary or None, cannot accept <class 'int'>"
+            in e.args[0]
+        )
+    else:
+        assert False, "Should not let you set wrong type"
+
+
+def test_can_set_past_setpoints(state):
+    state.past_setpoints.append({"time": 1, "pressure": 2, "temperature": 3})
+    assert state.past_setpoints == [{"time": 1, "pressure": 2, "temperature": 3}]
+
+
+def test_cannot_set_wrong_type_past_setpoints(state):
+    try:
+        state.past_setpoints = 123
+    except TypeError as e:
+        assert (
+            "Past setpoints must be a list of dictionaries, cannot accept <class 'int'>"
             in e.args[0]
         )
     else:

@@ -24,6 +24,8 @@ class cstate:
         "_status",
         "_exp_config",
         "_setpoints",
+        "_current_setpoint",
+        "_past_setpoints",
         "_sensors",
         "_adjusting",
         "schema_path",
@@ -39,6 +41,8 @@ class cstate:
         self.status: str = "idle"
         self.exp_config: Dict[str, Any] = None
         self.setpoints: List[Dict[str, Any]] = []
+        self.current_setpoint: Dict[str, Any] = None
+        self.past_setpoints: List[Dict[str, Any]] = []
         self.sensors: Dict[str, Any] = {"configured": False}
         self.adjusting: AdjustingDict = AdjustingDict()
         self.schema_path: str = "schema_experiment.json"
@@ -165,6 +169,48 @@ class cstate:
                 f"Setpoints must be a list of dictionaries, cannot accept {type(value)}."
             )
         self._setpoints = value
+
+    @property
+    def current_setpoint(self) -> Dict[str, Any]:
+        return self._current_setpoint
+
+    @current_setpoint.setter
+    def current_setpoint(self, value: Dict[str, Any]) -> None:
+        """
+        Sets the current setpoint.
+
+        Args:
+            value: The new value for the entire current setpoint.
+
+        Raises:
+            TypeError: If the provided current setpoint dictionary is not a dictionary or None.
+        """
+        if not isinstance(value, (dict, type(None))):
+            raise TypeError(
+                f"Current setpoint must be a dictionary or None, cannot accept {type(value)}."
+            )
+        self._current_setpoint = value
+
+    @property
+    def past_setpoints(self) -> List[Dict[str, Any]]:
+        return self._past_setpoints
+
+    @past_setpoints.setter
+    def past_setpoints(self, value: List[Dict[str, Any]]) -> None:
+        """
+        Sets the past setpoints list.
+
+        Args:
+            value: The new past setpoints list.
+
+        Raises:
+            TypeError: If the provided past setpoints list is not a list.
+        """
+        if not isinstance(value, list):
+            raise TypeError(
+                f"Past setpoints must be a list of dictionaries, cannot accept {type(value)}."
+            )
+        self._past_setpoints = value
 
     @property
     def sensors(self) -> Dict[str, Any]:
