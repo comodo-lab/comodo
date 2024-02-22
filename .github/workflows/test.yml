@@ -25,7 +25,7 @@ jobs:
              --arg ws $WIFI_SSID \
              --arg wp $WIFI_PASS \
              '{MQTT_IP: $ip, WIFI_SSID: $ws, WIFI_PASS: $wp}' > env.json
-          echo env.json
+          cat env.json
       - name: Run tests
         run: |
           printf "%s\n" "$PATH"
@@ -50,7 +50,7 @@ jobs:
              --arg ws $WIFI_SSID \
              --arg wp $WIFI_PASS \
              '{MQTT_IP: $ip, WIFI_SSID: $ws, WIFI_PASS: $wp}' > env.json
-          echo env.json
+          cat env.json
       - name: Push files to pico
         run: |
           for file in main.py lib/ test/ run-tests.py env.json; do ampy --port /dev/ttyACM1 put $file; done;
