@@ -16,14 +16,14 @@ jobs:
           ref: ${{ github.ref }}
       - name: Generate config
         env:
-          OWOOL_PI_IP: ${{ secrets.OWOOL_PI_IP }}
-          OWOOL_WIFI_SSID: ${{ secrets.OWOOL_WIFI_SSID }}
-          OWOOL_WIFI_PASS: ${{ secrets.OWOOL_WIFI_PASS }}
+          PI_IP: ${{ secrets.OWOOL_PI_IP }}
+          WIFI_SSID: ${{ secrets.OWOOL_WIFI_SSID }}
+          WIFI_PASS: ${{ secrets.OWOOL_WIFI_PASS }}
         run: |
           jq --null-input \
-             --arg ip "$OWOOL_PI_IP \
-             --arg ws "$OWOOL_WIFI_SSID \
-             --arg wp "$OWOOL_WIFI_PASS \
+             --arg ip $PI_IP \
+             --arg ws $WIFI_SSID \
+             --arg wp $WIFI_PASS" \
              '{MQTT_IP: $ip, WIFI_SSID: $ws, WIFI_PASS: $wp}' > env.json
           echo env.json
       - name: Run tests
