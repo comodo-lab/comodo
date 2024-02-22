@@ -10,10 +10,7 @@ from on_controller_message import *
 from unittest.mock import patch
 
 
-@pytest.fixture
-def state():
-    return cstate()
-
+state = make_state_fixture("idle")
 
 controller_client = make_client_fixture(
     client_id="controller",

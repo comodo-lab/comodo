@@ -3,6 +3,7 @@ import json
 import time as t
 from typing import Callable
 
+from controller_state import cstate
 from mqtt_clients import MQTTClient, on_client_message
 
 time_int = 0.01  # Time interval between client connection / message checks
@@ -33,6 +34,49 @@ def valid_experiment_dump():
 
 def invalid_experiment_path():
     return "tests/file_fixtures/invalid_experiment.json"
+
+
+def make_state_fixture(status):
+    """
+    Factory to create a cstate fixture in the state ut would be right before a callback is called.
+    It expects a string corresponding to the callback to be tested, which should be one of:
+        - "idle"
+        - "starting"
+        - "ready"
+    If the provided status is not one of the allowed status values, it returns None.
+    """
+
+    @pytest.fixture
+    def state():
+        if status not in ["idle", "starting", "ready"]:
+            return None
+
+        obj = cstate()
+
+        if status == "idle":
+            return obj
+
+        obj.exp_config = valid_experiment_dict()
+        obj.experiment_uid = valid_experiment_dict()["uid"]
+        obj.status = "validating"
+        if status == "starting":
+            return obj
+
+        obj.status = "awaiting_sensors"
+        obj.sensors = {"configured": True}
+        for sensor in obj.exp_config["config"]["sensors"]:
+            obj.sensors[sensor["name"]] = {
+                "last_contact": t.time() - 1,
+                "config": {k: v for k, v in sensor.items() if k != "name"},
+                "status": "awaiting_setpoint",
+                "setpoint": None,
+            }
+        if status == "ready":
+            return obj
+
+        return obj
+
+    return state
 
 
 capmqtt_decode_utf8 = True

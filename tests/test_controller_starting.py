@@ -10,14 +10,7 @@ from on_controller_message import *
 from unittest.mock import patch
 
 
-@pytest.fixture
-def state():
-    obj = cstate()
-    obj.exp_config = valid_experiment_dict()
-    obj.experiment_uid = valid_experiment_dict()["uid"]
-    obj.status = "validating"
-    return obj
-
+state = make_state_fixture("starting")
 
 controller_client = make_client_fixture(
     client_id="controller",

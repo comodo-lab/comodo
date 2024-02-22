@@ -11,23 +11,7 @@ from on_controller_message import *
 from unittest.mock import patch
 
 
-@pytest.fixture
-def state():
-    obj = cstate()
-    obj.exp_file = None
-    obj.exp_config = valid_experiment_dict()
-    obj.experiment_uid = valid_experiment_dict()["uid"]
-    obj.status = "awaiting_sensors"
-    obj.sensors = {"configured": True}
-    for sensor in obj.exp_config["config"]["sensors"]:
-        obj.sensors[sensor["name"]] = {
-            "last_contact": t.time() - 1,
-            "config": {k: v for k, v in sensor.items() if k != "name"},
-            "status": "awaiting_setpoint",
-            "setpoint": None,
-        }
-    return obj
-
+state = make_state_fixture("ready")
 
 controller_client = make_client_fixture(
     client_id="controller",
