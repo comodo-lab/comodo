@@ -10,22 +10,7 @@ from on_timer_message import *
 from unittest.mock import patch
 
 
-@pytest.fixture
-def state():
-    obj = cstate()
-    obj.exp_config = valid_experiment_dict()
-    obj.experiment_uid = valid_experiment_dict()["uid"]
-    obj.status = "awaiting_sensors"
-    obj.sensors = {"configured": False}
-    for sensor in obj.exp_config["config"]["sensors"]:
-        obj.sensors[sensor["name"]] = {
-            "last_contact": None,
-            "config": {k: v for k, v in sensor.items() if k != "name"},
-            "status": None,
-            "setpoint": None,
-        }
-    return obj
-
+state = make_state_fixture("awaiting_sensors")
 
 timer_client = make_client_fixture(
     client_id="timer",
@@ -116,3 +101,33 @@ def test_changed_controller_state(capmqtt, state, timer_client):
     assert len(capmqtt.messages) == 2
     assert capmqtt.messages[-1].topic == "engaged_timer"
     assert capmqtt.messages[-1].payload == "false"
+
+
+def test_timer_setpoint(capmqtt, state, timer_client):
+    assert state.experiment_uid == "123"
+    state.status = "running"
+
+    capmqtt.publish(
+        topic="timer/start/setpoint",
+        payload=json.dumps({"uid": "123", "duration": 0.3}),
+    )
+    wait_for_message(capmqtt)
+
+    assert capmqtt.messages[-1].topic == "controller/run"
+    assert capmqtt.messages[-1].payload == '{"uid": "123"}'
+
+
+def test_timer_setpoint_missing_duration(capmqtt, state):
+    assert state.experiment_uid == "123"
+    state.status = "running"
+
+    capmqtt.publish(
+        topic="timer/start/setpoint",
+        payload=json.dumps({"uid": "123"}),
+    )
+    wait_for_message(capmqtt)
+
+    assert capmqtt.messages[-1].topic == "error/timer"
+    assert "Error decoding timer/start/setpoint message" in capmqtt.messages[-1].payload
+    assert "missing" in capmqtt.messages[-1].payload
+    assert "duration" in capmqtt.messages[-1].payload

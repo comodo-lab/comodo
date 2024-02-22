@@ -48,7 +48,7 @@ def make_state_fixture(status):
 
     @pytest.fixture
     def state():
-        if status not in ["idle", "starting", "ready"]:
+        if status not in ["idle", "starting", "awaiting_sensors", "ready"]:
             return None
 
         obj = cstate()
@@ -63,14 +63,20 @@ def make_state_fixture(status):
             return obj
 
         obj.status = "awaiting_sensors"
-        obj.sensors = {"configured": True}
         for sensor in obj.exp_config["config"]["sensors"]:
             obj.sensors[sensor["name"]] = {
-                "last_contact": t.time() - 1,
+                "last_contact": None,
                 "config": {k: v for k, v in sensor.items() if k != "name"},
-                "status": "awaiting_setpoint",
+                "status": None,
                 "setpoint": None,
             }
+        if status == "awaiting_sensors":
+            return obj
+
+        for sensor in obj.exp_config["config"]["sensors"]:
+            obj.sensors[sensor["name"]]["last_contact"] = t.time() - 1
+            obj.sensors[sensor["name"]]["status"] = "awaiting_setpoint"
+        obj.sensors = {"configured": True}
         if status == "ready":
             return obj
 

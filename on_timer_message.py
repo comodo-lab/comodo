@@ -14,7 +14,7 @@ def on_timer_message(client, msg, obj):
         wrong_json(msg, e)
         return
     except KeyError as e:
-        missing_keys(msg, e)
+        missing_keys(msg, e, source="timer")
         return
 
     if msg.topic == "timer/start/sensor_setup":
@@ -28,6 +28,22 @@ def on_timer_message(client, msg, obj):
                     json.dumps({"error": f"Timed out waiting for sensors. Exiting..."}),
                 )
                 pub.publish("controller/stop", json.dumps({"uid": message["uid"]}))
+                return
+    elif msg.topic == "timer/start/setpoint":
+        try:
+            duration = message["duration"]
+        except KeyError as e:
+            missing_keys(msg, e, source="timer")
+            return
+        # Start timer for setpoint
+        t0 = t.time()
+        while obj.status == "running":
+            t.sleep(0.1)
+            if t.time() - t0 > duration:
+                pub.publish(
+                    "controller/run",
+                    json.dumps({"uid": message["uid"]}),
+                )
                 return
     else:
         incompatible_request(obj, msg, source="timer")
