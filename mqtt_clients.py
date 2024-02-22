@@ -4,12 +4,10 @@ from datetime import datetime
 import json
 
 # Broker setup
-broker_address = "localhost"
-user = None
-password = None
-# broker_address = "172.28.143.181"
-# user = "controller"
-# password = "7C6jX9m4AnYfMAd"
+config = json.load(open("config.json"))
+broker_address = config["broker_address"]
+user = config["user"]
+password = config["password"]
 
 
 def print_message(client, msg, timestamped=False):
@@ -40,7 +38,7 @@ def on_client_message(client, msg, obj):
     The message is printed to the console in the format:
     <client id>: <topic>: <message>
     """
-    print_message(client, msg)
+    print_message(client, msg, timestamped=True)
 
 
 class MQTTClient:
