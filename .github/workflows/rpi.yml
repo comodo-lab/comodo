@@ -1,4 +1,4 @@
-name: test
+name: RPI
 
 on:
   workflow_dispatch: # manual invocation
@@ -29,31 +29,3 @@ jobs:
         run: |
           printf "%s\n" "$PATH"
           micropython -m lib.unittest
-
-  raspberry-pi-pico-test:
-    runs-on: [self-hosted]
-    strategy:
-      fail-fast: false
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.ref }}
-      - name: Generate config
-        env:
-          PI_IP: ${{ secrets.OWOOL_PI_IP }}
-          WIFI_SSID: ${{ secrets.OWOOL_WIFI_SSID }}
-          WIFI_PASS: ${{ secrets.OWOOL_WIFI_PASS }}
-        run: |
-          jq --null-input \
-             --arg ip $PI_IP \
-             --arg ws $WIFI_SSID \
-             --arg wp $WIFI_PASS \
-             '{MQTT_IP: $ip, WIFI_SSID: $ws, WIFI_PASS: $wp}' > env.json
-      - name: Push files to pico
-        run: |
-          for file in main.py lib/ test/ run-tests.py env.json; do ampy --port /dev/ttyACM1 put $file; done;
-          ampy --port /dev/ttyACM1 ls
-      - name: Run tests
-        run: |
-          ampy --port /dev/ttyACM1 run run-tests.py | tee testout.txt
-          grep -q "FAILED" testout.txt && exit 1 || exit 0
