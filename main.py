@@ -1,4 +1,5 @@
 # Micropython imports
+import ujson 
 
 # System imports
 import time as t
@@ -13,6 +14,21 @@ board = sys.platform
 #if board == "rp2":
     #from machine import WDT
     #wdt = WDT(timeout=2000) # ms
+
+# Set the state
+state = {
+    "name": config['SENSOR_ID'],
+    "status": "awaiting_config",
+    "setpoint": 0,
+    "temperture": 0,
+    "config": {
+        "p": 0,
+        "i": 0,
+        "d": 0,
+        "tolerance": 0
+    },
+}
+    
 
 def sub_cb(topic, msg):
     """ The callback function for the mqtt client
@@ -47,9 +63,17 @@ def main():
                               user="sensor",
                               password="foobar!!")
 
-    ## Set up subscriptions
-    #client.set_callback(sub_cb)
-    #client.subscribe(f"sensor/{config['SENSOR_ID']}/#")
+
+    
+    ## Enter the main loop
+    while True:
+        ## Reset the watchdog timer
+        #wdt.feed()
+
+        ## Publish the heartbeat
+        heartbeat_structure = ujson.dumps(state)
+        client.publish(f"heartbeat/sensor/{config['SENSOR_ID']}", heartbeat_structure)
+        t.sleep(1)
 
     return 0
 
