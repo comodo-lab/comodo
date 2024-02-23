@@ -21,7 +21,7 @@ jobs:
           poetry config virtualenvs.in-project true
 
       - name: Cache the virtualenv
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ./.venv
           key: rpi-testing-venv-${{ hashFiles('**/poetry.lock') }}
@@ -64,7 +64,7 @@ jobs:
           poetry config virtualenvs.in-project true
 
       - name: Cache the virtualenv
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ./.venv
           key: rpi-staging-venv-${{ hashFiles('**/poetry.lock') }}
