@@ -11,13 +11,14 @@ import connect as con
 
 # Determine the board and set the watchdog timer
 board = sys.platform
-#if board == "rp2":
-    #from machine import WDT
-    #wdt = WDT(timeout=2000) # ms
+if board == "rp2":
+    from machine import Timer
+#     from machine import WDT
+#    wdt = WDT(timeout=2000) # ms
 
 # Set the state
 state = {
-    "name": config['SENSOR_ID'],
+    "name": "---",
     "status": "awaiting_config",
     "setpoint": 0,
     "temperture": 0,
@@ -28,7 +29,24 @@ state = {
         "tolerance": 0
     },
 }
-    
+
+# Define heartbeat publishing
+def heartbeat_tick(timer):
+    """ The heartbeat function
+
+    Args:
+        timer: Timer: The timer object
+
+    Returns:
+        None
+    """
+
+    global client
+
+    if "client" in config and config['ready'] is True:
+        print("Tick!")
+        heartbeat_structure = ujson.dumps(state)
+        config['client'].publish(f"heartbeat/sensor/{config['SENSOR_ID']}", heartbeat_structure)
 
 def sub_cb(topic, msg):
     """ The callback function for the mqtt client
@@ -49,32 +67,31 @@ def main():
     Returns:
         int: The exit code
     """
+    global config
     
     ## Load the configuration file
     config = cfg.load_config()
+    state["name"] = config['SENSOR_ID']
 
     ## Determine the board and connect to the wifi if it is a raspberry pi
     if board == "rp2":
         con.connect_wifi(config["WIFI_SSID"], config["WIFI_PASS"])
 
     ## Connect to the mqtt broker
-    client = con.connect_mqtt(config["MQTT_IP"],
-                              port=1883,
-                              user="sensor",
-                              password="foobar!!")
-
-
+    config['client'] = con.connect_mqtt(config["MQTT_IP"],
+                                        port=1883,
+                                        user="sensor",
+                                        password="foobar!!")
     
-    ## Enter the main loop
-    while True:
-        ## Reset the watchdog timer
-        #wdt.feed()
+    ## Setup heartbeat timer
+    if board == "rp2":
+        print(config["HEARTBEAT_INTERVAL"])
+        timer = Timer(period=config["HEARTBEAT_INTERVAL"],
+                      mode=Timer.PERIODIC,
+                      callback=heartbeat_tick)
 
-        ## Publish the heartbeat
-        heartbeat_structure = ujson.dumps(state)
-        client.publish(f"heartbeat/sensor/{config['SENSOR_ID']}", heartbeat_structure)
-        t.sleep(1)
-
+    config['ready'] = True
+    
     return 0
 
 if __name__ == "__main__":
