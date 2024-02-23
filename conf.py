@@ -91,28 +91,44 @@ col4, col5 = st.columns(2)
 with st.container():
     with col4:
         with st.container(border=True):
-            st.subheader("File Controls", divider="grey")
-            uploaded_file = st.file_uploader("Upload config file")
+            uploaded_file = st.file_uploader("Upload experiment configuration")
+        with st.container(border=True):
+            st.subheader("Experiment Editor", divider="grey")
+            st.write("Experiment profile:")
+            if "experiment_dataframe_container" not in st.session_state:
+                st.session_state["experiment_dataframe_container"] = st.empty()
+            st.write("Sensor configuration:")
+            if "config_dataframe_container" not in st.session_state:
+                st.session_state["config_dataframe_container"] = st.empty()
             if "download_container" not in st.session_state:
                 st.session_state["download_container"] = st.empty()
+    with col5:
+        with st.container(border=True):
+            st.subheader("Start experiment", divider="grey")
             if "send_container" not in st.session_state:
                 st.session_state["send_container"] = st.button(
-                    "Send config",
+                    "Send experiment configuration",
                     on_click=send_config,
                     use_container_width=True,
                     type="primary",
                     disabled=False,
                 )
         with st.container(border=True):
-            st.subheader("Experiment Profile Editor", divider="grey")
-            if "experiment_dataframe_container" not in st.session_state:
-                st.session_state["experiment_dataframe_container"] = st.empty()
-            st.subheader("Experiment Configuration Editor", divider="grey")
-            if "config_dataframe_container" not in st.session_state:
-                st.session_state["config_dataframe_container"] = st.empty()
-    with col5:
+            st.subheader("Experiment Profile Plot", divider="grey")
+            if "plot_container" not in st.session_state:
+                st.session_state["plot_container"] = st.empty()
         with st.container(border=True):
             st.subheader("Experiment controls", divider="grey")
+            with st.form("Edit experiment"):
+                uid = st.text_input("Enter experiment ID to edit experiment")
+                submitted = st.form_submit_button(
+                    "Send new configuration", use_container_width=True, type="primary"
+                )
+                if submitted:
+                    payload = '{"uid":"' + uid + '"}'
+                    st.session_state["mqtt_client"].publish(
+                        f"ui/edit", payload.encode("utf-8")
+                    )
             with st.form("Stop experiment"):
                 uid = st.text_input("Enter experient ID to stop experiment")
                 submitted = st.form_submit_button(
@@ -123,10 +139,6 @@ with st.container():
                     st.session_state["mqtt_client"].publish(
                         f"ui/stop", payload.encode("utf-8")
                     )
-        with st.container(border=True):
-            st.subheader("Experiment Profile Plot", divider="grey")
-            if "plot_container" not in st.session_state:
-                st.session_state["plot_container"] = st.empty()
 
 # -----------------------------------------------------------------------------
 # Read appropriate input file
@@ -172,7 +184,7 @@ output_data["config"]["sensors"] = json.loads(config_json)
 
 st.session_state["output_data"] = output_data
 st.session_state["download_container"].download_button(
-    label="Download config",
+    label="Download experiment configuration",
     data=json.dumps(output_data).encode("utf-8"),
     file_name="config.json",
     mime="application/json",
@@ -187,7 +199,6 @@ def on_message(client, obj, msg):
     if msg.topic == "heartbeat/controller":
         payload = json.loads(msg.payload.decode("utf-8"))
 
-        all_modes = ["Temperature", "Pressure", "Displacement 1", "Displacement 2"]
         current_modes = [key for key, value in payload["adjusting"].items() if value]
         adjusting_str = ", ".join(current_modes) if current_modes else "--"
 
