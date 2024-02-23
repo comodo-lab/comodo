@@ -212,6 +212,9 @@ def on_message(client, obj, msg):
         if payload["uid"] == st.session_state["await_uuid"]:
             error_str = json.loads(msg.payload.decode("utf-8"))["error"]
             st.session_state["status_container"].text(error_str)
+            st.session_state["status_container"].update(
+                label="Failed!", state="complete", expanded=True
+            )
     elif "error/" in msg.topic:
         payload = json.loads(msg.payload.decode("utf-8"))
         if payload["uid"] == st.session_state["await_uuid"]:
