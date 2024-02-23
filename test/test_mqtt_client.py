@@ -1,29 +1,31 @@
 import lib.unittest as unittest
 import lib.umqtt as mqtt
-#from machine import WDT
+import time as t
+
+import sys
+import main as main
 
 class MQTTTest(unittest.TestCase):
-    def test_ClientConnected(self):
-        client = mqtt.MQTTClient("umqtt_client",
-                                 "0.0.0.0",
-                                 port=1883,
-                                 user="sensor",
-                                 password="foobar!!")
-        connected = client.connect()
-        print("")
-        print("----------------------")
-        print(connected)
-        print(type(connected))
-
+    def setUp(self):
+        self.config = main.load_config()
+    
+    def test_Client_CorrectIP(self):
+        self.client = mqtt.MQTTClient("umqtt_client",
+                                      self.config["MQTT_IP"],
+                                      port=1883,
+                                      user="sensor",
+                                      password="foobar!!")
+        connected = self.client.connect()
         self.assertIs(connected, 0)
 
-    # def test_ClientNotConnected(self):
-    #     client = mqtt.MQTTClient("umqtt_client",
-    #                              "1.2.3.4",
-    #                              port=1883,
-    #                              user="sensor",
-    #                              password="foobar!!")
+    # def test_Client_IncorrectIP(self):
+    #     self.client = mqtt.MQTTClient("umqtt_client",
+    #                                   "1.2.3.4",
+    #                                   port=1883,
+    #                                   user="sensor",
+    #                                   password="foobar!!")
+    #     connected = self.client.connect()
+    #     self.assertIs(connected, 113)
 
-    #     self.assertRaises("OSError",func=client.connect)
-
-    
+    def tearDown(self):
+        self.client.disconnect()
