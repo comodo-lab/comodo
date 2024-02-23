@@ -115,7 +115,7 @@ def test_awaiting_sensors_wrong_config(capmqtt, state):
     # Incorrect heartbeat for first sensor
     wrong_config = sensors[0].copy()
     wrong_config["p"] = wrong_config["p"] + 1
-    publish_sensor_heartbeat(capmqtt, wrong_config, "awaiting_setpoint", 0)
+    publish_sensor_heartbeat(capmqtt, wrong_config, "no_setpoint", 0)
 
     # Should not have updated sensor
     assert state.sensors[first_sensor_name]["status"] == None
@@ -133,11 +133,11 @@ def test_awaiting_sensors_not_all_responded(capmqtt, state):
 
     # Correct heartbeat for all but first sensors
     for sensor in sensors[1:]:
-        publish_sensor_heartbeat(capmqtt, sensor, "awaiting_setpoint", None)
+        publish_sensor_heartbeat(capmqtt, sensor, "no_setpoint", None)
 
     # Should have updated sensors, but not be ready yet
     for sensor in sensors[1:]:
-        assert state.sensors[sensor["name"]]["status"] == "awaiting_setpoint"
+        assert state.sensors[sensor["name"]]["status"] == "no_setpoint"
         assert state.sensors[sensor["name"]]["setpoint"] == None
     assert state.status == "awaiting_sensors"
     assert state.sensors["configured"] == False
@@ -154,9 +154,9 @@ def test_awaiting_sensors_wrong_sensor_status(capmqtt, state):
     publish_sensor_heartbeat(capmqtt, sensors[0], "awaiting_config", None)
     # Correct heartbeat for all but first sensors
     for sensor in sensors[1:]:
-        publish_sensor_heartbeat(capmqtt, sensor, "awaiting_setpoint", None)
+        publish_sensor_heartbeat(capmqtt, sensor, "no_setpoint", None)
 
-    assert state.sensors[sensor["name"]]["status"] == "awaiting_setpoint"
+    assert state.sensors[sensor["name"]]["status"] == "no_setpoint"
     assert state.sensors["configured"] == False
 
 
@@ -169,10 +169,10 @@ def test_awaiting_sensors_all_responded(capmqtt, state):
 
     # Correct heartbeat for all sensors
     for sensor in sensors:
-        publish_sensor_heartbeat(capmqtt, sensor, "awaiting_setpoint", None)
+        publish_sensor_heartbeat(capmqtt, sensor, "no_setpoint", None)
     wait_for_message(capmqtt)
 
-    assert state.sensors[sensor["name"]]["status"] == "awaiting_setpoint"
+    assert state.sensors[sensor["name"]]["status"] == "no_setpoint"
     assert state.sensors["configured"] == True
     assert state.status == "awaiting_sensors"
     assert capmqtt.messages[-1].topic == "controller/ready"

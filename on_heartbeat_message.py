@@ -43,7 +43,7 @@ def on_heartbeat_message(client, msg, obj):
         obj_sensor["setpoint"] = sensor["setpoint"]
         obj_sensor["config"] = sensor["config"]
         if all(
-            obj.sensors[s]["status"] == "awaiting_setpoint"
+            obj.sensors[s]["status"] == "no_setpoint"
             for s in obj.sensors
             if s != "configured"
         ):

@@ -7,7 +7,7 @@
         },
         "status": {
             "type": "string",
-            "enum": ["awaiting_config", "awaiting_setpoint", "adjusting", "ready", "error"]
+            "enum": ["awaiting_config", "no_setpoint", "adjusting", "ready", "error"]
         },
         "setpoint": {
             "type": ["number", "null"]

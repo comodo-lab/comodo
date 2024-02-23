@@ -75,7 +75,7 @@ def make_state_fixture(status):
 
         for sensor in obj.exp_config["config"]["sensors"]:
             obj.sensors[sensor["name"]]["last_contact"] = t.time() - 1
-            obj.sensors[sensor["name"]]["status"] = "awaiting_setpoint"
+            obj.sensors[sensor["name"]]["status"] = "no_setpoint"
         obj.sensors = {"configured": True}
         if status == "ready":
             return obj
