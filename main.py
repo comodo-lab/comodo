@@ -43,10 +43,10 @@ def heartbeat_tick(timer):
 
     global client
 
-    if "client" in config and config['ready'] is True:
-        print("Tick!")
+    if "client" in config and "ready" in config:
         heartbeat_structure = ujson.dumps(heartbeat_state)
         config['client'].publish(f"heartbeat/sensor/{config['SENSOR_ID']}", heartbeat_structure)
+        print(heartbeat_structure)
 
 def sub_cb(topic, msg):
     """ The callback function for the mqtt client
@@ -58,9 +58,19 @@ def sub_cb(topic, msg):
     Returns:
         None
     """
-    print(topic, msg)
+    if topic.decode("utf-8") == f"sensor/{config['SENSOR_ID']}/setup":
+        print("Setting up the sensor")
+        params = ujson.loads(msg)
+        heartbeat_state["config"]["p"] = params["p"]
+        heartbeat_state["config"]["i"] = params["i"]
+        heartbeat_state["config"]["d"] = params["d"]
+        heartbeat_state["config"]["tolerance"] = params["tolerance"]
+        heartbeat_state["status"] = "ready"
+    if topic.decode("utf-8") == f"sensor/setpoint":
+        print("Setting the setpoint")
+        params = ujson.loads(msg)
+        heartbeat_state["setpoint"] = params[config['SENSOR_ID']]      
     
-
 def main():
     """ The main function
 
@@ -90,7 +100,18 @@ def main():
                       mode=Timer.PERIODIC,
                       callback=heartbeat_tick)
 
+    ## Subscribe to the controller's instructions
+    config['client'].set_callback(sub_cb)
+    config['client'].subscribe(f"sensor/{config['SENSOR_ID']}/setup")
+    config['client'].subscribe(f"sensor/setpoint")
+
+    ## Set the ready flag
     config['ready'] = True
+
+    ## Main loop
+    while True:
+        config['client'].wait_msg()
+        t.sleep(1)
     
     return 0
 
