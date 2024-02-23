@@ -39,6 +39,14 @@ jobs:
     needs: test
     runs-on: rpi-staging
     steps:
+      - name: Stop systemctl service
+        run: sudo systemctl stop fase-controller
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
       - name: Create config
         env:
           CONTROLLER_USER: ${{ secrets.CONTROLLER_MQTT_USER }}
@@ -50,14 +58,6 @@ jobs:
             --arg cp $CONTROLLER_PASS \
             --arg ba $BROKER_ADDRESS \
             '{broker_address: $ba, user: $cu, password: $cp}' > config.json
-
-      - name: Stop systemctl service
-        run: sudo systemctl stop fase-controller
-
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.ref }}
 
       - name: Configure poetry
         run: |
