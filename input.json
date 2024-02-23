@@ -1,14 +1,18 @@
 {
     "config": {
-        "sensors": [
-            {"name":"temperature","p":1, "i":2, "d":3, "tolerance":0.5},
-            {"name":"pressure","p":11, "i":22, "d":33, "tolerance":0.5}
+        "sensors":[
+            {"name":"temperature",    "p":0.11, "i":0.12, "d":0.13, "tolerance":0.1},
+            {"name":"pressure",       "p":0.21, "i":0.22, "d":0.23, "tolerance":0.2}
         ],
         "resolution":1
     },
     "experiment":[
-        { "time":0, "pressure":0, "temperature":0, "displacement 1":0, "displacement 2":0   },
-        { "time":1, "pressure":1, "temperature":2, "displacement 1":1, "displacement 2":2   },
-        { "time":2, "pressure":0, "temperature":0, "displacement 1":0, "displacement 2":0}
+        { "time":0,     "pressure":0,    "temperature":0,    "displacement 1":0,   "displacement 2":0   },
+        { "time":4,     "pressure":5000, "temperature":0,    "displacement 1":0,   "displacement 2":0   },
+        { "time":8,     "pressure":5000, "temperature":1000, "displacement 1":0,   "displacement 2":0   },
+        { "time":12,    "pressure":5000, "temperature":1000, "displacement 1":0,   "displacement 2":0   },
+        { "time":16,    "pressure":5000, "temperature":1000, "displacement 1":0.4, "displacement 2":0.4 },
+        { "time":17,    "pressure":5000, "temperature":0,    "displacement 1":0.4, "displacement 2":0.4 },
+        { "time":20,    "pressure":0,    "temperature":0,    "displacement 1":0.4, "displacement 2":0.4 }
     ]
 }
