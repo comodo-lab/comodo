@@ -100,6 +100,10 @@ with st.container():
             st.write("Sensor configuration:")
             if "config_dataframe_container" not in st.session_state:
                 st.session_state["config_dataframe_container"] = st.empty()
+            if "setpoint_resolution" not in st.session_state:
+                st.session_state["setpoint_resolution"] = st.number_input(
+                    "Setpoint resolution [s]:", value=1, min_value=1
+                )
             if "download_container" not in st.session_state:
                 st.session_state["download_container"] = st.empty()
     with col5:
@@ -166,6 +170,7 @@ edited_config_df = st.session_state["config_dataframe_container"].data_editor(
     num_rows="dynamic",
     use_container_width=True,
 )
+st.session_state["setpoint_resolution"] = input_file["config"]["resolution"]
 
 # -----------------------------------------------------------------------------
 # Create plots
@@ -177,10 +182,12 @@ make_plot(edited_experiment_df)
 
 experiment_json = edited_experiment_df.to_json(orient="records")
 config_json = edited_config_df.to_json(orient="records")
+resolution = st.session_state["setpoint_resolution"]
 
 output_data = input_file
 output_data["experiment"] = json.loads(experiment_json)
 output_data["config"]["sensors"] = json.loads(config_json)
+output_data["config"]["resolution"] = resolution
 
 st.session_state["output_data"] = output_data
 st.session_state["download_container"].download_button(
