@@ -31,6 +31,13 @@ def make_plot(df):
     st.session_state["plot_container"].pyplot(fig)
 
 
+def container_label_and_text(text):
+    st.session_state["status_container"].update(
+        label=text, expanded=False, state="running"
+    )
+    st.session_state["status_container"].text(text)
+
+
 def send_config():
     ID = str(uuid.uuid4())[:8]
     st.session_state["await_uuid"] = ID
@@ -39,11 +46,9 @@ def send_config():
     send_data["uid"] = ID
 
     st.session_state["mqtt_client"].publish(
-        f"ui/start", json.dumps(send_data).encode("utf-8")
+        "ui/start", json.dumps(send_data).encode("utf-8")
     )
-    st.session_state["status_container"].update(
-        label="Sending config", expanded=True, state="running"
-    )
+    container_label_and_text("Sending configuration...")
 
 
 # -----------------------------------------------------------------------------
@@ -134,7 +139,7 @@ with st.container():
                         f"ui/edit", payload.encode("utf-8")
                     )
             with st.form("Stop experiment"):
-                uid = st.text_input("Enter experient ID to stop experiment")
+                uid = st.text_input("Enter experiment ID to stop experiment")
                 submitted = st.form_submit_button(
                     "Stop", use_container_width=True, type="primary"
                 )
@@ -203,9 +208,8 @@ st.session_state["download_container"].download_button(
 
 
 def on_message(client, obj, msg):
+    payload = json.loads(msg.payload.decode("utf-8"))
     if msg.topic == "heartbeat/controller":
-        payload = json.loads(msg.payload.decode("utf-8"))
-
         current_modes = [key for key, value in payload["adjusting"].items() if value]
         adjusting_str = ", ".join(current_modes) if current_modes else "--"
 
@@ -219,24 +223,37 @@ def on_message(client, obj, msg):
         st.session_state["control_status"].metric(
             label="Adjusting", value=adjusting_str, delta=now
         )
+    elif msg.topic == "controller/validate":
+        if payload["uid"] == st.session_state["await_uuid"]:
+            container_label_and_text("   Configuration received.")
+            container_label_and_text("Validating configuration...")
     elif msg.topic == "validator/passed":
-        payload = json.loads(msg.payload.decode("utf-8"))
         if payload["uid"] == st.session_state["await_uuid"]:
-            st.session_state["status_container"].update(
-                label="Setting complete!", state="complete", expanded=False
-            )
+            container_label_and_text("   Validation successful.")
+            container_label_and_text("Waiting for sensors to be configured...")
+    elif msg.topic == "controller/ready":
+        if payload["uid"] == st.session_state["await_uuid"]:
+            container_label_and_text("   Sensors configured successfully.")
+            container_label_and_text("Starting experiment...")
+    elif msg.topic == "controller/run":
+        if (
+            payload["uid"] == st.session_state["await_uuid"]
+            and st.session_state["status_container"].state == "running"
+        ):
+            text = "Experiment started successfully!"
+            container_label_and_text(text)
+            st.session_state["status_container"].update(state="complete")
     elif msg.topic == "error/validator/failed":
-        payload = json.loads(msg.payload.decode("utf-8"))
-        if payload["uid"] == st.session_state["await_uuid"]:
-            error_str = json.loads(msg.payload.decode("utf-8"))["error"]
-            st.session_state["status_container"].text(error_str)
-            st.session_state["status_container"].update(
-                label="Failed!", state="complete", expanded=True
-            )
-    elif "error/" in msg.topic:
-        payload = json.loads(msg.payload.decode("utf-8"))
         if payload["uid"] == st.session_state["await_uuid"]:
             st.session_state["status_container"].text(payload["error"])
+            st.session_state["status_container"].update(
+                label="Failed!", state="error", expanded=True
+            )
+    elif "error/" in msg.topic:
+        st.session_state["status_container"].text(payload["error"])
+        st.session_state["status_container"].update(
+            label="Error!", state="error", expanded=True
+        )
 
 
 if "mqtt_client" not in st.session_state:
@@ -247,7 +264,10 @@ if "mqtt_client" not in st.session_state:
     st.session_state["mqtt_client"] = client
     topics = [
         "heartbeat/controller",
+        "controller/validate",
         "validator/passed",
+        "controller/ready",
+        "controller/run",
         "error/validator/#",
         "error/controller/#",
     ]
