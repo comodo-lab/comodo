@@ -27,7 +27,7 @@ jobs:
              '{MQTT_IP: $ip, WIFI_SSID: $ws, WIFI_PASS: $wp}' > env.json
       - name: Push files to pico
         run: |
-          for file in main.py lib/ test/ run-tests.py env.json; do ampy --port /dev/ttyACM1 put $file; done;
+          for file in *.py lib/ test/ env.json; do ampy --port /dev/ttyACM1 put $file; done;
           ampy --port /dev/ttyACM0 ls
       - name: Run tests
         run: |
