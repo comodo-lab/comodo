@@ -16,8 +16,8 @@ if board == "rp2":
 #     from machine import WDT
 #    wdt = WDT(timeout=2000) # ms
 
-# Set the state
-state = {
+# Set the heartbeat_state
+heartbeat_state = {
     "name": "---",
     "status": "awaiting_config",
     "setpoint": 0,
@@ -45,7 +45,7 @@ def heartbeat_tick(timer):
 
     if "client" in config and config['ready'] is True:
         print("Tick!")
-        heartbeat_structure = ujson.dumps(state)
+        heartbeat_structure = ujson.dumps(heartbeat_state)
         config['client'].publish(f"heartbeat/sensor/{config['SENSOR_ID']}", heartbeat_structure)
 
 def sub_cb(topic, msg):
@@ -71,7 +71,7 @@ def main():
     
     ## Load the configuration file
     config = cfg.load_config()
-    state["name"] = config['SENSOR_ID']
+    heartbeat_state["name"] = config['SENSOR_ID']
 
     ## Determine the board and connect to the wifi if it is a raspberry pi
     if board == "rp2":
