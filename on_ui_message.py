@@ -1,4 +1,5 @@
 import json
+import os
 from mqtt_clients import *
 from error_helper import *
 
@@ -37,6 +38,8 @@ def on_ui_message(client, msg, obj):
 
     if obj.status == "idle":
         if msg.topic == "ui/start":
+            if not os.path.exists(f"{data_path}/tmp"):
+                os.makedirs(f"{data_path}/tmp")
             exp_file = f"{data_path}/tmp/experiment_{uid}.json"
             with open(exp_file, "w") as f:
                 json.dump(experiment, f)
