@@ -212,8 +212,10 @@ def on_message(client, obj, msg):
         if payload["uid"] == st.session_state["await_uuid"]:
             error_str = json.loads(msg.payload.decode("utf-8"))["error"]
             st.session_state["status_container"].text(error_str)
-    elif msg.topic == "error/controller":
-        st.session_state["status_container"].text(msg.payload.decode("utf-8"))
+    elif "error/" in msg.topic:
+        payload = json.loads(msg.payload.decode("utf-8"))
+        if payload["uid"] == st.session_state["await_uuid"]:
+            st.session_state["status_container"].text(payload["error"])
 
 
 if "mqtt_client" not in st.session_state:
