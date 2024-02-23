@@ -55,6 +55,22 @@ def incompatible_uid(obj, msg):
     )
 
 
+def experiment_validation_error(error, uid):
+    """
+    Publishes an error message when the experiment configuration received from the ui fails validation.
+    """
+    pub.publish(
+        "error/validator/failed",
+        json.dumps(
+            {
+                "uid": uid,
+                "valid": False,
+                "error": str(error.args[0]),
+            }
+        ),
+    )
+
+
 def heartbeat_validation_error(msg, error):
     """
     Publishes an error message when a validation error occurs on a sensor's heartbeat.
@@ -77,4 +93,19 @@ def unconfigured_sensor(msg, sensor_name):
     pub.publish(
         "error/heartbeat",
         json.dumps({"error": error}),
+    )
+
+
+def controller_timeout(uid, who_timedout, consequence):
+    """
+    Publishes an error message when a timeout occurs.
+    """
+    pub.publish(
+        "error/controller/timeout",
+        json.dumps(
+            {
+                "uid": uid,
+                "error": f"Timed out waiting for {who_timedout}. {consequence}...",
+            }
+        ),
     )

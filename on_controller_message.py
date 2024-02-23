@@ -47,12 +47,7 @@ def c_idle(client, msg, obj):
         client.callback = c_starting
         pub.publish("controller/start", json.dumps({"uid": m["uid"]}))
     except ValidationException as e:
-        m = {
-            "uid": temp_uid,
-            "valid": False,
-            "error": str(e.args[0]),
-        }
-        pub.publish("error/validator/failed", json.dumps(m))
+        experiment_validation_error(e, temp_uid)
         obj.experiment_uid = None
         obj.status = "idle"
 

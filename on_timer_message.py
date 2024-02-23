@@ -23,10 +23,7 @@ def on_timer_message(client, msg, obj):
         while (not obj.sensors["configured"]) and obj.status == "awaiting_sensors":
             t.sleep(0.1)
             if t.time() - t0 > sensor_setup_wait:
-                pub.publish(
-                    "error/controller/timeout",
-                    json.dumps({"error": f"Timed out waiting for sensors. Exiting..."}),
-                )
+                controller_timeout(message["uid"], "sensors", "Stopping")
                 pub.publish("controller/stop", json.dumps({"uid": message["uid"]}))
                 return
     elif msg.topic == "timer/start/setpoint":

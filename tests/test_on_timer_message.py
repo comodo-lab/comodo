@@ -56,7 +56,7 @@ def test_timeout(capmqtt, state):
         wait_for_message(capmqtt)
 
     assert capmqtt.messages[-2].topic == "error/controller/timeout"
-    assert "Timed out waiting for sensors. Exiting..." in capmqtt.messages[-2].payload
+    assert "Timed out waiting for sensors. Stopping..." in capmqtt.messages[-2].payload
     assert capmqtt.messages[-1].topic == "controller/stop"
     assert '{"uid": "123"' in capmqtt.messages[-1].payload
 
