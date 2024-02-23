@@ -1,5 +1,4 @@
 # Micropython imports
-from lib.umqtt import MQTTClient
 
 # System imports
 import time as t
@@ -7,19 +6,25 @@ import sys
 
 # Local imports
 import config as cfg
-import network as net
+import connect as con
 
 # Determine the board and set the watchdog timer
-ryboard = sys.platform
-if board == "rp2":
+board = sys.platform
+#if board == "rp2":
     #from machine import WDT
     #wdt = WDT(timeout=2000) # ms
 
+def sub_cb(topic, msg):
+    """ The callback function for the mqtt client
 
+    Args:
+        topic: str: The topic of the message
+        msg: str: The message
 
     Returns:
         None
     """
+    print(topic, msg)
     
 
 def main():
@@ -34,14 +39,19 @@ def main():
 
     ## Determine the board and connect to the wifi if it is a raspberry pi
     if board == "rp2":
-        net.connect_wifi(config["WIFI_SSID"], config["WIFI_PASS"])
+        con.connect_wifi(config["WIFI_SSID"], config["WIFI_PASS"])
 
     ## Connect to the mqtt broker
-    client = net.connect_mqtt(config["MQTT_IP"],
+    client = con.connect_mqtt(config["MQTT_IP"],
                               port=1883,
                               user="sensor",
                               password="foobar!!")
 
+    ## Set up subscriptions
+    #client.set_callback(sub_cb)
+    #client.subscribe(f"sensor/{config['SENSOR_ID']}/#")
+
+    return 0
 
 if __name__ == "__main__":
     sys.exit(main())
