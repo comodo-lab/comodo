@@ -184,7 +184,7 @@ st.session_state["download_container"].download_button(
 
 
 def on_message(client, obj, msg):
-    if msg.topic == "controller/heartbeat":
+    if msg.topic == "heartbeat/controller":
         payload = json.loads(msg.payload.decode("utf-8"))
 
         all_modes = ["Temperature", "Pressure", "Displacement 1", "Displacement 2"]
@@ -201,18 +201,18 @@ def on_message(client, obj, msg):
         st.session_state["control_status"].metric(
             label="Adjusting", value=adjusting_str, delta=now
         )
-    elif msg.topic == "controller/validator/passed":
+    elif msg.topic == "validator/passed":
         payload = json.loads(msg.payload.decode("utf-8"))
         if payload["uid"] == st.session_state["await_uuid"]:
             st.session_state["status_container"].update(
                 label="Setting complete!", state="complete", expanded=False
             )
-    elif msg.topic == "controller/validator/failed":
+    elif msg.topic == "error/validator/failed":
         payload = json.loads(msg.payload.decode("utf-8"))
         if payload["uid"] == st.session_state["await_uuid"]:
             error_str = json.loads(msg.payload.decode("utf-8"))["error"]
             st.session_state["status_container"].text(error_str)
-    elif msg.topic == "controller/error":
+    elif msg.topic == "error/controller":
         st.session_state["status_container"].text(msg.payload.decode("utf-8"))
 
 
@@ -222,6 +222,13 @@ if "mqtt_client" not in st.session_state:
     client.connect("fase-rabbitmq", 1883, 60)
 
     st.session_state["mqtt_client"] = client
-    st.session_state["mqtt_client"].subscribe("controller/#", 0)
+    topics = [
+        "heartbeat/controller",
+        "validator/passed",
+        "error/validator/#",
+        "error/controller/#",
+    ]
+    for topic in topics:
+        st.session_state["mqtt_client"].subscribe(topic, 0)
 
 st.session_state["mqtt_client"].loop_forever()
