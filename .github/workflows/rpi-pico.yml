@@ -28,8 +28,8 @@ jobs:
       - name: Push files to pico
         run: |
           for file in main.py lib/ test/ run-tests.py env.json; do ampy --port /dev/ttyACM1 put $file; done;
-          ampy --port /dev/ttyACM1 ls
+          ampy --port /dev/ttyACM0 ls
       - name: Run tests
         run: |
-          ampy --port /dev/ttyACM1 run run-tests.py | tee testout.txt
+          ampy --port /dev/ttyACM0 run run-tests.py | tee testout.txt
           grep -q "FAILED" testout.txt && exit 1 || exit 0
