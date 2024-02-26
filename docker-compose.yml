@@ -1,4 +1,3 @@
-
 services:
   cloudflared:
     image: cloudflare/cloudflared:latest
@@ -6,10 +5,10 @@ services:
     restart: unless-stopped
     environment:
       - TUNNEL_TOKEN=eyJhIjoiZTk3ZjM1OGM3NTc5ZjdkYjJlNDVmNTI2OTE1MzgxMzYiLCJ0IjoiZTllODc5ZGQtMDk5YS00NTE1LWE1ZjYtYmZlNTgyZDc5NzcyIiwicyI6IllXSmlOV0psTmpRdE5tTmxOeTAwTXpZeUxXSmpOVFV0TXpRNVptSmpOak15WVdWaSJ9
-    command:
-      tunnel --no-autoupdate run
+    command: tunnel --no-autoupdate run
     networks:
       apperture:
+
 
   rabbitmq:
     image: docker.io/bitnami/rabbitmq:3.12
@@ -31,12 +30,13 @@ services:
       - rabbitmq_data:/bitnami/rabbitmq/mnesia
       - ./config/rabbit/advanced.config:/bitnami/rabbitmq/conf/advanced.config:ro
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
       apperture:
+
 
   influxdb:
     image: influxdb:2.0
@@ -52,12 +52,13 @@ services:
       - DOCKER_INFLUXDB_INIT_ORG=fase
       - DOCKER_INFLUXDB_INIT_BUCKET=defualt
       - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=influxinfluxinfluxinflux
-    volumes: 
-      - influx_data:/var/lib/influxdb2 
-      - influx_config:/etc/influxdb2 
+    volumes:
+      - influx_data:/var/lib/influxdb2
+      - influx_config:/etc/influxdb2
     networks:
       apperture:
-      
+
+
   telegraf:
     image: telegraf:latest
     container_name: fase-telegraf
@@ -68,6 +69,7 @@ services:
       - ./config/telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
     networks:
       apperture:
+
 
   grafana:
     image: grafana/grafana
@@ -83,15 +85,19 @@ services:
     networks:
       apperture:
 
+
   ui:
     build:
       context: ../FASE-ui
       dockerfile: Dockerfile
     container_name: fase-ui
-    restart: unless-stopped  
+    restart: unless-stopped
+    volumes:
+      - ./config/ui/config.json:/etc/ui/config.json
     networks:
       apperture:
-        
+
+
 networks:
   apperture:
     name: apperture_apperture
