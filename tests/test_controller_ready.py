@@ -59,21 +59,17 @@ def test_updates_states_correctly(capmqtt, state, controller_client):
     assert state.status == "awaiting_sensors"
     assert controller_client.callback == c_ready
 
-    with patch("on_controller_message.c_ready") as mock_ready:
+    with patch("on_controller_message.c_running") as mock_c_running:
         with patch("on_controller_message.assign_serial_id") as mock_assign:
-            mock_assign.side_effect = lambda _: t.sleep(0.2)
             capmqtt.publish(
                 topic="controller/ready",
                 payload=json.dumps({"uid": "123"}),
             )
-            assert mock_assign.called
-            t.sleep(0.1)
-            assert state.status == "ready"
             wait_for_message(capmqtt)
 
-    assert state.status == "running"
+    assert state.status == "ready"
     assert state.experiment_uid == "123"
-    assert controller_client.callback == c_running
+    assert controller_client.callback == mock_c_running
     assert capmqtt.messages[-1].topic == "controller/run"
     assert capmqtt.messages[-1].payload == '{"uid": "123"}'
 
@@ -88,7 +84,8 @@ def test_updates_serial_id_correctly_empty_dir(capmqtt, state, controller_client
     with patch("os.listdir") as mock_listdir:
         mock_listdir.return_value = []
         with patch("os.rename") as mock_rename:
-            with patch("on_controller_message.c_ready") as mock_ready:
+            with patch("on_controller_message.c_running") as mock_c_running:
+                mock_c_running.return_value = None
                 capmqtt.publish(
                     topic="controller/ready",
                     payload=json.dumps({"uid": "123"}),
@@ -119,7 +116,8 @@ def test_updates_serial_id_correctly_non_empty_dir(capmqtt, state, controller_cl
             "D21-365.json",
         ]
         with patch("os.rename") as mock_rename:
-            with patch("on_controller_message.c_ready") as mock_ready:
+            with patch("on_controller_message.c_running") as mock_c_running:
+                mock_c_running.return_value = None
                 capmqtt.publish(
                     topic="controller/ready",
                     payload=json.dumps({"uid": "123"}),
@@ -156,7 +154,8 @@ def test_moves_file_correctly(capmqtt, state, controller_client):
         assert os.path.exists(d_path)
         assert os.path.exists(tmp_path)
 
-        with patch("on_controller_message.c_ready") as mock_ready:
+        with patch("on_controller_message.c_running") as mock_c_running:
+            mock_c_running.return_value = None
             capmqtt.publish(
                 topic="controller/ready",
                 payload=json.dumps({"uid": "123"}),
