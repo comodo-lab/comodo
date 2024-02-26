@@ -21,6 +21,7 @@ class internal_stop_msg:
 def split_setpoints(setpoint_list, resolution):
     """
     Interpolates the given setpoints to a given time resolution.
+    It also converts from linear time to time intervals.
     """
     # Get given setpoints
     times = np.array([sp["time"] for sp in setpoint_list])
@@ -31,26 +32,30 @@ def split_setpoints(setpoint_list, resolution):
 
     # Interpolate setpoints
     new_times = np.arange(min(times), max(times) + resolution, resolution)
-    new_pressures = np.interp(new_times, times, pressures)
-    new_temperatures = np.interp(new_times, times, temperatures)
-    new_displacements_1 = np.interp(new_times, times, displacements_1)
-    new_displacements_2 = np.interp(new_times, times, displacements_2)
+    new_pressures = np.interp(new_times, times, pressures).astype(float).tolist()
+    new_temps = np.interp(new_times, times, temperatures).astype(float).tolist()
+    new_disp_1 = np.interp(new_times, times, displacements_1).astype(float).tolist()
+    new_disp_2 = np.interp(new_times, times, displacements_2).astype(float).tolist()
+
+    new_times = new_times.astype(float).tolist()
+    time_intervals = [new_times[i] - new_times[i - 1] for i in range(1, len(new_times))]
+    time_intervals.insert(0, 0)
 
     # Return list of dictionaries with the interpolated values
     return [
         {
-            "time": t,
+            "duration": t,
             "pressure": p,
             "temperature": temp,
             "displacement 1": d1,
             "displacement 2": d2,
         }
         for t, p, temp, d1, d2 in zip(
-            new_times,
+            time_intervals,
             new_pressures,
-            new_temperatures,
-            new_displacements_1,
-            new_displacements_2,
+            new_temps,
+            new_disp_1,
+            new_disp_2,
         )
     ]
 
