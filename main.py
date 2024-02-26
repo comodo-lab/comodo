@@ -19,14 +19,14 @@ if board == "rp2":
 # Set the heartbeat_state
 heartbeat_state = {
     "name": "---",
-    "status": "awaiting_config",
-    "setpoint": 0,
+    "status": "idle",
+    "setpoint": None,
     "temperture": 0,
     "config": {
-        "p": 0,
-        "i": 0,
-        "d": 0,
-        "tolerance": 0
+        "p": None,
+        "i": None,
+        "d": None,
+        "tolerance": None
     },
 }
 
@@ -65,11 +65,23 @@ def sub_cb(topic, msg):
         heartbeat_state["config"]["i"] = params["i"]
         heartbeat_state["config"]["d"] = params["d"]
         heartbeat_state["config"]["tolerance"] = params["tolerance"]
-        heartbeat_state["status"] = "ready"
+
+        # Set the status to ready if the setpoint is set
+        if heartbeat_state["setpoint"] is not None:
+            heartbeat_state["status"] = "ready"
+        else:
+            heartbeat_state["status"] = "awaiting_setpoint"
+            
     if topic.decode("utf-8") == f"sensor/setpoint":
         print("Setting the setpoint")
         params = ujson.loads(msg)
-        heartbeat_state["setpoint"] = params[config['SENSOR_ID']]      
+        heartbeat_state["setpoint"] = params[config['SENSOR_ID']]
+
+        # Set the status to ready if the config is set
+        if heartbeat_state["config"]["p"] is not None:
+            heartbeat_state["status"] = "ready"
+        else:
+            heartbeat_state["status"] = "awaiting_config"
     
 def main():
     """ The main function
