@@ -149,11 +149,31 @@ def test_starts_timer(capmqtt, state, controller_client):
     assert json.loads(capmqtt.messages[-1].payload) == {"uid": "123", "duration": 0}
 
 
+def test_saves_and_clears_last_setpoint(capmqtt, state, controller_client):
+    assert state.experiment_uid == "123"
+    assert controller_client.callback == c_running
+    state.status == "running"
+    last_setpoint = state.setpoints[-1].copy()
+    state.current_setpoint = last_setpoint.copy()
+    state.setpoints = []
+
+    with patch("on_controller_message.c_stopping") as mock_stopping:
+        mock_stopping.return_value = None
+        capmqtt.publish(
+            topic="controller/run",
+            payload=json.dumps({"uid": "123"}),
+        )
+        wait_for_message(capmqtt)
+
+    assert state.current_setpoint is None
+    assert state.past_setpoints == [last_setpoint]
+
+
 def test_sends_end_signal(capmqtt, state, controller_client):
     assert state.experiment_uid == "123"
-    assert state.status == "ready"
     assert controller_client.callback == c_running
-    assert state.current_setpoint is None
+    state.status == "running"
+    state.current_setpoint = state.setpoints[-1]
     state.setpoints = []
 
     with patch("on_controller_message.c_stopping") as mock_stopping:
