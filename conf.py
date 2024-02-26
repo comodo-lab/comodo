@@ -85,7 +85,7 @@ with st.container(border=True):
         if "control_status" not in st.session_state:
             st.session_state["control_status"] = st.metric("Adjusting", "No data!")
     if "status_container" not in st.session_state:
-        st.session_state["almost_there"] = False
+        st.session_state["first_controller_run"] = False
         st.session_state["status_container"] = st.status(
             "Messages will appear here", expanded=False, state="complete"
         )
@@ -233,15 +233,16 @@ def on_message(client, obj, msg):
             container_label_and_text("   Validation successful.")
             container_label_and_text("Waiting for sensors to be configured...")
     elif msg.topic == "controller/ready":
-        st.session_state["almost_there"] = True
+        st.session_state["first_controller_run"] = True
         if payload["uid"] == st.session_state["await_uuid"]:
             container_label_and_text("   Sensors configured successfully.")
             container_label_and_text("Starting experiment...")
     elif msg.topic == "controller/run":
-        if st.session_state["almost_there"]:
+        if st.session_state["first_controller_run"]:
             text = "Experiment started successfully!"
             container_label_and_text(text)
             st.session_state["status_container"].update(state="complete")
+            st.session_state["first_controller_run"] = False
     elif msg.topic == "error/validator/failed":
         if payload["uid"] == st.session_state["await_uuid"]:
             st.session_state["status_container"].text(payload["error"])
@@ -253,6 +254,7 @@ def on_message(client, obj, msg):
         st.session_state["status_container"].update(
             label="Error!", state="error", expanded=True
         )
+        st.session_state["first_controller_run"] = False
 
 
 if "mqtt_client" not in st.session_state:
