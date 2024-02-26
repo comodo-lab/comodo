@@ -1,10 +1,10 @@
 import pytest
 import json
 import time as t
-from typing import Callable
 
 from controller_state import cstate
-from mqtt_clients import MQTTClient, on_client_message
+from mqtt_clients import MQTTClient
+from controller_helper import split_setpoints
 
 time_int = 0.01  # Time interval between client connection / message checks
 timeout = 3  # Client connection / message wait timeout
@@ -48,7 +48,7 @@ def make_state_fixture(status):
 
     @pytest.fixture
     def state():
-        if status not in ["idle", "starting", "awaiting_sensors", "ready"]:
+        if status not in ["idle", "starting", "awaiting_sensors", "ready", "running"]:
             return None
 
         obj = cstate()
@@ -73,11 +73,18 @@ def make_state_fixture(status):
         if status == "awaiting_sensors":
             return obj
 
+        obj.setpoints = split_setpoints(
+            obj.exp_config["experiment"], obj.exp_config["config"]["resolution"]
+        )
         for sensor in obj.exp_config["config"]["sensors"]:
             obj.sensors[sensor["name"]]["last_contact"] = t.time() - 1
             obj.sensors[sensor["name"]]["status"] = "no_setpoint"
         obj.sensors = {"configured": True}
         if status == "ready":
+            return obj
+
+        obj.status = "ready"
+        if status == "running":
             return obj
 
         return obj

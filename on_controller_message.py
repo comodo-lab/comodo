@@ -107,14 +107,26 @@ def c_running(client, msg, obj):
             incompatible_request(obj, msg)
         return
 
-    obj.status = "running"
-    ### Send setpoints placeholder
-    pass
-    ###
+    if obj.setpoints == []:
+        client.callback = c_stopping
+        pub.publish("controller/end", json.dumps({"uid": obj.experiment_uid}))
+        return
+
+    if obj.current_setpoint is None:
+        obj.status = "running"
+    else:
+        obj.past_setpoints.append(obj.current_setpoint)
+    next_setpoint = obj.setpoints.pop(0)
+    obj.current_setpoint = next_setpoint
+    pub.publish("sensor/setpoint", json.dumps(next_setpoint))
+    pub.publish(
+        "timer/start/setpoint",
+        json.dumps({"uid": obj.experiment_uid, "duration": next_setpoint["duration"]}),
+    )
 
 
 def c_stopping(client, msg, obj):
-    if msg.topic != "controller/stop":
+    if msg.topic not in ["controller/stop", "controller/end"]:
         incompatible_request(obj, msg)
         return
 
