@@ -9,26 +9,16 @@ import sys
 import config as cfg
 import connect as con
 
+import sensor_state
+
+state = sensor_state.SensorState()
+
 # Determine the board and set the watchdog timer
 board = sys.platform
 if board == "rp2":
     from machine import Timer
 #     from machine import WDT
 #    wdt = WDT(timeout=2000) # ms
-
-# Set the heartbeat_state
-heartbeat_state = {
-    "name": "---",
-    "status": "idle",
-    "setpoint": None,
-    "temperture": 0,
-    "config": {
-        "p": None,
-        "i": None,
-        "d": None,
-        "tolerance": None
-    },
-}
 
 # Define heartbeat publishing
 def heartbeat_tick(timer):
@@ -43,45 +33,11 @@ def heartbeat_tick(timer):
 
     global client
 
-    if "client" in config and "ready" in config:
-        heartbeat_structure = ujson.dumps(heartbeat_state)
-        config['client'].publish(f"heartbeat/sensor/{config['SENSOR_ID']}", heartbeat_structure)
+    if state.client is not None and "ready" in state.config:
+        heartbeat_structure = state.get_status()
+        state.client.publish(f"heartbeat/sensor/{state.config['SENSOR_ID']}", heartbeat_structure)
         print(heartbeat_structure)
 
-def sub_cb(topic, msg):
-    """ The callback function for the mqtt client
-
-    Args:
-        topic: str: The topic of the message
-        msg: str: The message
-
-    Returns:
-        None
-    """
-    if topic.decode("utf-8") == f"sensor/{config['SENSOR_ID']}/setup":
-        print("Setting up the sensor")
-        params = ujson.loads(msg)
-        heartbeat_state["config"]["p"] = params["p"]
-        heartbeat_state["config"]["i"] = params["i"]
-        heartbeat_state["config"]["d"] = params["d"]
-        heartbeat_state["config"]["tolerance"] = params["tolerance"]
-
-        # Set the status to ready if the setpoint is set
-        if heartbeat_state["setpoint"] is not None:
-            heartbeat_state["status"] = "ready"
-        else:
-            heartbeat_state["status"] = "awaiting_setpoint"
-            
-    if topic.decode("utf-8") == f"sensor/setpoint":
-        print("Setting the setpoint")
-        params = ujson.loads(msg)
-        heartbeat_state["setpoint"] = params[config['SENSOR_ID']]
-
-        # Set the status to ready if the config is set
-        if heartbeat_state["config"]["p"] is not None:
-            heartbeat_state["status"] = "ready"
-        else:
-            heartbeat_state["status"] = "awaiting_config"
     
 def main():
     """ The main function
@@ -92,37 +48,37 @@ def main():
     global config
     
     ## Load the configuration file
-    config = cfg.load_config()
-    heartbeat_state["name"] = config['SENSOR_ID']
+    state.config = cfg.load_config()
+    state.status["name"] = state.config['SENSOR_ID']
 
     ## Determine the board and connect to the wifi if it is a raspberry pi
     if board == "rp2":
-        con.connect_wifi(config["WIFI_SSID"], config["WIFI_PASS"])
+        con.connect_wifi(state.config["WIFI_SSID"], state.config["WIFI_PASS"])
 
     ## Connect to the mqtt broker
-    config['client'] = con.connect_mqtt(config["MQTT_IP"],
-                                        port=1883,
-                                        user="sensor",
-                                        password="foobar!!")
+    state.client = con.connect_mqtt(state.config["MQTT_IP"],
+                                    port=1883,
+                                    user="sensor",
+                                    password="foobar!!")
     
     ## Setup heartbeat timer
     if board == "rp2":
-        print(config["HEARTBEAT_INTERVAL"])
-        timer = Timer(period=config["HEARTBEAT_INTERVAL"],
+        print(state.config["HEARTBEAT_INTERVAL"])
+        timer = Timer(period=state.config["HEARTBEAT_INTERVAL"],
                       mode=Timer.PERIODIC,
                       callback=heartbeat_tick)
 
     ## Subscribe to the controller's instructions
-    config['client'].set_callback(sub_cb)
-    config['client'].subscribe(f"sensor/{config['SENSOR_ID']}/setup")
-    config['client'].subscribe(f"sensor/setpoint")
+    state.client.set_callback(state.idle_cb)
+    state.client.subscribe(f"sensor/{state.config['SENSOR_ID']}/setup")
+    state.client.subscribe(f"sensor/setpoint")
 
     ## Set the ready flag
-    config['ready'] = True
+    state.config['ready'] = True
 
     ## Main loop
     while True:
-        config['client'].wait_msg()
+        state.client.wait_msg()
         t.sleep(1)
     
     return 0
