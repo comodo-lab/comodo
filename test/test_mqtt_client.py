@@ -3,11 +3,11 @@ import lib.umqtt as mqtt
 import time as t
 
 import sys
-import main as main
+import config as cfg
 
 class MQTTTest(unittest.TestCase):
     def setUp(self):
-        self.config = main.load_config()
+        self.config = cfg.load_config()
     
     def test_Client_CorrectIP(self):
         self.client = mqtt.MQTTClient("umqtt_client",
