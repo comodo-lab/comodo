@@ -52,15 +52,22 @@ class BaseSensor:
         else:
             raise ValueError(f"Invalid sensor name: {input_name}")
 
-    def get_measurement(self):
+    def get_measurement(self, status):
         """ Get the measurement
 
         Returns:
             float: The measurement
         """
 
-        # Get a random value for now
-        measurement = random.random()
+        # Since this is a dummys sensor, move a little toward the setpoint
+        setpoint = status['setpoint']
+        value = status['value']
+
+        difference = setpoint - value
+        half_diff = difference / 2
+        
+        measurement = half_diff + value
+        status['value'] = measurement
         return measurement
     
 @BaseSensor.register_sensor("distance")

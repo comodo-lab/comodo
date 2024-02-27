@@ -55,7 +55,7 @@ def measurement_tick(timer):
     if (state.client is not None) and \
        (state.status['setpoint'] is not None) and \
        (state.sensor is not None) :
-        measurement = state.sensor.get_measurement()
+        measurement = state.sensor.get_measurement(state.status)
         state.client.publish(f"measurement/{state.config['SENSOR_ID']}", str(measurement))
 
 # ----------------- Main function ----------------- ##
