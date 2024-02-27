@@ -109,3 +109,18 @@ def controller_timeout(uid, who_timedout, consequence):
             }
         ),
     )
+
+
+def controller_state_incompatible_with_timer(uid, source, expected_state, state):
+    """
+    Publishes an error message when the state of the controller is not compatible with the current timer.
+    """
+    pub.publish(
+        f"error/controller/timer/{source}",
+        json.dumps(
+            {
+                "uid": uid,
+                "error": f"Timer for {source} exited unexpectedly. The controller state was found to be {state} instead of {expected_state}.",
+            }
+        ),
+    )

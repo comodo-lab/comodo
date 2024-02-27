@@ -42,5 +42,8 @@ def on_timer_message(client, msg, obj):
                     json.dumps({"uid": message["uid"]}),
                 )
                 return
+        controller_state_incompatible_with_timer(
+            message["uid"], "setpoint", "running", obj.status
+        )
     else:
         incompatible_request(obj, msg, source="timer")

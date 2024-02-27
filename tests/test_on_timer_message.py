@@ -131,3 +131,20 @@ def test_timer_setpoint_missing_duration(capmqtt, state):
     assert "Error decoding timer/start/setpoint message" in capmqtt.messages[-1].payload
     assert "missing" in capmqtt.messages[-1].payload
     assert "duration" in capmqtt.messages[-1].payload
+
+
+def test_timer_setpoint_incompatible_controller_state(capmqtt, state):
+    assert state.experiment_uid == "123"
+    state.status = "ready"
+
+    capmqtt.publish(
+        topic="timer/start/setpoint",
+        payload=json.dumps({"uid": "123", "duration": 0.3}),
+    )
+    wait_for_message(capmqtt)
+
+    assert capmqtt.messages[-1].topic == "error/controller/timer/setpoint"
+    m = json.loads(capmqtt.messages[-1].payload)
+    assert m["uid"] == "123"
+    assert "Timer for setpoint exited unexpectedly."
+    assert "ready instead of running" in m["error"]
