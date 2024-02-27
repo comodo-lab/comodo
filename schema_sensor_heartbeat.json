@@ -16,16 +16,16 @@
             "type": "object",
             "properties": {
                 "p": {
-                    "type": "number"
+                    "type": ["number", "null"]
                 },
                 "i": {
-                    "type": "number"
+                    "type": ["number", "null"]
                 },
                 "d": {
-                    "type": "number"
+                    "type": ["number", "null"]
                 },
                 "tolerance": {
-                    "type": "number"
+                    "type": ["number", "null"]
                 }
             },
             "required": ["p", "i", "d", "tolerance"]
