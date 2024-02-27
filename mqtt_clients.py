@@ -2,6 +2,7 @@ from typing import Any, Callable, Optional, List, Union
 import paho.mqtt.client as mqtt
 from datetime import datetime
 import json
+import os
 
 # Broker setup
 config = json.load(open("config.json"))
@@ -39,6 +40,42 @@ def on_client_message(client, msg, obj):
     <client id>: <topic>: <message>
     """
     print_message(client, msg, timestamped=True)
+
+
+def mqtt_publish_exceptions(name, func):
+    """
+    A decorator to catch unhandled exceptions in the callback functions of the MQTT clients.
+    It publishes the exception message to the "ERROR/exception" topic.
+    It also prints the exception and traceback to the console.
+    """
+
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            pub.publish(
+                "ERROR/exception",
+                json.dumps({"error": f"Unhandled exception in {name}: {str(e)}"}),
+            )
+            print(f"ERROR:\n   Unhandled exception in {name}: {str(e)}")
+            # print all e.__traceback__.tb_frame and recurring tb_next
+            print(f"Traceback:")
+            tb = e.__traceback__
+            indent = "   "
+            while tb is not None:
+                frame = tb.tb_frame
+                filename = frame.f_code.co_filename
+                base_folder = os.path.dirname(os.path.abspath(__file__))
+                relative_filename = os.path.relpath(filename, base_folder)
+                function_name = frame.f_code.co_name
+                line_number = frame.f_lineno
+                print(
+                    f"{indent}< file: '{relative_filename}', function: '{function_name}', line: {line_number} >"
+                )
+                indent += " "
+                tb = tb.tb_next
+
+    return wrapper
 
 
 class MQTTClient:
@@ -103,12 +140,14 @@ class MQTTClient:
     def callback(self, callback):
         """
         Sets the callback function for the MQTT client.
+        The on_message is wrapped with the mqtt_publish_exceptions decorator to publish unhandled exceptions.
         The controller client uses this to reflect its different states.
         """
         self._callback = callback
         if callback is not None:
-            self.client.on_message = lambda client, userdata, msg: callback(
-                self, msg, self.obj
+            self.client.on_message = mqtt_publish_exceptions(
+                callback.__name__,
+                lambda client, userdata, msg: callback(self, msg, self.obj),
             )
 
 
