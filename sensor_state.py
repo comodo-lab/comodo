@@ -151,5 +151,6 @@ class SensorState (object):
         self.status["config"]["tolerance"] = params["tolerance"]
 
         self.status["config"]["name"] = params["name"]
-        self.sensor = sensor.BaseSensor.create_sensor(params["name"])
+        self.sensor = sensor.BaseSensor.create_sensor(params["name"],
+                                                      self.config["DUMMY"])
 

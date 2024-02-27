@@ -27,11 +27,12 @@ class BaseSensor:
         return decorator
 
     @classmethod
-    def create_sensor(cls, input_name):
+    def create_sensor(cls, input_name, dummy=False):
         """ Create the sensor based on the input name
 
         Args:
             input_name: str: The name of the sensor
+            dummy: bool: Whether to create a dummy sensor
 
         Returns:
             BaseSensor: The sensor object
@@ -39,7 +40,12 @@ class BaseSensor:
         Raises:
             ValueError: If the input name is invalid
         """
-        
+
+        # If dummy is specified, return the base class
+        if dummy:
+            return cls()
+
+        # Otherwise, get the sensor from the map
         sensor = cls.sensor_map.get(input_name)
         if sensor:
             return sensor()
@@ -52,33 +58,19 @@ class BaseSensor:
         Returns:
             float: The measurement
         """
-        
-        print("BaseSensor is not a sensor!")
-        return None
 
-    
-@BaseSensor.register_sensor("dummy")
-class Dummy(BaseSensor):
-    def get_measurement(self):
-        """ Get the measurement from a dummy sensor
-
-        Returns:
-            float: The measurement
-        """
-        
         # Get a random value for now
         measurement = random.random()
         return measurement
-
     
-@BaseSensor.register_sensor("microepsilon")
-class MicroEpsilon(BaseSensor):
+@BaseSensor.register_sensor("distance")
+class Distance(BaseSensor):
     def get_measurement(self):
-        """ Get the measurement from a micro epsilon sensor
+        """ Get the measurement from a distance sensor
 
         Returns:
             float: The measurement
         """
         
-        return "MicroEpsilon way of getting x"
+        return "The distance is x"
 
