@@ -38,6 +38,25 @@ def heartbeat_tick(timer):
         state.client.publish(f"heartbeat/sensor/{state.config['SENSOR_ID']}", heartbeat_structure)
         print(heartbeat_structure)
 
+
+# Define measurement publishing
+def measurement_tick(timer):
+    """ The measurement function
+
+    Args:
+        timer: Timer: The timer object
+
+    Returns:
+        None
+    """
+
+    global client
+
+    if state.client is not None and "ready" in state.config:
+        measurement_structure = state.get_status()
+        state.client.publish(f"measurement/sensor/{state.config['SENSOR_ID']}", measurement_structure)
+        print(measurement_structure)
+
     
 def main():
     """ The main function
@@ -63,10 +82,13 @@ def main():
     
     ## Setup heartbeat timer
     if board == "rp2":
-        print(state.config["HEARTBEAT_INTERVAL"])
-        timer = Timer(period=state.config["HEARTBEAT_INTERVAL"],
-                      mode=Timer.PERIODIC,
-                      callback=heartbeat_tick)
+        heartbeat_timer = Timer(period=state.config["HEARTBEAT_INTERVAL"],
+                                mode=Timer.PERIODIC,
+                                callback=heartbeat_tick)
+        measurement_timer = Timer(period=state.config["MEASUREMENT_INTERVAL"],
+                                mode=Timer.PERIODIC,
+                                callback=measurement_tick)
+
 
     ## Subscribe to the controller's instructions
     state.client.set_callback(state.idle_cb)
