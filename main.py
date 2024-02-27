@@ -8,9 +8,9 @@ import sys
 # Local imports
 import config as cfg
 import connect as con
-
 import sensor_state
 
+# Initialize the state
 state = sensor_state.SensorState()
 
 # Determine the board and set the watchdog timer
@@ -18,7 +18,9 @@ board = sys.platform
 if board == "rp2":
     from machine import Timer
 #     from machine import WDT
-#    wdt = WDT(timeout=2000) # ms
+#    wdt = WDT(timeout=20000) # ms
+
+## ----------------- Timer functions ----------------- ##
 
 # Define heartbeat publishing
 def heartbeat_tick(timer):
@@ -30,8 +32,6 @@ def heartbeat_tick(timer):
     Returns:
         None
     """
-
-    global client
 
     if state.client is not None and "ready" in state.config:
         heartbeat_structure = state.get_status()
@@ -50,21 +50,23 @@ def measurement_tick(timer):
         None
     """
 
-    global client
+    # If the sensor is ready, connected to the mqtt broker, and has a setpoint and sensor
+    # Make a measurement and publish it
+    if (state.client is not None) and \
+       (state.status['setpoint'] is not None) and \
+       (state.sensor is not None) :
+        measurement = state.sensor.get_measurement()
+        state.client.publish(f"measurement/{state.config['SENSOR_ID']}", str(measurement))
 
-    if state.client is not None and "ready" in state.config:
-        measurement_structure = state.get_status()
-        state.client.publish(f"measurement/sensor/{state.config['SENSOR_ID']}", measurement_structure)
-        print(measurement_structure)
+# ----------------- Main function ----------------- ##
 
-    
+# The main function    
 def main():
     """ The main function
 
     Returns:
         int: The exit code
     """
-    global config
     
     ## Load the configuration file
     state.config = cfg.load_config()
@@ -91,7 +93,7 @@ def main():
 
 
     ## Subscribe to the controller's instructions
-    state.client.set_callback(state.idle_cb)
+    state.client.set_callback(state.awaiting_config_cb)
     state.client.subscribe(f"sensor/{state.config['SENSOR_ID']}/setup")
     state.client.subscribe(f"sensor/setpoint")
 
