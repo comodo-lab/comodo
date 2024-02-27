@@ -28,6 +28,9 @@ def on_heartbeat_message(client, msg, obj):
         heartbeat_validation_error(msg, e)
         return
 
+    if obj.status in ["idle", "validating", "starting"]:
+        return
+
     if sensor["name"] not in obj.sensors:
         unconfigured_sensor(msg, sensor["name"])
         return
