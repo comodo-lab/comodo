@@ -1,10 +1,16 @@
-# Description: This file contains the state machine class and the sensor state class
-# When an MQTT message is recieved, a callback function is returned, which changes the behaviour of the state machine
-
 import ujson
 
 class SensorState (object):
     def __init__(self):
+        """ The state machine for the sensor
+
+        Args:
+            None
+
+        Returns:
+            None
+        """
+        
         self.status = {
             "name": "---",
             "status": "idle",
@@ -23,10 +29,25 @@ class SensorState (object):
 
     # Return string representation of the status
     def get_status(self):
+        """ Return the status of the sensor
+
+        Returns:
+            str: The status of the sensor
+        """
+        
         return ujson.dumps(self.status)
 
     # Set the config
     def set_config(self, config):
+        """ Set the configuration
+
+        Args:
+            config: dict: The configuration
+
+        Returns:
+            None
+        """
+        
         self.config = config
 
     def idle_cb(self, topic, msg):
@@ -122,6 +143,15 @@ class SensorState (object):
         """
 
     def _apply_config(self, msg):
+        """ Apply the configuration
+
+        Args:
+            msg: str: The message
+
+        Returns:
+            None
+        """
+        
         params = ujson.loads(msg)
         self.status["config"]["p"] = params["p"]
         self.status["config"]["i"] = params["i"]
