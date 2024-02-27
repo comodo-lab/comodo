@@ -100,8 +100,9 @@ class SensorState (object):
         """ The callback function for the mqtt client when the sensor is adjusting
         Can move to the ready state if the sensor is ready
 
-        Listens to: sensor/{SENSOR_ID}/setup
-        Next states: ready
+        Listens to: sensor/setpoint
+                    sensor/{SENSOR_ID}/setpoint_reached
+        Next states: ready, adjusting
 
         Args:
             topic: str: The topic of the message
@@ -110,11 +111,15 @@ class SensorState (object):
         Returns:
             None
         """
-            
-        distance = abs(self.status['value'] - self.status["setpoint"])
-        if distance < self.status["config"]["tolerance"]:
+
+        if topic.decode("utf-8") == f"sensor/setpoint":
+            params = ujson.loads(msg)
+            self.status["setpoint"] = params[self.config['SENSOR_ID']]
+            self.client.set_callback(self.adjusting_cb)
+            self.status["status"] = "adjusting"
+        if topic.decode("utf-8") == f"sensor/{self.config['SENSOR_ID']}/setpoint_reached":
             self.client.set_callback(self.ready_cb)
-            self.status["status"] = "ready"        
+            self.status["status"] = "ready"
 
     def ready_cb(self, topic, msg):
         """ The callback function for the mqtt client when the sensor is ready

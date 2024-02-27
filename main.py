@@ -51,11 +51,11 @@ def measurement_tick(timer):
     """
 
     # If the sensor is ready, connected to the mqtt broker, and has a setpoint and sensor
-    # Make a measurement and publish it
+    # Make a measurement and publi\sh it
     if (state.client is not None) and \
        (state.status['setpoint'] is not None) and \
        (state.sensor is not None) :
-        measurement = state.sensor.get_measurement(state.status)
+        measurement = state.sensor.get_measurement(state)
         state.client.publish(f"measurement/{state.config['SENSOR_ID']}", str(measurement))
 
 # ----------------- Main function ----------------- ##
@@ -95,6 +95,7 @@ def main():
     ## Subscribe to the controller's instructions
     state.client.set_callback(state.awaiting_config_cb)
     state.client.subscribe(f"sensor/{state.config['SENSOR_ID']}/setup")
+    state.client.subscribe(f"sensor/{state.config['SENSOR_ID']}/setpoint_reached")
     state.client.subscribe(f"sensor/setpoint")
 
     ## Set the ready flag

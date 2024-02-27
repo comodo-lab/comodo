@@ -52,7 +52,7 @@ class BaseSensor:
         else:
             raise ValueError(f"Invalid sensor name: {input_name}")
 
-    def get_measurement(self, status):
+    def get_measurement(self, state):
         """ Get the measurement
 
         Returns:
@@ -60,14 +60,19 @@ class BaseSensor:
         """
 
         # Since this is a dummys sensor, move a little toward the setpoint
-        setpoint = status['setpoint']
-        value = status['value']
+        setpoint = state.status['setpoint']
+        value = state.status['value']
 
         difference = setpoint - value
         half_diff = difference / 2
         
         measurement = half_diff + value
-        status['value'] = measurement
+        state.status['value'] = measurement
+
+        distance = abs(state.status['value'] - state.status["setpoint"])
+        if distance < state.status["config"]["tolerance"]:
+            state.client.publish(f"sensor/{state.config['SENSOR_ID']}/setpoint_reached", "true")
+
         return measurement
     
 @BaseSensor.register_sensor("distance")
