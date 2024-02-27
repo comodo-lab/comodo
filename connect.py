@@ -1,6 +1,9 @@
 from lib.umqtt import MQTTClient
-import network
-
+import sys
+board = sys.platform
+if board == "rp2":
+    import network
+    
 def connect_wifi(ssid, password):
     """ Connect to the wifi network
 
