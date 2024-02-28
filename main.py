@@ -86,16 +86,6 @@ def main():
                                     port=1883,
                                     user="sensor",
                                     password="foobar!!")
-    
-    ## Setup heartbeat timer
-    if board == "rp2":
-        heartbeat_timer = Timer(period=state.config["HEARTBEAT_INTERVAL"],
-                                mode=Timer.PERIODIC,
-                                callback=heartbeat_tick)
-        measurement_timer = Timer(period=state.config["MEASUREMENT_INTERVAL"],
-                                mode=Timer.PERIODIC,
-                                callback=measurement_tick)
-
 
     ## Subscribe to the controller's instructions
     state.client.set_callback(state.awaiting_config_cb)
@@ -107,10 +97,24 @@ def main():
     ## Set the ready flag
     state.config['ready'] = True
 
+    ## Setup heartbeat timer if on a pico
+    if board == "rp2":
+        heartbeat_timer = Timer(period=state.config["HEARTBEAT_INTERVAL"],
+                                mode=Timer.PERIODIC,
+                                callback=heartbeat_tick)
+        measurement_timer = Timer(period=state.config["MEASUREMENT_INTERVAL"],
+                                mode=Timer.PERIODIC,
+                                callback=measurement_tick)
+
     ## Main loop
     while True:
-        state.client.wait_msg()
-        t.sleep(1)
+        if board == "rp2":
+            state.client.wait_msg()
+        elif board == "linux":
+            state.client.check_msg()
+            heartbeat_tick(None)
+            measurement_tick(None)
+            t.sleep(state.config["HEARTBEAT_INTERVAL"] / 1000)
     
     return 0
 
