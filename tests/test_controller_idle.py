@@ -112,6 +112,7 @@ def test_valid_file(capmqtt, state, controller_client):
 
     with patch("on_controller_message.c_starting") as mock_c_starting:
         mock_c_starting.return_value = None
+        mock_c_starting.__name__ = "mock_c_starting"
 
         capmqtt.publish(
             topic="controller/validate",

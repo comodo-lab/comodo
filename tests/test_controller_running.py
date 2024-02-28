@@ -178,6 +178,7 @@ def test_sends_end_signal(capmqtt, state, controller_client):
 
     with patch("on_controller_message.c_stopping") as mock_stopping:
         mock_stopping.return_value = None
+        mock_stopping.__name__ = "mock_stopping"
         capmqtt.publish(
             topic="controller/run",
             payload=json.dumps({"uid": "123"}),

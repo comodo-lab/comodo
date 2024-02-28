@@ -60,7 +60,10 @@ def test_updates_states_correctly(capmqtt, state, controller_client):
     assert controller_client.callback == c_ready
 
     with patch("on_controller_message.c_running") as mock_c_running:
+        mock_c_running.return_value = None
+        mock_c_running.__name__ = "mock_c_running"
         with patch("on_controller_message.assign_serial_id") as mock_assign:
+            mock_assign.return_value = None
             capmqtt.publish(
                 topic="controller/ready",
                 payload=json.dumps({"uid": "123"}),
@@ -86,6 +89,7 @@ def test_updates_serial_id_correctly_empty_dir(capmqtt, state, controller_client
         with patch("os.rename") as mock_rename:
             with patch("on_controller_message.c_running") as mock_c_running:
                 mock_c_running.return_value = None
+                mock_c_running.__name__ = "mock_c_running"
                 capmqtt.publish(
                     topic="controller/ready",
                     payload=json.dumps({"uid": "123"}),
@@ -118,6 +122,7 @@ def test_updates_serial_id_correctly_non_empty_dir(capmqtt, state, controller_cl
         with patch("os.rename") as mock_rename:
             with patch("on_controller_message.c_running") as mock_c_running:
                 mock_c_running.return_value = None
+                mock_c_running.__name__ = "mock_c_running"
                 capmqtt.publish(
                     topic="controller/ready",
                     payload=json.dumps({"uid": "123"}),
