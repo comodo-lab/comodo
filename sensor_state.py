@@ -120,6 +120,9 @@ class SensorState (object):
         if topic.decode("utf-8") == f"sensor/{self.config['SENSOR_ID']}/setpoint_reached":
             self.client.set_callback(self.ready_cb)
             self.status["status"] = "ready"
+        if topic.decode("utf-8") == f"controller/end":
+            self.client.set_callback(self.awaiting_config_cb)
+            self.status["status"] = "awaiting_config"
 
     def ready_cb(self, topic, msg):
         """ The callback function for the mqtt client when the sensor is ready
@@ -132,12 +135,15 @@ class SensorState (object):
             None 
         """
 
-        # Listen for new setpoint
         if topic.decode("utf-8") == "sensor/setpoint":
             params = ujson.loads(msg)
             self.status["setpoint"] = params[self.config['SENSOR_ID']]
             self.client.set_callback(self.adjusting_cb)
             self.status["status"] = "adjusting"
+        # if controller/end is received, move to the awaiting_config state
+        if topic.decode("utf-8") == "controller/end":
+            self.client.set_callback(self.awaiting_config_cb)
+            self.status["status"] = "awaiting_config"
 
     def _apply_config(self, msg):
         """ Apply the configuration
