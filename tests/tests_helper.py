@@ -3,7 +3,7 @@ import json
 import time as t
 
 from controller_state import cstate
-from mqtt_clients import MQTTClient
+from mqtt_clients import MQTTClient, pub
 from controller_helper import split_setpoints
 
 time_int = 0.01  # Time interval between client connection / message checks
@@ -141,3 +141,16 @@ def publish_sensor_heartbeat(capmqtt, sensor, status, setpoint):
             }
         ),
     )
+
+
+def flagged(callback, flag_topic="flagged", flag_message="true"):
+    """
+    Used to check callbacks that finish without an mqtt message.
+    When this callback is used instead, a message is published once the original callback function is done.
+    """
+
+    def wrapper(*args, **kwargs):
+        callback(*args, **kwargs)
+        pub.publish(flag_topic, flag_message)
+
+    return wrapper
