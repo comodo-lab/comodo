@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import json
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -95,6 +96,22 @@ def send_config():
         "ui/start", json.dumps(send_data).encode("utf-8")
     )
     container_label_and_text("Sending configuration...")
+
+
+def ChangeButtonColour(label, background, font="black", border="transparent"):
+    htmlstr = f"""
+        <script>
+            var elements = window.parent.document.querySelectorAll('button');
+            for (var i = 0; i < elements.length; ++i) {{
+                if (elements[i].innerText == '{label}') {{
+                    elements[i].style.color ='{font}';
+                    elements[i].style.background = '{background}';
+                    elements[i].style.border = '1px solid {border}';
+                }}
+            }}
+        </script>
+        """
+    components.html(f"{htmlstr}", height=0, width=0)
 
 
 # -----------------------------------------------------------------------------
@@ -250,6 +267,10 @@ st.session_state["download_container"].download_button(
     use_container_width=True,
     type="primary",
 )
+# -----------------------------------------------------------------------------
+# Change button colours
+ChangeButtonColour("Download experiment configuration", background="blue", font="white")
+ChangeButtonColour("Send experiment configuration", background="green", font="white")
 # -----------------------------------------------------------------------------
 # MQTT
 
