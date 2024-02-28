@@ -14,10 +14,9 @@ class SensorState (object):
         """
         
         self.status = {
-            "name": "---",
+            "name": None,
             "status": "awaiting_config",
             "setpoint": None,
-            "value": 0,
             "config": {
                 "p": None,
                 "i": None,
@@ -29,6 +28,7 @@ class SensorState (object):
         self.client = None
         self.config = None
         self.sensor = None
+        self.measurement = 0.0
 
     # Return string representation of the status
     def get_status(self):
@@ -155,7 +155,7 @@ class SensorState (object):
         self.status["config"]["d"] = params["d"]
         self.status["config"]["tolerance"] = params["tolerance"]
 
-        self.status["config"]["name"] = params["name"]
+        self.status["name"] = params["name"]
         self.sensor = sensor.BaseSensor.create_sensor(params["name"],
                                                       self.config["DUMMY"])
 

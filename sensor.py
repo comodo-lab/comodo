@@ -58,21 +58,21 @@ class BaseSensor:
         Returns:
             float: The measurement
         """
-
+        
         # Since this is a dummys sensor, move a little toward the setpoint
         setpoint = state.status['setpoint']
-        value = state.status['value']
+        value = state.measurement
 
         difference = setpoint - value
         half_diff = difference / 2
         
         measurement = half_diff + value
-        state.status['value'] = measurement
 
-        distance = abs(state.status['value'] - state.status["setpoint"])
+        distance = abs(measurement - state.status["setpoint"])
         if distance < state.status["config"]["tolerance"]:
             state.client.publish(f"sensor/{state.config['SENSOR_ID']}/setpoint_reached", "true")
 
+        state.measurement = measurement
         return measurement
     
 @BaseSensor.register_sensor("distance")
