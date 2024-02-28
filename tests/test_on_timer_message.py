@@ -146,3 +146,22 @@ def test_timer_setpoint_incompatible_controller_state(capmqtt, state):
     assert m["uid"] == "123"
     assert "Timer for setpoint exited unexpectedly."
     assert "ready instead of running" in m["error"]
+
+
+def test_timer_setpoint_stopping(capmqtt, state, timer_client):
+    assert state.experiment_uid == "123"
+    state.status = "stopping"
+
+    timer_client.callback = flagged(
+        on_timer_message,
+        flag_topic="flagged_timer",
+        flag_message="timer not engaged",
+    )
+    capmqtt.publish(
+        topic="timer/start/setpoint",
+        payload=json.dumps({"uid": "123", "duration": 0.3}),
+    )
+    wait_for_message(capmqtt)
+
+    assert capmqtt.messages[-1].topic == "flagged_timer"
+    assert capmqtt.messages[-1].payload == "timer not engaged"
