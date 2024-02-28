@@ -77,7 +77,8 @@ def main():
         con.connect_wifi(state.config["WIFI_SSID"], state.config["WIFI_PASS"])
 
     ## Connect to the mqtt broker
-    state.client = con.connect_mqtt(state.config["MQTT_IP"],
+    state.client = con.connect_mqtt(state.status["name"],
+                                    state.config["MQTT_IP"],
                                     port=1883,
                                     user="sensor",
                                     password="foobar!!")

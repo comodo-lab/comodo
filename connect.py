@@ -19,9 +19,10 @@ def connect_wifi(ssid, password):
             pass
 
 
-def connect_mqtt(ip_address, port=1883, user=None, password=None):
+def connect_mqtt(client_name, ip_address, port=1883, user=None, password=None):
     """ Connect to the mqtt broker
     Args:
+        client_name: str: The name of the client
         ip_address: str: The ip address of the mqtt broker
         port: int: The port of the mqtt broker
         user: str: The user of the mqtt broker
@@ -34,7 +35,7 @@ def connect_mqtt(ip_address, port=1883, user=None, password=None):
         EHOSTUNREACH: The mqtt broker is not reachable
     """
     
-    c = MQTTClient("umqtt_client",
+    c = MQTTClient(client_name,
                    ip_address,
                    port=port,
                    user=user,
