@@ -102,6 +102,32 @@ def test_unconfigured_sensor(capmqtt, state):
     assert "Sensor sensor_1 is not configured" in capmqtt.messages[-1].payload
 
 
+def test_unconfigured_sensor_idle(capmqtt, state, heartbeat_client):
+    assert state.experiment_uid == "123"
+    state.status = "idle"
+    heartbeat_client.callback = flagged(
+        on_heartbeat_message,
+        flag_topic="flagged_heartbeat",
+        flag_message="heartbeat_ignored",
+    )
+
+    capmqtt.publish(
+        topic="heartbeat/sensor/sensor_1",
+        payload=json.dumps(
+            {
+                "name": "sensor_1",
+                "status": "awaiting_config",
+                "setpoint": None,
+                "config": {"p": None, "i": None, "d": None, "tolerance": None},
+            }
+        ),
+    )
+    wait_for_message(capmqtt)
+
+    assert capmqtt.messages[-1].topic == "flagged_heartbeat"
+    assert capmqtt.messages[-1].payload == "heartbeat_ignored"
+
+
 def test_awaiting_sensors_wrong_config(capmqtt, state):
     assert state.sensors["configured"] == False
 
