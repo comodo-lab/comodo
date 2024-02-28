@@ -35,9 +35,8 @@ def heartbeat_tick(timer):
 
     if state.client is not None and "ready" in state.config:
         heartbeat_structure = state.get_status()
-        state.client.publish(f"heartbeat/sensor/{state.config['SENSOR_ID']}", heartbeat_structure)
         print(heartbeat_structure)
-
+        state.client.publish(f"heartbeat/sensor/{state.config['SENSOR_ID']}", heartbeat_structure)
 
 # Define measurement publishing
 def measurement_tick(timer):
@@ -56,7 +55,12 @@ def measurement_tick(timer):
        (state.status['setpoint'] is not None) and \
        (state.sensor is not None) :
         measurement = state.sensor.get_measurement(state)
-        state.client.publish(f"measurement/{state.config['SENSOR_ID']}", str(measurement))
+        measurement_structure = {
+            "value": measurement,
+        }
+        msg = ujson.dumps(measurement_structure)
+        state.client.publish(f"measurement/{state.config['SENSOR_ID']}",
+                             msg)
 
 # ----------------- Main function ----------------- ##
 
