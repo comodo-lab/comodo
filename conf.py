@@ -304,9 +304,14 @@ def on_message(client, obj, msg):
 
 
 if "mqtt_client" not in st.session_state:
+    mqtt_config = json.load(open("/etc/ui/config.json"))
     client = mqtt.Client()
     client.on_message = on_message
-    client.connect("fase-rabbitmq", 1883, 60)
+    client.username_pw_set(
+        username=mqtt_config["user"],
+        password=mqtt_config["password"],
+    )
+    client.connect(mqtt_config["broker_address"], 1883, 60)
 
     st.session_state["mqtt_client"] = client
     topics = [
