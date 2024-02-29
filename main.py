@@ -97,6 +97,7 @@ async def main():
     state.client.subscribe(f"sensor/{state.config['SENSOR_ID']}/setpoint_reached")
     state.client.subscribe(f"sensor/setpoint")
     state.client.subscribe(f"controller/end")
+    state.client.subscribe(f"controller/stop")
 
     ## Set the ready flag
     state.config['ready'] = True

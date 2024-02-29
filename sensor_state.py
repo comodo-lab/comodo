@@ -123,6 +123,10 @@ class SensorState (object):
         if topic.decode("utf-8") == f"controller/end":
             self.client.set_callback(self.awaiting_config_cb)
             self.status["status"] = "awaiting_config"
+        if topic.decode("utf-8") == f"controller/stop":
+            self.client.set_callback(self.awaiting_config_cb)
+            self.status["status"] = "awaiting_config"
+
 
     def ready_cb(self, topic, msg):
         """ The callback function for the mqtt client when the sensor is ready
@@ -142,6 +146,9 @@ class SensorState (object):
             self.status["status"] = "adjusting"
         # if controller/end is received, move to the awaiting_config state
         if topic.decode("utf-8") == "controller/end":
+            self.client.set_callback(self.awaiting_config_cb)
+            self.status["status"] = "awaiting_config"
+        if topic.decode("utf-8") == f"controller/stop":
             self.client.set_callback(self.awaiting_config_cb)
             self.status["status"] = "awaiting_config"
 
