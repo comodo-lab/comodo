@@ -86,3 +86,14 @@ class Distance(BaseSensor):
         
         return "The distance is x"
 
+    def go_to_setpoint(self, setpoint):
+        """ Go to the setpoint
+
+        Args:
+            setpoint: float: The setpoint
+
+        Returns:
+            None
+        """
+        pass
+
