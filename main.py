@@ -1,5 +1,6 @@
 # Micropython imports
-import ujson 
+import ujson
+import asyncio
 
 # System imports
 import time as t
@@ -20,52 +21,55 @@ if board == "rp2":
 #     from machine import WDT
 #    wdt = WDT(timeout=20000) # ms
 
-## ----------------- Timer functions ----------------- ##
+## ----------------- Timer helper functions ----------------- ##
 
-# Define heartbeat publishing
-def heartbeat_tick(timer):
-    """ The heartbeat function
-
-    Args:
-        timer: Timer: The timer object
+def send_heartbeat():
+    """ Send the heartbeat
 
     Returns:
         None
     """
-
     if state.client is not None and "ready" in state.config:
         heartbeat_structure = state.get_status()
         print(heartbeat_structure)
         state.client.publish(f"heartbeat/sensor/{state.config['SENSOR_ID']}", heartbeat_structure)
 
-# Define measurement publishing
-def measurement_tick(timer):
-    """ The measurement function
-
-    Args:
-        timer: Timer: The timer object
+def send_measurement():
+    """ Send the measurement
 
     Returns:
         None
     """
-
-    # If the sensor is ready, connected to the mqtt broker, and has a setpoint and sensor
-    # Make a measurement and publi\sh it
     if (state.client is not None) and \
        (state.status['setpoint'] is not None) and \
        (state.sensor is not None) :
         measurement = state.sensor.get_measurement(state)
-        measurement_structure = {
-            "value": measurement,
-        }
+        measurement_structure = {"value": measurement}
         msg = ujson.dumps(measurement_structure)
-        state.client.publish(f"measurement/{state.config['SENSOR_ID']}",
-                             msg)
+        state.client.publish(f"measurement/{state.config['SENSOR_ID']}", msg)
 
+## ----------------- Timer functions ----------------- ##
+
+if board == "linux":
+    async def heartbeat_tick(timer):
+        while True:
+            send_heartbeat()
+            await asyncio.sleep_ms(state.config["HEARTBEAT_INTERVAL"])
+    async def measurement_tick(timer):
+        while True:
+            send_measurement()
+            await asyncio.sleep_ms(state.config["MEASUREMENT_INTERVAL"])
+else:
+    def heartbeat_tick(timer):
+        send_heartbeat()
+
+    def measurement_tick(timer):
+        send_measurement()
+        
 # ----------------- Main function ----------------- ##
 
 # The main function    
-def main():
+async def main():
     """ The main function
 
     Returns:
@@ -97,7 +101,7 @@ def main():
     ## Set the ready flag
     state.config['ready'] = True
 
-    ## Setup heartbeat timer if on a pico
+    ## Setup heartbeat timer if on a pico or async timer if on linux
     if board == "rp2":
         heartbeat_timer = Timer(period=state.config["HEARTBEAT_INTERVAL"],
                                 mode=Timer.PERIODIC,
@@ -105,18 +109,21 @@ def main():
         measurement_timer = Timer(period=state.config["MEASUREMENT_INTERVAL"],
                                 mode=Timer.PERIODIC,
                                 callback=measurement_tick)
+    elif board == "linux":
+        asyncio.create_task(heartbeat_tick(None))
+        asyncio.create_task(measurement_tick(None))
 
     ## Main loop
     while True:
         if board == "rp2":
+            # blocking wait for message (since the timer is in hardware)
             state.client.wait_msg()
         elif board == "linux":
+            # non-blocking check for message (since the timer is in software)
             state.client.check_msg()
-            heartbeat_tick(None)
-            measurement_tick(None)
-            t.sleep(state.config["HEARTBEAT_INTERVAL"] / 1000)
+            await asyncio.sleep(0.1)
     
     return 0
 
 if __name__ == "__main__":
-    sys.exit(main())
+    asyncio.run(main())
