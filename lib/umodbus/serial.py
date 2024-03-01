@@ -272,7 +272,6 @@ class Serial(CommonModbusFunctions):
 
         send_start_time = time.ticks_us()
         # 360-400us @ 9600-115200 baud (measured) (ESP32 @ 160/240MHz)
-        print(f"MASTER Sending modbus_adu: {modbus_adu}")
         self._uart.write(modbus_adu)
         send_finish_time = time.ticks_us()
 
