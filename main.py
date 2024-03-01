@@ -11,6 +11,9 @@ import config as cfg
 import connect as con
 import state
 
+# Sensor imports (trigger sensor registration)
+import eurotherm_3204 as eurotherm_3204
+
 # Initialize the state
 state = state.SensorState()
 
