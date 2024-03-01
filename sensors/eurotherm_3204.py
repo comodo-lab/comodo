@@ -7,6 +7,20 @@ from machine import Pin,UART
 
 @BaseSensor.register_sensor("temperature")
 class Eurotherm3204(BaseSensor):
+    """ The Eurotherm 3204 sensor
+
+    Args:
+        None
+
+    Returns:
+        None
+    """
+
+    host = None
+
+    # Eurotherm Modbus Address
+    slave_addr = 2
+    
     def __init__(self):
         """ The Eurotherm 3204 sensor
 
@@ -17,8 +31,6 @@ class Eurotherm3204(BaseSensor):
             None
         """
 
-        # Eurotherm Modbus Address
-        slave_addr = 2
 
         # Uart configuration
         uart_id = 0
@@ -44,11 +56,11 @@ class Eurotherm3204(BaseSensor):
 
         # Read the temperature
         try:
-            register_value = host.read_holding_registers(
-                slave_addr=slave_addr, 
+            register_value = self.host.read_holding_registers(
+                slave_addr=self.slave_addr, 
                 starting_addr=1, # Temperature register
                 register_qty=1) # Read one register
-            print(f'Register value: {register_value}')
+            state.measurement = register_value[0] 
         except Exception as e:
             print(f'Error reading hreg! \n\t {e}')
             pass

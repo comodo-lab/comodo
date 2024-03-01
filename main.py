@@ -9,10 +9,10 @@ import sys
 # Local imports
 import config as cfg
 import connect as con
-import sensor_state
+import state
 
 # Initialize the state
-state = sensor_state.SensorState()
+state = state.SensorState()
 
 # Determine the board and set the watchdog timer
 board = sys.platform

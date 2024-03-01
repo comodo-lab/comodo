@@ -22,6 +22,7 @@ class BaseSensor:
         """
         
         def decorator(sensor):
+            print(f"Registering sensor: {sensor_name}")
             cls.sensor_map[sensor_name] = sensor
             return sensor
         return decorator
@@ -46,6 +47,7 @@ class BaseSensor:
             return cls()
 
         # Otherwise, get the sensor from the map
+        print(f"Creating sensor: {input_name}")
         sensor = cls.sensor_map.get(input_name)
         if sensor:
             return sensor()
