@@ -21,6 +21,9 @@ state = state.SensorState()
 board = sys.platform
 if board == "rp2":
     from machine import Timer
+    from machine import Pin
+    led = machine.Pin("LED", machine.Pin.OUT)
+
 #     from machine import WDT
 #    wdt = WDT(timeout=20000) # ms
 
@@ -64,6 +67,9 @@ if board == "linux":
             await asyncio.sleep_ms(state.config["MEASUREMENT_INTERVAL"])
 else:
     def heartbeat_tick(timer):
+        led.on()
+        t.sleep_ms(100)
+        led.off()
         send_heartbeat()
 
     def measurement_tick(timer):
@@ -130,4 +136,9 @@ async def main():
     return 0
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    while True:
+        try:
+            asyncio.run(main())
+        except Exception as e:
+            state.client.publish(f"error/sensor/{state.config['SENSOR_ID']}", str(e))
+
