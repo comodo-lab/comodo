@@ -130,19 +130,25 @@ def c_running(client, msg, obj):
 
 
 def c_stopping(client, msg, obj):
-    if msg.topic not in ["controller/stop", "controller/end"]:
+    if msg.topic not in [
+        "controller/stop",
+        "controller/end",
+        "controller/stopped",
+    ]:
         incompatible_request(obj, msg)
         return
-
+    if msg.topic == "controller/stopped":
+        client.callback = c_idle
+        return
     message = load_message(msg)
     if message["uid"] == obj.experiment_uid:
         obj.status = "stopping"
         ### Safe stop placeholder
-        t.sleep(3)
+        t.sleep(2)
+        dump_database_for_experiment(obj)
         ###
-        obj.status = "idle"
-        obj.experiment_uid = None
-        obj.adjusting = AdjustingDict()
-        client.callback = c_idle
+        uid = obj.experiment_uid
+        obj.reset()
+        pub.publish("controller/stopped", json.dumps({"uid": uid}))
     else:
         incompatible_uid(obj, msg)

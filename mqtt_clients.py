@@ -6,9 +6,9 @@ import os
 
 # Broker setup
 config = json.load(open("config.json"))
-broker_address = config["broker_address"]
-user = config["user"]
-password = config["password"]
+broker_address = config["mqtt"]["broker_address"]
+user = config["mqtt"]["user"]
+password = config["mqtt"]["password"]
 
 
 def print_message(client, msg, timestamped=False):

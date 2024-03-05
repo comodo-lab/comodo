@@ -68,6 +68,21 @@ class cstate:
         """
         return dumps(self.heartbeat())
 
+    def reset(self) -> None:
+        """
+        Resets the state of the controller to its initial values.
+        """
+        self.experiment_start_time = None
+        self.experiment_uid = None
+        self.exp_file = None
+        self.status = "idle"
+        self.exp_config = None
+        self.setpoints = []
+        self.current_setpoint = None
+        self.past_setpoints = []
+        self.sensors = {"configured": False}
+        self.adjusting = AdjustingDict()
+
     @property
     def experiment_start_time(self) -> datetime:
         return self._experiment_start_time

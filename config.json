@@ -1,5 +1,17 @@
 {
-    "broker_address": "localhost",
-    "user": null,
-    "password": null
+    "mqtt": {
+        "broker_address": "localhost",
+        "user": null,
+        "password": null
+    },
+    "influxdb": {
+        "url": "https://db.oliver-woolland-rse.uk",
+        "org": "fase",
+        "buckets": [
+            "logs",
+            "measurement",
+            "heartbeat"
+        ],
+        "token": "token_here"
+    }
 }

@@ -1,6 +1,7 @@
 import pytest
 import json
 import time as t
+from datetime import datetime
 
 from controller_state import cstate
 from mqtt_clients import MQTTClient, pub
@@ -48,7 +49,14 @@ def make_state_fixture(status):
 
     @pytest.fixture
     def state():
-        if status not in ["idle", "starting", "awaiting_sensors", "ready", "running"]:
+        if status not in [
+            "idle",
+            "starting",
+            "awaiting_sensors",
+            "ready",
+            "running",
+            "end",
+        ]:
             return None
 
         obj = cstate()
@@ -56,6 +64,7 @@ def make_state_fixture(status):
         if status == "idle":
             return obj
 
+        obj.experiment_start_time = datetime.now()
         obj.exp_config = valid_experiment_dict()
         obj.experiment_uid = valid_experiment_dict()["uid"]
         obj.status = "validating"
@@ -85,6 +94,10 @@ def make_state_fixture(status):
 
         obj.status = "ready"
         if status == "running":
+            return obj
+
+        obj.status = "running"
+        if status == "end":
             return obj
 
         return obj

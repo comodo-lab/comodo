@@ -1,9 +1,12 @@
 import json
 import numpy as np
+import influxdb_client
+import os
+import csv
+from datetime import datetime
+
 from mqtt_clients import *
 from error_helper import *
-from datetime import datetime
-import os
 
 
 class internal_stop_msg:
@@ -79,3 +82,30 @@ def assign_serial_id(obj):
     os.rename(temp_path, new_path)
     obj.experiment_uid = f"D{current_year}-{serial}"
     obj.exp_file = new_path
+
+
+def dump_database_for_experiment(obj):
+    """
+    Dumps the influx databases for the experiment elapsed time.
+    """
+    t0 = obj.experiment_start_time
+    tf = datetime.now()
+    # get everything from influx database
+    config = json.load(open("config.json"))
+    buckets = config["influxdb"]["buckets"]
+    client = influxdb_client.InfluxDBClient(
+        url=config["influxdb"]["url"],
+        token=config["influxdb"]["token"],
+        org=config["influxdb"]["org"],
+    )
+    query_api = client.query_api()
+    exp_dir_path = obj.exp_file.replace(".json", "")
+    if not os.path.exists(exp_dir_path):
+        os.makedirs(exp_dir_path)
+    for bucket in buckets:
+        query = f'from(bucket: "{bucket}") |> range(start: {t0.isoformat()}Z, stop: {tf.isoformat()}Z)'
+        data = query_api.query_csv(org=config["influxdb"]["org"], query=query)
+        values = data.to_values()
+        with open(f"{exp_dir_path}/{bucket}.csv", "w", newline="") as myfile:
+            wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
+            wr.writerows(values)
