@@ -1,5 +1,6 @@
 import json
 import time as t
+from datetime import datetime
 from controller_state import *
 from controller_helper import *
 from mqtt_clients import *
@@ -32,6 +33,7 @@ def c_idle(client, msg, obj):
     except KeyError as e:
         missing_keys(msg, e)
         return
+    obj.experiment_start_time = datetime.now()
     obj.status = "validating"
     # Validate experiment configuration
     try:

@@ -10,6 +10,7 @@ def state():
 
 def test_cstate_initialization():
     state = cstate()
+    assert state.experiment_start_time == None
     assert state.experiment_uid == None
     assert state.exp_file == None
     assert state.status == "idle"
@@ -46,6 +47,24 @@ def test_str(state):
         str(state)
         == '{"experiment": "123", "status": "idle", "adjusting": {"T": 0, "P": 0, "D1": 0, "D2": 0}}'
     )
+
+
+def test_can_set_experiment_start_time(state):
+    t = datetime.now()
+    state.experiment_start_time = t
+    assert state.experiment_start_time == t
+
+
+def test_cannot_set_wrong_type_experiment_start_time(state):
+    try:
+        state.experiment_start_time = "123"
+    except TypeError as e:
+        assert (
+            "Experiment start time must be a datetime or None, cannot accept <class 'str'>"
+            in e.args[0]
+        )
+    else:
+        assert False, "Should not let you set wrong type"
 
 
 def test_can_set_experiment_uid(state):

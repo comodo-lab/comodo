@@ -1,5 +1,6 @@
 from json import dumps
 from typing import Dict, Any, List
+from datetime import datetime
 
 
 class cstate:
@@ -19,6 +20,7 @@ class cstate:
     ]
 
     __slots__ = [
+        "_experiment_start_time",
         "_experiment_uid",
         "_exp_file",
         "_status",
@@ -36,6 +38,7 @@ class cstate:
         """
         Initializes a new instance of the cstate class.
         """
+        self.experiment_start_time: datetime = None
         self.experiment_uid: str = None
         self.exp_file: str = None
         self.status: str = "idle"
@@ -64,6 +67,27 @@ class cstate:
         Returns the string representation (heartbeat) of the cstate object.
         """
         return dumps(self.heartbeat())
+
+    @property
+    def experiment_start_time(self) -> datetime:
+        return self._experiment_start_time
+
+    @experiment_start_time.setter
+    def experiment_start_time(self, value: datetime) -> None:
+        """
+        Sets the experiment start time, used as a reference when dumping the database.
+
+        Args:
+            value: The new experiment start time value. Must be a datetime object or None.
+
+        Raises:
+            TypeError: If the provided experiment start time is not a datetime object or None.
+        """
+        if not isinstance(value, (datetime, type(None))):
+            raise TypeError(
+                f"Experiment start time must be a datetime or None, cannot accept {type(value)}"
+            )
+        self._experiment_start_time = value
 
     @property
     def experiment_uid(self) -> str:

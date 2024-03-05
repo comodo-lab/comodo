@@ -108,6 +108,7 @@ def test_missing_file(capmqtt, state, controller_client):
 
 def test_valid_file(capmqtt, state, controller_client):
     assert state.experiment_uid == None
+    assert state.experiment_start_time == None
     assert state.status == "idle"
 
     with patch("on_controller_message.c_starting") as mock_c_starting:
@@ -120,6 +121,7 @@ def test_valid_file(capmqtt, state, controller_client):
         )
         wait_for_message(capmqtt)
 
+        assert state.experiment_start_time != None
         assert state.experiment_uid == "123"
         assert state.status == "validating"
         assert controller_client.callback == mock_c_starting
