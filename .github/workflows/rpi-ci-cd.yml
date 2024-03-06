@@ -49,15 +49,33 @@ jobs:
 
       - name: Create config
         env:
-          CONTROLLER_USER: ${{ secrets.CONTROLLER_MQTT_USER }}
-          CONTROLLER_PASS: ${{ secrets.CONTROLLER_MQTT_PASS }}
+          CONTROLLER_MQTT_USER: ${{ secrets.CONTROLLER_MQTT_USER }}
+          CONTROLLER_MQTT_PASS: ${{ secrets.CONTROLLER_MQTT_PASS }}
           BROKER_ADDRESS: ${{ secrets.BROKER_ADDRESS }}
+          CONTROLLER_INFLUXDB_TOKEN: ${{ secrets.CONTROLLER_INFLUXDB_TOKEN }}
         run: |
           jq --null-input \
-            --arg cu $CONTROLLER_USER \
-            --arg cp $CONTROLLER_PASS \
-            --arg ba $BROKER_ADDRESS \
-            '{broker_address: $ba, user: $cu, password: $cp}' > config.json
+            --arg mba "$BROKER_ADDRESS" \
+            --arg mu "$CONTROLLER_MQTT_USER" \
+            --arg mp "$CONTROLLER_MQTT_PASS" \
+            --arg dbt "$CONTROLLER_INFLUXDB_TOKEN" \
+            '{
+              "mqtt":{
+                "broker_address": $mba,
+                "user": $mu,
+                "password": $mp
+              },
+              "influxdb":{
+                "url": "https://db.oliver-woolland-rse.uk",
+                "org": "fase",
+                "buckets": [
+                    "logs",
+                    "measurement",
+                    "heartbeat"
+                ],
+                "token": $dbt
+              }
+            }' > config.json
 
       - name: Configure poetry
         run: |
