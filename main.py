@@ -21,11 +21,12 @@ state = state.SensorState()
 board = sys.platform
 if board == "rp2":
     from machine import Timer
+
     from machine import Pin
     led = machine.Pin("LED", machine.Pin.OUT)
 
-#     from machine import WDT
-#    wdt = WDT(timeout=20000) # ms
+    from machine import WDT
+    watchdog = WDT(timeout=8000)
 
 ## ----------------- Timer helper functions ----------------- ##
 
@@ -67,12 +68,15 @@ if board == "linux":
             await asyncio.sleep_ms(state.config["MEASUREMENT_INTERVAL"])
 else:
     def heartbeat_tick(timer):
+        watchdog.feed()
         led.on()
         t.sleep_ms(100)
         led.off()
         send_heartbeat()
+        
 
     def measurement_tick(timer):
+        watchdog.feed()
         send_measurement()
         
 # ----------------- Main function ----------------- ##
@@ -92,6 +96,8 @@ async def main():
     ## Determine the board and connect to the wifi if it is a raspberry pi
     if board == "rp2":
         con.connect_wifi(state.config["WIFI_SSID"], state.config["WIFI_PASS"])
+        watchdog.feed()
+        print("Connected to wifi")
 
     ## Connect to the mqtt broker
     state.client = con.connect_mqtt(state.status["name"],
@@ -99,6 +105,7 @@ async def main():
                                     port=1883,
                                     user="sensor",
                                     password="foobar!!")
+    print("Connected to broker")
 
     ## Subscribe to the controller's instructions
     state.client.set_callback(state.awaiting_config_cb)
@@ -107,9 +114,11 @@ async def main():
     state.client.subscribe(f"sensor/setpoint")
     state.client.subscribe(f"controller/end")
     state.client.subscribe(f"controller/stop")
+    print("Subscribed to topics")
 
     ## Set the ready flag
     state.config['ready'] = True
+    print("Ready")
 
     ## Setup heartbeat timer if on a pico or async timer if on linux
     if board == "rp2":
@@ -119,9 +128,11 @@ async def main():
         measurement_timer = Timer(period=state.config["MEASUREMENT_INTERVAL"],
                                 mode=Timer.PERIODIC,
                                 callback=measurement_tick)
+        print("Timers set up")
     elif board == "linux":
         asyncio.create_task(heartbeat_tick(None))
         asyncio.create_task(measurement_tick(None))
+        print("Async timers set up")
 
     ## Main loop
     while True:
@@ -140,5 +151,7 @@ if __name__ == "__main__":
         try:
             asyncio.run(main())
         except Exception as e:
-            state.client.publish(f"error/sensor/{state.config['SENSOR_ID']}", str(e))
-
+            try:
+                state.client.publish(f"error/sensor/{state.config['SENSOR_ID']}", str(e))
+            except:
+                print(f"Error: {e}")

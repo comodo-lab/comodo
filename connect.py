@@ -1,24 +1,37 @@
 from lib.umqtt import MQTTClient
 import sys
+
 board = sys.platform
 if board == "rp2":
     import network
+    from machine import Timer
+
     
 def connect_wifi(ssid, password):
     """ Connect to the wifi network
 
     Returns:
         None
+
+    Raises:
+    
     """
     wlan = network.WLAN(network.STA_IF)
-    wlan.active(True)
-    if not wlan.isconnected():
-        print('connecting to network...')
-        wlan.connect(ssid, password)
-        while not wlan.isconnected():
-            pass
+    if wlan.isconnected():
+        wlan.active(False)
+        wlan.disconnect()
+
+    wlan.active(True)        
+    wlan.connect(ssid, password)
+    while not wlan.isconnected():
+        pass
 
 
+def timeout_mqtt(timer):
+    print("Timeout")
+    raise Exception("Timeout connecting to the mqtt broker")
+
+    
 def connect_mqtt(client_name, ip_address, port=1883, user=None, password=None):
     """ Connect to the mqtt broker
     Args:
@@ -30,16 +43,19 @@ def connect_mqtt(client_name, ip_address, port=1883, user=None, password=None):
     
     Returns:
         MQTTClient: The mqtt client object
-
-    Raises:
-        EHOSTUNREACH: The mqtt broker is not reachable
     """
-    
     c = MQTTClient(client_name,
                    ip_address,
                    port=port,
                    user=user,
                    password=password
                    )
+
+    timeout_timer = Timer(period=5000,
+                          mode=Timer.ONE_SHOT,
+                          callback=timeout_mqt)
     c.connect()
+    timeout_timer.deinit()
+    print(f'Connected to the mqtt broker at {ip_address}:{port}')
+
     return c
