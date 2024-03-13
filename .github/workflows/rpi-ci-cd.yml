@@ -37,7 +37,7 @@ jobs:
 
   stage:
     needs: test
-    runs-on: rpi-staging
+    runs-on: staging
     steps:
       - name: Stop systemctl service
         run: sudo systemctl stop fase-controller
@@ -85,7 +85,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ./.venv
-          key: rpi-staging-venv-${{ hashFiles('**/poetry.lock') }}
+          key: staging-venv-${{ hashFiles('**/poetry.lock') }}
 
       - name: Install dependencies
         run: |
