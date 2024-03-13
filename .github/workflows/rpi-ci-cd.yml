@@ -39,6 +39,9 @@ jobs:
     needs: test
     runs-on: staging
     steps:
+      - name: whoami
+        run: whoami
+        
       - name: Stop systemctl service
         run: sudo systemctl stop fase-controller
 
