@@ -53,10 +53,6 @@ def mqtt_publish_exceptions(name, func):
         try:
             return func(*args, **kwargs)
         except Exception as e:
-            pub.publish(
-                "ERROR/exception",
-                json.dumps({"error": f"Unhandled exception in {name}: {str(e)}"}),
-            )
             print(f"ERROR:\n   Unhandled exception in {name}: {str(e)}")
             # print all e.__traceback__.tb_frame and recurring tb_next
             print(f"Traceback:")
@@ -75,6 +71,13 @@ def mqtt_publish_exceptions(name, func):
                 indent += " "
                 tb = tb.tb_next
 
+            try:
+                pub.publish(
+                    "ERROR/exception",
+                   json.dumps({"error": f"Unhandled exception in {name}: {str(e)}"}),
+                )
+            except Exception as e:
+                 print(f"Error while reporting error! {e}")
     return wrapper
 
 
