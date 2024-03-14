@@ -10,7 +10,7 @@ authors = [
 [tool.poetry.dependencies]
 python = "^3.10"
 jsonschema = "^4.20.0"
-paho-mqtt = "^1.6.1"
+paho-mqtt = "< 2.0.0"
 numpy = "^1.26.3"
 influxdb-client = "^1.41.0"
 
