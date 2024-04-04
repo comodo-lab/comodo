@@ -25,6 +25,7 @@ except KeyError as e:
 # Initialize controller state
 state = cstate()
 
+print(f"  Creating clients...")
 # Load MQTT clients
 watchdog = MQTTClient(
     id="watchdog",
@@ -62,7 +63,6 @@ controller = MQTTClient(
     user=user,
     password=password,
 )
-
 timer = MQTTClient(
     id="timer",
     callback=on_timer_message,
@@ -72,7 +72,6 @@ timer = MQTTClient(
     user=user,
     password=password,
 )
-
 heartbeat = MQTTClient(
     id="heartbeat",
     callback=on_heartbeat_message,
@@ -87,7 +86,7 @@ measurement = MQTTClient("measurement", on_client_message, topics="measurement/#
 pub.publish("wd_timer/start", json.dumps(wdog))
 t.sleep(1)
 if wdog["healthy"]:
-    print(f"  Controller started.")
+    print(f"Controller started successfully.")
 while wdog["healthy"]:
     controller.publish("heartbeat/controller", f"{state}")
     t.sleep(wdog["interval"])

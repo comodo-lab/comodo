@@ -3,12 +3,14 @@ import paho.mqtt.client as mqtt
 from datetime import datetime
 import json
 import os
+import time as t
 
 # Broker setup
 config = json.load(open("config.json"))
 broker_address = config["mqtt"]["broker_address"]
 user = config["mqtt"]["user"]
 password = config["mqtt"]["password"]
+connection_timeout = config["mqtt"]["connection_timeout"]
 
 
 def print_message(client, msg, timestamped=False):
@@ -82,6 +84,15 @@ def mqtt_publish_exceptions(name, func):
     return wrapper
 
 
+def connect_or_timeout(client):
+    t_now = t.time()
+    while not client.client.is_connected():
+        t.sleep(0.1)
+        if t.time() - t_now > connection_timeout:
+            raise TimeoutError(f"The {client.id} client failed to connect.")
+    print(f"    Client '{client.id}' connected to broker.")
+
+
 class MQTTClient:
     """
     A class to simplify the process of creating and setting up MQTT clients.
@@ -97,7 +108,6 @@ class MQTTClient:
         port: int = 1883,
         user: Optional[str] = None,
         password: Optional[str] = None,
-        start_loop: bool = True,
         obj: Optional[Any] = None,
     ):
         """
@@ -111,7 +121,6 @@ class MQTTClient:
         port: The port number of the MQTT broker. Defaults to 1883.
         user: The username for authentication. Defaults to None.
         password: The password for authentication. Defaults to None.
-        start_loop: Whether to start the MQTT client loop. Defaults to True.
         obj: An additional object to be passed to the callback function. This would normally be the controller state object. Defaults to None.
         """
         self.id = id
@@ -120,14 +129,23 @@ class MQTTClient:
         self.callback = callback
         if user is not None:
             self.client.username_pw_set(username=user, password=password)
-        self.client.connect(broker_address, port, 60)
+        try:
+            self.client.connect(broker_address, port, 60)
+        except Exception as e:
+            print(f"ERROR: Client '{id}' failed to connect to broker: {e}")
+        self.client.loop_start()
+        connect_or_timeout(self)
         if isinstance(topics, str):
-            self.client.subscribe(topics, 0)
-        elif isinstance(topics, list):
+            topics = [topics]
+        if isinstance(topics, list):
             for topic in topics:
-                self.client.subscribe(topic, 0)
-        if start_loop:
-            self.client.loop_start()
+                result, mid = self.client.subscribe(topic, 0)
+                if result == mqtt.MQTT_ERR_SUCCESS:
+                    print(f"           '{id}' subscribed to '{topic}'.")
+                else:
+                    print(
+                        f"           '{id}' failed to subscribe to '{topic}' with error code: {result}"
+                    )
 
     def publish(self, topic, msg):
         """
@@ -169,6 +187,7 @@ Using pub to send messages prevents issues with clients being otherwise engaged 
 """
 pub = MQTTClient(
     id="publisher",
+    topics=None,
     callback=None,
     broker_address=broker_address,
     user=user,

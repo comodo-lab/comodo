@@ -4,7 +4,7 @@ import time as t
 from datetime import datetime
 
 from controller_state import cstate
-from mqtt_clients import MQTTClient, pub
+from mqtt_clients import MQTTClient, connect_or_timeout, pub
 from controller_helper import split_setpoints
 
 time_int = 0.01  # Time interval between client connection / message checks
@@ -117,12 +117,7 @@ def make_client_fixture(client_id, callback, topics, autouse=False):
     def client(state):
         # Setup before test
         c = MQTTClient(client_id, callback, topics, obj=state)
-        # Wait until the client is connected
-        t_now = t.time()
-        while not c.client.is_connected():
-            t.sleep(time_int)
-            if t.time() - t_now > timeout:
-                raise TimeoutError(f"The {client_id} client failed to connect.")
+        connect_or_timeout(c)
 
         yield c  # Testing happens here
 

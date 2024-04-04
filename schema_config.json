@@ -16,7 +16,8 @@
             "properties": {
                 "broker_address": { "type": "string" },
                 "user": { "type": ["string", "null"] },
-                "password": { "type": ["string", "null"] }
+                "password": { "type": ["string", "null"] },
+                "connection_timeout": { "type": "number" }
             },
             "required": ["broker_address", "user", "password"]
         },
