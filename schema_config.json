@@ -1,0 +1,38 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+        "watchdog": {
+            "type": "object",
+            "properties": {
+                "timeout": { "type": "number" },
+                "interval": { "type": "number" }
+            },
+            "required": ["timeout", "interval"]
+        },
+        "sensor_setup_wait": { "type": "number" },
+        "mqtt": {
+            "type": "object",
+            "properties": {
+                "broker_address": { "type": "string" },
+                "user": { "type": ["string", "null"] },
+                "password": { "type": ["string", "null"] }
+            },
+            "required": ["broker_address", "user", "password"]
+        },
+        "influxdb": {
+            "type": "object",
+            "properties": {
+                "url": { "type": "string", "format": "uri" },
+                "org": { "type": "string" },
+                "buckets": {
+                    "type": "array",
+                    "items": { "type": "string" }
+                },
+                "token": { "type": "string" }
+            },
+            "required": ["url", "org", "buckets", "token"]
+        }
+    },
+    "required": ["watchdog", "mqtt", "influxdb"]
+}

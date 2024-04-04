@@ -1,16 +1,49 @@
 import time as t
+from validation import validate_file_print_errors
 from controller_state import *
 from mqtt_clients import *
+from on_watchdog_message import *
+from on_watchdog_timer_message import *
 from on_ui_message import *
 from on_controller_message import *
 from on_timer_message import *
 from on_heartbeat_message import *
 
+print(f"Starting...")
+# Load configuration
+try:
+    config = validate_file_print_errors("config.json", "schema_config.json")
+    wdog = config["watchdog"]
+    assert wdog["interval"] > 0
+    assert wdog["timeout"] > 2 * wdog["interval"]
+    wdog["timer"] = wdog["timeout"]
+    wdog["healthy"] = False
+except KeyError as e:
+    print(f"Error decoding config file, missing: \n{textwrap.indent(str(e), '   ')}")
+    exit(1)
 
 # Initialize controller state
 state = cstate()
 
 # Load MQTT clients
+watchdog = MQTTClient(
+    id="watchdog",
+    callback=on_watchdog_message,
+    topics=["watchdog/#", "heartbeat/controller", "ERROR/exception"],
+    obj=wdog,
+    broker_address=broker_address,
+    user=user,
+    password=password,
+)
+wd_timer = MQTTClient(
+    id="wd_timer",
+    callback=on_wd_timer_message,
+    topics="wd_timer/#",
+    obj=wdog,
+    broker_address=broker_address,
+    user=user,
+    password=password,
+)
 ui = MQTTClient(
     id="ui",
     callback=on_ui_message,
@@ -51,8 +84,12 @@ heartbeat = MQTTClient(
 )
 measurement = MQTTClient("measurement", on_client_message, topics="measurement/#")
 
-while True:
-    pub.publish("heartbeat/controller", f"{state}")
-    t.sleep(1)
+pub.publish("wd_timer/start", json.dumps(wdog))
+t.sleep(1)
+if wdog["healthy"]:
+    print(f"  Controller started.")
+while wdog["healthy"]:
+    controller.publish("heartbeat/controller", f"{state}")
+    t.sleep(wdog["interval"])
 
 print(f"Exiting...")

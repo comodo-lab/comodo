@@ -74,10 +74,11 @@ def mqtt_publish_exceptions(name, func):
             try:
                 pub.publish(
                     "ERROR/exception",
-                   json.dumps({"error": f"Unhandled exception in {name}: {str(e)}"}),
+                    json.dumps({"error": f"Unhandled exception in {name}: {str(e)}"}),
                 )
             except Exception as e:
-                 print(f"Error while reporting error! {e}")
+                print(f"Error while reporting error! {e}")
+
     return wrapper
 
 
@@ -122,7 +123,7 @@ class MQTTClient:
         self.client.connect(broker_address, port, 60)
         if isinstance(topics, str):
             self.client.subscribe(topics, 0)
-        elif isinstance(topics, List[str]):
+        elif isinstance(topics, list):
             for topic in topics:
                 self.client.subscribe(topic, 0)
         if start_loop:

@@ -1,4 +1,8 @@
 {
+    "watchdog":{
+        "timeout": 5,
+        "interval": 1
+    },
     "sensor_setup_wait": 10,
     "mqtt": {
         "broker_address": "localhost",
