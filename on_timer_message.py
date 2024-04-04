@@ -1,7 +1,8 @@
 import time as t
 from controller_helper import *
 
-sensor_setup_wait = 10
+config = json.load(open("config.json"))
+sensor_setup_wait = config["sensor_setup_wait"]
 
 
 def on_timer_message(client, msg, obj):
