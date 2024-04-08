@@ -99,9 +99,10 @@ def dump_database_for_experiment(obj):
     # get everything from influx database
     config = json.load(open("config.json"))
     buckets = config["influxdb"]["buckets"]
+    secret = json.load(open(".secret_influxdb_token.json"))
     client = influxdb_client.InfluxDBClient(
         url=config["influxdb"]["url"],
-        token=config["influxdb"]["token"],
+        token=secret["influxdb_token"],
         org=config["influxdb"]["org"],
     )
     query_api = client.query_api()

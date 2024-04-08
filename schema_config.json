@@ -29,10 +29,9 @@
                 "buckets": {
                     "type": "array",
                     "items": { "type": "string" }
-                },
-                "token": { "type": "string" }
+                }
             },
-            "required": ["url", "org", "buckets", "token"]
+            "required": ["url", "org", "buckets"]
         }
     },
     "required": ["watchdog", "mqtt", "influxdb"]

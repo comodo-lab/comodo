@@ -17,7 +17,6 @@
             "logs",
             "measurement",
             "heartbeat"
-        ],
-        "token": "token_here"
+        ]
     }
 }
