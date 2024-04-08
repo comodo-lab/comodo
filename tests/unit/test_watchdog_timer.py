@@ -1,7 +1,7 @@
 import json
 import pytest
 
-from tests_helper import *
+from tests.tests_helper import *
 
 from mqtt_clients import *
 from on_watchdog_timer_message import *

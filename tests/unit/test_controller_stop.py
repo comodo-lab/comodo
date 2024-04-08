@@ -4,7 +4,7 @@ import os
 from unittest.mock import patch, Mock
 from datetime import datetime, timedelta
 
-from tests_helper import *
+from tests.tests_helper import *
 
 from controller_state import *
 from mqtt_clients import *

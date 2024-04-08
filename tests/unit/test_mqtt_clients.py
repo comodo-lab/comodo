@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch
 
-from tests_helper import *
+from tests.tests_helper import *
 
 from mqtt_clients import *
 
@@ -81,6 +81,6 @@ def test_unhandled_exceptions(capmqtt, capsys):
     assert "Unhandled exception in callback_with_error" in captured.out
     assert "This is a test error" in captured.out
     assert "Traceback:" in captured.out
-    assert "tests/test_mqtt_clients.py" in captured.out
+    assert "tests/unit/test_mqtt_clients.py" in captured.out
     assert "function: 'callback_with_error'" in captured.out
     assert "line: 10" in captured.out

@@ -3,7 +3,7 @@ import pytest
 import time as t
 import os
 
-from tests_helper import *
+from tests.tests_helper import *
 
 from controller_state import *
 from mqtt_clients import *

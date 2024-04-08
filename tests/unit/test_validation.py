@@ -2,7 +2,7 @@ import json
 import pytest
 from unittest.mock import mock_open, patch
 
-from tests_helper import *
+from tests.tests_helper import *
 
 from validation import *
 
