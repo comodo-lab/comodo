@@ -85,6 +85,10 @@ def mqtt_publish_exceptions(name, func):
 
 
 def connect_or_timeout(client):
+    """
+    Connects the client to the broker and waits for a connection.
+    If the client fails to connect within the connection_timeout, a TimeoutError is raised.
+    """
     t_now = t.time()
     while not client.client.is_connected():
         t.sleep(0.1)

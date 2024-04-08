@@ -67,6 +67,12 @@ data_path = "data"
 
 
 def assign_serial_id(obj):
+    """
+    Assigns a serial id to the experiment, using the format: DYY-XXX,
+    where YY is the last two digits of the current year, and XXX is a three digit serial.
+    It then moves and renames the experiment file from tmp to to the data folder,
+    and updates the cstate object accordingly.
+    """
     temp_path = obj.exp_file
     current_year = str(datetime.now().year)[-2:]
     all_json = [f for f in os.listdir(data_path) if f.endswith(".json")]

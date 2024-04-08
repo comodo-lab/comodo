@@ -6,6 +6,14 @@ sensor_setup_wait = config["sensor_setup_wait"]
 
 
 def on_timer_message(client, msg, obj):
+    """
+    Callback function for the timer MQTT client.
+    The timer client is used to de-couple the waiting times that the controller needs to wait,
+    but keeps the controller callback available, as opposed to using time.sleep() in the controller,
+    which would block the callback.
+    The timer client is used to wait for the sensors to be ready before starting the experiment,
+    and to wait for the setpoint duration before moving to the next setpoint.
+    """
     try:
         message = load_message(msg)
         if message["uid"] != obj.experiment_uid:
