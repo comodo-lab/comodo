@@ -80,6 +80,28 @@ def test_valid_stop(capmqtt, state, controller_client):
     assert controller_client.callback == c_idle
 
 
+def test_stop_from_other_callback(capmqtt, state, controller_client):
+    assert state.experiment_uid == "123"
+    assert state.status == "running"
+    controller_client.callback = c_running
+
+    with patch("on_controller_message.dump_database_for_experiment") as mock_dump:
+        mock_dump.side_effect = lambda x: (t.sleep(0.3), None)[1]
+        capmqtt.publish(
+            topic="controller/stop",
+            payload=json.dumps({"uid": "123"}),
+        )
+        assert state.status == "stopping"
+        wait_for_message(capmqtt)
+        mock_dump.assert_called_once()
+
+    assert capmqtt.messages[-1].topic == "controller/stopped"
+    assert capmqtt.messages[-1].payload == json.dumps({"uid": "123"})
+    assert state.status == "idle"
+    assert state.experiment_uid is None
+    assert controller_client.callback == c_idle
+
+
 def test_database_dump(capmqtt, state, controller_client):
     assert state.experiment_uid == "123"
     assert state.status == "running"
