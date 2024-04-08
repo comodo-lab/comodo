@@ -19,6 +19,16 @@ jobs:
         with:
           ref: ${{ github.ref }}
 
+      - name: Create config
+        env:
+          CONTROLLER_INFLUXDB_TOKEN: ${{ secrets.CONTROLLER_INFLUXDB_TOKEN }}
+        run: |
+          jq --null-input \
+            --arg dbt "$CONTROLLER_INFLUXDB_TOKEN" \
+            '{
+              "influxdb_token": $dbt
+            }' > config/.secret_influxdb_token.json
+
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}

@@ -63,10 +63,16 @@ jobs:
             --arg mp "$CONTROLLER_MQTT_PASS" \
             --arg dbt "$CONTROLLER_INFLUXDB_TOKEN" \
             '{
+              "watchdog":{
+                "timeout": 5,
+                "interval": 1
+              },
+              "sensor_setup_wait": 10,
               "mqtt":{
                 "broker_address": $mba,
                 "user": $mu,
-                "password": $mp
+                "password": $mp,
+                "connection_timeout": 10
               },
               "influxdb":{
                 "url": "https://db.oliver-woolland-rse.uk",
@@ -75,10 +81,14 @@ jobs:
                     "logs",
                     "measurement",
                     "heartbeat"
-                ],
-                "token": $dbt
+                ]
               }
-            }' > config.json
+            }' > config/config.json &&
+          jq --null-input \
+            --arg dbt "$CONTROLLER_INFLUXDB_TOKEN" \
+            '{
+              "influxdb_token": $dbt
+            }' > config/.secret_influxdb_token.json
 
       - name: Configure poetry
         run: |
