@@ -1,3 +1,8 @@
+import sys
+import os
+
+sys.path.append(os.path.abspath("src"))
+
 import pytest
 import json
 import time as t
@@ -12,7 +17,7 @@ timeout = 3  # Client connection / message wait timeout
 
 
 def valid_schema_path():
-    return "schema_experiment.json"
+    return "schemas/schema_experiment.json"
 
 
 def invalid_json_path():

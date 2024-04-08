@@ -1,9 +1,10 @@
 import json
-from validation import *
 import pytest
 from unittest.mock import mock_open, patch
 
 from tests_helper import *
+
+from validation import *
 
 
 @pytest.fixture

@@ -48,8 +48,8 @@ class cstate:
         self.past_setpoints: List[Dict[str, Any]] = []
         self.sensors: Dict[str, Any] = {"configured": False}
         self.adjusting: AdjustingDict = AdjustingDict()
-        self.schema_path: str = "schema_experiment.json"
-        self.schema_sensor_heartbeat_path: str = "schema_sensor_heartbeat.json"
+        self.schema_path: str = "schemas/schema_experiment.json"
+        self.schema_sensor_heartbeat_path: str = "schemas/schema_sensor_heartbeat.json"
 
     def heartbeat(self) -> Dict[str, Any]:
         """

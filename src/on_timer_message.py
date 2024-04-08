@@ -1,7 +1,7 @@
 import time as t
 from controller_helper import *
 
-config = json.load(open("config.json"))
+config = json.load(open("config/config.json"))
 sensor_setup_wait = config["sensor_setup_wait"]
 
 

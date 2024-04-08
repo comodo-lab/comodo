@@ -6,7 +6,7 @@ import os
 import time as t
 
 # Broker setup
-config = json.load(open("config.json"))
+config = json.load(open("config/config.json"))
 broker_address = config["mqtt"]["broker_address"]
 user = config["mqtt"]["user"]
 password = config["mqtt"]["password"]

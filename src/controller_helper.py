@@ -9,6 +9,9 @@ from mqtt_clients import *
 from error_helper import *
 
 
+config = json.load(open("config/config.json"))
+
+
 class internal_stop_msg:
     """
     Internal message to be passed to c_stopping, and stop the controller.
@@ -97,9 +100,8 @@ def dump_database_for_experiment(obj):
     t0 = obj.experiment_start_time
     tf = datetime.now()
     # get everything from influx database
-    config = json.load(open("config.json"))
     buckets = config["influxdb"]["buckets"]
-    secret = json.load(open(".secret_influxdb_token.json"))
+    secret = json.load(open("config/.secret_influxdb_token.json"))
     client = influxdb_client.InfluxDBClient(
         url=config["influxdb"]["url"],
         token=secret["influxdb_token"],

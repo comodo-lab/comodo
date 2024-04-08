@@ -1,3 +1,8 @@
+import sys
+import os
+
+sys.path.append(os.path.abspath("src"))
+
 import time as t
 import json
 import textwrap
@@ -17,7 +22,10 @@ def main():
     print(f"Starting...")
     # Load configuration
     try:
-        config = validate_file_print_errors("config.json", "schema_config.json")
+        config = validate_file_print_errors(
+            "config/config.json",
+            "schemas/schema_config.json",
+        )
         wdog = config["watchdog"]
         assert wdog["interval"] > 0
         assert wdog["timeout"] > 2 * wdog["interval"]

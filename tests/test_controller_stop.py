@@ -5,6 +5,7 @@ from unittest.mock import patch, Mock
 from datetime import datetime, timedelta
 
 from tests_helper import *
+
 from controller_state import *
 from mqtt_clients import *
 from on_controller_message import *
@@ -106,7 +107,6 @@ def test_database_dump(capmqtt, state, controller_client):
     assert state.experiment_uid == "123"
     assert state.status == "running"
     assert controller_client.callback == c_stopping
-    config = json.load(open("config.json"))
     org = config["influxdb"]["org"]
     buckets = config["influxdb"]["buckets"]
 

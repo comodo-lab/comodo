@@ -1,4 +1,9 @@
 import os
+
+# import sys
+
+# sys.path.append(os.path.abspath("tests"))
+
 import json
 from datetime import datetime, timedelta
 import influxdb_client
@@ -6,7 +11,8 @@ import csv
 import pytest
 from influxdb_client.client.write_api import SYNCHRONOUS
 
-from controller_helper import data_path
+from tests.tests_helper import *
+from controller_helper import config, data_path
 
 
 def test_influxdb_data_files_exist():
@@ -17,9 +23,8 @@ def test_influxdb_data_files_exist():
     t0 = datetime.now() - timedelta(hours=4)
     tf = datetime.now() - timedelta(hours=1)
 
-    config = json.load(open("config.json"))
     buckets = config["influxdb"]["buckets"]
-    secret = json.load(open(".secret_influxdb_token.json"))
+    secret = json.load(open("config/.secret_influxdb_token.json"))
 
     client = influxdb_client.InfluxDBClient(
         url=config["influxdb"]["url"],

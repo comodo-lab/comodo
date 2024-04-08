@@ -1,3 +1,5 @@
+from tests_helper import *
+
 from controller_state import *
 import pytest
 from unittest.mock import mock_open, patch
@@ -20,8 +22,8 @@ def test_cstate_initialization():
     assert state.past_setpoints == []
     assert state.sensors == {"configured": False}
     assert state.adjusting == AdjustingDict()
-    assert state.schema_path == "schema_experiment.json"
-    assert state.schema_sensor_heartbeat_path == "schema_sensor_heartbeat.json"
+    assert state.schema_path == "schemas/schema_experiment.json"
+    assert state.schema_sensor_heartbeat_path == "schemas/schema_sensor_heartbeat.json"
 
 
 def test_cannot_add_new_attribute(state):
