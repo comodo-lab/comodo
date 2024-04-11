@@ -37,8 +37,9 @@ jobs:
       - name: Test
         run: |
           output=$(docker run ${{ env.CONTAINER_NAME }}:testing sh -c "apt-get update -y && apt-get install -y mosquitto && mosquitto -d && python -m pytest tests --verbose -k 'not _skip_ci' --reruns 2 --reruns-delay 1")
-            if [[ "$output" == *"FAIL"* || "$output" != *"PASSED"* ]]; then
-            echo -e "ERROR\n\n$output"
+          echo "$output"
+          if [[ "$output" == *"FAIL"* || "$output" != *"PASSED"* ]]; then
+            echo -e "\n\n    ERROR: Testing inside container failed.\n\n"
             status=1
           else
             echo "All tests passed"
