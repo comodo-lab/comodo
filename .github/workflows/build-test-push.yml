@@ -34,9 +34,21 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+
+      - name: Create config
+        env:
+          CONTROLLER_INFLUXDB_TOKEN: ${{ secrets.CONTROLLER_INFLUXDB_TOKEN }}
+        run: |
+          jq --null-input \
+            --arg dbt "$CONTROLLER_INFLUXDB_TOKEN" \
+            '{
+              "influxdb_token": $dbt
+            }' > config/.secret_influxdb_token.json
+
       - name: Test
         run: |
-          output=$(docker run ${{ env.CONTAINER_NAME }}:testing sh -c "apt-get update -y && \
+          output=$(docker run -v $(pwd)/config/.secret_influxdb_token.json:/controller/config/.secret_influxdb_token.json \
+                              ${{ env.CONTAINER_NAME }}:testing sh -c "apt-get update -y && \
                                                                        apt-get install -y mosquitto && \
                                                                        mosquitto -d && \
                                                                        python -m pytest tests --verbose -k 'not _skip_ci' --reruns 2 --reruns-delay 1" \
