@@ -36,8 +36,8 @@ jobs:
 
       - name: Test
         run: |
-          output=$(docker run ${{ env.CONTAINER_NAME }}:testing sh -c "apt-get update -y && apt-get install -y mosquitto && mosquitto -d && python -m pytest tests --verbose -k 'not _skip_ci' --reruns 2 --reruns-delay 1)
-          if [[ "$output" == *"FAIL"* ]]; then
+          output=$(docker run ${{ env.CONTAINER_NAME }}:testing sh -c "apt-get update -y && apt-get install -y mosquitto && mosquitto -d && python -m pytest tests --verbose -k 'not _skip_ci' --reruns 2 --reruns-delay 1")
+            if [[ "$output" == *"FAIL"* || "$output" != *"PASSED"* ]]; then
             echo "ERROR - Some tests failed"
             status=1
           else
