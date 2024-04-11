@@ -13,6 +13,7 @@ jobs:
       contents: read
       packages: write
     env:
+      ORG_NAME: uom-rit-fase
       CONTAINER_NAME: fase-controller
       CONTEXT: ./
       DOCKERFILE: Dockerfile
@@ -72,5 +73,5 @@ jobs:
 
       - name: Push latest
         run: |
-          docker image tag ${{ env.CONTAINER_NAME }}:testing ghcr.io/uomresearchit/${{ env.CONTAINER_NAME }}:latest
-          docker push ghcr.io/uomresearchit/${{ env.CONTAINER_NAME }}:latest
+          docker image tag ${{ env.CONTAINER_NAME }}:testing ghcr.io/${{ env.ORG_NAME }}/${{ env.CONTAINER_NAME }}:latest
+          docker push ghcr.io/${{ env.ORG_NAME }}/${{ env.CONTAINER_NAME }}:latest
