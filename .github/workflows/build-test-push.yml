@@ -36,8 +36,12 @@ jobs:
 
       - name: Test
         run: |
-          output=$(docker run ${{ env.CONTAINER_NAME }}:testing sh -c "apt-get update -y && apt-get install -y mosquitto && mosquitto -d && python -m pytest tests --verbose -k 'not _skip_ci' --reruns 2 --reruns-delay 1")
-          echo "$output"
+          output=$(docker run ${{ env.CONTAINER_NAME }}:testing sh -c "apt-get update -y && \
+                                                                       apt-get install -y mosquitto && \
+                                                                       mosquitto -d && \
+                                                                       python -m pytest tests --verbose -k 'not _skip_ci' --reruns 2 --reruns-delay 1" \
+                   | tee /dev/fd/2)
+
           if [[ "$output" == *"FAIL"* || "$output" != *"PASSED"* ]]; then
             echo -e "\n\n    ERROR: Testing inside container failed.\n\n"
             status=1
@@ -45,7 +49,6 @@ jobs:
             echo "All tests passed"
             status=0
           fi
-
           exit $status
         
       - name: Log in to the Container registry
