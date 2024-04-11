@@ -93,7 +93,9 @@ def connect_or_timeout(client):
     while not client.client.is_connected():
         t.sleep(0.1)
         if t.time() - t_now > connection_timeout:
-            raise TimeoutError(f"The {client.id} client failed to connect.")
+            e = f"The {client.id} client failed to connect."
+            print(f"ERROR: {e}")
+            raise TimeoutError(e)
     print(f"    Client '{client.id}' connected to broker.")
 
 
@@ -137,7 +139,7 @@ class MQTTClient:
             self.client.connect(broker_address, port, 60)
         except Exception as e:
             print(f"ERROR: Client '{id}' failed to connect to broker: {e}")
-            exit(1)
+            raise e
         self.client.loop_start()
         connect_or_timeout(self)
         if isinstance(topics, str):
