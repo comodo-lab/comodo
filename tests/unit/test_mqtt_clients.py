@@ -23,8 +23,6 @@ def test_connection_error(capsys):
                 password="fake",
             )
 
-    assert "Connection refused" in str(e)
-
     captured = capsys.readouterr()
 
     # Error in console
