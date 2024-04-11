@@ -96,7 +96,7 @@ def main():
         user=user,
         password=password,
     )
-    measurement = MQTTClient("measurement", on_client_message, topics="measurement/#")
+    # measurement = MQTTClient("measurement", on_client_message, topics="measurement/#")
 
     pub.publish("wd_timer/start", json.dumps(wdog))
     t.sleep(1)

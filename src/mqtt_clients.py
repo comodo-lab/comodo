@@ -137,6 +137,7 @@ class MQTTClient:
             self.client.connect(broker_address, port, 60)
         except Exception as e:
             print(f"ERROR: Client '{id}' failed to connect to broker: {e}")
+            exit(1)
         self.client.loop_start()
         connect_or_timeout(self)
         if isinstance(topics, str):
