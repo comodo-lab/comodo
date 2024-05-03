@@ -1,15 +1,4 @@
 services:
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    container_name: apperture-cloudflared
-    restart: unless-stopped
-    environment:
-      - TUNNEL_TOKEN=eyJhIjoiZTk3ZjM1OGM3NTc5ZjdkYjJlNDVmNTI2OTE1MzgxMzYiLCJ0IjoiZTllODc5ZGQtMDk5YS00NTE1LWE1ZjYtYmZlNTgyZDc5NzcyIiwicyI6IllXSmlOV0psTmpRdE5tTmxOeTAwTXpZeUxXSmpOVFV0TXpRNVptSmpOak15WVdWaSJ9
-    command: tunnel --no-autoupdate run
-    networks:
-      apperture:
-
-
   rabbitmq:
     image: docker.io/bitnami/rabbitmq:3.12
     container_name: fase-rabbitmq
