@@ -1,7 +1,7 @@
 services:
   rabbitmq:
     image: docker.io/bitnami/rabbitmq:3.12
-    container_name: fase-rabbitmq
+    container_name: comodo-rabbitmq
     restart: unless-stopped
     ports:
       - '1883:1883'
@@ -29,7 +29,7 @@ services:
 
   influxdb:
     image: influxdb:2.0
-    container_name: fase-influx
+    container_name: comodo-influx
     restart: unless-stopped
     depends_on:
       rabbitmq:
@@ -50,7 +50,7 @@ services:
 
   telegraf:
     image: telegraf:latest
-    container_name: fase-telegraf
+    container_name: comodo-telegraf
     restart: unless-stopped
     depends_on:
       - influxdb
@@ -62,7 +62,7 @@ services:
 
   grafana:
     image: grafana/grafana
-    container_name: fase-grafana
+    container_name: comodo-grafana
     restart: unless-stopped
     environment:
       - GF_AUTH_LDAP_ENABLED=true
@@ -79,7 +79,7 @@ services:
     build:
       context: ../FASE-controller
       dockerfile: Dockerfile
-    container_name: fase-controller
+    container_name: comodo-controller
     restart: unless-stopped
     volumes:
       - ../FASE-controller/data:/controller/data
@@ -100,13 +100,15 @@ services:
 
 
 networks:
-  apperture:
-    name: apperture_apperture
-    external: true
+  comodo:
+    name: comodo
 
 volumes:
   rabbitmq_data:
-    driver: local
+    name: comodo-rabbitmq
   influx_data:
+    name: comodo-influx
   influx_config:
+    name: comodo-influx-config
   grafana-storage:
+    name: comodo-grafana
