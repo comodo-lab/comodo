@@ -38,7 +38,7 @@ services:
       - DOCKER_INFLUXDB_INIT_MODE=setup
       - DOCKER_INFLUXDB_INIT_USERNAME=influx
       - DOCKER_INFLUXDB_INIT_PASSWORD=influxinflux
-      - DOCKER_INFLUXDB_INIT_ORG=fase
+      - DOCKER_INFLUXDB_INIT_ORG=comodo
       - DOCKER_INFLUXDB_INIT_BUCKET=defualt
       - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=influxinfluxinfluxinflux
     volumes:
