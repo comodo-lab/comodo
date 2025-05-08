@@ -1,0 +1,112 @@
+services:
+  rabbitmq:
+    image: docker.io/bitnami/rabbitmq:3.12
+    container_name: fase-rabbitmq
+    restart: unless-stopped
+    ports:
+      - '1883:1883'
+    environment:
+      - RABBITMQ_SECURE_PASSWORD=yes
+      - RABBITMQ_USERNAME=adminrabbit
+      - RABBITMQ_PASSWORD=adminrabbit
+      - RABBITMQ_ENABLE_LDAP=yes
+      - RABBITMQ_LDAP_SERVERS=apperture-ldap
+      - RABBITMQ_LDAP_SERVERS_PORT=3890
+      - RABBITMQ_LDAP_USER_DN_PATTERN=uid=$${username},ou=people,dc=example,dc=com
+      - RABBITMQ_PLUGINS=rabbitmq_mqtt,rabbitmq_management,rabbitmq_auth_backend_ldap
+      - RABBITMQ_LOGS=-
+    volumes:
+      - rabbitmq_data:/bitnami/rabbitmq/mnesia
+      - ./config/rabbit/advanced.config:/bitnami/rabbitmq/conf/advanced.config:ro
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      apperture:
+
+
+  influxdb:
+    image: influxdb:2.0
+    container_name: fase-influx
+    restart: unless-stopped
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=influx
+      - DOCKER_INFLUXDB_INIT_PASSWORD=influxinflux
+      - DOCKER_INFLUXDB_INIT_ORG=fase
+      - DOCKER_INFLUXDB_INIT_BUCKET=defualt
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=influxinfluxinfluxinflux
+    volumes:
+      - influx_data:/var/lib/influxdb2
+      - influx_config:/etc/influxdb2
+    networks:
+      apperture:
+
+
+  telegraf:
+    image: telegraf:latest
+    container_name: fase-telegraf
+    restart: unless-stopped
+    depends_on:
+      - influxdb
+    volumes:
+      - ./config/telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+    networks:
+      apperture:
+
+
+  grafana:
+    image: grafana/grafana
+    container_name: fase-grafana
+    restart: unless-stopped
+    environment:
+      - GF_AUTH_LDAP_ENABLED=true
+      - GF_AUTH_LDAP_CONFIG_FILE=/etc/grafana/ldap.toml
+      - GF_AUTH_LDAP_ALLOW_SIGN_UP=true
+    volumes:
+      - grafana-storage:/var/lib/grafana
+      - ./config/grafana/ldap.toml:/etc/grafana/ldap.toml
+    networks:
+      apperture:
+
+
+  controller:
+    build:
+      context: ../FASE-controller
+      dockerfile: Dockerfile
+    container_name: fase-controller
+    restart: unless-stopped
+    volumes:
+      - ../FASE-controller/data:/controller/data
+    networks:
+      apperture:
+
+
+  ui:
+    build:
+      context: ../FASE-ui
+      dockerfile: Dockerfile
+    container_name: fase-ui
+    restart: unless-stopped
+    volumes:
+      - ./config/ui/config.json:/etc/ui/config.json
+    networks:
+      apperture:
+
+
+networks:
+  apperture:
+    name: apperture_apperture
+    external: true
+
+volumes:
+  rabbitmq_data:
+    driver: local
+  influx_data:
+  influx_config:
+  grafana-storage:
