@@ -1,0 +1,36 @@
+experiment:
+  temperature_centre:
+    sensor:
+      name: temperature_centre
+      data_topic: sensor/thermocouple_centre/temperature
+      data_type: float
+      interval: 5s
+    actuator:
+      name: heater
+      setpoint_topic: actuator/heater/1/setpoint
+      setpoint_type: float
+      interval: 5s
+  temperature_left:
+    sensor:
+      name: temperature_left
+      data_topic: sensor/thermocouple_left/temperature
+      data_type: float
+      interval: 5s
+  temperature_right:
+    sensor:
+      name: temperature_right
+      data_topic: sensor/thermocouple_right/temperature
+      data_type: float
+      interval: 5s
+
+visualisation:
+  graph_1:
+    type: graph
+    y_values:
+      - temperature_left
+      - temperature_centre
+      - temperature_right
+  gauge_1:
+    type: gauge
+    value:
+      - temperature_centre
