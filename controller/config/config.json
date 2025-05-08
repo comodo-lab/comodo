@@ -1,0 +1,22 @@
+{
+    "watchdog":{
+        "timeout": 5,
+        "interval": 1
+    },
+    "sensor_setup_wait": 10,
+    "mqtt": {
+        "broker_address": "localhost",
+        "user": null,
+        "password": null,
+        "connection_timeout": 10
+    },
+    "influxdb": {
+        "url": "https://db.oliver-woolland-rse.uk",
+        "org": "fase",
+        "buckets": [
+            "logs",
+            "measurement",
+            "heartbeat"
+        ]
+    }
+}
