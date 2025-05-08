@@ -24,7 +24,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      apperture:
+      comodo:
 
 
   influxdb:
@@ -45,7 +45,7 @@ services:
       - influx_data:/var/lib/influxdb2
       - influx_config:/etc/influxdb2
     networks:
-      apperture:
+      comodo:
 
 
   telegraf:
@@ -57,7 +57,7 @@ services:
     volumes:
       - ./config/telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
     networks:
-      apperture:
+      comodo:
 
 
   grafana:
@@ -72,7 +72,7 @@ services:
       - grafana-storage:/var/lib/grafana
       - ./config/grafana/ldap.toml:/etc/grafana/ldap.toml
     networks:
-      apperture:
+      comodo:
 
 
   controller:
@@ -84,7 +84,7 @@ services:
     volumes:
       - ../FASE-controller/data:/controller/data
     networks:
-      apperture:
+      comodo:
 
 
   ui:
@@ -96,8 +96,7 @@ services:
     volumes:
       - ./config/ui/config.json:/etc/ui/config.json
     networks:
-      apperture:
-
+      comodo:
 
 networks:
   comodo:
