@@ -77,12 +77,12 @@ services:
 
   controller:
     build:
-      context: ../FASE-controller
+      context: ./controller
       dockerfile: Dockerfile
     container_name: comodo-controller
     restart: unless-stopped
     volumes:
-      - ../FASE-controller/data:/controller/data
+      - ./controller/data:/controller/data
     networks:
       comodo:
 
