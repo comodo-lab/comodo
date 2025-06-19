@@ -58,9 +58,8 @@ services:
     container_name: comodo-grafana
     restart: unless-stopped
     environment:
-      - GF_AUTH_LDAP_ENABLED=true
-      - GF_AUTH_LDAP_CONFIG_FILE=/etc/grafana/ldap.toml
-      - GF_AUTH_LDAP_ALLOW_SIGN_UP=true
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Editor
     volumes:
       - grafana-storage:/var/lib/grafana
     networks:
