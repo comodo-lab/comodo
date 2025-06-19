@@ -7,13 +7,10 @@ services:
       - '1883:1883'
     environment:
       - RABBITMQ_SECURE_PASSWORD=yes
+      - RABBITMQ_MANAGEMENT_ALLOW_WEB_ACCESS=true
       - RABBITMQ_USERNAME=adminrabbit
       - RABBITMQ_PASSWORD=adminrabbit
-      - RABBITMQ_ENABLE_LDAP=yes
-      - RABBITMQ_LDAP_SERVERS=apperture-ldap
-      - RABBITMQ_LDAP_SERVERS_PORT=3890
-      - RABBITMQ_LDAP_USER_DN_PATTERN=uid=$${username},ou=people,dc=example,dc=com
-      - RABBITMQ_PLUGINS=rabbitmq_mqtt,rabbitmq_management,rabbitmq_auth_backend_ldap
+      - RABBITMQ_PLUGINS=rabbitmq_mqtt,rabbitmq_management
       - RABBITMQ_LOGS=-
     volumes:
       - rabbitmq_data:/bitnami/rabbitmq/mnesia
