@@ -78,9 +78,9 @@ services:
 
   ui:
     build:
-      context: ../FASE-ui
+      context: ./ui
       dockerfile: Dockerfile
-    container_name: fase-ui
+    container_name: comodo-ui
     restart: unless-stopped
     networks:
       comodo:
