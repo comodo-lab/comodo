@@ -8,8 +8,8 @@ services:
     environment:
       - RABBITMQ_SECURE_PASSWORD=yes
       - RABBITMQ_MANAGEMENT_ALLOW_WEB_ACCESS=true
-      - RABBITMQ_USERNAME=adminrabbit
-      - RABBITMQ_PASSWORD=adminrabbit
+      - RABBITMQ_USERNAME=${MQTT_USER}
+      - RABBITMQ_PASSWORD=${MQTT_PASS}
       - RABBITMQ_PLUGINS=rabbitmq_mqtt,rabbitmq_management
       - RABBITMQ_LOGS=-
     volumes:
