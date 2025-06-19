@@ -22,8 +22,7 @@ services:
     networks:
       comodo:
 
-
-  influxdb:
+  influxdb: 
     image: influxdb:2.0
     container_name: comodo-influx
     restart: unless-stopped
@@ -43,7 +42,6 @@ services:
     networks:
       comodo:
 
-
   telegraf:
     image: telegraf:latest
     container_name: comodo-telegraf
@@ -54,7 +52,6 @@ services:
       - ./config/telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
     networks:
       comodo:
-
 
   grafana:
     image: grafana/grafana
@@ -70,7 +67,6 @@ services:
     networks:
       comodo:
 
-
   controller:
     build:
       context: ./controller
@@ -81,7 +77,6 @@ services:
       - ./controller/data:/controller/data
     networks:
       comodo:
-
 
   ui:
     build:
