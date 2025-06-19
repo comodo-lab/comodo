@@ -14,7 +14,6 @@ services:
       - RABBITMQ_LOGS=-
     volumes:
       - rabbitmq_data:/bitnami/rabbitmq/mnesia
-      - ./config/rabbit/advanced.config:/bitnami/rabbitmq/conf/advanced.config:ro
     healthcheck:
       test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
       interval: 10s
