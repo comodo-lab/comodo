@@ -49,7 +49,7 @@ services:
     depends_on:
       - influxdb
     volumes:
-      - ./config/telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+      - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
     networks:
       comodo:
 
@@ -63,7 +63,6 @@ services:
       - GF_AUTH_LDAP_ALLOW_SIGN_UP=true
     volumes:
       - grafana-storage:/var/lib/grafana
-      - ./config/grafana/ldap.toml:/etc/grafana/ldap.toml
     networks:
       comodo:
 
@@ -84,8 +83,6 @@ services:
       dockerfile: Dockerfile
     container_name: fase-ui
     restart: unless-stopped
-    volumes:
-      - ./config/ui/config.json:/etc/ui/config.json
     networks:
       comodo:
 
