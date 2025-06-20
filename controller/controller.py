@@ -45,6 +45,14 @@ def main():
     user = config["mqtt"]["user"]
     password = config["mqtt"]["password"]
     connection_timeout = config["mqtt"]["connection_timeout"]
+
+    # Initialise publisher singleton
+    publisher = MQTTPublisher(broker_address=broker_address,
+                              user=user,
+                              password=password,
+                              connection_timeout=connection_timeout,
+                              )
+    
     # Load MQTT clients
     watchdog = MQTTClient(
         id="watchdog",
@@ -108,7 +116,7 @@ def main():
     )
     # measurement = MQTTClient("measurement", on_client_message, topics="measurement/#")
 
-    pub.publish("wd_timer/start", json.dumps(wdog))
+    publisher.client.publish("wd_timer/start", json.dumps(wdog))
     t.sleep(1)
     if wdog["healthy"]:
         print(f"Controller started successfully.")

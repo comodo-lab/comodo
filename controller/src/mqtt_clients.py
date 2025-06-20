@@ -189,11 +189,33 @@ def load_message(msg):
 MQTT client with the sole task of publishing messages.
 Using pub to send messages prevents issues with clients being otherwise engaged when trying to publish messages.
 """
-pub = MQTTClient(
-    id="publisher",
-    topics=None,
-    callback=None,
-    broker_address=broker_address,
-    user=user,
-    password=password,
-)
+
+class MQTTPublisher:
+    _instance = None
+
+    def __init__(
+            self,
+            id: str = "client",
+            broker_address: str = "localhost",
+            port: int = 1883,
+            user: Optional[str] = None,
+            password: Optional[str] = None,
+            connection_timeout: int = 0,
+    ):
+        self.client = MQTTClient(
+            id="publisher",
+            topics=None,
+            callback=None,
+            broker_address=broker_address,
+            user=user,
+            password=password,
+            connection_timeout=connection_timeout,
+        )
+
+    @classmethod
+    def get_instance(cls):
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
+
+
