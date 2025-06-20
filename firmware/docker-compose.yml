@@ -1,5 +1,5 @@
 services:
-  sensor1:
+  temp_main:
     build:
       dockerfile_inline: |
         FROM micropython/unix
@@ -7,3 +7,31 @@ services:
         COPY . .
         CMD micropython main.py
     network_mode: host
+    environment:
+      - SENSOR_ID="temp_main"
+      - HEARTBEAT_INTERVAL=1
+      - MEASUREMENT_INTERVAL=1
+  temp_left:
+    build:
+      dockerfile_inline: |
+        FROM micropython/unix
+        WORKDIR /sensor
+        COPY . .
+        CMD micropython main.py
+    network_mode: host
+    environment:
+      - SENSOR_ID="temp_left"
+      - HEARTBEAT_INTERVAL=1
+      - MEASUREMENT_INTERVAL=1
+  temp_right:
+    build:
+      dockerfile_inline: |
+        FROM micropython/unix
+        WORKDIR /sensor
+        COPY . .
+        CMD micropython main.py
+    network_mode: host
+    environment:
+      - SENSOR_ID="temp_right"
+      - HEARTBEAT_INTERVAL=2
+      - MEASUREMENT_INTERVAL=2
