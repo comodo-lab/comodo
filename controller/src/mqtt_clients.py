@@ -130,7 +130,8 @@ class MQTTClient:
         obj: An additional object to be passed to the callback function. This would normally be the controller state object. Defaults to None.
         """
         self.id = id
-        self.client = mqtt.Client(id)
+        self.client = mqtt.Client(client_id=id,
+                                  callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
         self.obj = obj
         self.callback = callback
         if user is not None:
