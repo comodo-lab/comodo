@@ -101,10 +101,10 @@ async def main():
 
     ## Connect to the mqtt broker
     state.client = con.connect_mqtt(state.status["name"],
-                                    state.config["MQTT_IP"],
+                                    state.config["MQTT_HOST"],
                                     port=1883,
-                                    user="sensor",
-                                    password="foobar!!")
+                                    user=state.config["MQTT_USER"],
+                                    password=state.config["MQTT_PASS"])
     print("Connected to broker")
 
     ## Subscribe to the controller's instructions

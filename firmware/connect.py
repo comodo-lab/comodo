@@ -51,11 +51,13 @@ def connect_mqtt(client_name, ip_address, port=1883, user=None, password=None):
                    password=password
                    )
 
-    timeout_timer = Timer(period=5000,
-                          mode=Timer.ONE_SHOT,
-                          callback=timeout_mqt)
+    if board == "rp2":
+        timeout_timer = Timer(period=5000,
+                              mode=Timer.ONE_SHOT,
+                              callback=timeout_mqt)
     c.connect()
-    timeout_timer.deinit()
+    if board == "rp2":
+        timeout_timer.deinit()
     print(f'Connected to the mqtt broker at {ip_address}:{port}')
 
     return c

@@ -6,4 +6,4 @@ services:
         WORKDIR /sensor
         COPY . .
         CMD micropython main.py
-    
+    network_mode: host
