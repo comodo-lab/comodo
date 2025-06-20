@@ -81,6 +81,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./controller/data:/controller/data
+      - ./controller/config/config.json:/controller/config/config.json
     networks:
       comodo:
 
