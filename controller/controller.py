@@ -41,6 +41,10 @@ def main():
     state = cstate()
 
     print(f"  Creating clients...")
+    broker_address = config["mqtt"]["broker_address"]
+    user = config["mqtt"]["user"]
+    password = config["mqtt"]["password"]
+    connection_timeout = config["mqtt"]["connection_timeout"]
     # Load MQTT clients
     watchdog = MQTTClient(
         id="watchdog",
