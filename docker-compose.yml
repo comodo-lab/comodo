@@ -79,6 +79,9 @@ services:
       dockerfile: Dockerfile
     container_name: comodo-controller
     restart: unless-stopped
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
     volumes:
       - ./controller/data:/controller/data
       - ./controller/config/config.json:/controller/config/config.json
