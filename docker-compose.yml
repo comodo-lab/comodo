@@ -38,6 +38,8 @@ services:
       - DOCKER_INFLUXDB_INIT_ORG=comodo
       - DOCKER_INFLUXDB_INIT_BUCKET=comodo
       - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUX_TOKEN}
+    ports:
+      - 8086:8086
     volumes:
       - influx_data:/var/lib/influxdb2
       - influx_config:/etc/influxdb2
@@ -70,6 +72,8 @@ services:
     environment:
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Editor
+    ports:
+      - 3000:3000
     volumes:
       - grafana-storage:/var/lib/grafana
     networks:
