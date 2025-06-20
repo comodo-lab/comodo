@@ -125,7 +125,9 @@ class MQTTClient:
         """
         self.id = id
         self.client = mqtt.Client(client_id=id,
-                                  callback_api_version=mqtt.CallbackAPIVersion.VERSION2)
+                                  callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
+                                  protocol=mqtt.MQTTv311
+                                  )
         self.obj = obj
         self.callback = callback
         if user is not None:
