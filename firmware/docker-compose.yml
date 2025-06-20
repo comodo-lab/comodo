@@ -1,0 +1,9 @@
+services:
+  sensor1:
+    build:
+      dockerfile_inline: |
+        FROM micropython/unix
+        WORKDIR /sensor
+        COPY . .
+        CMD micropython main.py
+    

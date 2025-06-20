@@ -1,4 +1,4 @@
-import ujson as json
+import json
 
 def load_config():
     """ Load the configuration file from env.json
