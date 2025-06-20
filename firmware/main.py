@@ -61,11 +61,11 @@ if board == "linux":
     async def heartbeat_tick(timer):
         while True:
             send_heartbeat()
-            await asyncio.sleep_ms(state.config["HEARTBEAT_INTERVAL"])
+            await asyncio.sleep_ms(int(state.config["HEARTBEAT_INTERVAL"]))
     async def measurement_tick(timer):
         while True:
             send_measurement()
-            await asyncio.sleep_ms(state.config["MEASUREMENT_INTERVAL"])
+            await asyncio.sleep_ms(int(state.config["MEASUREMENT_INTERVAL"]))
 else:
     def heartbeat_tick(timer):
         watchdog.feed()

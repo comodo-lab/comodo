@@ -24,9 +24,9 @@ class TempMain(BaseSensor):
         Returns:
             float: A random temperature value for testing purposes
         """
-        value = self.measurement
-        setpoint = self.setpoint
-        tolerance = state.status["config"]["tolerance"]
+        value = float(self.measurement)
+        setpoint = float(self.setpoint)
+        tolerance = float(state.status["config"]["tolerance"])
 
         # Randomness
         vary_by = random.randrange(-1, 1)
