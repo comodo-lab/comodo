@@ -76,7 +76,7 @@ def mqtt_publish_exceptions(name, func):
     return wrapper
 
 
-def connect_or_timeout(client):
+def connect_or_timeout(client, connection_timeout):
     """
     Connects the client to the broker and waits for a connection.
     If the client fails to connect within the connection_timeout, a TimeoutError is raised.
@@ -106,6 +106,7 @@ class MQTTClient:
         port: int = 1883,
         user: Optional[str] = None,
         password: Optional[str] = None,
+        connection_timeout: int = 60,
         obj: Optional[Any] = None,
     ):
         """
@@ -119,6 +120,7 @@ class MQTTClient:
         port: The port number of the MQTT broker. Defaults to 1883.
         user: The username for authentication. Defaults to None.
         password: The password for authentication. Defaults to None.
+        connection_timeout: The time to wait for making a connection. Defaults to indefinite (0)
         obj: An additional object to be passed to the callback function. This would normally be the controller state object. Defaults to None.
         """
         self.id = id
@@ -134,7 +136,7 @@ class MQTTClient:
             print(f"ERROR: Client '{id}' failed to connect to broker: {e}")
             raise e
         self.client.loop_start()
-        connect_or_timeout(self)
+        connect_or_timeout(self, connection_timeout)
         if isinstance(topics, str):
             topics = [topics]
         if isinstance(topics, list):
