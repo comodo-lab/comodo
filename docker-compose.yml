@@ -95,6 +95,10 @@ services:
       context: ./ui
       dockerfile: Dockerfile
     container_name: comodo-ui
+    ports:
+      - '8501:8501'
+    volumes:
+      - ./ui/config.json:/etc/ui/config.json
     restart: unless-stopped
     networks:
       comodo:
