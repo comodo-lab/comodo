@@ -7,6 +7,7 @@ import paho.mqtt.client as mqtt
 import collections
 from datetime import datetime
 import uuid
+import random
 
 
 def rescale_for_filling(df, y1, y2):
@@ -326,7 +327,7 @@ def on_message(client, obj, msg):
 
 if "mqtt_client" not in st.session_state:
     mqtt_config = json.load(open("/etc/ui/config.json"))
-    client = mqtt.Client(client_id="ui",
+    client = mqtt.Client(client_id=f"ui{random.randint(1,1000000)}",
                          callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
                          protocol=mqtt.MQTTv311)
     client.on_message = on_message
