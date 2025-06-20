@@ -5,14 +5,6 @@ import json
 import os
 import time as t
 
-# Broker setup
-config = json.load(open("config/config.json"))
-broker_address = config["mqtt"]["broker_address"]
-user = config["mqtt"]["user"]
-password = config["mqtt"]["password"]
-connection_timeout = config["mqtt"]["connection_timeout"]
-
-
 def print_message(client, msg, timestamped=False):
     """
     Print the message received from the MQTT client to the console in the format:
@@ -84,7 +76,7 @@ def mqtt_publish_exceptions(name, func):
     return wrapper
 
 
-def connect_or_timeout(client):
+def connect_or_timeout(client, connection_timeout):
     """
     Connects the client to the broker and waits for a connection.
     If the client fails to connect within the connection_timeout, a TimeoutError is raised.
@@ -114,6 +106,7 @@ class MQTTClient:
         port: int = 1883,
         user: Optional[str] = None,
         password: Optional[str] = None,
+        connection_timeout: int = 60,
         obj: Optional[Any] = None,
     ):
         """
@@ -127,10 +120,14 @@ class MQTTClient:
         port: The port number of the MQTT broker. Defaults to 1883.
         user: The username for authentication. Defaults to None.
         password: The password for authentication. Defaults to None.
+        connection_timeout: The time to wait for making a connection. Defaults to indefinite (0)
         obj: An additional object to be passed to the callback function. This would normally be the controller state object. Defaults to None.
         """
         self.id = id
-        self.client = mqtt.Client(id)
+        self.client = mqtt.Client(client_id=id,
+                                  callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
+                                  protocol=mqtt.MQTTv311
+                                  )
         self.obj = obj
         self.callback = callback
         if user is not None:
@@ -141,7 +138,7 @@ class MQTTClient:
             print(f"ERROR: Client '{id}' failed to connect to broker: {e}")
             raise e
         self.client.loop_start()
-        connect_or_timeout(self)
+        connect_or_timeout(self, connection_timeout)
         if isinstance(topics, str):
             topics = [topics]
         if isinstance(topics, list):
@@ -192,11 +189,33 @@ def load_message(msg):
 MQTT client with the sole task of publishing messages.
 Using pub to send messages prevents issues with clients being otherwise engaged when trying to publish messages.
 """
-pub = MQTTClient(
-    id="publisher",
-    topics=None,
-    callback=None,
-    broker_address=broker_address,
-    user=user,
-    password=password,
-)
+
+class MQTTPublisher:
+    _instance = None
+
+    def __init__(
+            self,
+            id: str = "client",
+            broker_address: str = "localhost",
+            port: int = 1883,
+            user: Optional[str] = None,
+            password: Optional[str] = None,
+            connection_timeout: int = 0,
+    ):
+        self.client = MQTTClient(
+            id="publisher",
+            topics=None,
+            callback=None,
+            broker_address=broker_address,
+            user=user,
+            password=password,
+            connection_timeout=connection_timeout,
+        )
+
+    @classmethod
+    def get_instance(cls):
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
+
+

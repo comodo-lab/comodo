@@ -7,17 +7,13 @@ services:
       - '1883:1883'
     environment:
       - RABBITMQ_SECURE_PASSWORD=yes
-      - RABBITMQ_USERNAME=adminrabbit
-      - RABBITMQ_PASSWORD=adminrabbit
-      - RABBITMQ_ENABLE_LDAP=yes
-      - RABBITMQ_LDAP_SERVERS=apperture-ldap
-      - RABBITMQ_LDAP_SERVERS_PORT=3890
-      - RABBITMQ_LDAP_USER_DN_PATTERN=uid=$${username},ou=people,dc=example,dc=com
-      - RABBITMQ_PLUGINS=rabbitmq_mqtt,rabbitmq_management,rabbitmq_auth_backend_ldap
+      - RABBITMQ_MANAGEMENT_ALLOW_WEB_ACCESS=true
+      - RABBITMQ_USERNAME=${MQTT_USER}
+      - RABBITMQ_PASSWORD=${MQTT_PASS}
+      - RABBITMQ_PLUGINS=rabbitmq_mqtt,rabbitmq_management
       - RABBITMQ_LOGS=-
     volumes:
       - rabbitmq_data:/bitnami/rabbitmq/mnesia
-      - ./config/rabbit/advanced.config:/bitnami/rabbitmq/conf/advanced.config:ro
     healthcheck:
       test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
       interval: 10s
@@ -26,8 +22,7 @@ services:
     networks:
       comodo:
 
-
-  influxdb:
+  influxdb: 
     image: influxdb:2.0
     container_name: comodo-influx
     restart: unless-stopped
@@ -39,14 +34,13 @@ services:
       - DOCKER_INFLUXDB_INIT_USERNAME=influx
       - DOCKER_INFLUXDB_INIT_PASSWORD=influxinflux
       - DOCKER_INFLUXDB_INIT_ORG=comodo
-      - DOCKER_INFLUXDB_INIT_BUCKET=defualt
-      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=influxinfluxinfluxinflux
+      - DOCKER_INFLUXDB_INIT_BUCKET=comodo
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUX_TOKEN}
     volumes:
       - influx_data:/var/lib/influxdb2
       - influx_config:/etc/influxdb2
     networks:
       comodo:
-
 
   telegraf:
     image: telegraf:latest
@@ -54,26 +48,30 @@ services:
     restart: unless-stopped
     depends_on:
       - influxdb
+    environment:
+      - MQTT_USER=${MQTT_USER}
+      - MQTT_PASS=${MQTT_PASS}
+      - ORG=comodo
+      - DATA_BUCKET=comodo
+      - INFLUX_TOKEN=${INFLUX_TOKEN}
+      - INFLUX_URL=http://comodo-influx:8086
+      - RABBIT_URL=tcp://comodo-rabbitmq:1883
     volumes:
-      - ./config/telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+      - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
     networks:
       comodo:
-
 
   grafana:
     image: grafana/grafana
     container_name: comodo-grafana
     restart: unless-stopped
     environment:
-      - GF_AUTH_LDAP_ENABLED=true
-      - GF_AUTH_LDAP_CONFIG_FILE=/etc/grafana/ldap.toml
-      - GF_AUTH_LDAP_ALLOW_SIGN_UP=true
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Editor
     volumes:
       - grafana-storage:/var/lib/grafana
-      - ./config/grafana/ldap.toml:/etc/grafana/ldap.toml
     networks:
       comodo:
-
 
   controller:
     build:
@@ -81,20 +79,21 @@ services:
       dockerfile: Dockerfile
     container_name: comodo-controller
     restart: unless-stopped
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
     volumes:
       - ./controller/data:/controller/data
+      - ./controller/config/config.json:/controller/config/config.json
     networks:
       comodo:
 
-
   ui:
     build:
-      context: ../FASE-ui
+      context: ./ui
       dockerfile: Dockerfile
-    container_name: fase-ui
+    container_name: comodo-ui
     restart: unless-stopped
-    volumes:
-      - ./config/ui/config.json:/etc/ui/config.json
     networks:
       comodo:
 

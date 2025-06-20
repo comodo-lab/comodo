@@ -1,12 +1,10 @@
-FROM python:3.9
+FROM python:3.13-slim
 
 WORKDIR /controller
 
-# Setup poetry
-RUN pip install poetry
-COPY poetry.lock pyproject.toml /controller/
-RUN poetry config virtualenvs.create false && \
-    poetry install --no-interaction --no-ansi
+# Setup python environment
+COPY requirements.txt ./requirements.txt
+RUN pip install --no-cache -r requirements.txt
 
 # Copy the code
 COPY config/ /controller/config/
