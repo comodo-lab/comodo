@@ -5,14 +5,6 @@ import json
 import os
 import time as t
 
-# Broker setup
-config = json.load(open("config/config.json"))
-broker_address = config["mqtt"]["broker_address"]
-user = config["mqtt"]["user"]
-password = config["mqtt"]["password"]
-connection_timeout = config["mqtt"]["connection_timeout"]
-
-
 def print_message(client, msg, timestamped=False):
     """
     Print the message received from the MQTT client to the console in the format:
