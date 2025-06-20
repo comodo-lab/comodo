@@ -7,6 +7,8 @@ services:
       - '1883:1883'
     environment:
       - RABBITMQ_SECURE_PASSWORD=yes
+      - RABBITMQ_DISK_FREE_RELATIVE_LIMIT=1.0
+      - RABBITMQ_DISK_FREE_ABSOLUTE_LIMIT=500MB
       - RABBITMQ_MANAGEMENT_ALLOW_WEB_ACCESS=true
       - RABBITMQ_USERNAME=${MQTT_USER}
       - RABBITMQ_PASSWORD=${MQTT_PASS}
@@ -36,6 +38,8 @@ services:
       - DOCKER_INFLUXDB_INIT_ORG=comodo
       - DOCKER_INFLUXDB_INIT_BUCKET=comodo
       - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUX_TOKEN}
+    ports:
+      - 8086:8086
     volumes:
       - influx_data:/var/lib/influxdb2
       - influx_config:/etc/influxdb2
@@ -68,6 +72,8 @@ services:
     environment:
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Editor
+    ports:
+      - 3000:3000
     volumes:
       - grafana-storage:/var/lib/grafana
     networks:
@@ -93,6 +99,10 @@ services:
       context: ./ui
       dockerfile: Dockerfile
     container_name: comodo-ui
+    ports:
+      - '8501:8501'
+    volumes:
+      - ./ui/config.json:/etc/ui/config.json
     restart: unless-stopped
     networks:
       comodo:
