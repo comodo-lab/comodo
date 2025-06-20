@@ -54,6 +54,7 @@ def main():
         broker_address=broker_address,
         user=user,
         password=password,
+        connection_timeout=connection_timeout,
     )
     wd_timer = MQTTClient(
         id="wd_timer",
@@ -63,6 +64,7 @@ def main():
         broker_address=broker_address,
         user=user,
         password=password,
+        connection_timeout=connection_timeout,
     )
     ui = MQTTClient(
         id="ui",
@@ -72,6 +74,7 @@ def main():
         broker_address=broker_address,
         user=user,
         password=password,
+        connection_timeout=connection_timeout,
     )
     controller = MQTTClient(
         id="controller",
@@ -81,6 +84,7 @@ def main():
         broker_address=broker_address,
         user=user,
         password=password,
+        connection_timeout=connection_timeout,
     )
     timer = MQTTClient(
         id="timer",
@@ -90,6 +94,7 @@ def main():
         broker_address=broker_address,
         user=user,
         password=password,
+        connection_timeout=connection_timeout,
     )
     heartbeat = MQTTClient(
         id="heartbeat",
@@ -99,6 +104,7 @@ def main():
         broker_address=broker_address,
         user=user,
         password=password,
+        connection_timeout=connection_timeout,
     )
     # measurement = MQTTClient("measurement", on_client_message, topics="measurement/#")
 
