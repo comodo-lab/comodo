@@ -171,7 +171,7 @@ def split_setpoints(setpoint_list, resolution):
                 if num_steps < 2:
                     if num_steps == 1:
                         print(f"Skipping interpolation for {name} due to insufficient steps: {num_steps}, just assigning setpoint value.")
-                        new_values = [float(setpoint)]
+                        new_values = [float(setpoint), float(setpoint)]
                         continue
                     else:
                         raise ValueError(f"Invalid number of steps for interpolation: {num_steps} for variable {name}")
@@ -197,7 +197,7 @@ def split_setpoints(setpoint_list, resolution):
             step += 1
 
         # Assign to the setpoint_values
-        for value in interpolated_values.enumerate():
+        for i, value in np.ndenumerate(interpolated_values):
             setpoint_values[i][name] = value
         print(f'Setpoint values: {setpoint_values}')
 
