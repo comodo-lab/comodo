@@ -154,7 +154,7 @@ def split_setpoints(setpoint_list, resolution):
         previous_setpoint = 0
         print(sp_times)
         step = 0
-        interpolated_values = []
+        interpolated_values = np.array([])
         for time in sp_times:
             print(f'Interpoltaed values {interpolated_values}')
             setpoint = values[step][0]
@@ -172,6 +172,7 @@ def split_setpoints(setpoint_list, resolution):
                     if num_steps == 1:
                         print(f"Skipping interpolation for {name} due to insufficient steps: {num_steps}, just assigning setpoint value.")
                         new_values = [float(setpoint)]
+                        continue
                     else:
                         raise ValueError(f"Invalid number of steps for interpolation: {num_steps} for variable {name}")
 
@@ -190,7 +191,7 @@ def split_setpoints(setpoint_list, resolution):
                 # For the first setpoint, just use the setpoint value
                 new_values = [float(setpoint)]
 
-            interpolated_values.append(new_values[1:]) # Skip the first value as it is the previous setpoint
+            np.append(interpolated_values, new_values[1:])  # Skip the first value as it is the previous setpoint
             previous_setpoint = setpoint
             previous_time = time
             step += 1
