@@ -149,7 +149,9 @@ def split_setpoints(setpoint_list, resolution):
     for name, values in sp_variables.items():
         previous_time = 0
         previous_setpoint = 0
-        for step, time in sp_times.enumerate():
+        print(sp_times)
+        step = 0
+        for time in sp_times:
             setpoint = values[step][0]
             profile = values[step][1]
 
@@ -166,18 +168,19 @@ def split_setpoints(setpoint_list, resolution):
 
                 # Interpolate based on the profile type
                 if profile == "linear":
-                    new_values = linear_interpolation(previous_setpoint, setpoint, len(times))
+                    new_values = linear_interpolation(float(previous_setpoint), float(setpoint), len(times))
                 elif profile == "exponential":
-                    new_values = exponential_interpolation(previous_setpoint, setpoint, len(times))
+                    new_values = exponential_interpolation(float(previous_setpoint), float(setpoint), len(times))
                 elif profile == "logarithmic":
-                    new_values = logarithmic_interpolation(previous_setpoint, setpoint, len(times))
+                    new_values = logarithmic_interpolation(float(previous_setpoint), float(setpoint), len(times))
                 elif profile == "step":
-                    new_values = step_interpolation(previous_setpoint, setpoint, len(times))
+                    new_values = step_interpolation(float(previous_setpoint), float(setpoint), len(times))
                 else:
                     raise ValueError(f"Unknown profile type: {profiles}")
 
             previous_setpoint = setpoint
             previous_time = time
+            step += 1
 
         interpolated_values[name] = new_values
 
