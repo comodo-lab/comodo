@@ -144,14 +144,19 @@ def split_setpoints(setpoint_list, resolution):
     print(f"Interpolating setpoints for variables: {variable_names}, with resolution: {resolution}")
     print(f"Setpoints: {sp_variables}, for times: {times}")
 
+    time_intervals = [times[i] - times[i - 1] for i in range(1, len(times))]
+    time_intervals.insert(0, 0)
+
     # Interpolate each variable
-    interpolated_values = {}
+    setpoint_values = [{'duration': duration} for duration in time_intervals]
     for name, values in sp_variables.items():
         previous_time = 0
         previous_setpoint = 0
         print(sp_times)
         step = 0
+        interpolated_values = []
         for time in sp_times:
+            print(f'Interpoltaed values {interpolated_values}')
             setpoint = values[step][0]
             profile = values[step][1]
 
@@ -177,27 +182,19 @@ def split_setpoints(setpoint_list, resolution):
                     new_values = step_interpolation(float(previous_setpoint), float(setpoint), len(times))
                 else:
                     raise ValueError(f"Unknown profile type: {profiles}")
+            else:
+                # For the first setpoint, just use the setpoint value
+                new_values = [float(setpoint)]
 
+            interpolated_values.append(new_values)
             previous_setpoint = setpoint
             previous_time = time
             step += 1
 
-        interpolated_values[name] = new_values
-
-    setpoint_values = []
-    previous_time = 0
-    for i in range(len(times)):
-        if i == 0:
-            time_interval = times[i]
-        else:
-            duration = times[i] - previous_time
-        previous_time = times[i]
-        setpoint_values.append(
-            {
-                "duration": duration,
-                **{name: interpolated_values[name][i] for name in variable_names},
-            }
-        )
+        # Assign to the setpoint_values
+        for value in interpolated_values.enumerate():
+            setpoint_values[i][name] = value
+        print(f'Setpoint values: {setpoint_values}')
 
     return setpoint_values
 
