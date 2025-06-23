@@ -11,6 +11,8 @@ from error_helper import *
 
 config = json.load(open("config/config.json"))
 
+INFLUX_TOKEN = os.environ('INFLUX_TOKEN', None)
+
 
 class internal_stop_msg:
     """
@@ -191,6 +193,7 @@ def split_setpoints(setpoint_list, resolution):
                 # For the first setpoint, just use the setpoint value
                 new_values = [float(setpoint)]
 
+            print(f"Interpolated values for {name} from {previous_setpoint} to {setpoint} over {num_steps} steps: {new_values}")
             np.append(interpolated_values, new_values[1:])  # Skip the first value as it is the previous setpoint
             previous_setpoint = setpoint
             previous_time = time
@@ -239,10 +242,9 @@ def dump_database_for_experiment(obj):
     tf = datetime.now()
     # get everything from influx database
     buckets = config["influxdb"]["buckets"]
-    secret = json.load(open("config/.secret_influxdb_token.json"))
     client = influxdb_client.InfluxDBClient(
         url=config["influxdb"]["url"],
-        token=secret["influxdb_token"],
+        token=INFLUX_TOKEN,
         org=config["influxdb"]["org"],
     )
     query_api = client.query_api()
