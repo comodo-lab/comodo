@@ -26,14 +26,14 @@ def on_watchdog_message(client, msg, obj):
         # {"error": f"Unhandled exception in {name}: {str(e)}"}
         error = load_message(msg)["error"]
         print(f"WATCHDOG: Received ERROR: {error}")
-        pub.publish(
+        MQTTPublisher.get_instance().publish(
             "watchdog/restart", json.dumps({"message": "Restarting controller..."})
         )
         return
     elif msg.topic == "watchdog/timeout":
         error = load_message(msg)["error"]
         print(f"WATCHDOG: Timed out waiting for controller heartbeat. {error}")
-        pub.publish(
+        MQTTPublisher.get_instance().publish(
             "watchdog/restart", json.dumps({"message": "Restarting controller..."})
         )
         return
@@ -43,7 +43,7 @@ def on_watchdog_message(client, msg, obj):
         return
     else:
         error = f"WATCHDOG: Unexpected message received: {msg.topic}"
-        pub.publish(
+        MQTTPublisher.get_instance().publish(
             "error/watchdog",
             json.dumps({"error": error}),
         )

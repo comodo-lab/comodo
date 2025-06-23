@@ -17,7 +17,6 @@ from on_controller_message import *
 from on_timer_message import *
 from on_heartbeat_message import *
 
-
 def main():
     print(f"Starting...")
     # Load configuration
@@ -47,11 +46,12 @@ def main():
     connection_timeout = config["mqtt"]["connection_timeout"]
 
     # Initialise publisher singleton
-    publisher = MQTTPublisher(broker_address=broker_address,
-                              user=user,
-                              password=password,
-                              connection_timeout=connection_timeout,
-                              )
+    publisher = MQTTPublisher.get_instance(
+        broker_address=broker_address,
+        user=user,
+        password=password,
+        connection_timeout=connection_timeout,
+    )
     
     # Load MQTT clients
     watchdog = MQTTClient(

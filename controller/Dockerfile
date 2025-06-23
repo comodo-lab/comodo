@@ -13,4 +13,4 @@ COPY src/ /controller/src/
 COPY tests/ /controller/tests/
 COPY controller.py /controller/
 
-CMD ["python", "controller.py"]
+CMD ["python", "-u", "controller.py"]
