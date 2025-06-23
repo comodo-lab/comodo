@@ -35,7 +35,7 @@
             "displacement 1": { "type": "number" },
             "displacement 2": { "type": "number" }
           },
-          "required": ["time", "temperature", "pressure", "displacement 1", "displacement 2"]
+          "required": ["time", "temp_main", "temp_left", "temp_right"]
         }
       }
     },
