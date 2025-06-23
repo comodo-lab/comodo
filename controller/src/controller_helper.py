@@ -11,7 +11,7 @@ from error_helper import *
 
 config = json.load(open("config/config.json"))
 
-INFLUX_TOKEN = os.environ('INFLUX_TOKEN', None)
+INFLUX_TOKEN = os.environ['INFLUX_TOKEN']
 
 
 class internal_stop_msg:
