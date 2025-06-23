@@ -158,7 +158,6 @@ def split_setpoints(setpoint_list, resolution):
         step = 0
         interpolated_values = np.array([])
         for time in sp_times:
-            print(f'Interpoltaed values {interpolated_values}')
             setpoint = values[step][0]
             profile = values[step][1]
 
@@ -173,7 +172,7 @@ def split_setpoints(setpoint_list, resolution):
                 if num_steps < 2:
                     if num_steps == 1:
                         print(f"Skipping interpolation for {name} due to insufficient steps: {num_steps}, just assigning setpoint value.")
-                        new_values = [float(setpoint), float(setpoint)]
+                        new_values = [float(setpoint)]
                         continue
                     else:
                         raise ValueError(f"Invalid number of steps for interpolation: {num_steps} for variable {name}")
@@ -191,17 +190,18 @@ def split_setpoints(setpoint_list, resolution):
                     raise ValueError(f"Unknown profile type: {profiles}")
             else:
                 # For the first setpoint, just use the setpoint value
-                new_values = [float(setpoint), float(setpoint)]
+                new_values = [float(setpoint)]
 
-            print(f"Interpolated values for {name} from {previous_setpoint} to {setpoint}: {new_values}")
-            np.append(interpolated_values, new_values[1:])  # Skip the first value as it is the previous setpoint
+            print(f"Interpolated values for {name} from {previous_setpoint} to {setpoint}, from {previous_time} to {time}: {new_values}")
+            interpolated_values = np.append(interpolated_values, new_values)  # Skip the first value as it is the previous setpoint
             previous_setpoint = setpoint
             previous_time = time
             step += 1
 
         # Assign to the setpoint_values
+        print(f"Final interpolated values for {name}: {interpolated_values}")
         for i, value in np.ndenumerate(interpolated_values):
-            setpoint_values[i][name] = value
+            setpoint_values[i[0]][name] = value
         print(f'Setpoint values: {setpoint_values}')
 
     return setpoint_values
@@ -243,7 +243,7 @@ def dump_database_for_experiment(obj):
     # get everything from influx database
     buckets = config["influxdb"]["buckets"]
     client = influxdb_client.InfluxDBClient(
-        url=config["influxdb"]["url"],
+        url='http://comodo-influx:8086',
         token=INFLUX_TOKEN,
         org=config["influxdb"]["org"],
     )
@@ -251,10 +251,10 @@ def dump_database_for_experiment(obj):
     exp_dir_path = obj.exp_file.replace(".json", "")
     if not os.path.exists(exp_dir_path):
         os.makedirs(exp_dir_path)
-    for bucket in buckets:
-        query = f'from(bucket: "{bucket}") |> range(start: {t0.isoformat()}Z, stop: {tf.isoformat()}Z)'
-        data = query_api.query_csv(org=config["influxdb"]["org"], query=query)
-        values = data.to_values()
-        with open(f"{exp_dir_path}/{bucket}.csv", "w", newline="") as myfile:
-            wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
-            wr.writerows(values)
+    # for bucket in buckets:
+    #     query = f'from(bucket: "{bucket}") |> range(start: {t0.isoformat()}Z, stop: {tf.isoformat()}Z)'
+    #     data = query_api.query_csv(org=config["influxdb"]["org"], query=query)
+    #     values = data.to_values()
+    #     with open(f"{exp_dir_path}/{bucket}.csv", "w", newline="") as myfile:
+    #         wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
+    #         wr.writerows(values)
