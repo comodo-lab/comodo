@@ -66,7 +66,7 @@ def mqtt_publish_exceptions(name, func):
                 tb = tb.tb_next
 
             try:
-                pub.publish(
+                MQTTPublisher.get_instance().publish(
                     "ERROR/exception",
                     json.dumps({"error": f"Unhandled exception in {name}: {str(e)}"}),
                 )
@@ -211,11 +211,19 @@ class MQTTPublisher:
             password=password,
             connection_timeout=connection_timeout,
         )
+        
+    def publish(self, topic: str, payload: str):
+        try:
+            self.client.publish(topic, payload)
+        except Exception as e:
+            print(f"Error while reporting error! {e}")
 
     @classmethod
-    def get_instance(cls):
+    def get_instance(cls, **kwargs):
         if cls._instance is None:
-            cls._instance = cls()
+            if not kwargs:
+                raise RuntimeError("MQTTPublisher not yet initialised; call get_instance(...) with parameters first")
+            cls._instance = cls(**kwargs)
         return cls._instance
 
 

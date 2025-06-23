@@ -30,7 +30,7 @@ def on_wd_timer_message(client, msg, obj):
             timer_interval = 0.6 * obj["interval"]
         except AssertionError as e:
             error = f"WATCHDOG_TIMER incompatible values: {e}"
-            pub.publish(
+            MQTTPublisher.get_instance().publish(
                 "error/wd_timer",
                 json.dumps({"error": error}),
             )
@@ -49,7 +49,7 @@ def on_wd_timer_message(client, msg, obj):
             t.sleep(timer_interval)
             obj["timer"] = obj["timer"] - timer_interval
             if obj["timer"] <= 0:
-                pub.publish(
+                MQTTPublisher.get_instance().publish(
                     "watchdog/timeout",
                     json.dumps(
                         {
@@ -60,7 +60,7 @@ def on_wd_timer_message(client, msg, obj):
                 return
     else:
         error = f"WATCHDOG_TIMER: Unexpected message received: {msg.topic}"
-        pub.publish(
+        MQTTPublisher.get_instance().publish(
             "error/wd_timer",
             json.dumps({"error": error}),
         )

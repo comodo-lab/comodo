@@ -164,6 +164,6 @@ def flagged(callback, flag_topic="flagged", flag_message="true"):
 
     def wrapper(*args, **kwargs):
         callback(*args, **kwargs)
-        pub.publish(flag_topic, flag_message)
+        MQTTPublisher.get_instance().publish(flag_topic, flag_message)
 
     return wrapper
