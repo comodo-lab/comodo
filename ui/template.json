@@ -9,11 +9,11 @@
     },
     "experiment":[
         { "time":0,     "temp_left":0,   "temp_main":0,   "temp_right":0},
-        { "time":4,     "temp_left":500, "temp_main":0,   "temp_right":0},
-        { "time":8,     "temp_left":500, "temp_main":100, "temp_right":0},
-        { "time":12,    "temp_left":500, "temp_main":100, "temp_right":300},
-        { "time":16,    "temp_left":500, "temp_main":1000,"temp_right":300},
-        { "time":17,    "temp_left":500, "temp_main":0,   "temp_right":300},
-        { "time":20,    "temp_left":0,   "temp_main":0,   "temp_right":300}
+        { "time":40,     "temp_left":500, "temp_main":0,   "temp_right":0},
+        { "time":80,     "temp_left":500, "temp_main":100, "temp_right":0},
+        { "time":120,    "temp_left":500, "temp_main":100, "temp_right":300},
+        { "time":160,    "temp_left":500, "temp_main":1000,"temp_right":300},
+        { "time":170,    "temp_left":500, "temp_main":0,   "temp_right":300},
+        { "time":200,    "temp_left":0,   "temp_main":0,   "temp_right":300}
     ]
 }

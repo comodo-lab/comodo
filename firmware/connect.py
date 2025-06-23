@@ -1,5 +1,6 @@
 from lib.umqtt import MQTTClient
 import sys
+import random
 
 board = sys.platform
 if board == "rp2":
@@ -44,7 +45,7 @@ def connect_mqtt(client_name, ip_address, port=1883, user=None, password=None):
     Returns:
         MQTTClient: The mqtt client object
     """
-    c = MQTTClient(client_name,
+    c = MQTTClient(f'{client_name}-{random.randint(0, 10000)}',
                    ip_address,
                    port=port,
                    user=user,

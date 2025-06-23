@@ -143,18 +143,15 @@ def split_setpoints(setpoint_list, resolution):
             # Deafult to linear profile if not specified
             sp_variables[name] = np.array([(sp[name], "linear") for sp in setpoint_list])
 
-    print(f"Interpolating setpoints for variables: {variable_names}, with resolution: {resolution}")
-    print(f"Setpoints: {sp_variables}, for times: {times}")
 
     time_intervals = [times[i] - times[i - 1] for i in range(1, len(times))]
     time_intervals.insert(0, 0)
 
     # Interpolate each variable
-    setpoint_values = [{'duration': duration} for duration in time_intervals]
+    setpoint_values = [{'duration': float(duration)} for duration in time_intervals]
     for name, values in sp_variables.items():
         previous_time = 0
         previous_setpoint = 0
-        print(sp_times)
         step = 0
         interpolated_values = np.array([])
         for time in sp_times:
@@ -192,16 +189,14 @@ def split_setpoints(setpoint_list, resolution):
                 # For the first setpoint, just use the setpoint value
                 new_values = [float(setpoint)]
 
-            print(f"Interpolated values for {name} from {previous_setpoint} to {setpoint}, from {previous_time} to {time}: {new_values}")
             interpolated_values = np.append(interpolated_values, new_values)  # Skip the first value as it is the previous setpoint
             previous_setpoint = setpoint
             previous_time = time
             step += 1
 
         # Assign to the setpoint_values
-        print(f"Final interpolated values for {name}: {interpolated_values}")
         for i, value in np.ndenumerate(interpolated_values):
-            setpoint_values[i[0]][name] = value
+            setpoint_values[i[0]][name] = float(value)
         print(f'Setpoint values: {setpoint_values}')
 
     return setpoint_values
