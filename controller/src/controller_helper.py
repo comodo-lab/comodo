@@ -24,46 +24,179 @@ class internal_stop_msg:
         self.payload = json.dumps(p).encode("utf-8")
 
 
+def logarithmic_interpolation(start, end, num_steps):
+    """
+    Interpolates from start to end in a logarithmic fashion over num_steps.
+
+    Arguments:
+        start (float): The starting value (must be > 0 and != end).
+        end (float): The ending value (must be > 0 and != start).
+        num_steps (int): Number of interpolation steps (must be >= 2).
+
+    Returns:
+        np.ndarray: Array of interpolated values (length == num_steps)
+    """
+    if num_steps < 2:
+        raise ValueError("num_steps must be at least 2 for interpolation.")
+    if start <= 0 or end <= 0:
+        raise ValueError("Logarithmic interpolation requires positive start and end values.")
+    if start == end:
+        return np.full(num_steps, start)
+
+    log_start = np.log10(start)
+    log_end = np.log10(end)
+
+    log_space = np.linspace(log_start, log_end, num_steps)
+    return np.power(10, log_space)
+
+
+def linear_interpolation(start, end, num_steps):
+    """
+    Interpolates from start to end in a linear fashion over num_steps.
+
+    Arguments:
+        start (float): The starting value.
+        end (float): The ending value.
+        num_steps (int): Number of interpolation steps (must be >= 2).
+
+    Returns:
+        np.ndarray: Array of interpolated values (length == num_steps)
+    """
+    if num_steps < 2:
+        raise ValueError("num_steps must be at least 2 for interpolation.")
+    return np.linspace(start, end, num_steps)
+
+
+def exponential_interpolation(start, end, num_steps):
+    """
+    Interpolates from start to end in an exponential fashion over num_steps.
+
+    Arguments:
+        start (float): Starting value.
+        end (float): Ending value.
+        num_steps (int): Number of interpolation steps (must be >= 2).
+
+    Returns:
+        np.ndarray: Array of interpolated values (length == num_steps)
+    """
+    if num_steps < 2:
+        raise ValueError("num_steps must be at least 2 for interpolation.")
+    if start == end:
+        return np.full(num_steps, start)
+
+    # Normalize to exponential curve between 0 and 1
+    x = np.linspace(0, 1, num_steps)
+    y = np.exp(x)  # exponential curve
+    y = (y - y[0]) / (y[-1] - y[0])  # normalize to [0, 1]
+
+    return start + y * (end - start)
+
+
+def step_interpolation(start, end, num_steps):
+    """
+    Interpolates from start to end in a stepwise fashion over num_steps.
+
+    Arguments:
+        start (float): The starting value.
+        end (float): The ending value.
+        num_steps (int): Number of interpolation steps (must be >= 2).
+
+    Returns:
+        np.ndarray: Array of interpolated values (length == num_steps)
+    """
+    if num_steps < 2:
+        raise ValueError("num_steps must be at least 2 for interpolation.")
+    if start == end:
+        return np.full(num_steps, start)
+
+    interp = np.array([start for i in range(num_steps)])
+    interp[-1] = end
+    return interp
+
+
 def split_setpoints(setpoint_list, resolution):
     """
     Interpolates the given setpoints to a given time resolution.
     It also converts from linear time to time intervals.
     """
+    required_keys = ["time"]
+    profiles = ["linear", "exponential", "logarithmic", "step"]
+
+    variable_names = []
+    sp_variables = {}
+
+    for key in setpoint_list[0].keys():
+        if key not in required_keys and "_proflie" not in key:
+            variable_names.append(key)
+
     # Get given setpoints
-    times = np.array([sp["time"] for sp in setpoint_list])
-    pressures = np.array([sp["pressure"] for sp in setpoint_list])
-    temperatures = np.array([sp["temperature"] for sp in setpoint_list])
-    displacements_1 = np.array([sp["displacement 1"] for sp in setpoint_list])
-    displacements_2 = np.array([sp["displacement 2"] for sp in setpoint_list])
+    for key in required_keys:
+        sp_times = np.array([sp["time"] for sp in setpoint_list])
+        times = np.arange(min(sp_times), max(sp_times) + resolution, resolution)
 
-    # Interpolate setpoints
-    new_times = np.arange(min(times), max(times) + resolution, resolution)
-    new_pressures = np.interp(new_times, times, pressures).astype(float).tolist()
-    new_temps = np.interp(new_times, times, temperatures).astype(float).tolist()
-    new_disp_1 = np.interp(new_times, times, displacements_1).astype(float).tolist()
-    new_disp_2 = np.interp(new_times, times, displacements_2).astype(float).tolist()
+    for name in variable_names:
+        try:
+            sp_variables[name] = np.array([(sp[name], sp[f"{name}_profile"]) for sp in setpoint_list])
+        except KeyError:
+            # Deafult to linear profile if not specified
+            sp_variables[name] = np.array([(sp[name], "linear") for sp in setpoint_list])
 
-    new_times = new_times.astype(float).tolist()
-    time_intervals = [new_times[i] - new_times[i - 1] for i in range(1, len(new_times))]
-    time_intervals.insert(0, 0)
+    print(f"Interpolating setpoints for variables: {variable_names}, with resolution: {resolution}")
+    print(f"Setpoints: {sp_variables}, for times: {times}")
 
-    # Return list of dictionaries with the interpolated values
-    return [
-        {
-            "duration": t,
-            "pressure": p,
-            "temperature": temp,
-            "displacement 1": d1,
-            "displacement 2": d2,
-        }
-        for t, p, temp, d1, d2 in zip(
-            time_intervals,
-            new_pressures,
-            new_temps,
-            new_disp_1,
-            new_disp_2,
+    # Interpolate each variable
+    interpolated_values = {}
+    for name, values in sp_variables.items():
+        previous_time = 0
+        previous_setpoint = 0
+        for step, time in sp_times.enumerate():
+            setpoint = values[step][0]
+            profile = values[step][1]
+
+            if step != 0:
+                # Calculate the time interval since the last setpoint
+                time_interval = time - previous_time
+                if time_interval <= 0:
+                    raise ValueError(f"Invalid time interval: {time_interval} for variable {name}")
+
+                # Calculate the number of steps needed for interpolation
+                num_steps = int(time_interval / resolution)
+                if num_steps < 2:
+                    raise ValueError(f"Time interval too small for interpolation: {time_interval} for variable {name}")
+
+                # Interpolate based on the profile type
+                if profile == "linear":
+                    new_values = linear_interpolation(previous_setpoint, setpoint, len(times))
+                elif profile == "exponential":
+                    new_values = exponential_interpolation(previous_setpoint, setpoint, len(times))
+                elif profile == "logarithmic":
+                    new_values = logarithmic_interpolation(previous_setpoint, setpoint, len(times))
+                elif profile == "step":
+                    new_values = step_interpolation(previous_setpoint, setpoint, len(times))
+                else:
+                    raise ValueError(f"Unknown profile type: {profiles}")
+
+            previous_setpoint = setpoint
+            previous_time = time
+
+        interpolated_values[name] = new_values
+
+    setpoint_values = []
+    previous_time = 0
+    for i in range(len(times)):
+        if i == 0:
+            time_interval = times[i]
+        else:
+            duration = times[i] - previous_time
+        previous_time = times[i]
+        setpoint_values.append(
+            {
+                "duration": duration,
+                **{name: interpolated_values[name][i] for name in variable_names},
+            }
         )
-    ]
+
+    return setpoint_values
 
 
 data_path = "data"
