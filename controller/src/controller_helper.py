@@ -173,20 +173,20 @@ def split_setpoints(setpoint_list, resolution):
 
                 # Interpolate based on the profile type
                 if profile == "linear":
-                    new_values = linear_interpolation(float(previous_setpoint), float(setpoint), len(times))
+                    new_values = linear_interpolation(float(previous_setpoint), float(setpoint), num_steps)
                 elif profile == "exponential":
-                    new_values = exponential_interpolation(float(previous_setpoint), float(setpoint), len(times))
+                    new_values = exponential_interpolation(float(previous_setpoint), float(setpoint), num_steps)
                 elif profile == "logarithmic":
-                    new_values = logarithmic_interpolation(float(previous_setpoint), float(setpoint), len(times))
+                    new_values = logarithmic_interpolation(float(previous_setpoint), float(setpoint), num_steps)
                 elif profile == "step":
-                    new_values = step_interpolation(float(previous_setpoint), float(setpoint), len(times))
+                    new_values = step_interpolation(float(previous_setpoint), float(setpoint), num_steps)
                 else:
                     raise ValueError(f"Unknown profile type: {profiles}")
             else:
                 # For the first setpoint, just use the setpoint value
                 new_values = [float(setpoint)]
 
-            interpolated_values.append(new_values)
+            interpolated_values.append(new_values[1:]) # Skip the first value as it is the previous setpoint
             previous_setpoint = setpoint
             previous_time = time
             step += 1
