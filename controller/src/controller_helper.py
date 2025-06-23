@@ -169,7 +169,11 @@ def split_setpoints(setpoint_list, resolution):
                 # Calculate the number of steps needed for interpolation
                 num_steps = int(time_interval / resolution)
                 if num_steps < 2:
-                    raise ValueError(f"Time interval too small for interpolation: {time_interval} for variable {name}")
+                    if num_steps == 1:
+                        print(f"Skipping interpolation for {name} due to insufficient steps: {num_steps}, just assigning setpoint value.")
+                        new_values = [float(setpoint)]
+                    else:
+                        raise ValueError(f"Invalid number of steps for interpolation: {num_steps} for variable {name}")
 
                 # Interpolate based on the profile type
                 if profile == "linear":
