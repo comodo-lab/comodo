@@ -19,61 +19,18 @@ def rescale_for_filling(df, y1, y2):
 
 
 def make_plot(df):
-    fig, axes = plt.subplots(nrows=2, ncols=1, sharex=True)
+    cols = [c for c in df.columns if c != "time"]
+    n = len(cols)
+    fig, axes = plt.subplots(nrows=n, ncols=1, sharex=True)
+    fig.tight_layout(h_pad=1.0)
 
-    # Subplot 1:
-    ## Temperature on the main y-axis
-    T_col = "red"
-    P_col = "blue"
-    df.plot(
-        x="time",
-        y="temperature",
-        ax=axes[0],
-        color=T_col,
-        legend=False,
-    )
-    axes[0].set_ylabel("temperature", color=T_col)
-    axes[0].fill_between(df["time"], df["temperature"], color=T_col, alpha=0.1)
-    ## Pressure on the secondary y-axis
-    df.plot(
-        x="time",
-        y="pressure",
-        secondary_y=True,
-        ax=axes[0],
-        color=P_col,
-        linestyle="dotted",
-        legend=False,
-    )
-    axes[0].right_ax.set_ylabel("pressure", color=P_col)
-    p_trans = rescale_for_filling(df, "temperature", "pressure")
-    axes[0].fill_between(df["time"], p_trans, color=P_col, alpha=0.1)
-
-    # Subplot 2:
-    ## Displacement 1 on the main y-axis
-    D1_col = "purple"
-    D2_col = "green"
-    df.plot(
-        x="time",
-        y="displacement 1",
-        ax=axes[1],
-        color=D1_col,
-        legend=False,
-    )
-    axes[1].fill_between(df["time"], df["displacement 1"], color=D1_col, alpha=0.1)
-    axes[1].set_ylabel("displacement 1", color=D1_col)
-    ## Displacement 2 on the secondary y-axis
-    df.plot(
-        x="time",
-        y="displacement 2",
-        secondary_y=True,
-        ax=axes[1],
-        color=D2_col,
-        linestyle="dotted",
-        legend=False,
-    )
-    axes[1].right_ax.set_ylabel("displacement 2", color=D2_col)
-    D2_trans = rescale_for_filling(df, "displacement 1", "displacement 2")
-    axes[1].fill_between(df["time"], D2_trans, color=D2_col, alpha=0.1)
+    for i, col in enumerate(cols):
+        ax = axes[i]
+        ax.plot(df["time"], df[col], color="C0")
+        ax.set_ylabel(col)
+        ax.fill_between(df["time"], df[col], alpha=0.1, color="C0")
+        ax.grid(True, which="both", linestyle="--", linewidth=0.5, alpha=0.7)
+        ax.set_xlim(df["time"].min(), df["time"].max())
 
     plt.subplots_adjust(hspace=0)
     st.session_state["plot_container"].pyplot(fig)
