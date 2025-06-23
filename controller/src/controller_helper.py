@@ -191,9 +191,9 @@ def split_setpoints(setpoint_list, resolution):
                     raise ValueError(f"Unknown profile type: {profiles}")
             else:
                 # For the first setpoint, just use the setpoint value
-                new_values = [float(setpoint)]
+                new_values = [float(setpoint), float(setpoint)]
 
-            print(f"Interpolated values for {name} from {previous_setpoint} to {setpoint} over {num_steps} steps: {new_values}")
+            print(f"Interpolated values for {name} from {previous_setpoint} to {setpoint}: {new_values}")
             np.append(interpolated_values, new_values[1:])  # Skip the first value as it is the previous setpoint
             previous_setpoint = setpoint
             previous_time = time
