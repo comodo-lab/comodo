@@ -30,10 +30,9 @@
           "type": "object",
           "properties": {
             "time": { "type": "number", "minimum": 0 },
-            "temperature": { "type": "number", "minimum": 0 },
-            "pressure": { "type": "number" },
-            "displacement 1": { "type": "number" },
-            "displacement 2": { "type": "number" }
+            "temp_right": { "type": "number"},
+            "temp_main": { "type": "number" },
+            "temp_left": { "type": "number" }
           },
           "required": ["time", "temp_main", "temp_left", "temp_right"]
         }
