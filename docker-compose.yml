@@ -93,7 +93,7 @@ services:
       - ./controller/config/config.json:/controller/config/config.json
     networks:
       comodo:
-
+            
   ui:
     build:
       context: ./ui

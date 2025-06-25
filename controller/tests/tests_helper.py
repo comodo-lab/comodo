@@ -9,7 +9,7 @@ import time as t
 from datetime import datetime
 
 from controller_state import cstate
-from mqtt_clients import MQTTClient, connect_or_timeout, pub
+from mqtt_clients import MQTTClient, connect_or_timeout, MQTTPublisher
 from controller_helper import split_setpoints
 
 time_int = 0.01  # Time interval between client connection / message checks
