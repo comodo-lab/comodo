@@ -5,14 +5,6 @@ from tests.tests_helper import *
 
 from mqtt_clients import *
 
-from validation import validate_file_print_errors
-
-config = validate_file_print_errors(
-    "config/config.json",
-)
-mqtt_broker_address = config["mqtt"]["broker_address"]
-mqtt_user = config["mqtt"]["user"]
-mqtt_password = config["mqtt"]["password"]
 
 def callback_with_error(client, msg, obj):
     raise ValueError("This is a test error")
@@ -25,7 +17,7 @@ def test_connection_error(capsys):
                 id="tester",
                 topics="tester/#",
                 obj=None,
-                broker_address=mqtt_broker_address,
+                broker_address="localhost",
                 port=1234,
                 user=None,
                 password="fake",
@@ -51,7 +43,7 @@ def test_connection_timeout(capsys):
                     id="tester",
                     topics="tester/#",
                     obj=None,
-                    broker_address=mqtt_broker_address,
+                    broker_address="localhost",
                     port=1234,
                     user=None,
                     password="fake",
@@ -74,9 +66,6 @@ def test_connection_ok(capsys):
         id="tester",
         topics="tester/#",
         obj=None,
-        broker_address=mqtt_broker_address,
-        user=mqtt_user,
-        password=mqtt_password
     )
     # Wait until the client is connected
     t_now = t.time()
