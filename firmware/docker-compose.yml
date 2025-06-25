@@ -1,0 +1,30 @@
+x-sensor-base: &sensor-template
+  build:
+    dockerfile_inline: |
+      FROM micropython/unix
+      WORKDIR /sensor
+      COPY . .
+      CMD micropython main.py
+  network_mode: host
+
+services:
+  temp_main:
+    <<: *sensor-template
+    environment:
+      - SENSOR_ID="temp_main"
+      - HEARTBEAT_INTERVAL=1000
+      - MEASUREMENT_INTERVAL=1000
+
+  temp_left:
+    <<: *sensor-template
+    environment:
+      - SENSOR_ID="temp_left"
+      - HEARTBEAT_INTERVAL=1000
+      - MEASUREMENT_INTERVAL=1000
+
+  temp_right:
+    <<: *sensor-template
+    environment:
+      - SENSOR_ID="temp_right"
+      - HEARTBEAT_INTERVAL=2000
+      - MEASUREMENT_INTERVAL=2000

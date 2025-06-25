@@ -1,7 +1,6 @@
 import json
 import textwrap
-from mqtt_clients import *
-
+from mqtt_clients import MQTTPublisher
 
 def wrong_json(msg, e, source="controller"):
     """
@@ -9,7 +8,7 @@ def wrong_json(msg, e, source="controller"):
     """
     source = source.lower()
     error = f"Error decoding {msg.topic} message, wrong JSON: \n{textwrap.indent(str(e), '   ')}"
-    pub.publish(
+    MQTTPublisher.get_instance().publish(
         f"error/{source}",
         json.dumps({"error": error}),
     )
@@ -21,7 +20,7 @@ def missing_keys(msg, e, source="controller"):
     """
     source = source.lower()
     error = f"Error decoding {msg.topic} message, missing: \n{textwrap.indent(str(e), '   ')}"
-    pub.publish(
+    MQTTPublisher.get_instance().publish(
         f"error/{source}",
         json.dumps({"error": error}),
     )
@@ -37,7 +36,7 @@ def incompatible_request(obj, msg, source="controller"):
     else:
         cant = f"{source.capitalize()} cannot"
     error = f"Controller is {obj.status}. {cant} act on {msg.topic}"
-    pub.publish(
+    MQTTPublisher.get_instance().publish(
         "error/" + source,
         json.dumps({"error": error}),
     )
@@ -49,7 +48,7 @@ def incompatible_uid(obj, msg):
     """
     msg_uid = json.loads(msg.payload.decode("utf-8"))["uid"]
     error = f"Current experiment is {obj.experiment_uid}. Cannot act on {msg.topic} for experiment {msg_uid}."
-    pub.publish(
+    MQTTPublisher.get_instance().publish(
         "error/controller",
         json.dumps({"error": error}),
     )
@@ -59,7 +58,7 @@ def experiment_validation_error(error, uid):
     """
     Publishes an error message when the experiment configuration received from the ui fails validation.
     """
-    pub.publish(
+    MQTTPublisher.get_instance().publish(
         "error/validator/failed",
         json.dumps(
             {
@@ -77,7 +76,7 @@ def heartbeat_validation_error(msg, error):
     """
     p = msg.payload.decode("utf-8")
     t = msg.topic.split("heartbeat/sensor/")[1]
-    pub.publish(
+    MQTTPublisher.get_instance().publish(
         f"error/heartbeat/validation",
         json.dumps(
             {"error": f"Error validating heartbeat from {t}: {p}. {error.args[0]}"}
@@ -90,7 +89,7 @@ def unconfigured_sensor(msg, sensor_name):
     Publishes an error message when a sensor heartbeat is received and the sensor is not configured.
     """
     error = f"Sensor {sensor_name} is not configured. Unexpected heartbeat message:\n    {msg.topic}  {msg.payload.decode('utf-8')}"
-    pub.publish(
+    MQTTPublisher.get_instance().publish(
         "error/heartbeat",
         json.dumps({"error": error}),
     )
@@ -100,7 +99,7 @@ def controller_timeout(uid, who_timedout, consequence):
     """
     Publishes an error message when a timeout occurs.
     """
-    pub.publish(
+    MQTTPublisher.get_instance().publish(
         "error/controller/timeout",
         json.dumps(
             {
@@ -115,7 +114,7 @@ def controller_state_incompatible_with_timer(uid, source, expected_state, state)
     """
     Publishes an error message when the state of the controller is not compatible with the current timer.
     """
-    pub.publish(
+    MQTTPublisher.get_instance().publish(
         f"error/controller/timer/{source}",
         json.dumps(
             {

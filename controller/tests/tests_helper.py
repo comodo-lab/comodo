@@ -9,7 +9,7 @@ import time as t
 from datetime import datetime
 
 from controller_state import cstate
-from mqtt_clients import MQTTClient, connect_or_timeout, pub
+from mqtt_clients import MQTTClient, connect_or_timeout, MQTTPublisher
 from controller_helper import split_setpoints
 
 time_int = 0.01  # Time interval between client connection / message checks
@@ -164,6 +164,6 @@ def flagged(callback, flag_topic="flagged", flag_message="true"):
 
     def wrapper(*args, **kwargs):
         callback(*args, **kwargs)
-        pub.publish(flag_topic, flag_message)
+        MQTTPublisher.get_instance().publish(flag_topic, flag_message)
 
     return wrapper

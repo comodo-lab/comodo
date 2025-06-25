@@ -136,3 +136,13 @@ There are a few helper clients to the controller:
 - The **watchdog** client, 
   <!-- Not defined yet-->
 
+## Running tests
+
+The controller comes with a full suite of unit and integration tests. It can be
+useful to run these for development purposes or for finding the cause of failures.
+
+We recommend running the tests using the scaffolding provided by Docker Compose.
+
+```shell
+$ docker compose run --rm controller pytest
+```

@@ -93,7 +93,7 @@ services:
       - ./controller/config/config.json:/controller/config/config.json
     networks:
       comodo:
-
+            
   ui:
     build:
       context: ./ui
@@ -102,7 +102,7 @@ services:
     ports:
       - '8501:8501'
     volumes:
-      - ./ui/config.json:/etc/ui/config.json
+      - ./controller/config/config.json:/etc/ui/config.json
     restart: unless-stopped
     networks:
       comodo:

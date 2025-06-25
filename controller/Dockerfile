@@ -1,6 +1,7 @@
 FROM python:3.13-slim
 
 WORKDIR /controller
+ENV PYTHONPATH=/controller
 
 # Setup python environment
 COPY requirements.txt ./requirements.txt
@@ -13,4 +14,4 @@ COPY src/ /controller/src/
 COPY tests/ /controller/tests/
 COPY controller.py /controller/
 
-CMD ["python", "controller.py"]
+CMD ["python", "-u", "controller.py"]

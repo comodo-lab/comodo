@@ -4,6 +4,7 @@ from datetime import datetime
 import json
 import os
 import time as t
+import threading
 
 def print_message(client, msg, timestamped=False):
     """
@@ -66,7 +67,7 @@ def mqtt_publish_exceptions(name, func):
                 tb = tb.tb_next
 
             try:
-                pub.publish(
+                MQTTPublisher.get_instance().publish(
                     "ERROR/exception",
                     json.dumps({"error": f"Unhandled exception in {name}: {str(e)}"}),
                 )
@@ -185,17 +186,36 @@ def load_message(msg):
     return json.loads(msg.payload.decode("utf-8"))
 
 
-"""
-MQTT client with the sole task of publishing messages.
-Using pub to send messages prevents issues with clients being otherwise engaged when trying to publish messages.
-"""
-
 class MQTTPublisher:
+    """
+    A thread-safe singleton class for publishing MQTT messages.
+    
+    This class provides a central object for message publishing, shared throughout
+    the application. It implements the singleton pattern to ensure only one
+    publisher instance exists.
+    
+    Usage:
+        # First initialization with connection parameters
+        publisher = MQTTPublisher.get_instance(
+            broker_address="foo.example.com",
+            port=1883,
+            user="username",
+            password="password"
+        )
+        
+        # Later usage from anywhere in the application
+        publisher = MQTTPublisher.get_instance()
+        publisher.publish("topic/subtopic", "message payload")
+    
+    Note:
+        The instance must be initialized with parameters on first call to get_instance().
+        Subsequent calls can omit parameters and will return the existing instance.
+    """
     _instance = None
 
     def __init__(
             self,
-            id: str = "client",
+            id: str = "publisher",
             broker_address: str = "localhost",
             port: int = 1883,
             user: Optional[str] = None,
@@ -203,19 +223,31 @@ class MQTTPublisher:
             connection_timeout: int = 0,
     ):
         self.client = MQTTClient(
-            id="publisher",
+            id=id,
             topics=None,
             callback=None,
             broker_address=broker_address,
+            port=port,
             user=user,
             password=password,
             connection_timeout=connection_timeout,
         )
+        self._lock = threading.Lock()
+        
+    def publish(self, topic: str, payload: str):
+        with self._lock:
+            try:
+                self.client.publish(topic, payload)
+            except Exception as e:
+                print(f"Error publishing message {e}")
 
     @classmethod
-    def get_instance(cls):
+    def get_instance(cls, **kwargs):
         if cls._instance is None:
-            cls._instance = cls()
+            if not kwargs:
+                raise RuntimeError("MQTTPublisher not yet initialised; call get_instance(...) with parameters first")
+            cls._instance = cls(**kwargs)
+        elif cls._instance is not None and kwargs:
+            raise RuntimeError("MQTTPublisher already initialised; further parameters are ignored")
+
         return cls._instance
-
-

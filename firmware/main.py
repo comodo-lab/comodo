@@ -12,7 +12,7 @@ import connect as con
 import state
 
 # Sensor imports (trigger sensor registration)
-import sensors.eurotherm_3204 as eurotherm_3204
+#import sensors.eurotherm_3204 as eurotherm_3204
 
 # Initialize the state
 state = state.SensorState()
@@ -61,11 +61,11 @@ if board == "linux":
     async def heartbeat_tick(timer):
         while True:
             send_heartbeat()
-            await asyncio.sleep_ms(state.config["HEARTBEAT_INTERVAL"])
+            await asyncio.sleep_ms(int(state.config["HEARTBEAT_INTERVAL"]))
     async def measurement_tick(timer):
         while True:
             send_measurement()
-            await asyncio.sleep_ms(state.config["MEASUREMENT_INTERVAL"])
+            await asyncio.sleep_ms(int(state.config["MEASUREMENT_INTERVAL"]))
 else:
     def heartbeat_tick(timer):
         watchdog.feed()
@@ -101,10 +101,10 @@ async def main():
 
     ## Connect to the mqtt broker
     state.client = con.connect_mqtt(state.status["name"],
-                                    state.config["MQTT_IP"],
+                                    state.config["MQTT_HOST"],
                                     port=1883,
-                                    user="sensor",
-                                    password="foobar!!")
+                                    user=state.config["MQTT_USER"],
+                                    password=state.config["MQTT_PASS"])
     print("Connected to broker")
 
     ## Subscribe to the controller's instructions
