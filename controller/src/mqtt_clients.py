@@ -4,6 +4,7 @@ from datetime import datetime
 import json
 import os
 import time as t
+import threading
 
 def print_message(client, msg, timestamped=False):
     """
@@ -230,12 +231,14 @@ class MQTTPublisher:
             password=password,
             connection_timeout=connection_timeout,
         )
+        self._lock = threading.Lock()
         
     def publish(self, topic: str, payload: str):
-        try:
-            self.client.publish(topic, payload)
-        except Exception as e:
-            print(f"Error while reporting error! {e}")
+        with self._lock:
+            try:
+                self.client.publish(topic, payload)
+            except Exception as e:
+                print(f"Error publishing message {e}")
 
     @classmethod
     def get_instance(cls, **kwargs):
