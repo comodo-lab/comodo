@@ -215,7 +215,7 @@ class MQTTPublisher:
 
     def __init__(
             self,
-            id: str = "client",
+            id: str = "publisher",
             broker_address: str = "localhost",
             port: int = 1883,
             user: Optional[str] = None,
@@ -223,10 +223,11 @@ class MQTTPublisher:
             connection_timeout: int = 0,
     ):
         self.client = MQTTClient(
-            id="publisher",
+            id=id,
             topics=None,
             callback=None,
             broker_address=broker_address,
+            port=port,
             user=user,
             password=password,
             connection_timeout=connection_timeout,
@@ -246,6 +247,7 @@ class MQTTPublisher:
             if not kwargs:
                 raise RuntimeError("MQTTPublisher not yet initialised; call get_instance(...) with parameters first")
             cls._instance = cls(**kwargs)
+        elif cls._instance is not None and kwargs:
+            raise RuntimeError("MQTTPublisher already initialised; further parameters are ignored")
+
         return cls._instance
-
-
