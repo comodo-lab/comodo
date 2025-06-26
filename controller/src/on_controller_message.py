@@ -135,10 +135,6 @@ def c_running(client, msg, obj):
     If there are no more setpoints, the controller updates its state and callback to "stopping",
     and publishes a message to end the experiment.
     """
-    print(obj)
-    print(obj.current_setpoint)
-    print(obj.setpoints)
-    print(obj.past_setpoints)
     if msg.topic != "controller/run":
         if msg.topic == "controller/stop":
             c_stopping(client, msg, obj)

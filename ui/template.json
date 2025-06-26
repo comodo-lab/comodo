@@ -8,12 +8,12 @@
         "resolution":1
     },
     "experiment":[
-        { "time":0,     "temp_left":0,   "temp_main":0,   "temp_right":0},
-        { "time":40,     "temp_left":500, "temp_main":0,   "temp_right":0},
-        { "time":80,     "temp_left":500, "temp_main":100, "temp_right":0},
-        { "time":120,    "temp_left":500, "temp_main":100, "temp_right":300},
-        { "time":160,    "temp_left":500, "temp_main":1000,"temp_right":300},
-        { "time":170,    "temp_left":500, "temp_main":0,   "temp_right":300},
-        { "time":200,    "temp_left":0,   "temp_main":0,   "temp_right":300}
+        { "time":0,      "temp_left":0,    "temp_left_profile":"linear", "temp_main":0,   "temp_main_profile":"exponential",   "temp_right":0,  "temp_right_profile":"linear" },
+        { "time":40,     "temp_left":500,  "temp_left_profile":"linear", "temp_main":0,   "temp_main_profile":"exponential",   "temp_right":0,  "temp_right_profile":"linear" },
+        { "time":80,     "temp_left":500,  "temp_left_profile":"linear", "temp_main":100, "temp_main_profile":"step",          "temp_right":0,  "temp_right_profile":"logarithmic" },
+        { "time":120,    "temp_left":500,  "temp_left_profile":"linear", "temp_main":100, "temp_main_profile":"exponential",   "temp_right":300,"temp_right_profile":"logarithmic" },
+        { "time":160,    "temp_left":500,  "temp_left_profile":"linear", "temp_main":1000,"temp_main_profile":"exponential",   "temp_right":300,"temp_right_profile":"linear" },
+        { "time":200,    "temp_left":500,  "temp_left_profile":"linear", "temp_main":0,   "temp_main_profile":"exponential",   "temp_right":300,"temp_right_profile":"linear" },
+        { "time":250,    "temp_left":0,    "temp_left_profile":"linear", "temp_main":0,   "temp_main_profile":"exponential",   "temp_right":300,"temp_right_profile":"linear" }
     ]
 }

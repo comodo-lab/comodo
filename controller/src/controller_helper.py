@@ -38,18 +38,28 @@ def logarithmic_interpolation(start, end, num_steps):
     Returns:
         np.ndarray: Array of interpolated values (length == num_steps)
     """
+    offset = 0
     if num_steps < 2:
-        raise ValueError("num_steps must be at least 2 for interpolation.")
+        print("num_steps must be at least 2 for interpolation.")
+        return np.array([end])
     if start <= 0 or end <= 0:
-        raise ValueError("Logarithmic interpolation requires positive start and end values.")
+        if start < end:
+            print(f"Start value {start} is not positive and smaller than end {end}.")
+            offset = -start + 1
+        else:
+            print(f"End value {end} is not positive and smaller than start {start}.")
+            offset = -end + 1
     if start == end:
         return np.full(num_steps, start)
+
+    start += offset
+    end += offset
 
     log_start = np.log10(start)
     log_end = np.log10(end)
 
     log_space = np.linspace(log_start, log_end, num_steps)
-    return np.power(10, log_space)
+    return np.power(10, log_space) - offset
 
 
 def linear_interpolation(start, end, num_steps):
@@ -128,7 +138,7 @@ def split_setpoints(setpoint_list, resolution):
     sp_variables = {}
 
     for key in setpoint_list[0].keys():
-        if key not in required_keys and "_proflie" not in key:
+        if key not in required_keys and "_profile" not in key:
             variable_names.append(key)
 
     # Get given setpoints
