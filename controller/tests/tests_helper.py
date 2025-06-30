@@ -126,8 +126,12 @@ def make_client_fixture(client_id, callback, topics, autouse=False):
 
         yield c  # Testing happens here
 
-        # Teardown after test
-        c.client.disconnect()
+        try:
+            # Testing happens here
+            yield c
+        finally:
+            # Cleanup whatever the result
+            c.client.disconnect()
 
     return client
 
