@@ -14,4 +14,9 @@ COPY src/ /controller/src/
 COPY tests/ /controller/tests/
 COPY controller.py /controller/
 
+# TEMP: copy copy manually modified pytest-mqtt
+COPY pytest-mqtt /pytest-mqtt
+RUN pip install /pytest-mqtt
+
+# Run the controller
 CMD ["python", "-u", "controller.py"]
