@@ -252,6 +252,6 @@ class MQTTPublisher:
                 raise RuntimeError("MQTTPublisher not yet initialised; call get_instance(...) with parameters first")
             cls._instance = cls(**kwargs)
         elif cls._instance is not None and kwargs:
-            raise RuntimeError("MQTTPublisher already initialised; further parameters are ignored")
+            print("MQTTPublisher already initialised; further parameters are ignored")
 
         return cls._instance
