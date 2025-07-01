@@ -77,20 +77,29 @@ def mqtt_publish_exceptions(name, func):
     return wrapper
 
 
-def connect_or_timeout(client, connection_timeout):
-    """
-    Connects the client to the broker and waits for a connection.
-    If the client fails to connect within the connection_timeout, a TimeoutError is raised.
-    """
-    t_now = t.time()
-    while not client.client.is_connected():
-        t.sleep(0.1)
-        if t.time() - t_now > connection_timeout:
-            e = f"The {client.id} client failed to connect."
-            print(f"ERROR: {e}")
-            raise TimeoutError(e)
-    print(f"    Client '{client.id}' connected to broker.")
+def on_connect(client, userdata, flags, rc, properties):
+    # Check connection was ok
+    if rc != 0:
+        raise TimeoutError("{client.id} client failed to connect.")
+    else:
+        print(f"Client '{client.id}' successfully connected to broker.")
+    
+    # Selectively subscribe to topics
+    topics = userdata.get("topics")
 
+    # Convert to list if needed
+    if isinstance(topics, str):
+        topics = [topics]
+        
+    if isinstance(topics, list):
+        for topic in topics:
+            result, mid = client.subscribe(topic, 0)
+            if result == mqtt.MQTT_ERR_SUCCESS:
+                print(f"           '{id}' subscribed to '{topic}'.")
+            else:
+                print(
+                    f"           '{id}' failed to subscribe to '{topic}' with error code: {result}"
+                )
 
 class MQTTClient:
     """
@@ -125,31 +134,27 @@ class MQTTClient:
         obj: An additional object to be passed to the callback function. This would normally be the controller state object. Defaults to None.
         """
         self.id = id
+        # ----------------------------------------------------------------------
+        # Create client and register a callback which will perform subscriptions
+        
         self.client = mqtt.Client(client_id=id,
                                   callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
+                                  userdata={"topics": topics},
                                   )
+        self.client.on_connect = on_connect
+        
         self.obj = obj
         self.callback = callback
         if user is not None:
             self.client.username_pw_set(username=user, password=password)
-        try:
-            self.client.connect(broker_address, port, 60)
-        except Exception as e:
-            print(f"ERROR: Client '{id}' failed to connect to broker: {e}")
-            raise e
+        # try:
+        #     self.client.connect(broker_address, port, 60)
+        # except Exception as e:
+        #     print(f"ERROR: Client '{id}' failed to connect to broker: {e}")
+        #     raise e
+        self.client.connect(broker_address, port, connection_timeout)
         self.client.loop_start()
-        connect_or_timeout(self, connection_timeout)
-        if isinstance(topics, str):
-            topics = [topics]
-        if isinstance(topics, list):
-            for topic in topics:
-                result, mid = self.client.subscribe(topic, 0)
-                if result == mqtt.MQTT_ERR_SUCCESS:
-                    print(f"           '{id}' subscribed to '{topic}'.")
-                else:
-                    print(
-                        f"           '{id}' failed to subscribe to '{topic}' with error code: {result}"
-                    )
+        #connect_or_timeout(self, connection_timeout)
 
     def publish(self, topic, msg):
         """
