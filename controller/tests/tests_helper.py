@@ -9,7 +9,7 @@ import time as t
 from datetime import datetime
 
 from controller_state import cstate
-from mqtt_clients import MQTTClient, connect_or_timeout, MQTTPublisher
+from mqtt_clients import MQTTClient, MQTTPublisher
 from controller_helper import split_setpoints
 from validation import validate_file_print_errors
 
