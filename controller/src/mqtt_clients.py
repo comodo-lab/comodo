@@ -157,11 +157,21 @@ class MQTTClient:
         # ----------------------------------------------------------------------
         # Create client and register a callback which will perform subscriptions
         
-        self.client = mqtt.Client(client_id=id,
-                                  callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
-                                  userdata={"topics": topics},
-                                  )
+
+        print(f"OWDB topics in {topics}")
+        self.client = mqtt.Client(
+            client_id=id,
+            callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
+            userdata={"id": id,
+                      "topics": topics,
+                      "registered_mids": [],
+                      "successful_mids": [],
+                      "ready": False
+                      },
+        )
         self.client.on_connect = on_connect
+        self.client.on_subscribe = on_subscribe
+        self.client.enable_logger()
         
         self.obj = obj
         self.callback = callback
