@@ -66,6 +66,12 @@ def test_connection_ok(capsys):
         id="tester",
         topics="tester/#",
         obj=None,
+        broker_address=broker_address,
+        port=1883,
+        user=user,
+        password=password,
+        connection_timeout=connection_timeout
+
     )
     # Wait until the client is connected
     t_now = t.time()
