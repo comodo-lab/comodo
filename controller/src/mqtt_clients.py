@@ -76,6 +76,15 @@ def mqtt_publish_exceptions(name, func):
 
     return wrapper
 
+def on_subscribe(client, userdata, mid, reason_code_list, properties):
+    print(f"Client '{userdata.get("id")}' succeded? {reason_code_list} in subscribing.")
+
+    userdata.get("successful_mids").append(mid)
+    sorted_registered_mids = sorted(userdata.get("registered_mids"))
+    sorted_successful_mids = sorted(userdata.get("successful_mids"))
+    if sorted_registered_mids != sorted_successful_mids:
+        raise RuntimeError(f"A subscription for client {userdata.get("id")} has failed")
+
 
 def on_connect(client, userdata, flags, rc, properties):
     id = userdata.get("id")
