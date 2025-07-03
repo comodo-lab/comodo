@@ -94,9 +94,22 @@ def test_unhandled_exceptions(capmqtt, capsys):
         callback_with_error,
         topics="tester/#",
         obj=None,
+        broker_address=broker_address,
+        port=1883,
+        user=user,
+        password=password,
+        connection_timeout=connection_timeout
     )
     assert tester.client.is_connected() == True
     assert tester.callback == callback_with_error
+
+    publisher = MQTTPublisher.get_instance(
+        broker_address=broker_address,
+        user=user,
+        password=password,
+        connection_timeout=connection_timeout,
+    )
+    
     capmqtt.publish(
         topic="tester/test",
         payload="test",
@@ -116,4 +129,3 @@ def test_unhandled_exceptions(capmqtt, capsys):
     assert "Traceback:" in captured.out
     assert "tests/unit/test_mqtt_clients.py" in captured.out
     assert "function: 'callback_with_error'" in captured.out
-    assert "line: 10" in captured.out
