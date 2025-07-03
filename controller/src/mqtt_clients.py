@@ -100,16 +100,14 @@ def on_connect(client, userdata, flags, rc, properties):
         print(f"OWDB {topics}")
         raise RuntimeError("Topics list is not a list! Aborting")
 
+    # Perform subscription
+    for topic in topics:
+        print(f"OWDB {id} subscribing to '{topic}'.")
+        result, mid = client.subscribe(topic=topic, qos=2)
+        userdata.get("registered_mids").append(mid)
         
-    if isinstance(topics, list):
-        for topic in topics:
-            result, mid = client.subscribe(topic, 0)
-            if result == mqtt.MQTT_ERR_SUCCESS:
-                print(f"           '{id}' subscribed to '{topic}'.")
-            else:
-                print(
-                    f"           '{id}' failed to subscribe to '{topic}' with error code: {result}"
-                )
+        if result != mqtt.MQTT_ERR_SUCCESS:
+            raise RuntimeError(f"Client {id} unable to subscribe to {topic}")
 
 class MQTTClient:
     """
