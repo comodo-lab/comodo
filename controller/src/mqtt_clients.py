@@ -167,11 +167,7 @@ class MQTTClient:
         self.callback = callback
         if user is not None:
             self.client.username_pw_set(username=user, password=password)
-        # try:
-        #     self.client.connect(broker_address, port, 60)
-        # except Exception as e:
-        #     print(f"ERROR: Client '{id}' failed to connect to broker: {e}")
-        #     raise e
+
         self.client.connect(broker_address, port, connection_timeout)
         self.client.loop_start()
         #connect_or_timeout(self, connection_timeout)
