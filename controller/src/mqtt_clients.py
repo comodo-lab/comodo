@@ -87,8 +87,8 @@ def on_subscribe(client, userdata, mid, reason_code_list, properties):
         raise RuntimeError(f"A subscription for client {userdata.get("id")} has failed")
 
 def on_connect_fail(client, userdata):
-    print(f"Client '{userdata.get("id")}' fucked it.")
-    raise RuntimeError(f"Client '{userdata.get("id")}' fucked it.")
+    print(f"Client '{userdata.get("id")}' failed to connect.")
+    raise RuntimeError(f"Client '{userdata.get("id")}' failed to connect.")
 
 def on_connect(client, userdata, flags, rc, properties):
     id = userdata.get("id")
