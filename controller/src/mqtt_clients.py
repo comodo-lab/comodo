@@ -85,6 +85,9 @@ def on_subscribe(client, userdata, mid, reason_code_list, properties):
     if sorted_registered_mids != sorted_successful_mids:
         raise RuntimeError(f"A subscription for client {userdata.get("id")} has failed")
 
+def on_connect_fail(client, userdata):
+    print(f"Client '{userdata.get("id")}' fucked it.")
+    raise RuntimeError(f"Client '{userdata.get("id")}' fucked it.")
 
 def on_connect(client, userdata, flags, rc, properties):
     id = userdata.get("id")
