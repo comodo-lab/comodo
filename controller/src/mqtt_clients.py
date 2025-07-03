@@ -92,6 +92,9 @@ def on_connect(client, userdata, flags, rc, properties):
     # Convert to list if needed
     if isinstance(topics, str):
         topics = [topics]
+    elif topics == None:
+        return 
+
         
     if isinstance(topics, list):
         for topic in topics:
