@@ -121,6 +121,10 @@ def on_connect(client, userdata, flags, rc, properties):
         if result != mqtt.MQTT_ERR_SUCCESS:
             raise RuntimeError(f"Client {id} unable to subscribe to {topic}")
 
+    # Signal readiness
+    print("OWDB {id} setting ready to true")
+    userdata["ready"] = True
+    
 class MQTTClient:
     """
     A class to simplify the process of creating and setting up MQTT clients.
