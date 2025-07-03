@@ -149,10 +149,6 @@ def make_client_fixture(client_id, callback, topics, autouse=False):
             connection_timeout=connection_timeout,
         )
 
-        import time as t
-        while c.client._userdata.get("ready") != True:
-            t.sleep(1)
-
         try:
             # Testing happens here
             yield c

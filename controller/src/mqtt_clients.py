@@ -3,8 +3,8 @@ import paho.mqtt.client as mqtt
 from datetime import datetime
 import json
 import os
-import time as t
 import threading
+from threading import Event
 
 
 def print_message(client, msg, timestamped=False):
@@ -79,12 +79,17 @@ def mqtt_publish_exceptions(name, func):
 
 def on_subscribe(client, userdata, mid, reason_code_list, properties):
     print(f"Client '{userdata.get("id")}' succeded? {reason_code_list} in subscribing.")
+    if all(rc <= 2 for rc in reason_code_list):
+        print(f"Client '{userdata.get('id')}' successfully subscribed (mid {mid}).")
+        userdata["successful_mids"].append(mid)
+    else:
+        raise RuntimeError(f"Client '{userdata.get('id')}' FAILED to subscribe (mid {mid}): {reason_codes}")
 
-    userdata.get("successful_mids").append(mid)
     sorted_registered_mids = sorted(userdata.get("registered_mids"))
     sorted_successful_mids = sorted(userdata.get("successful_mids"))
-    if sorted_registered_mids != sorted_successful_mids:
-        raise RuntimeError(f"A subscription for client {userdata.get("id")} has failed")
+    if sorted_registered_mids == sorted_successful_mids:
+        # All mids now registered
+        userdata["ready"].set()
 
 def on_connect_fail(client, userdata):
     print(f"Client '{userdata.get("id")}' failed to connect.")
@@ -106,6 +111,8 @@ def on_connect(client, userdata, flags, rc, properties):
     if isinstance(topics, str):
         topics = [topics]
     elif topics == None:
+        print("No topics registered. Ready and exiting")
+        userdata["ready"].set()
         return 
 
     # Verify topics is list, otherwise exit
@@ -115,13 +122,10 @@ def on_connect(client, userdata, flags, rc, properties):
     # Perform subscription
     for topic in topics:
         result, mid = client.subscribe(topic=topic, qos=2)
-        userdata.get("registered_mids").append(mid)
+        userdata["registered_mids"].append(mid)
         
         if result != mqtt.MQTT_ERR_SUCCESS:
             raise RuntimeError(f"Client {id} unable to subscribe to {topic}")
-
-    # Signal readiness
-    userdata["ready"] = True
     
 class MQTTClient:
     """
@@ -157,6 +161,7 @@ class MQTTClient:
         """
 
         self.id = id
+        self.ready_event = Event()
 
         # ----------------------------------------------------------------------
         # Create client and register a callback which will perform subscriptions
@@ -168,7 +173,7 @@ class MQTTClient:
                       "topics": topics,
                       "registered_mids": [],
                       "successful_mids": [],
-                      "ready": False
+                      "ready": self.ready_event
                       },
         )
         self.client.on_connect = on_connect
@@ -183,6 +188,13 @@ class MQTTClient:
         self.client.connect(broker_address, port, connection_timeout)
         self.client.loop_start()
 
+        # Block until ready
+        ready_success = self.ready_event.wait(timeout=5)
+        if not ready_success:
+            raise RuntimeError(f"Client {id} creation timed out waiting for ready")
+        else:
+            # Successfully recieved signal
+            pass
 
     def publish(self, topic, msg):
         """
