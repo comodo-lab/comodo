@@ -157,10 +157,11 @@ class MQTTClient:
         connection_timeout: The time to wait for making a connection. Defaults to indefinite (0)
         obj: An additional object to be passed to the callback function. This would normally be the controller state object. Defaults to None.
         """
+
         self.id = id
+
         # ----------------------------------------------------------------------
         # Create client and register a callback which will perform subscriptions
-        
 
         print(f"OWDB topics in {topics}")
         self.client = mqtt.Client(
