@@ -187,7 +187,9 @@ class MQTTClient:
         Provides a publish method for the MQTTClient object,
         which calls the publish method of the underlying MQTT client.
         """
-        self.client.publish(topic, msg)
+        msg = self.client.publish(topic, msg, 2)
+        msg.wait_for_publish()
+        
 
     @property
     def callback(self):
