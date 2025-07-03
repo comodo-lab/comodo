@@ -33,8 +33,3 @@ visualisation:
     type: gauge
     value:
       - temperature_centre
-
-mqtt:
-  broker_address: rabbitmq:1883
-  username: comodo
-  password: comodo
