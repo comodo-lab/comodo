@@ -144,5 +144,5 @@ useful to run these for development purposes or for finding the cause of failure
 We recommend running the tests using the scaffolding provided by Docker Compose.
 
 ```shell
-$ docker compose run --rm controller pytest
+$ docker compose -f docker-compose.test.yml up --build --exit-code-from controller-test --abort-on-container-exit controller-test
 ```

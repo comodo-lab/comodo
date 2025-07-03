@@ -9,12 +9,21 @@ import time as t
 from datetime import datetime
 
 from controller_state import cstate
-from mqtt_clients import MQTTClient, connect_or_timeout, MQTTPublisher
+from mqtt_clients import MQTTClient, MQTTPublisher
 from controller_helper import split_setpoints
+from validation import validate_file_print_errors
 
 time_int = 0.01  # Time interval between client connection / message checks
 timeout = 3  # Client connection / message wait timeout
 
+config = validate_file_print_errors(
+    "config/config.json",
+    "schemas/schema_config.json",
+)
+broker_address = config["mqtt"]["broker_address"]
+user = config["mqtt"]["user"]
+password = config["mqtt"]["password"]
+connection_timeout = config["mqtt"]["connection_timeout"]
 
 def valid_schema_path():
     return "schemas/schema_experiment.json"
@@ -120,14 +129,32 @@ def make_client_fixture(client_id, callback, topics, autouse=False):
 
     @pytest.fixture(autouse=autouse)
     def client(state):
-        # Setup before test
-        c = MQTTClient(client_id, callback, topics, obj=state)
-        connect_or_timeout(c)
+        # Initialise the publisher
+        MQTTPublisher.get_instance(
+            broker_address=broker_address,
+            user=user,
+            password=password,
+            connection_timeout=connection_timeout,
+        )
 
-        yield c  # Testing happens here
+        # Set up the client for testing
+        c = MQTTClient(
+            id=client_id,
+            callback=callback,
+            topics=topics,
+            obj=state,
+            broker_address=broker_address,
+            user=user,
+            password=password,
+            connection_timeout=connection_timeout,
+        )
 
-        # Teardown after test
-        c.client.disconnect()
+        try:
+            # Testing happens here
+            yield c
+        finally:
+            # Cleanup whatever the result
+            c.client.disconnect()
 
     return client
 

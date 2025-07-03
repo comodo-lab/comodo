@@ -3,8 +3,9 @@ import paho.mqtt.client as mqtt
 from datetime import datetime
 import json
 import os
-import time as t
 import threading
+from threading import Event
+
 
 def print_message(client, msg, timestamped=False):
     """
@@ -76,22 +77,56 @@ def mqtt_publish_exceptions(name, func):
 
     return wrapper
 
+def on_subscribe(client, userdata, mid, reason_code_list, properties):
+    print(f"Client '{userdata.get("id")}' succeded? {reason_code_list} in subscribing.")
+    if all(rc <= 2 for rc in reason_code_list):
+        print(f"Client '{userdata.get('id')}' successfully subscribed (mid {mid}).")
+        userdata["successful_mids"].append(mid)
+    else:
+        raise RuntimeError(f"Client '{userdata.get('id')}' FAILED to subscribe (mid {mid}): {reason_codes}")
 
-def connect_or_timeout(client, connection_timeout):
-    """
-    Connects the client to the broker and waits for a connection.
-    If the client fails to connect within the connection_timeout, a TimeoutError is raised.
-    """
-    t_now = t.time()
-    while not client.client.is_connected():
-        t.sleep(0.1)
-        if t.time() - t_now > connection_timeout:
-            e = f"The {client.id} client failed to connect."
-            print(f"ERROR: {e}")
-            raise TimeoutError(e)
-    print(f"    Client '{client.id}' connected to broker.")
+    sorted_registered_mids = sorted(userdata.get("registered_mids"))
+    sorted_successful_mids = sorted(userdata.get("successful_mids"))
+    if sorted_registered_mids == sorted_successful_mids:
+        # All mids now registered
+        userdata["ready"].set()
 
+def on_connect_fail(client, userdata):
+    print(f"Client '{userdata.get("id")}' failed to connect.")
+    raise RuntimeError(f"Client '{userdata.get("id")}' failed to connect.")
 
+def on_connect(client, userdata, flags, rc, properties):
+    id = userdata.get("id")
+    
+    # Check connection was ok
+    if rc != 0:
+        raise TimeoutError("{id} client failed to connect.")
+    else:
+        print(f"Client {id} successfully connected to broker.")
+    
+    # Selectively subscribe to topics
+    topics = userdata.get("topics")
+
+    # Convert to list if needed
+    if isinstance(topics, str):
+        topics = [topics]
+    elif topics == None:
+        print("No topics registered. Ready and exiting")
+        userdata["ready"].set()
+        return 
+
+    # Verify topics is list, otherwise exit
+    if not isinstance(topics, list):
+        raise RuntimeError("Topics list is not a list! Aborting")
+
+    # Perform subscription
+    for topic in topics:
+        result, mid = client.subscribe(topic=topic, qos=2)
+        userdata["registered_mids"].append(mid)
+        
+        if result != mqtt.MQTT_ERR_SUCCESS:
+            raise RuntimeError(f"Client {id} unable to subscribe to {topic}")
+    
 class MQTTClient:
     """
     A class to simplify the process of creating and setting up MQTT clients.
@@ -124,40 +159,51 @@ class MQTTClient:
         connection_timeout: The time to wait for making a connection. Defaults to indefinite (0)
         obj: An additional object to be passed to the callback function. This would normally be the controller state object. Defaults to None.
         """
+
         self.id = id
-        self.client = mqtt.Client(client_id=id,
-                                  callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
-                                  protocol=mqtt.MQTTv311
-                                  )
+        self.ready_event = Event()
+
+        # ----------------------------------------------------------------------
+        # Create client and register a callback which will perform subscriptions
+
+        self.client = mqtt.Client(
+            client_id=id,
+            callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
+            userdata={"id": id,
+                      "topics": topics,
+                      "registered_mids": [],
+                      "successful_mids": [],
+                      "ready": self.ready_event
+                      },
+        )
+        self.client.on_connect = on_connect
+        self.client.on_subscribe = on_subscribe
+        self.client.enable_logger()
+        
         self.obj = obj
         self.callback = callback
         if user is not None:
             self.client.username_pw_set(username=user, password=password)
-        try:
-            self.client.connect(broker_address, port, 60)
-        except Exception as e:
-            print(f"ERROR: Client '{id}' failed to connect to broker: {e}")
-            raise e
+
+        self.client.connect(broker_address, port, connection_timeout)
         self.client.loop_start()
-        connect_or_timeout(self, connection_timeout)
-        if isinstance(topics, str):
-            topics = [topics]
-        if isinstance(topics, list):
-            for topic in topics:
-                result, mid = self.client.subscribe(topic, 0)
-                if result == mqtt.MQTT_ERR_SUCCESS:
-                    print(f"           '{id}' subscribed to '{topic}'.")
-                else:
-                    print(
-                        f"           '{id}' failed to subscribe to '{topic}' with error code: {result}"
-                    )
+
+        # Block until ready
+        ready_success = self.ready_event.wait(timeout=5)
+        if not ready_success:
+            raise TimeoutError(f"Client {id} creation timed out waiting for ready")
+        else:
+            # Successfully recieved signal
+            pass
 
     def publish(self, topic, msg):
         """
         Provides a publish method for the MQTTClient object,
         which calls the publish method of the underlying MQTT client.
         """
-        self.client.publish(topic, msg)
+        msg = self.client.publish(topic, msg, 2)
+        msg.wait_for_publish()
+        
 
     @property
     def callback(self):
@@ -170,12 +216,15 @@ class MQTTClient:
         The on_message is wrapped with the mqtt_publish_exceptions decorator to publish unhandled exceptions.
         The controller client uses this to reflect its different states.
         """
+
         self._callback = callback
         if callback is not None:
             self.client.on_message = mqtt_publish_exceptions(
                 callback.__name__,
                 lambda client, userdata, msg: callback(self, msg, self.obj),
             )
+        else:
+            pass
 
 
 def load_message(msg):
@@ -248,6 +297,6 @@ class MQTTPublisher:
                 raise RuntimeError("MQTTPublisher not yet initialised; call get_instance(...) with parameters first")
             cls._instance = cls(**kwargs)
         elif cls._instance is not None and kwargs:
-            raise RuntimeError("MQTTPublisher already initialised; further parameters are ignored")
+            print("MQTTPublisher already initialised; further parameters are ignored")
 
         return cls._instance
