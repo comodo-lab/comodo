@@ -180,7 +180,7 @@ class MQTTClient:
 
         self.client.connect(broker_address, port, connection_timeout)
         self.client.loop_start()
-        #connect_or_timeout(self, connection_timeout)
+
 
     def publish(self, topic, msg):
         """
