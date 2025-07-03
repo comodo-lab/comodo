@@ -14,7 +14,8 @@ PARAMS = [
     'temp_right'
 ]  # TODO: Would get these from config or ttl in future
 
-app = Dash(external_stylesheets=[dbc.themes.BOOTSTRAP])
+app = Dash(external_stylesheets=[dbc.themes.FLATLY])
+
 
 app.layout = dbc.Container(
     [

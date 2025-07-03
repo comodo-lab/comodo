@@ -54,6 +54,10 @@ def get_experiment_designer(params=[], initial_data=None):
         if col['id'].endswith('_profile'):
             column_dict[idx]['presentation'] = 'dropdown'
 
+    print(f"Column dict: {column_dict}")
+
+    css_dropdown = [{"selector":".dropdown", "rule": "position: static"}]
+
     table = dash_table.DataTable(
         id=id,
         columns=column_dict,
@@ -61,6 +65,7 @@ def get_experiment_designer(params=[], initial_data=None):
         editable=True,
         row_deletable=True,
         dropdown=dropdowns,
+        css=css_dropdown,
     )
     return table
 
