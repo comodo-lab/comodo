@@ -78,11 +78,13 @@ def mqtt_publish_exceptions(name, func):
 
 
 def on_connect(client, userdata, flags, rc, properties):
+    id = userdata.get("id")
+    
     # Check connection was ok
     if rc != 0:
-        raise TimeoutError("{client.id} client failed to connect.")
+        raise TimeoutError("{id} client failed to connect.")
     else:
-        print(f"Client '{client.id}' successfully connected to broker.")
+        print(f"Client {id} successfully connected to broker.")
     
     # Selectively subscribe to topics
     topics = userdata.get("topics")
