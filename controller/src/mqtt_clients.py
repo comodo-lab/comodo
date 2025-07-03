@@ -95,6 +95,11 @@ def on_connect(client, userdata, flags, rc, properties):
     elif topics == None:
         return 
 
+    # Verify topics is list, otherwise exit
+    if not isinstance(topics, list):
+        print(f"OWDB {topics}")
+        raise RuntimeError("Topics list is not a list! Aborting")
+
         
     if isinstance(topics, list):
         for topic in topics:
