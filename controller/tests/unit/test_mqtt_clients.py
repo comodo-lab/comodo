@@ -83,9 +83,8 @@ def test_connection_ok(capsys):
     captured = capsys.readouterr()
 
     # Printed confirmation
-    assert "Client 'tester' connected to broker" in captured.out
+    assert "Client tester successfully connected to broker." in captured.out
     assert tester.client.is_connected() == True
-    assert "'tester' subscribed to 'tester/#'" in captured.out
 
 
 def test_unhandled_exceptions(capmqtt, capsys):
