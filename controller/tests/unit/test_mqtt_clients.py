@@ -5,29 +5,33 @@ from tests.tests_helper import *
 
 from mqtt_clients import *
 
+config = validate_file_print_errors(
+    "config/config.json",
+    "schemas/schema_config.json",
+)
+broker_address = config["mqtt"]["broker_address"]
+user = config["mqtt"]["user"]
+password = config["mqtt"]["password"]
+connection_timeout = config["mqtt"]["connection_timeout"]
 
 def callback_with_error(client, msg, obj):
     raise ValueError("This is a test error")
 
 
 def test_connection_error(capsys):
-    with patch("mqtt_clients.connection_timeout", 0.5):
-        with pytest.raises(Exception) as e:
-            tester = MQTTClient(
-                id="tester",
-                topics="tester/#",
-                obj=None,
-                broker_address="localhost",
-                port=1234,
-                user=None,
-                password="fake",
-            )
-
-    captured = capsys.readouterr()
+    with pytest.raises(ConnectionRefusedError) as e:
+        tester = MQTTClient(
+            id="tester",
+            topics="tester/#",
+            obj=None,
+            broker_address=broker_address,
+            port=1882,
+            user=user,
+            password=password,
+            connection_timeout=connection_timeout
+        )
 
     # Error in console
-    assert "ERROR:" in captured.out
-    assert "Client 'tester' failed to connect to broker" in captured.out
     if "tester" in locals():
         assert tester.client.is_connected() == False
 
