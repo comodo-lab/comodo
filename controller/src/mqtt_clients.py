@@ -191,7 +191,7 @@ class MQTTClient:
         # Block until ready
         ready_success = self.ready_event.wait(timeout=5)
         if not ready_success:
-            raise RuntimeError(f"Client {id} creation timed out waiting for ready")
+            raise TimeoutError(f"Client {id} creation timed out waiting for ready")
         else:
             # Successfully recieved signal
             pass

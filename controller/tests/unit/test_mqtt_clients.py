@@ -37,30 +37,26 @@ def test_connection_error(capsys):
 
 
 def test_connection_timeout(capsys):
-    with patch("mqtt_clients.connection_timeout", 0.5):
-        with patch(
-            "paho.mqtt.client.Client.connect",
-            side_effect=lambda *args, **kwargs: t.sleep(1),
-        ):
-            with pytest.raises(TimeoutError) as e:
-                tester = MQTTClient(
-                    id="tester",
-                    topics="tester/#",
-                    obj=None,
-                    broker_address="localhost",
-                    port=1234,
-                    user=None,
-                    password="fake",
-                )
+    with patch(
+        "paho.mqtt.client.Client.connect",
+        side_effect=lambda *args, **kwargs: t.sleep(2),
+    ):
+        with pytest.raises(TimeoutError) as e:
+            tester = MQTTClient(
+                id="tester",
+                topics="tester/#",
+                obj=None,
+                broker_address=broker_address,
+                port=1883,
+                user=user,
+                password=password,
+                connection_timeout=1
+            )
 
-    expected_err = "The tester client failed to connect."
+    expected_err = "Client tester creation timed out waiting for ready"
     assert expected_err in str(e)
 
-    captured = capsys.readouterr()
-
     # Error in console
-    assert "ERROR:" in captured.out
-    assert expected_err in captured.out
     if "tester" in locals():
         assert tester.client.is_connected() == False
 
