@@ -6,6 +6,7 @@ import os
 import time as t
 import threading
 
+
 def print_message(client, msg, timestamped=False):
     """
     Print the message received from the MQTT client to the console in the format:
@@ -109,12 +110,10 @@ def on_connect(client, userdata, flags, rc, properties):
 
     # Verify topics is list, otherwise exit
     if not isinstance(topics, list):
-        print(f"OWDB {topics}")
         raise RuntimeError("Topics list is not a list! Aborting")
 
     # Perform subscription
     for topic in topics:
-        print(f"OWDB {id} subscribing to '{topic}'.")
         result, mid = client.subscribe(topic=topic, qos=2)
         userdata.get("registered_mids").append(mid)
         
@@ -122,7 +121,6 @@ def on_connect(client, userdata, flags, rc, properties):
             raise RuntimeError(f"Client {id} unable to subscribe to {topic}")
 
     # Signal readiness
-    print("OWDB {id} setting ready to true")
     userdata["ready"] = True
     
 class MQTTClient:
@@ -163,7 +161,6 @@ class MQTTClient:
         # ----------------------------------------------------------------------
         # Create client and register a callback which will perform subscriptions
 
-        print(f"OWDB topics in {topics}")
         self.client = mqtt.Client(
             client_id=id,
             callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
@@ -207,12 +204,15 @@ class MQTTClient:
         The on_message is wrapped with the mqtt_publish_exceptions decorator to publish unhandled exceptions.
         The controller client uses this to reflect its different states.
         """
+
         self._callback = callback
         if callback is not None:
             self.client.on_message = mqtt_publish_exceptions(
                 callback.__name__,
                 lambda client, userdata, msg: callback(self, msg, self.obj),
             )
+        else:
+            pass
 
 
 def load_message(msg):
