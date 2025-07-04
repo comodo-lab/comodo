@@ -38,7 +38,7 @@ def send_heartbeat():
     """
     if state.client is not None and "ready" in state.config:
         heartbeat_structure = state.get_status()
-        print(heartbeat_structure)
+        # print(heartbeat_structure)
         state.client.publish(f"heartbeat/sensor/{state.config['SENSOR_ID']}", heartbeat_structure)
 
 def send_measurement():

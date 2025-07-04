@@ -11,6 +11,8 @@ from error_helper import *
 
 config = json.load(open("config/config.json"))
 
+INFLUX_TOKEN = os.environ['INFLUX_TOKEN']
+
 
 class internal_stop_msg:
     """
@@ -22,48 +24,6 @@ class internal_stop_msg:
         self.topic = "controller/stop"
         p = {"uid": uid}
         self.payload = json.dumps(p).encode("utf-8")
-
-
-def split_setpoints(setpoint_list, resolution):
-    """
-    Interpolates the given setpoints to a given time resolution.
-    It also converts from linear time to time intervals.
-    """
-    # Get given setpoints
-    times = np.array([sp["time"] for sp in setpoint_list])
-    pressures = np.array([sp["pressure"] for sp in setpoint_list])
-    temperatures = np.array([sp["temperature"] for sp in setpoint_list])
-    displacements_1 = np.array([sp["displacement 1"] for sp in setpoint_list])
-    displacements_2 = np.array([sp["displacement 2"] for sp in setpoint_list])
-
-    # Interpolate setpoints
-    new_times = np.arange(min(times), max(times) + resolution, resolution)
-    new_pressures = np.interp(new_times, times, pressures).astype(float).tolist()
-    new_temps = np.interp(new_times, times, temperatures).astype(float).tolist()
-    new_disp_1 = np.interp(new_times, times, displacements_1).astype(float).tolist()
-    new_disp_2 = np.interp(new_times, times, displacements_2).astype(float).tolist()
-
-    new_times = new_times.astype(float).tolist()
-    time_intervals = [new_times[i] - new_times[i - 1] for i in range(1, len(new_times))]
-    time_intervals.insert(0, 0)
-
-    # Return list of dictionaries with the interpolated values
-    return [
-        {
-            "duration": t,
-            "pressure": p,
-            "temperature": temp,
-            "displacement 1": d1,
-            "displacement 2": d2,
-        }
-        for t, p, temp, d1, d2 in zip(
-            time_intervals,
-            new_pressures,
-            new_temps,
-            new_disp_1,
-            new_disp_2,
-        )
-    ]
 
 
 data_path = "data"
@@ -101,20 +61,19 @@ def dump_database_for_experiment(obj):
     tf = datetime.now()
     # get everything from influx database
     buckets = config["influxdb"]["buckets"]
-    secret = json.load(open("config/.secret_influxdb_token.json"))
     client = influxdb_client.InfluxDBClient(
-        url=config["influxdb"]["url"],
-        token=secret["influxdb_token"],
+        url='http://comodo-influx:8086',
+        token=INFLUX_TOKEN,
         org=config["influxdb"]["org"],
     )
     query_api = client.query_api()
     exp_dir_path = obj.exp_file.replace(".json", "")
     if not os.path.exists(exp_dir_path):
         os.makedirs(exp_dir_path)
-    for bucket in buckets:
-        query = f'from(bucket: "{bucket}") |> range(start: {t0.isoformat()}Z, stop: {tf.isoformat()}Z)'
-        data = query_api.query_csv(org=config["influxdb"]["org"], query=query)
-        values = data.to_values()
-        with open(f"{exp_dir_path}/{bucket}.csv", "w", newline="") as myfile:
-            wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
-            wr.writerows(values)
+    # for bucket in buckets:
+    #     query = f'from(bucket: "{bucket}") |> range(start: {t0.isoformat()}Z, stop: {tf.isoformat()}Z)'
+    #     data = query_api.query_csv(org=config["influxdb"]["org"], query=query)
+    #     values = data.to_values()
+    #     with open(f"{exp_dir_path}/{bucket}.csv", "w", newline="") as myfile:
+    #         wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
+    #         wr.writerows(values)

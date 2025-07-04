@@ -81,8 +81,8 @@ services:
 
   controller:
     build:
-      context: ./controller
-      dockerfile: Dockerfile
+      context: ./
+      dockerfile: controller/Dockerfile
     container_name: comodo-controller
     restart: unless-stopped
     depends_on:
@@ -91,21 +91,37 @@ services:
     volumes:
       - ./controller/data:/controller/data
       - ./controller/config/config.json:/controller/config/config.json
+    environment:
+      - INFLUX_TOKEN=${INFLUX_TOKEN}
     networks:
       comodo:
             
   ui:
     build:
-      context: ./ui
-      dockerfile: Dockerfile
+      context: .
+      dockerfile_inline: |
+        FROM python:3.13-slim
+        COPY ui/requirements.txt ./requirements.txt
+        RUN pip install -r ./requirements.txt
+        COPY ui /app
+        COPY utils/mqtt_clients.py /app/mqtt_clients.py
+        COPY utils/interpolation.py /app/interpolation.py
+        CMD ["python", "-u", "/app/app.py"]
     container_name: comodo-ui
-    ports:
-      - '8501:8501'
-    volumes:
-      - ./controller/config/config.json:/etc/ui/config.json
     restart: unless-stopped
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    ports:
+      - '8050:8050'
+    volumes:
+      - ./ui/:/app/
+      - ./utils:/app/utils
+    environment:
+      - MQTT_USER=${MQTT_USER}
+      - MQTT_PASS=${MQTT_PASS}
     networks:
-      comodo:
+      - comodo
 
 networks:
   comodo:
