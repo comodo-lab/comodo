@@ -1,5 +1,9 @@
 from dash import Dash, dash_table, html, dcc, callback, Output, Input, State, no_update, ctx
 import dash_bootstrap_components as dbc
+import plotly.express as px
+import uuid
+
+import dash_ag_grid as dag
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -12,6 +16,11 @@ PROFILES = [
     'step'
 ]
 
+PARAMS = [
+    'temp_left',
+    'temp_main',
+    'temp_right'
+]
 
 ini_data_dict = [
     {'time': 0, 'temp_left': 0.0, 'temp_left_profile': 'linear', 'temp_main': 0.0, 'temp_main_profile': 'linear', 'temp_right': 0.0, 'temp_right_profile': 'linear'},
@@ -22,63 +31,177 @@ ini_data_dict = [
 ]
 
 
+# def get_experiment_designer(params=[], initial_data=None):
+#     '''
+#     Creates a table to display the experimental control data.
+#     '''
+#     id = 'experiment-designer'
+#     columns = ['time']
+#     for col in params:
+#         columns.append(col)
+#         columns.append(f'{col}_profile')
+#     if initial_data is None:
+#         data = ini_data_dict
+#         # data = [dict(time=i, **{param: 0 for param in columns if param != 'time'}) for i in range(1, 5)]
+#     else:
+#         data = initial_data
+
+#     print(f"Creating table with columns: {columns} and data: {data}")
+
+#     column_dict = [{'headerName': ' '.join(word.capitalize() for word in col.split('_')), 'field': col} for col in columns]
+
+#     for idx, col in enumerate(column_dict):
+#         if col['field'].endswith('_profile'):
+#             column_dict[idx]['headerName'] = 'Profile'
+#             column_dict[idx]['cellEditor'] = 'agSelectCellEditor'
+#             column_dict[idx]['cellEditorParams'] = {'values': PROFILES}
+
+#     print(f"Column dict: {column_dict}")
+
+#     table = dag.AgGrid(
+#         id=id,
+#         columnDefs=column_dict,
+#         rowData=data,
+#         className="ag-theme-alpine-auto-dark",
+#         columnSize="sizeToFit",
+#         defaultColDef={"editable": True},
+#     ),
+#     return table
+
+
 def get_experiment_designer(params=[], initial_data=None):
     '''
-    Creates a table to display the experimental control data.
+    Creates a dash-ag-grid component for experimental control data with editing,
+    dropdowns, and row add/delete support.
     '''
-    id = 'experiment-designer'
+    component_id = 'experiment-designer'
+
+    # Build column list
     columns = ['time']
     for col in params:
         columns.append(col)
         columns.append(f'{col}_profile')
+
+    # Use provided data or fallback to sample
     if initial_data is None:
         data = ini_data_dict
-        # data = [dict(time=i, **{param: 0 for param in columns if param != 'time'}) for i in range(1, 5)]
     else:
         data = initial_data
 
-    profile_options = {
-        'options': [
-            {'label': profile.capitalize(), 'value': profile}
-            for profile in PROFILES
-        ]
-    }
-    dropdowns = dict(**{col: profile_options for col in columns if col.endswith('_profile')})
+    # Ensure each row has a unique ID
+    for row in data:
+        row.setdefault("id", str(uuid.uuid4()))
 
-    print(f"Creating table with columns: {columns} and data: {data}")
-    print(f"Dropdowns: {dropdowns}")
+    # Construct column definitions
+    column_dicts = [{'headerName': ' '.join(w.capitalize() for w in col.split('_')), 'field': col}
+                    for col in columns]
 
-    column_dict = [{'name': ' '.join(word.capitalize() for word in col.split('_')), 'id': col} for col in columns]
+    for col in column_dicts:
+        if col['field'] == 'time':
+            col.update({
+                'headerName': 'Time (s)',
+                "checkboxSelection": True
+            })
+        if col['field'].endswith('_profile'):
+            col.update({
+                'headerName': 'Profile',
+                'cellEditor': 'agSelectCellEditor',
+                'cellEditorParams': {'values': PROFILES}
+            })
 
-    for idx, col in enumerate(column_dict):
-        if col['id'].endswith('_profile'):
-            column_dict[idx]['presentation'] = 'dropdown'
+    # Prepend ID field (hidden)
+    column_dicts.insert(0, {
+        'field': 'id',
+        'hide': True
+    })
 
-    print(f"Column dict: {column_dict}")
+    # Layout with add/delete buttons and state
+    layout = html.Div([
+        html.Div([
+            html.Button("Add Row", id=f"{component_id}-add", n_clicks=0, className="btn btn-success me-2"),
+            html.Button("Delete Selected", id=f"{component_id}-delete", n_clicks=0, className="btn btn-danger"),
+        ], className="my-2"),
 
-    css_dropdown = [{"selector":".dropdown", "rule": "position: static"}]
+        dcc.Store(id=f"{component_id}-store", data=data),
 
-    table = dash_table.DataTable(
-        id=id,
-        columns=column_dict,
-        data=data,
-        editable=True,
-        row_deletable=True,
-        dropdown=dropdowns,
-        css=css_dropdown,
-    )
-    return table
+        dag.AgGrid(
+            id=component_id,
+            columnDefs=column_dicts,
+            rowData=data,
+            className="ag-theme-alpine",
+            defaultColDef={"editable": True, "resizable": True},
+            columnSize="responsiveSizeToFit",
+            dashGridOptions={"rowSelection": "multiple", "suppressRowClickSelection": True},
+        )
+    ])
+
+    return layout
+
+
+def get_experiment_graph():
+    """
+    Creates a graph to display the experimental data.
+    """
+    graph = dcc.Graph(id='experiment-plot')
+    # dcc.Graph(id='experiment-plot', figure=fig)
+
+    return graph
 
 
 @callback(
-    Output('experiment-designer', 'data'),
-    Input('editing-rows-button', 'n_clicks'),
-    State('experiment-designer', 'data'),
-    State('experiment-designer', 'columns'))
-def add_row(n_clicks, rows, columns):
-    if n_clicks > 0:
-        rows.append({c['id']: '' for c in columns})
-    return rows
+    Output("experiment-designer", "rowData"),
+    Input("experiment-designer-store", "data")
+)
+def update_table(data):
+    return data
+
+
+@callback(
+    Output("experiment-designer-store", "data", allow_duplicate=True),
+    Input("experiment-designer-add", "n_clicks"),
+    State("experiment-designer-store", "data"),
+    prevent_initial_call="initial_duplicate"
+)
+def add_row(n_clicks, data):
+    new_row = {"id": str(uuid.uuid4())}
+    for col in data[0]:
+        if col == "id":
+            continue
+        elif col.endswith("_profile"):
+            new_row[col] = PROFILES[0]
+        else:
+            new_row[col] = ""
+    return data + [new_row]
+
+
+@callback(
+    Output("experiment-designer-store", "data", allow_duplicate=True),
+    Input("experiment-designer-delete", "n_clicks"),
+    State("experiment-designer", "selectedRows"),
+    State("experiment-designer-store", "data"),
+    prevent_initial_call="initial_duplicate"
+)
+def delete_selected(n_clicks, selected_rows, current_data):
+    if not selected_rows:
+        return current_data
+    selected_ids = {row["id"] for row in selected_rows}
+    return [row for row in current_data if row["id"] not in selected_ids]
+
+
+@callback(
+    Output("experiment-plot", "figure"),
+    Input("experiment-designer", "cellValueChanged")
+)
+def update(cell_changed):
+    if cell_changed is None:
+        return
+
+    new_data = cell_changed[0]['data']
+    y = []
+    for param in PARAMS:
+        y.append(new_data[param])
+    fig = px.scatter(x=[0, 1, 2], y=y)
+    return fig
 
 
 def get_main_window(params=[], initial_data=None):

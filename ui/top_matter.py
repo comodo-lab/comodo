@@ -12,12 +12,25 @@ def status_item(item_name):
 
 def get_header_bar():
     header_bar = dbc.Container([
-        dbc.Row(html.H1("Experiment status")),
-        dbc.Row([
-            status_item("Control System Status"),
-            status_item("Experiment ID"),
-            status_item("Adjusting"),
-        ])
+        dbc.Row(html.H1("Comodo-Lab")),
+        dbc.Row(
+            dbc.Table([
+                html.Thead([
+                    html.Tr([
+                        html.Th("Control System Status"),
+                        html.Th("Experiment ID"),
+                        html.Th("Adjusting"),
+                    ]),
+                ]),
+                html.Tbody([
+                    html.Tr([
+                        html.Td("Running"),
+                        html.Td("ABC-123"),
+                        html.Td("Temp1, Temp2")
+                    ]),
+                ]),
+            ]),
+        ),
         ],
 
         fluid=True,
