@@ -44,7 +44,6 @@ for param in PARAMS:
 #]
 
 rowData = [baseRow]
-print(rowData)
 
 app.layout = html.Div(
     [
@@ -79,18 +78,26 @@ app.layout = html.Div(
                 ),
             ),
             dbc.Col(
-                html.Div(id="editing-grid-output"),
+                dcc.Graph(id='experiment-plot')
             )
         ])
     ]
 )
 
 @callback(
-    Output("editing-grid-output", "children"),
+    Output("experiment-plot", "figure"),
     Input("editing-grid", "cellValueChanged")
 )
 def update(cell_changed):
-    return f"{cell_changed}"
+    if cell_changed is None:
+        return
+    
+    new_data = cell_changed[0]['data']
+    y = []
+    for param in PARAMS:
+        y.append(new_data[param])
+    fig = px.scatter(x=[0, 1, 2], y=y)
+    return fig
 
 if __name__ == "__main__":
     app.run(debug=True,
