@@ -10,25 +10,41 @@ app = Dash(
     external_stylesheets=[dbc.themes.LUX]
 )
 
-columnDefs = [
-    {"field": "country"},
-    {
-        "headerName": "Select Editor",
-        "field": "city",
-        "editable": True,
+PARAMS = [
+    'temp_left',
+    'temp_main',
+    'temp_right'
+]
+
+rowData = []
+baseRow = {}
+columnDefs = []
+for param in PARAMS:
+    column = {
+        "headerName": param,
+        "field": param,
+    }
+    column_profile = {
+        "headerName": f"{param} profile",
+        "field": "Linear",
         "cellEditor": "agSelectCellEditor",
         "cellEditorParams": {
-            "values": ["red", "yellow", "green"],
+            "values": ["Linear", "Exponential", "The other one"],
         }
-    },
+    }
+    columnDefs.append(column)
+    columnDefs.append(column_profile)
+    baseRow[param] = "2"
+    baseRow[f"{param} profile"] = "Linear"
+    
+#rowData = [
+#    {"country": "United States", "city": "Boston"},
+#    {"country": "Canada", "city": "Montreal"},
+#    {"country": "Canada", "city": "Vancouver"},
+#]
 
-]
-
-rowData = [
-    {"country": "United States", "city": "Boston"},
-    {"country": "Canada", "city": "Montreal"},
-    {"country": "Canada", "city": "Vancouver"},
-]
+rowData = [baseRow]
+print(rowData)
 
 app.layout = html.Div(
     [
