@@ -1,3 +1,10 @@
-streamlit
 matplotlib
 paho-mqtt
+
+dash
+pandas
+dash-bootstrap-components
+# pyyaml
+dash-ag-grid
+
+numpy

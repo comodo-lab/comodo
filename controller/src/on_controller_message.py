@@ -4,6 +4,7 @@ from datetime import datetime
 from controller_state import *
 from controller_helper import *
 from mqtt_clients import *
+from interpolation import split_setpoints
 from validation import validate_file, ValidationException
 
 
@@ -155,6 +156,7 @@ def c_running(client, msg, obj):
         obj.past_setpoints.append(obj.current_setpoint)
     next_setpoint = obj.setpoints.pop(0)
     obj.current_setpoint = next_setpoint
+    print(f"Next setpoint: {next_setpoint}")
     MQTTPublisher.get_instance().publish("sensor/setpoint", json.dumps(next_setpoint))
     MQTTPublisher.get_instance().publish(
         "timer/start/setpoint",

@@ -12,7 +12,7 @@ def load_config():
 
         for key, value in config.items():
             new_value = os.getenv(key, value)
-            config[key] = new_value
+            config[key] = new_value.strip('"').strip("'")
                 
     print(config)
     return config
