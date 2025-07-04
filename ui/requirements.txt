@@ -5,3 +5,4 @@ dash
 pandas
 dash-bootstrap-components
 # pyyaml
+dash-ag-grid
