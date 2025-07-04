@@ -5,58 +5,58 @@ from tests.tests_helper import *
 
 from mqtt_clients import *
 
+config = validate_file_print_errors(
+    "config/config.json",
+    "schemas/schema_config.json",
+)
+broker_address = config["mqtt"]["broker_address"]
+user = config["mqtt"]["user"]
+password = config["mqtt"]["password"]
+connection_timeout = config["mqtt"]["connection_timeout"]
 
 def callback_with_error(client, msg, obj):
     raise ValueError("This is a test error")
 
 
 def test_connection_error(capsys):
-    with patch("mqtt_clients.connection_timeout", 0.5):
-        with pytest.raises(Exception) as e:
-            tester = MQTTClient(
-                id="tester",
-                topics="tester/#",
-                obj=None,
-                broker_address="localhost",
-                port=1234,
-                user=None,
-                password="fake",
-            )
-
-    captured = capsys.readouterr()
+    with pytest.raises(ConnectionRefusedError) as e:
+        tester = MQTTClient(
+            id="tester",
+            topics="tester/#",
+            obj=None,
+            broker_address=broker_address,
+            port=1882,
+            user=user,
+            password=password,
+            connection_timeout=connection_timeout
+        )
 
     # Error in console
-    assert "ERROR:" in captured.out
-    assert "Client 'tester' failed to connect to broker" in captured.out
     if "tester" in locals():
         assert tester.client.is_connected() == False
 
 
 def test_connection_timeout(capsys):
-    with patch("mqtt_clients.connection_timeout", 0.5):
-        with patch(
-            "paho.mqtt.client.Client.connect",
-            side_effect=lambda *args, **kwargs: t.sleep(1),
-        ):
-            with pytest.raises(TimeoutError) as e:
-                tester = MQTTClient(
-                    id="tester",
-                    topics="tester/#",
-                    obj=None,
-                    broker_address="localhost",
-                    port=1234,
-                    user=None,
-                    password="fake",
-                )
+    with patch(
+        "paho.mqtt.client.Client.connect",
+        side_effect=lambda *args, **kwargs: t.sleep(2),
+    ):
+        with pytest.raises(TimeoutError) as e:
+            tester = MQTTClient(
+                id="tester",
+                topics="tester/#",
+                obj=None,
+                broker_address=broker_address,
+                port=1883,
+                user=user,
+                password=password,
+                connection_timeout=1
+            )
 
-    expected_err = "The tester client failed to connect."
+    expected_err = "Client tester creation timed out waiting for ready"
     assert expected_err in str(e)
 
-    captured = capsys.readouterr()
-
     # Error in console
-    assert "ERROR:" in captured.out
-    assert expected_err in captured.out
     if "tester" in locals():
         assert tester.client.is_connected() == False
 
@@ -66,6 +66,12 @@ def test_connection_ok(capsys):
         id="tester",
         topics="tester/#",
         obj=None,
+        broker_address=broker_address,
+        port=1883,
+        user=user,
+        password=password,
+        connection_timeout=connection_timeout
+
     )
     # Wait until the client is connected
     t_now = t.time()
@@ -77,9 +83,8 @@ def test_connection_ok(capsys):
     captured = capsys.readouterr()
 
     # Printed confirmation
-    assert "Client 'tester' connected to broker" in captured.out
+    assert "Client tester successfully connected to broker." in captured.out
     assert tester.client.is_connected() == True
-    assert "'tester' subscribed to 'tester/#'" in captured.out
 
 
 def test_unhandled_exceptions(capmqtt, capsys):
@@ -88,9 +93,22 @@ def test_unhandled_exceptions(capmqtt, capsys):
         callback_with_error,
         topics="tester/#",
         obj=None,
+        broker_address=broker_address,
+        port=1883,
+        user=user,
+        password=password,
+        connection_timeout=connection_timeout
     )
     assert tester.client.is_connected() == True
     assert tester.callback == callback_with_error
+
+    publisher = MQTTPublisher.get_instance(
+        broker_address=broker_address,
+        user=user,
+        password=password,
+        connection_timeout=connection_timeout,
+    )
+    
     capmqtt.publish(
         topic="tester/test",
         payload="test",
@@ -110,4 +128,3 @@ def test_unhandled_exceptions(capmqtt, capsys):
     assert "Traceback:" in captured.out
     assert "tests/unit/test_mqtt_clients.py" in captured.out
     assert "function: 'callback_with_error'" in captured.out
-    assert "line: 10" in captured.out

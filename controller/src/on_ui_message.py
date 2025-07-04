@@ -40,10 +40,12 @@ def on_ui_message(client, msg, obj):
         if msg.topic == "ui/start":
             if not os.path.exists(f"{data_path}/tmp"):
                 os.makedirs(f"{data_path}/tmp")
+
             exp_file = f"{data_path}/tmp/experiment_{uid}.json"
             with open(exp_file, "w") as f:
                 json.dump(experiment, f)
-            client.publish(
+
+            MQTTPublisher.get_instance().publish(
                 "controller/validate",
                 json.dumps({"uid": uid, "file": exp_file}),
             )
@@ -52,7 +54,7 @@ def on_ui_message(client, msg, obj):
     else:
         if msg.topic == "ui/stop":
             if uid == obj.experiment_uid:
-                client.publish(
+                MQTTPublisher.get_instance().publish(
                     "controller/stop",
                     json.dumps({"uid": uid}),
                 )

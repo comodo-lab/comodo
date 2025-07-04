@@ -48,7 +48,7 @@ def test_missing_uid(capmqtt, state):
     )
 
 
-def test_valid_start(capmqtt, state):
+def test_valid_ui_start(capmqtt, state):
     assert state.experiment_uid == None
     assert state.status == "idle"
 
@@ -103,7 +103,7 @@ def test_stop_for_wrong_uid(capmqtt, state):
     )
 
 
-def test_valid_stop(capmqtt, state):
+def test_valid_ui_stop(capmqtt, state):
     state.status = "running"
     state.experiment_uid = "123"
 

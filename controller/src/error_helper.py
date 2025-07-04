@@ -1,6 +1,6 @@
 import json
 import textwrap
-from mqtt_clients import *
+from mqtt_clients import MQTTPublisher
 
 def wrong_json(msg, e, source="controller"):
     """
