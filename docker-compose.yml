@@ -103,6 +103,7 @@ services:
         FROM python:3.13-slim
         COPY ui/requirements.txt ./requirements.txt
         RUN pip install -r ./requirements.txt
+        COPY utils/mqtt_clients.py /app/mqtt_clients.py
         CMD ["python", "-u", "/app/app.py"]
     container_name: comodo-ui
     restart: unless-stopped
