@@ -23,10 +23,12 @@ services:
 
   controller-test:
     build:
-      context: ./controller
-      dockerfile: Dockerfile
-    command: python -u -m pytest --mqtt-host rabbitmq --mqtt-port 1883 --mqtt-username ${MQTT_USER} --mqtt-password ${MQTT_PASS}
+      context: ./
+      dockerfile: controller/Dockerfile
+    command: python -u -m pytest --mqtt-host rabbitmq --mqtt-port 1883 --mqtt-username ${MQTT_USER} --mqtt-password ${MQTT_PASS} 
     container_name: comodo-controller-test
+    environment:
+      - INFLUX_TOKEN=${INFLUX_TOKEN}
     depends_on:
       rabbitmq:
         condition: service_healthy
