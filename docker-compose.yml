@@ -95,7 +95,7 @@ services:
       - INFLUX_TOKEN=${INFLUX_TOKEN}
     networks:
       comodo:
-
+            
   ui:
     build:
       context: .
