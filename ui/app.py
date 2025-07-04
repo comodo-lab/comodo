@@ -36,13 +36,6 @@ for param in PARAMS:
     columnDefs.append(column_profile)
     baseRow[param] = "2"
     baseRow[f"{param} profile"] = "Linear"
-    
-#rowData = [
-#    {"country": "United States", "city": "Boston"},
-#    {"country": "Canada", "city": "Montreal"},
-#    {"country": "Canada", "city": "Vancouver"},
-#]
-
 rowData = [baseRow]
 
 app.layout = html.Div(
