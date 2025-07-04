@@ -1,8 +1,57 @@
 import json
-import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib.pyplot as plt
+import plotly.graph_objects as go
+from utils.interpolation import split_setpoints
 
-def plot_data(data, title="Data Plot", xlabel="X-axis", ylabel="Y-axis"):
+
+def plot_data_plotly(data, title="Data Plot", xlabel="Time", ylabel="Temperature"):
+    """
+    Plots time series of temp_left, temp_main, and temp_right using Plotly.
+
+    Parameters:
+        data (list of dict): Each dict must contain 'duration' and one or more temperature fields.
+    """
+    if not data:
+        raise ValueError("Input data is empty.")
+
+    data = split_setpoints(data, resolution=1)
+
+    special_keys = ['duration']
+    keys = list(data[0].keys())
+
+    # Compute cumulative time
+    durations = [entry['duration'] for entry in data]
+    time = np.cumsum(durations)
+
+    # Prepare figure
+    fig = go.Figure()
+
+    # Plot each variable except 'duration'
+    for key in keys:
+        if key in special_keys:
+            continue
+        y = [entry[key] for entry in data]
+        fig.add_trace(go.Scatter(
+            x=time,
+            y=y,
+            mode='lines+markers',
+            name=key
+        ))
+
+    # Layout
+    fig.update_layout(
+        title=title,
+        xaxis_title=xlabel,
+        yaxis_title=ylabel,
+        template='plotly_white',
+        hovermode="x unified"
+    )
+
+    # fig.show()
+    return fig
+
+def plot_data_matplotlib(data, title="Data Plot", xlabel="X-axis", ylabel="Y-axis"):
     """
     Plots the given data with specified title and axis labels.
 
@@ -54,4 +103,4 @@ def plot_data(data, title="Data Plot", xlabel="X-axis", ylabel="Y-axis"):
 if __name__ == "__main__":
     with open('data.json', 'r') as f:
         json_data = json.load(f)  # Load your JSON data here
-    plot_data(json_data)
+    plot_data_matplotlib(json_data)

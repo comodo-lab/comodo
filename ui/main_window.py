@@ -8,6 +8,8 @@ import dash_ag_grid as dag
 import pandas as pd
 import plotly.graph_objects as go
 
+from plot import plot_data_plotly
+
 
 PROFILES = [
     'linear',
@@ -29,44 +31,6 @@ ini_data_dict = [
     {'time': 90, 'temp_left': 200.0, 'temp_left_profile': 'linear', 'temp_main': 200.0, 'temp_main_profile': 'linear', 'temp_right': 200.0, 'temp_right_profile': 'linear'},
     {'time': 120, 'temp_left': 0.0, 'temp_left_profile': 'linear', 'temp_main': 0.0, 'temp_main_profile': 'linear', 'temp_right': 0.0, 'temp_right_profile': 'linear'}
 ]
-
-
-# def get_experiment_designer(params=[], initial_data=None):
-#     '''
-#     Creates a table to display the experimental control data.
-#     '''
-#     id = 'experiment-designer'
-#     columns = ['time']
-#     for col in params:
-#         columns.append(col)
-#         columns.append(f'{col}_profile')
-#     if initial_data is None:
-#         data = ini_data_dict
-#         # data = [dict(time=i, **{param: 0 for param in columns if param != 'time'}) for i in range(1, 5)]
-#     else:
-#         data = initial_data
-
-#     print(f"Creating table with columns: {columns} and data: {data}")
-
-#     column_dict = [{'headerName': ' '.join(word.capitalize() for word in col.split('_')), 'field': col} for col in columns]
-
-#     for idx, col in enumerate(column_dict):
-#         if col['field'].endswith('_profile'):
-#             column_dict[idx]['headerName'] = 'Profile'
-#             column_dict[idx]['cellEditor'] = 'agSelectCellEditor'
-#             column_dict[idx]['cellEditorParams'] = {'values': PROFILES}
-
-#     print(f"Column dict: {column_dict}")
-
-#     table = dag.AgGrid(
-#         id=id,
-#         columnDefs=column_dict,
-#         rowData=data,
-#         className="ag-theme-alpine-auto-dark",
-#         columnSize="sizeToFit",
-#         defaultColDef={"editable": True},
-#     ),
-#     return table
 
 
 def get_experiment_designer(params=[], initial_data=None):
@@ -170,7 +134,7 @@ def add_row(n_clicks, data):
         elif col.endswith("_profile"):
             new_row[col] = PROFILES[0]
         else:
-            new_row[col] = ""
+            new_row[col] = 0.0 if col != "time" else 0
     return data + [new_row]
 
 
@@ -190,17 +154,20 @@ def delete_selected(n_clicks, selected_rows, current_data):
 
 @callback(
     Output("experiment-plot", "figure"),
-    Input("experiment-designer", "cellValueChanged")
+    Input("experiment-designer", "cellValueChanged"),
+    State("experiment-designer-store", "data"),
 )
-def update(cell_changed):
+def update(cell_changed, data):
     if cell_changed is None:
         return
 
-    new_data = cell_changed[0]['data']
-    y = []
-    for param in PARAMS:
-        y.append(new_data[param])
-    fig = px.scatter(x=[0, 1, 2], y=y)
+    print("Cell changed:", data)
+
+    # new_data = cell_changed[0]['data']
+    # y = []
+    # for param in PARAMS:
+    #     y.append(new_data[param])
+    fig = plot_data_plotly(data, title="Experiment Data Plot", xlabel="Time (s)", ylabel="Temperature")
     return fig
 
 
