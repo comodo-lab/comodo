@@ -8,3 +8,4 @@ dash-bootstrap-components
 dash-ag-grid
 
 numpy
+influxdb-client

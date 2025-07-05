@@ -35,8 +35,8 @@ services:
       - DOCKER_INFLUXDB_INIT_MODE=setup
       - DOCKER_INFLUXDB_INIT_USERNAME=influx
       - DOCKER_INFLUXDB_INIT_PASSWORD=influxinflux
-      - DOCKER_INFLUXDB_INIT_ORG=comodo
-      - DOCKER_INFLUXDB_INIT_BUCKET=comodo
+      - DOCKER_INFLUXDB_INIT_ORG=${INFLUX_ORG}
+      - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUX_BUCKET}
       - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUX_TOKEN}
     ports:
       - 8086:8086
@@ -120,6 +120,9 @@ services:
     environment:
       - MQTT_USER=${MQTT_USER}
       - MQTT_PASS=${MQTT_PASS}
+      - INFLUX_TOKEN=${INFLUX_TOKEN}
+      - INFLUX_BUCKET=${INFLUX_BUCKET}
+      - INFLUX_ORG=${INFLUX_ORG}
     networks:
       - comodo
 

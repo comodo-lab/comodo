@@ -155,9 +155,10 @@ def delete_selected(n_clicks, selected_rows, current_data):
 @callback(
     Output("experiment-plot", "figure"),
     Input("experiment-designer", "cellValueChanged"),
+    Input("interval-long", "n_intervals"),
     State("experiment-designer-store", "data"),
 )
-def update(cell_changed, data):
+def update(cell_changed, n_intervals, data):
     if cell_changed is None:
         return
 

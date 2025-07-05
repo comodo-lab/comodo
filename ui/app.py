@@ -46,7 +46,9 @@ else:
 
 app.layout = html.Div(
     [
-        tm.get_header_bar(),
+        dcc.Interval(id="interval", interval=1000),
+        dcc.Interval(id="interval-long", interval=5000),
+        tm.get_header_bar(0),
         main_window,
     ]
 )
