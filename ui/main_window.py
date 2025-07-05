@@ -35,8 +35,8 @@ ini_data_dict = [
 
 def get_experiment_designer(params=[], initial_data=None):
     '''
-    Creates a dash-ag-grid component for experimental control data with editing,
-    dropdowns, and row add/delete support.
+    Creates a dash-ag-grid component for experimental control data with
+    editing, dropdowns, and row add/delete support.
     '''
     component_id = 'experiment-designer'
 
@@ -81,10 +81,7 @@ def get_experiment_designer(params=[], initial_data=None):
 
     # Layout with add/delete buttons and state
     layout = html.Div([
-        html.Div([
-            html.Button("Add Row", id=f"{component_id}-add", n_clicks=0, className="btn btn-success me-2"),
-            html.Button("Delete Selected", id=f"{component_id}-delete", n_clicks=0, className="btn btn-danger"),
-        ], className="my-2"),
+        html.H2("Experiment Designer", className="my-3"),
 
         dcc.Store(id=f"{component_id}-store", data=data),
 
@@ -96,7 +93,12 @@ def get_experiment_designer(params=[], initial_data=None):
             defaultColDef={"editable": True, "resizable": True},
             columnSize="responsiveSizeToFit",
             dashGridOptions={"rowSelection": "multiple", "suppressRowClickSelection": True},
-        )
+        ),
+
+        html.Div([
+            html.Button("Add Row", id=f"{component_id}-add", n_clicks=0, className="btn btn-success me-2"),
+            html.Button("Delete Selected", id=f"{component_id}-delete", n_clicks=0, className="btn btn-danger"),
+        ], className="my-2"),
     ])
 
     return layout
@@ -109,7 +111,12 @@ def get_experiment_graph():
     graph = dcc.Graph(id='experiment-plot')
     # dcc.Graph(id='experiment-plot', figure=fig)
 
-    return graph
+    layout = html.Div([
+        html.H2("Planned Experiment Data Plot", className="my-3"),
+        graph,
+    ])
+
+    return layout
 
 
 @callback(
@@ -135,6 +142,14 @@ def add_row(n_clicks, data):
             new_row[col] = PROFILES[0]
         else:
             new_row[col] = 0.0 if col != "time" else 0
+
+    #  Add new row with time as max time +30s (default could be changed via user preferences?)
+    last_time = max(
+        row.get("time", 0)
+        for row in data
+        if isinstance(row.get("time"), (int, float))
+    )
+    new_row["time"] = last_time + 30
     return data + [new_row]
 
 
@@ -154,32 +169,22 @@ def delete_selected(n_clicks, selected_rows, current_data):
 
 @callback(
     Output("experiment-plot", "figure"),
-    Input("experiment-designer", "cellValueChanged"),
-    Input("interval-long", "n_intervals"),
-    State("experiment-designer-store", "data"),
+    Input("experiment-designer-store", "data")
 )
-def update(cell_changed, n_intervals, data):
-    if cell_changed is None:
-        return
-
-    print("Cell changed:", data)
-
-    # new_data = cell_changed[0]['data']
-    # y = []
-    # for param in PARAMS:
-    #     y.append(new_data[param])
+def update_plot(data):
+    if not data:
+        return go.Figure()
     fig = plot_data_plotly(data, title="Experiment Data Plot", xlabel="Time (s)", ylabel="Temperature")
     return fig
 
 
-def get_main_window(params=[], initial_data=None):
-    """
-    Creates the main window of the application.
-    """
-    main_window = html.Div([
-        get_experiment_designer(params=params, initial_data=initial_data),
-        html.Button('Add Row', id='editing-rows-button', n_clicks=0),
-        # dcc.Graph(id='adding-rows-graph')
-    ])
-
-    return main_window
+@callback(
+    Output("experiment-designer-store", "data", allow_duplicate=True),
+    Input("experiment-designer", "cellValueChanged"),
+    State("experiment-designer", "rowData"),
+    prevent_initial_call=True
+)
+def sync_edits_to_store(cell_change, current_rows):
+    # Sort the rows by time for presentation and ease of plotting
+    sorted_rows = sorted(current_rows, key=lambda r: r.get("time", 0))
+    return sorted_rows
