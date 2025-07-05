@@ -8,6 +8,7 @@ from dash import Dash, html
 
 import top_matter as tm
 import main_window as mw
+import control_window as cw
 
 app = Dash(
     external_stylesheets=[dbc.themes.LUX],
@@ -22,35 +23,50 @@ PARAMS = [
     'temp_right'
 ]
 
+designer_layout = mw.get_experiment_designer(params=PARAMS, initial_data=None)
+graph_layout = mw.get_experiment_graph()
+
 if SIDE_BY_SIDE:
     main_window = dbc.Row([
-                dbc.Col(
-                    mw.get_experiment_designer(params=PARAMS, initial_data=None)
-                ),
-                dbc.Col(
-                    mw.get_experiment_graph()
-                )
-            ])
+        dbc.Col(designer_layout),
+        dbc.Col(graph_layout)
+    ])
 else:
-    main_window = dbc.Row(
-                dbc.Col(
-                    mw.get_experiment_designer(params=PARAMS, initial_data=None),
-                    width=12
-                )
-            ),
-    main_window += dbc.Row(
-                dbc.Col(
-                    mw.get_experiment_graph(),
-                    width=12
-                )
-            )
+    main_window = html.Div([
+        dbc.Row(dbc.Col(designer_layout, width=12)),
+        dbc.Row(dbc.Col(graph_layout, width=12))
+    ])
+
+control_window = cw.get_control_window()
+
+
+@callback(
+    Output("tab-content", "children"),
+    Input("tab-selector", "value")
+)
+def render_tab_content(tab):
+    if tab == "control":
+        return control_window
+    elif tab == "main":
+        return main_window
+    else:
+        return html.Div("No content available for this tab.")
+
 
 app.layout = html.Div(
     [
         dcc.Interval(id="interval", interval=1000),
         dcc.Interval(id="interval-long", interval=5000),
         tm.get_header_bar(0),
-        main_window,
+        dcc.Tabs(
+            children=[
+                dcc.Tab(label="Main", value="main"),
+                dcc.Tab(label="Control", value="control"),
+            ],
+            id="tab-selector",
+            value="main",
+        ),
+        html.Div(id="tab-content"),
     ]
 )
 
