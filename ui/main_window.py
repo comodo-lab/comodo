@@ -80,25 +80,41 @@ def get_experiment_designer(params=[], initial_data=None):
     })
 
     # Layout with add/delete buttons and state
-    layout = html.Div([
+    layout = dbc.Container([
+        html.H3("Experiment Designer"),
+        dbc.Row([
+            dcc.Store(id=f"{component_id}-store", data=data),
+            dag.AgGrid(
+                id=component_id,
+                columnDefs=column_dicts,
+                rowData=data,
+                className="ag-theme-alpine",
+                defaultColDef={"editable": True, "resizable": True},
+                columnSize="responsiveSizeToFit",
+                dashGridOptions={"rowSelection": "multiple", "suppressRowClickSelection": True},
+            )
+        ]),
+        dbc.Row(html.Hr()),
         html.Div([
-            html.Button("Add Row", id=f"{component_id}-add", n_clicks=0, className="btn btn-success me-2"),
-            html.Button("Delete Selected", id=f"{component_id}-delete", n_clicks=0, className="btn btn-danger"),
-        ], className="my-2"),
-
-        dcc.Store(id=f"{component_id}-store", data=data),
-
-        dag.AgGrid(
-            id=component_id,
-            columnDefs=column_dicts,
-            rowData=data,
-            className="ag-theme-alpine",
-            defaultColDef={"editable": True, "resizable": True},
-            columnSize="responsiveSizeToFit",
-            dashGridOptions={"rowSelection": "multiple", "suppressRowClickSelection": True},
-        )
+            dbc.Row([
+                dbc.Col([
+                    dbc.Button("Add Row",
+                               id=f"{component_id}-add",
+                               n_clicks=0,
+                               color="success",
+                               className="me-1"),
+                ], className="d-grid gap-2"),
+                dbc.Col([
+                    dbc.Button("Delete Selected",
+                               id=f"{component_id}-delete",
+                               n_clicks=0,
+                               color="danger",
+                               className="me-1"),
+                ], className="d-grid gap-2")
+            ])
+        ]),
     ])
-
+ 
     return layout
 
 
