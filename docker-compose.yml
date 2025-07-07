@@ -24,8 +24,8 @@ services:
     networks:
       comodo:
 
-  influxdb: 
-    image: influxdb:2.0
+  influxdb:
+    image: influxdb:latest
     container_name: comodo-influx
     restart: unless-stopped
     depends_on:
@@ -113,7 +113,7 @@ services:
       rabbitmq:
         condition: service_healthy
     ports:
-      - '8050:8050'
+      - '8501:8050'
     volumes:
       - ./ui/:/app/
       - ./utils:/app/utils
