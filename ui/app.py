@@ -44,9 +44,36 @@ else:
                 )
             )
 
+@app.callback(
+    Output("page-content", "children"),
+    Input("url", "pathname")
+)
+def render_page(pathname):
+    if pathname in ["/", None]:
+        return dcc.Location(href="/designer", id="redirect")
+    elif pathname == "/designer":
+        return main_window
+    elif pathname == "/metadata":
+        return "hello"
+    elif pathname == "/control":
+        return "world"
+    else:
+        return html.Div("404 - Page not found")
+
 app.layout = dbc.Container([
+    dcc.Location(id="url", refresh=False),
     tm.get_header_bar(),
-    main_window,
+    dbc.Nav([
+        dbc.NavItem(dbc.NavLink("Experiment Designer", href="/designer", active="exact")),
+        dbc.NavItem(dbc.NavLink("Metadata Entry", href="/metadata", active="exact")),
+        dbc.NavItem(dbc.NavLink("Control Panel", href="/control", active="exact")),
+    ],
+        pills=True,
+        fill=True,
+        justified=True,
+    ),
+    html.Hr(),
+    html.Div(id="page-content")
 ],
 fluid=True               
 )

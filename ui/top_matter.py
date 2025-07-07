@@ -32,23 +32,3 @@ def get_header_bar():
         get_status_card("Adjusting", "t_left,t_right", "15:00:01", "success")
     ])
     return header_bar
-
-def get_nav_bar():
-    navbar = dbc.NavbarSimple(
-        children=[
-            dbc.NavItem(dbc.NavLink("Designer", href="#")),
-            dbc.NavItem(dbc.NavLink("Controls", href="#")),
-        ],
-        brand="Comodo-Lab",
-        brand_href="#",
-        color="primary",
-        dark=True,
-        links_left=True,
-        sticky=True,
-        fluid=True,
-        brand_style={
-            "fontSize": "2rem",
-            "fontWeight": "bold",
-        },
-    )
-    return navbar
