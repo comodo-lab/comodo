@@ -11,6 +11,12 @@ def plot_data_plotly(data, xlabel="Time", ylabel="Temperature"):
 
     Parameters:
         data (list of dict): Each dict must contain 'duration' and one or more temperature fields.
+        title (str): Title of the plot.
+        xlabel (str): Label for the x-axis.
+        ylabel (str): Label for the y-axis.
+
+    Returns:
+        go.Figure: A Plotly figure object containing the plot.
     """
     if not data:
         raise ValueError("Input data is empty.")
@@ -70,12 +76,6 @@ def plot_data_matplotlib(data, xlabel="X-axis", ylabel="Y-axis"):
         xlabel (str): Label for the x-axis.
         ylabel (str): Label for the y-axis.
     """
-    """
-    Plots time series of temp_left, temp_main, and temp_right from JSON-like input.
-
-    Parameters:
-        data (list of dict): Each dict must contain 'duration', 'temp_left', 'temp_main', 'temp_right'.
-    """
     if not data:
         raise ValueError("Input data is empty.")
 
@@ -97,7 +97,6 @@ def plot_data_matplotlib(data, xlabel="X-axis", ylabel="Y-axis"):
             continue
         index = keys.index(key) - len(special_keys)
         values[index] = [entry[key] for entry in data]
-
 
         axes[index].plot(time, values[index], label=key, color='tab:blue')
         axes[index].set_ylabel(key)

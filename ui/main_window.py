@@ -35,8 +35,8 @@ ini_data_dict = [
 
 def get_experiment_designer(params=[], initial_data=None):
     '''
-    Creates a dash-ag-grid component for experimental control data with editing,
-    dropdowns, and row add/delete support.
+    Creates a dash-ag-grid component for experimental control data with
+    editing, dropdowns, and row add/delete support.
     '''
     component_id = 'experiment-designer'
 
@@ -126,7 +126,6 @@ def get_experiment_graph():
                       )
     return graph
 
-
 @callback(
     Output("experiment-designer", "rowData"),
     Input("experiment-designer-store", "data")
@@ -150,6 +149,14 @@ def add_row(n_clicks, data):
             new_row[col] = PROFILES[0]
         else:
             new_row[col] = 0.0 if col != "time" else 0
+
+    #  Add new row with time as max time +30s (default could be changed via user preferences?)
+    last_time = max(
+        row.get("time", 0)
+        for row in data
+        if isinstance(row.get("time"), (int, float))
+    )
+    new_row["time"] = last_time + 30
     return data + [new_row]
 
 
@@ -180,14 +187,13 @@ def update(cell_changed, data):
     return fig
 
 
-def get_main_window(params=[], initial_data=None):
-    """
-    Creates the main window of the application.
-    """
-    main_window = html.Div([
-        get_experiment_designer(params=params, initial_data=initial_data),
-        html.Button('Add Row', id='editing-rows-button', n_clicks=0),
-        # dcc.Graph(id='adding-rows-graph')
-    ])
-
-    return main_window
+@callback(
+    Output("experiment-designer-store", "data", allow_duplicate=True),
+    Input("experiment-designer", "cellValueChanged"),
+    State("experiment-designer", "rowData"),
+    prevent_initial_call=True
+)
+def sync_edits_to_store(cell_change, current_rows):
+    # Sort the rows by time for presentation and ease of plotting
+    sorted_rows = sorted(current_rows, key=lambda r: r.get("time", 0))
+    return sorted_rows

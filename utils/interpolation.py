@@ -132,7 +132,6 @@ def split_setpoints(setpoint_list, resolution):
             # Deafult to linear profile if not specified
             sp_variables[name] = np.array([(sp[name], "linear") for sp in setpoint_list])
 
-
     time_intervals = [times[i] - times[i - 1] for i in range(1, len(times))]
     time_intervals.insert(0, 0)
 

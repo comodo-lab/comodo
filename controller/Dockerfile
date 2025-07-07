@@ -10,11 +10,11 @@ COPY controller /controller
 
 # Copy the utils
 COPY utils/mqtt_clients.py /controller
-COPY uitls/interpolation.py /controller
+COPY utils/interpolation.py /controller
 
 # TEMP: copy copy manually modified pytest-mqtt
 COPY utils/pytest-mqtt /pytest-mqtt
-RUN pip install /pytest-mqtt
+# RUN pip install /pytest-mqtt
 
 # Run the controller
 CMD ["python", "-u", "controller.py"]

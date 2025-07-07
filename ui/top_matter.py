@@ -1,5 +1,6 @@
-from dash import html
+from dash import html, callback, Output, Input, State
 import dash_bootstrap_components as dbc
+from utils.influx_query import query_influxdb_params
 
 
 def status_item(item_name):
@@ -32,3 +33,26 @@ def get_header_bar():
         get_status_card("Adjusting", "t_left,t_right", "15:00:01", "success")
     ])
     return header_bar
+
+
+@callback(
+    Output("status", "children"),
+    Input("interval", "n_intervals"),
+    prevent_initial_call=True
+)
+def update_header_status(n_intervals):
+    """
+    Updates the header bar with the latest status.
+    """
+    try:
+        status = query_influxdb_params(
+            fields=["status"],
+            topics=["heartbeat/controller"],
+            start="-1m",
+            aggregate="last"
+        )[-1].get_value()
+    except Exception as e:
+        print(f"Error querying status: {e}")
+        status = "unknown"
+
+    return status.capitalize()
