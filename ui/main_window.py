@@ -122,8 +122,12 @@ def get_experiment_graph():
     """
     Creates a graph to display the experimental data.
     """
-    graph = dcc.Graph(id='experiment-plot')
-    # dcc.Graph(id='experiment-plot', figure=fig)
+    graph = dbc.Container([
+        html.H3("Experiment Graph"),
+        dcc.Graph(id='experiment-plot',
+                  responsive=True
+                  ),
+    ])
 
     return graph
 
@@ -177,11 +181,7 @@ def update(cell_changed, data):
     if not data:
         raise PreventUpdate
 
-    # new_data = cell_changed[0]['data']
-    # y = []
-    # for param in PARAMS:
-    #     y.append(new_data[param])
-    fig = plot_data_plotly(data, title="Experiment Data Plot", xlabel="Time (s)", ylabel="Temperature")
+    fig = plot_data_plotly(data, xlabel="Time (s)")
     return fig
 
 
