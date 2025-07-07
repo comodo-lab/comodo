@@ -24,24 +24,18 @@ def get_control_panel():
     Input('submit-experiment', 'n_clicks'),
     State("experiment-designer-store", "data"),
     State('experiment-resolution-store', "data"),
-    State('sensors', 'data'),
+    State('sensor-store', 'data'),
     prevent_initial_call=True
 )
 def update_output(n_clicks, table_data, resolution, sensors):
     # Prepare data for transmission
     experiment_id = str(uuid.uuid4())[:8]
-    sensors_dicts = []
-    for sensor in sensors:
-        temp_dict = {
-            "name": sensor,
-            "threshold": 1.0
-        }
-        sensors_dicts.append(temp_dict)
+
     experiment_config = {
         "uid": experiment_id,
         "config": {
             "resolution": resolution,
-            "sensors": sensors_dicts
+            "sensors": sensors
         },
         "experiment": table_data
     }

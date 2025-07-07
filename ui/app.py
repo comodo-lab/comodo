@@ -9,6 +9,7 @@ from dash import Dash, html
 import top_matter as tm
 import main_window as mw
 import control_window as cw
+import sensor_setup as ss
 
 from utils.mqtt_clients import MQTTPublisher
 import os
@@ -34,7 +35,7 @@ app.clientside_callback(
     }
     """,
     Output('timezone-store', 'data'),
-    Input('timezone-store', 'modified_timestamp')  
+    Input('timezone-store', 'modified_timestamp')
 )
 
 CONTROL_INTERVAL = 5000  # milliseconds
@@ -88,6 +89,8 @@ else:
 def render_page(pathname):
     if pathname in ["/", None]:
         return dcc.Location(href="/designer", id="redirect")
+    elif pathname == "/sensor":
+        return ss.get_sensor_setup(params=PARAMS)
     elif pathname == "/designer":
         return main_window
     elif pathname == "/metadata":
@@ -108,10 +111,12 @@ app.layout = dbc.Container([
     dcc.Store(id='experiment-designer-store'),
     dcc.Store(id='experiment-resolution-store'),
     dcc.Store(id='sensors'),
+    dcc.Store(id='sensor-store'),
     html.Div(id='hidden-div', style={'display': 'none'}),
     tm.get_header_bar(),
     dbc.Nav([
         dbc.NavItem(dbc.NavLink("Experiment Designer", href="/designer", active="exact")),
+        dbc.NavItem(dbc.NavLink("Sensor Setup", href="/sensor", active="exact")),
         dbc.NavItem(dbc.NavLink("Metadata Entry", href="/metadata", active="exact")),
         dbc.NavItem(dbc.NavLink("Control Panel", href="/control", active="exact")),
     ],
