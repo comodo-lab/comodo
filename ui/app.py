@@ -15,6 +15,16 @@ app = Dash(
     suppress_callback_exceptions=True
 )
 
+app.clientside_callback(
+    """
+    function(n_clicks) {
+        return Intl.DateTimeFormat().resolvedOptions().timeZone;
+    }
+    """,
+    Output('timezone-store', 'data'),
+    Input('timezone-store', 'modified_timestamp')  
+)
+
 CONTROL_INTERVAL = 5000  # milliseconds
 SHORT_INTERVAL = 1000  # milliseconds
 LONG_INTERVAL = 5000  # milliseconds
@@ -83,6 +93,7 @@ app.layout = dbc.Container([
     dcc.Interval(id="interval-long", interval=LONG_INTERVAL),
     dcc.Interval(id="interval-short", interval=SHORT_INTERVAL),
     dcc.Location(id="url", refresh=False),
+    dcc.Store(id='timezone-store'),
     tm.get_header_bar(),
     dbc.Nav([
         dbc.NavItem(dbc.NavLink("Experiment Designer", href="/designer", active="exact")),

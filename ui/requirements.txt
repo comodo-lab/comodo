@@ -9,3 +9,5 @@ dash-ag-grid
 
 numpy
 influxdb-client
+
+pytz

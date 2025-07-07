@@ -1,6 +1,7 @@
 from dash import html, callback, Output, Input, State
 import dash_bootstrap_components as dbc
 from utils.influx_query import query_influxdb_params
+import pytz
 
 def status_item(item_name):
     status_item = dbc.Col([
@@ -39,12 +40,15 @@ def get_header_bar():
     Output("controller_status", "color"),
     Output("controller_status-time", "children"),
     Input("interval", "n_intervals"),
+    State("timezone-store", "data"),
     prevent_initial_call=True
 )
-def update_header_status(n_intervals):
+def update_header_status(n_intervals, timezone):
     """
     Updates the header bar with the latest status.
     """
+    user_tz = pytz.timezone(timezone)
+
     try:
         result= query_influxdb_params(
             fields=["status"],
@@ -54,7 +58,7 @@ def update_header_status(n_intervals):
         )[-1]
         status = result.get_value()
         iso_timestamp = result.get_time()
-        timestamp = iso_timestamp.strftime("%Y-%m-%d %H:%M:%S")
+        timestamp = iso_timestamp.astimezone(user_tz).strftime("%Y-%m-%d %H:%M:%S")
     except Exception as e:
         print(f"Error querying status: {e}")
         return "Unknown Status", "primary", None
