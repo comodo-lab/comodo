@@ -80,27 +80,40 @@ def get_experiment_designer(params=[], initial_data=None):
     })
 
     # Layout with add/delete buttons and state
-    layout = html.Div([
-        html.H2("Experiment Designer", className="my-3"),
-
-        dcc.Store(id=f"{component_id}-store", data=data),
-
-        dag.AgGrid(
-            id=component_id,
-            columnDefs=column_dicts,
-            rowData=data,
-            className="ag-theme-alpine",
-            defaultColDef={"editable": True, "resizable": True},
-            columnSize="responsiveSizeToFit",
-            dashGridOptions={"rowSelection": "multiple", "suppressRowClickSelection": True},
-        ),
-
+    layout = [
+        dbc.Row([
+            dcc.Store(id=f"{component_id}-store", data=data),
+            dag.AgGrid(
+                id=component_id,
+                columnDefs=column_dicts,
+                rowData=data,
+                className="ag-theme-alpine",
+                defaultColDef={"editable": True, "resizable": True},
+                columnSize="responsiveSizeToFit",
+                dashGridOptions={"rowSelection": "multiple", "suppressRowClickSelection": True},
+            )
+        ]),
+        html.Hr(),
         html.Div([
-            html.Button("Add Row", id=f"{component_id}-add", n_clicks=0, className="btn btn-success me-2"),
-            html.Button("Delete Selected", id=f"{component_id}-delete", n_clicks=0, className="btn btn-danger"),
-        ], className="my-2"),
-    ])
-
+            dbc.Row([
+                dbc.Col([
+                    dbc.Button("Add Row",
+                               id=f"{component_id}-add",
+                               n_clicks=0,
+                               color="success",
+                               className="me-1"),
+                ], className="d-grid gap-2"),
+                dbc.Col([
+                    dbc.Button("Delete Selected",
+                               id=f"{component_id}-delete",
+                               n_clicks=0,
+                               color="danger",
+                               className="me-1"),
+                ], className="d-grid gap-2")
+            ])
+        ])
+    ]
+ 
     return layout
 
 
@@ -108,16 +121,10 @@ def get_experiment_graph():
     """
     Creates a graph to display the experimental data.
     """
-    graph = dcc.Graph(id='experiment-plot')
-    # dcc.Graph(id='experiment-plot', figure=fig)
-
-    layout = html.Div([
-        html.H2("Planned Experiment Data Plot", className="my-3"),
-        graph,
-    ])
-
-    return layout
-
+    graph = dcc.Graph(id='experiment-plot',
+                      responsive=True
+                      )
+    return graph
 
 @callback(
     Output("experiment-designer", "rowData"),
@@ -169,12 +176,14 @@ def delete_selected(n_clicks, selected_rows, current_data):
 
 @callback(
     Output("experiment-plot", "figure"),
-    Input("experiment-designer-store", "data")
+    Input("experiment-designer", "cellValueChanged"),
+    Input("experiment-designer-store", "data"),
 )
-def update_plot(data):
+def update(cell_changed, data):
     if not data:
-        return go.Figure()
-    fig = plot_data_plotly(data, title="Experiment Data Plot", xlabel="Time (s)", ylabel="Temperature")
+        raise PreventUpdate
+
+    fig = plot_data_plotly(data, xlabel="Time (s)")
     return fig
 
 

@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 from utils.interpolation import split_setpoints
 
 
-def plot_data_plotly(data, title="Data Plot", xlabel="Time", ylabel="Temperature"):
+def plot_data_plotly(data, xlabel="Time", ylabel="Temperature"):
     """
     Plots time series of temp_left, temp_main, and temp_right using Plotly.
 
@@ -41,30 +41,38 @@ def plot_data_plotly(data, title="Data Plot", xlabel="Time", ylabel="Temperature
         fig.add_trace(go.Scatter(
             x=time,
             y=y,
-            mode='lines+markers',
+            mode='lines',
             name=key
         ))
 
     # Layout
     fig.update_layout(
-        title=title,
         xaxis_title=xlabel,
         yaxis_title=ylabel,
         template='plotly_white',
-        hovermode="x unified"
+        hovermode="x unified",
+        legend={
+            "xanchor": "auto",
+            "yanchor": "auto"
+        },
+        margin={
+            "autoexpand": True,
+            "l": 0,
+            "r": 0,
+            "t": 0,
+            "b": 0
+        }
     )
 
     # fig.show()
     return fig
 
-
-def plot_data_matplotlib(data, title="Data Plot", xlabel="X-axis", ylabel="Y-axis"):
+def plot_data_matplotlib(data, xlabel="X-axis", ylabel="Y-axis"):
     """
-    Plots the given data with specified title and axis labels.
+    Plots the given data with axis labels.
 
     Args:
         data (dict): A dictionary where keys are x-values and values are y-values.
-        title (str): Title of the plot.
         xlabel (str): Label for the x-axis.
         ylabel (str): Label for the y-axis.
     """

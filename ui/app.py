@@ -62,23 +62,38 @@ def render_tab_content(tab):
     else:
         return html.Div("No content available for this tab.")
 
+@app.callback(
+    Output("page-content", "children"),
+    Input("url", "pathname")
+)
+def render_page(pathname):
+    if pathname in ["/", None]:
+        return dcc.Location(href="/designer", id="redirect")
+    elif pathname == "/designer":
+        return main_window
+    elif pathname == "/metadata":
+        return "hello"
+    elif pathname == "/control":
+        return "world"
+    else:
+        return html.Div("404 - Page not found")
 
-app.layout = html.Div(
-    [
-        dcc.Interval(id="control-interval", interval=CONTROL_INTERVAL),
-        dcc.Interval(id="interval", interval=SHORT_INTERVAL),
-        dcc.Interval(id="interval-long", interval=LONG_INTERVAL),
-        tm.get_header_bar(0),
-        dcc.Tabs(
-            children=[
-                dcc.Tab(label="Main", value="main"),
-                dcc.Tab(label="Control", value="control"),
-            ],
-            id="tab-selector",
-            value="main",
-        ),
-        html.Div(id="tab-content"),
-    ]
+app.layout = dbc.Container([
+    dcc.Location(id="url", refresh=False),
+    tm.get_header_bar(),
+    dbc.Nav([
+        dbc.NavItem(dbc.NavLink("Experiment Designer", href="/designer", active="exact")),
+        dbc.NavItem(dbc.NavLink("Metadata Entry", href="/metadata", active="exact")),
+        dbc.NavItem(dbc.NavLink("Control Panel", href="/control", active="exact")),
+    ],
+        pills=True,
+        fill=True,
+        justified=True,
+    ),
+    html.Hr(),
+    html.Div(id="page-content")
+],
+fluid=True               
 )
 
 
