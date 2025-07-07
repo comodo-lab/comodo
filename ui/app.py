@@ -15,7 +15,7 @@ app = Dash(
     suppress_callback_exceptions=True
 )
 
-CONTROL_INTERVAL = 1000  # milliseconds
+CONTROL_INTERVAL = 5000  # milliseconds
 SHORT_INTERVAL = 1000  # milliseconds
 LONG_INTERVAL = 5000  # milliseconds
 
