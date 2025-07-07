@@ -28,9 +28,9 @@ def get_header_bar():
                 html.H1("Comodo Lab", className="card-title"),
             ])
         ], color="primary", inverse=True),
-        get_status_card("Control System Status", "bad", "15:00:01", "danger", "controller_status"),
+        get_status_card("Control System Status", "waiting", "15:00:01", "warning", "controller_status"),
         get_status_card("Experiment ID", "ABC-123", "14:44:24", "primary", "experiment_id"),
-        get_status_card("Adjusting", "t_left,t_right", "15:00:01", "success", "adjusting_status"),
+        get_status_card("Adjusting", "t_left,t_right", "15:00:01", "primary", "adjusting_status"),
     ])
     return header_bar
 
