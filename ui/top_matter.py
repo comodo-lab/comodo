@@ -27,9 +27,9 @@ def get_header_bar():
             dbc.CardBody([
                 html.H1("Comodo Lab", className="card-title"),
             ])
-        ], color="dark", inverse=True),
+        ], color="primary", inverse=True),
         get_status_card("Control System Status", "bad", "15:00:01", "danger", "controller_status"),
-        get_status_card("Experiment ID", "ABC-123", "14:44:24", "dark", "experiment_id"),
+        get_status_card("Experiment ID", "ABC-123", "14:44:24", "primary", "experiment_id"),
         get_status_card("Adjusting", "t_left,t_right", "15:00:01", "success", "adjusting_status"),
     ])
     return header_bar
@@ -72,4 +72,4 @@ def update_header_status(n_intervals):
 
     print(f"Unknown status: {status}")
 
-    return "Unknown Status", "dark"
+    return "Unknown Status", "primary"
