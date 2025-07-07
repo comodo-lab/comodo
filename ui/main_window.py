@@ -196,5 +196,6 @@ def update(cell_changed, data):
 )
 def sync_edits_to_store(cell_change, current_rows):
     # Sort the rows by time for presentation and ease of plotting
+    print(current_rows)
     sorted_rows = sorted(current_rows, key=lambda r: r.get("time", 0))
     return sorted_rows
