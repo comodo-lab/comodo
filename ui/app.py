@@ -15,12 +15,22 @@ app = Dash(
     suppress_callback_exceptions=True
 )
 
+CONTROL_INTERVAL = 1000  # milliseconds
+SHORT_INTERVAL = 1000  # milliseconds
+LONG_INTERVAL = 5000  # milliseconds
+
 SIDE_BY_SIDE = True
 
 PARAMS = [
     'temp_left',
     'temp_main',
     'temp_right'
+]
+
+PARAM_DICT = [
+    {'name': 'temp_left', 'min': 0, 'max': 1000, 'step': 1},
+    {'name': 'temp_main', 'min': 0, 'max': 1000, 'step': 1},
+    {'name': 'temp_right', 'min': 0, 'max': 1000, 'step': 1}
 ]
 
 designer_layout = mw.get_experiment_designer(params=PARAMS, initial_data=None)
@@ -37,7 +47,7 @@ else:
         dbc.Row(dbc.Col(graph_layout, width=12))
     ])
 
-control_window = cw.get_control_window()
+control_window = cw.get_control_window(PARAM_DICT)
 
 
 @callback(
@@ -55,8 +65,9 @@ def render_tab_content(tab):
 
 app.layout = html.Div(
     [
-        dcc.Interval(id="interval", interval=1000),
-        dcc.Interval(id="interval-long", interval=5000),
+        dcc.Interval(id="control-interval", interval=CONTROL_INTERVAL),
+        dcc.Interval(id="interval", interval=SHORT_INTERVAL),
+        dcc.Interval(id="interval-long", interval=LONG_INTERVAL),
         tm.get_header_bar(0),
         dcc.Tabs(
             children=[
