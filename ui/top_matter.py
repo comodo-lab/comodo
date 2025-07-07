@@ -21,13 +21,33 @@ def get_status_card(header, title, text, status):
 
 def get_header_bar():
     header_bar = dbc.Container([
-        dbc.Row(html.H1("Comodo-Lab")),
+        html.Hr(),
         html.H3("System status"),
         dbc.Row([
             get_status_card("Control System Status", "bad", "15:00:01", "danger"),
             get_status_card("Experiment ID", "ABC-123", "14:44:24", "dark"),
             get_status_card("Adjusting", "t_left,t_right", "15:00:01", "success")
         ]),
-        dbc.Row(html.Hr()),
+        html.Hr(),
     ], fluid=True)
     return header_bar
+
+def get_nav_bar():
+    navbar = dbc.NavbarSimple(
+        children=[
+            dbc.NavItem(dbc.NavLink("Designer", href="#")),
+            dbc.NavItem(dbc.NavLink("Controls", href="#")),
+        ],
+        brand="Comodo-Lab",
+        brand_href="#",
+        color="primary",
+        dark=True,
+        links_left=True,
+        sticky=True,
+        fluid=True,
+        brand_style={
+            "fontSize": "2rem",
+            "fontWeight": "bold",
+        },
+    )
+    return navbar

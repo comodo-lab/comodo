@@ -45,6 +45,7 @@ else:
             )
 
 app.layout = dbc.Container([
+    tm.get_nav_bar(),
     tm.get_header_bar(),
     main_window,
 ],
