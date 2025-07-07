@@ -10,6 +10,7 @@ import top_matter as tm
 import main_window as mw
 
 app = Dash(
+    suppress_callback_exceptions=True,
     external_stylesheets=[dbc.themes.LUX]
 )
 
