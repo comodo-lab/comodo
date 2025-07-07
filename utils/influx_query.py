@@ -21,8 +21,6 @@ def query_influxdb(query):
     client = influxdb_client.InfluxDBClient(url=URL, token=TOKEN, org=ORG)
     query_api = client.query_api()
 
-    print(f"Executing query: {query}")
-
     try:
         result = query_api.query(query, org=ORG)
         return [record for table in result for record in table.records]
