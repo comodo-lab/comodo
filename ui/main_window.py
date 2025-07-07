@@ -82,7 +82,6 @@ def get_experiment_designer(params=[], initial_data=None):
     # Layout with add/delete buttons and state
     layout = [
         dbc.Row([
-            dcc.Store(id=f"{component_id}-store", data=data),
             dag.AgGrid(
                 id=component_id,
                 columnDefs=column_dicts,
@@ -113,8 +112,8 @@ def get_experiment_designer(params=[], initial_data=None):
             ])
         ])
     ]
- 
-    return layout
+
+    return html.Div(layout, id='experiment-designer-container')
 
 
 def get_experiment_graph():
@@ -136,12 +135,14 @@ def update_table(data):
 
 @callback(
     Output("experiment-designer-store", "data", allow_duplicate=True),
-    Output("experiment-config", "data"),
+    Output("experiment-config", "data", allow_duplicate=True),
     Input("experiment-designer-add", "n_clicks"),
     State("experiment-designer-store", "data"),
-    prevent_initial_call="initial_duplicate"
+    prevent_initial_call=True
 )
 def add_row(n_clicks, data):
+    if not data:
+        return data, data
     new_row = {"id": str(uuid.uuid4())}
     for col in data[0]:
         if col == "id":
@@ -158,7 +159,7 @@ def add_row(n_clicks, data):
         if isinstance(row.get("time"), (int, float))
     )
     new_row["time"] = last_time + 30
-    return data + [new_row]
+    return data + [new_row], data + [new_row]
 
 
 @callback(
@@ -166,7 +167,7 @@ def add_row(n_clicks, data):
     Input("experiment-designer-delete", "n_clicks"),
     State("experiment-designer", "selectedRows"),
     State("experiment-designer-store", "data"),
-    prevent_initial_call="initial_duplicate"
+    prevent_initial_call=True
 )
 def delete_selected(n_clicks, selected_rows, current_data):
     if not selected_rows:
@@ -182,8 +183,7 @@ def delete_selected(n_clicks, selected_rows, current_data):
 )
 def update(cell_changed, data):
     if not data:
-        raise PreventUpdate
-
+        return go.Figure()
     fig = plot_data_plotly(data, xlabel="Time (s)")
     return fig
 

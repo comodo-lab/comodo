@@ -22,13 +22,14 @@ def get_control_panel():
 @callback(
     Output('hidden-div', 'children'),
     Input('submit-experiment', 'n_clicks'),
-    State("experiment-config", "data"),
+    State("experiment-designer-store", "data"),
     prevent_initial_call=True
 )
 def update_output(n_clicks, table_data):
     # Prepare data for transmission
     json_data = json.dumps(table_data).encode("utf-8")
-    
+
+    print(f"Data: {json_data}")
     # Publish data
     client = MQTTPublisher.get_instance()
     client.publish("ui/start", json_data)

@@ -69,17 +69,17 @@ else:
         dbc.Row(dbc.Col(graph_layout, width=12))
     ])
 
-@callback(
-    Output("tab-content", "children"),
-    Input("tab-selector", "value")
-)
-def render_tab_content(tab):
-    if tab == "control":
-        return control_window
-    elif tab == "main":
-        return main_window
-    else:
-        return html.Div("No content available for this tab.")
+# @callback(
+#     Output("tab-content", "children"),
+#     Input("tab-selector", "value")
+# )
+# def render_tab_content(tab):
+#     if tab == "control":
+#         return control_window
+#     elif tab == "main":
+#         return main_window
+#     else:
+#         return html.Div("No content available for this tab.")
 
 @app.callback(
     Output("page-content", "children"),
@@ -97,6 +97,7 @@ def render_page(pathname):
     else:
         return html.Div("404 - Page not found")
 
+
 app.layout = dbc.Container([
     dcc.Interval(id="interval", interval=CONTROL_INTERVAL),
     dcc.Interval(id="interval-long", interval=LONG_INTERVAL),
@@ -104,7 +105,8 @@ app.layout = dbc.Container([
     dcc.Location(id="url", refresh=False),
     dcc.Store(id='timezone-store'),
     dcc.Store(id='experiment-config'),
-    html.Div(id='hidden-div', style={'display':'none'}),
+    dcc.Store(id='experiment-designer-store'),
+    html.Div(id='hidden-div', style={'display': 'none'}),
     tm.get_header_bar(),
     dbc.Nav([
         dbc.NavItem(dbc.NavLink("Experiment Designer", href="/designer", active="exact")),
@@ -117,8 +119,8 @@ app.layout = dbc.Container([
     ),
     html.Hr(),
     html.Div(id="page-content")
-],
-fluid=True               
+    ],
+    fluid=True
 )
 
 
