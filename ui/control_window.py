@@ -16,24 +16,36 @@ def get_control_panel():
         dbc.Button("Start experiment", color="success", id="submit-experiment"),
     ],
     className="d-grid gap-2",
-    )       
+    )
     return layout
 
 @callback(
     Output('hidden-div', 'children'),
+    Output('experiment-id', 'children'),
     Input('submit-experiment', 'n_clicks'),
     State("experiment-designer-store", "data"),
+    State('experiment-resolution-store', "data"),
+    State('sensors', 'data'),
     prevent_initial_call=True
 )
-def update_output(n_clicks, table_data):
+def update_output(n_clicks, table_data, resolution, sensors):
     # Prepare data for transmission
-    json_data = json.dumps(table_data).encode("utf-8")
+    experiment_id = str(uuid.uuid4())[:8]
+    experiment_config = {
+        "uid": experiment_id,
+        "config": {
+            "resolution": resolution,
+            "sensors": sensors
+        },
+        "experiment": table_data
+    }
+    json_data = json.dumps(experiment_config).encode("utf-8")
 
     print(f"Data: {json_data}")
     # Publish data
     client = MQTTPublisher.get_instance()
     client.publish("ui/start", json_data)
-    return None
+    return None, experiment_id
 
 
 def get_control_window(params=[]):

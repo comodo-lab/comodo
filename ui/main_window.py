@@ -190,6 +190,7 @@ def update(cell_changed, data):
 
 @callback(
     Output("experiment-designer-store", "data", allow_duplicate=True),
+    Output("sensors", "data", allow_duplicate=True),
     Input("experiment-designer", "cellValueChanged"),
     State("experiment-designer", "rowData"),
     prevent_initial_call=True
@@ -197,4 +198,5 @@ def update(cell_changed, data):
 def sync_edits_to_store(cell_change, current_rows):
     # Sort the rows by time for presentation and ease of plotting
     sorted_rows = sorted(current_rows, key=lambda r: r.get("time", 0))
-    return sorted_rows
+    sensors = sorted_rows[0].keys() if sorted_rows else []
+    return sorted_rows, sensors
