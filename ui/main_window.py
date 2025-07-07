@@ -80,8 +80,7 @@ def get_experiment_designer(params=[], initial_data=None):
     })
 
     # Layout with add/delete buttons and state
-    layout = dbc.Container([
-        html.H3("Experiment Designer"),
+    layout = [
         dbc.Row([
             dcc.Store(id=f"{component_id}-store", data=data),
             dag.AgGrid(
@@ -94,7 +93,7 @@ def get_experiment_designer(params=[], initial_data=None):
                 dashGridOptions={"rowSelection": "multiple", "suppressRowClickSelection": True},
             )
         ]),
-        dbc.Row(html.Hr()),
+        html.Hr(),
         html.Div([
             dbc.Row([
                 dbc.Col([
@@ -112,8 +111,8 @@ def get_experiment_designer(params=[], initial_data=None):
                                className="me-1"),
                 ], className="d-grid gap-2")
             ])
-        ]),
-    ])
+        ])
+    ]
  
     return layout
 
@@ -122,13 +121,9 @@ def get_experiment_graph():
     """
     Creates a graph to display the experimental data.
     """
-    graph = dbc.Container([
-        html.H3("Experiment Graph"),
-        dcc.Graph(id='experiment-plot',
-                  responsive=True
-                  ),
-    ])
-
+    graph = dcc.Graph(id='experiment-plot',
+                      responsive=True
+                      )
     return graph
 
 

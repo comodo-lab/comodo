@@ -20,22 +20,17 @@ def get_status_card(header, title, text, status):
     return card
 
 def get_header_bar():
-    header_bar = dbc.Container([
-        dbc.Row([
-            dbc.CardGroup([
-                dbc.Card([
-                    dbc.CardHeader(""),
-                    dbc.CardBody([
-                        html.H1("Comodo Lab", className="card-title"),
-                    ])
-                ], color="dark", inverse=True),
-                get_status_card("Control System Status", "bad", "15:00:01", "danger"),
-                get_status_card("Experiment ID", "ABC-123", "14:44:24", "dark"),
-                get_status_card("Adjusting", "t_left,t_right", "15:00:01", "success")
-            ]),
-        ]),
-        html.Hr(),
-    ], fluid=True)
+    header_bar = dbc.CardGroup([
+        dbc.Card([
+            dbc.CardHeader(""),
+            dbc.CardBody([
+                html.H1("Comodo Lab", className="card-title"),
+            ])
+        ], color="dark", inverse=True),
+        get_status_card("Control System Status", "bad", "15:00:01", "danger"),
+        get_status_card("Experiment ID", "ABC-123", "14:44:24", "dark"),
+        get_status_card("Adjusting", "t_left,t_right", "15:00:01", "success")
+    ])
     return header_bar
 
 def get_nav_bar():
