@@ -3,12 +3,14 @@ import dash_bootstrap_components as dbc
 from utils.influx_query import query_influxdb_params
 import pytz
 
+
 def status_item(item_name):
     status_item = dbc.Col([
         dbc.Row(html.H3(item_name)),
         dbc.Row(html.H4(f"{item_name} status"))
     ])
     return status_item
+
 
 def get_status_card(header, title, text, status, id):
     card = dbc.Card([
@@ -19,6 +21,7 @@ def get_status_card(header, title, text, status, id):
         ])
     ], color=status, inverse=True, id=id)
     return card
+
 
 def get_header_bar():
     header_bar = dbc.CardGroup([
@@ -81,3 +84,35 @@ def update_header_status(n_intervals, timezone):
     print(f"Unknown status: {status}")
 
     return "Unknown Status", "primary", timestamp
+
+
+@callback(
+    Output("experiment_id-title", "children"),
+    Output("experiment_id", "color"),
+    Output("experiment_id-time", "children"),
+    Input("interval", "n_intervals"),
+    State("timezone-store", "data"),
+    prevent_initial_call=True
+)
+def update_header_id(n_intervals, timezone):
+    """
+    Updates the header bar with the latest experiment ID.
+    """
+    user_tz = pytz.timezone(timezone)
+
+    try:
+        result = query_influxdb_params(
+            fields=["experiment"],
+            topics=["heartbeat/controller"],
+            start="-1m",
+            aggregate="last"
+        )[-1]
+        id = result.get_value()
+        iso_timestamp = result.get_time()
+        timestamp = iso_timestamp.astimezone(user_tz).strftime("%Y-%m-%d %H:%M:%S")
+    except Exception as e:
+        print(f"Error querying status: {e}")
+        time = pytz.datetime.datetime.now(user_tz).strftime("%Y-%m-%d %H:%M:%S")
+        return "Awaiting Experiment", "primary", time
+
+    return id, "success", timestamp

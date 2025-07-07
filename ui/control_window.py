@@ -21,7 +21,6 @@ def get_control_panel():
 
 @callback(
     Output('hidden-div', 'children'),
-    Output('experiment-id', 'children'),
     Input('submit-experiment', 'n_clicks'),
     State("experiment-designer-store", "data"),
     State('experiment-resolution-store', "data"),
@@ -31,11 +30,18 @@ def get_control_panel():
 def update_output(n_clicks, table_data, resolution, sensors):
     # Prepare data for transmission
     experiment_id = str(uuid.uuid4())[:8]
+    sensors_dicts = []
+    for sensor in sensors:
+        temp_dict = {
+            "name": sensor,
+            "threshold": 1.0
+        }
+        sensors_dicts.append(temp_dict)
     experiment_config = {
         "uid": experiment_id,
         "config": {
             "resolution": resolution,
-            "sensors": sensors
+            "sensors": sensors_dicts
         },
         "experiment": table_data
     }
@@ -45,7 +51,7 @@ def update_output(n_clicks, table_data, resolution, sensors):
     # Publish data
     client = MQTTPublisher.get_instance()
     client.publish("ui/start", json_data)
-    return None, experiment_id
+    return None
 
 
 def get_control_window(params=[]):

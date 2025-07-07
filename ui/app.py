@@ -107,7 +107,6 @@ app.layout = dbc.Container([
     dcc.Store(id='experiment-config'),
     dcc.Store(id='experiment-designer-store'),
     dcc.Store(id='experiment-resolution-store'),
-    dcc.Store(id='experiment-id'),
     dcc.Store(id='sensors'),
     html.Div(id='hidden-div', style={'display': 'none'}),
     tm.get_header_bar(),
