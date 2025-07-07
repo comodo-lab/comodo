@@ -171,13 +171,11 @@ def delete_selected(n_clicks, selected_rows, current_data):
 @callback(
     Output("experiment-plot", "figure"),
     Input("experiment-designer", "cellValueChanged"),
-    State("experiment-designer-store", "data"),
+    Input("experiment-designer-store", "data"),
 )
 def update(cell_changed, data):
-    if cell_changed is None:
-        return
-
-    print("Cell changed:", data)
+    if not data:
+        raise PreventUpdate
 
     # new_data = cell_changed[0]['data']
     # y = []
