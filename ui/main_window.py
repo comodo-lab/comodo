@@ -136,6 +136,7 @@ def update_table(data):
 
 @callback(
     Output("experiment-designer-store", "data", allow_duplicate=True),
+    Output("experiment-config", "data"),
     Input("experiment-designer-add", "n_clicks"),
     State("experiment-designer-store", "data"),
     prevent_initial_call="initial_duplicate"
