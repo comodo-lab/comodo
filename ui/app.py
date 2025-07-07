@@ -79,6 +79,9 @@ def render_page(pathname):
         return html.Div("404 - Page not found")
 
 app.layout = dbc.Container([
+    dcc.Interval(id="interval", interval=CONTROL_INTERVAL),
+    dcc.Interval(id="interval-long", interval=LONG_INTERVAL),
+    dcc.Interval(id="interval-short", interval=SHORT_INTERVAL),
     dcc.Location(id="url", refresh=False),
     tm.get_header_bar(),
     dbc.Nav([
