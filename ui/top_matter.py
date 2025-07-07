@@ -29,5 +29,5 @@ def get_header_bar():
             get_status_card("Adjusting", "t_left,t_right", "15:00:01", "success")
         ]),
         dbc.Row(html.Hr()),
-    ])
+    ], fluid=True)
     return header_bar

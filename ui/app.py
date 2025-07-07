@@ -45,9 +45,11 @@ else:
             )
 
 app.layout = dbc.Container([
-        tm.get_header_bar(),
-        main_window,
-])
+    tm.get_header_bar(),
+    main_window,
+],
+fluid=True               
+)
 
 
 if __name__ == "__main__":
