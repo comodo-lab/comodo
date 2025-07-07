@@ -115,7 +115,6 @@ def split_setpoints(setpoint_list, resolution):
     for sp in setpoint_list:
         sp.pop('id')
 
-    print(f"Setpoint list: {setpoint_list}")
     for key in setpoint_list[0].keys():
         if key not in required_keys and "_profile" not in key:
             variable_names.append(key)
@@ -185,6 +184,5 @@ def split_setpoints(setpoint_list, resolution):
         # Assign to the setpoint_values
         for i, value in np.ndenumerate(interpolated_values):
             setpoint_values[i[0]][name] = float(value)
-        print(f'Setpoint values: {setpoint_values}')
 
     return setpoint_values
