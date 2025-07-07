@@ -2,11 +2,37 @@ from dash import Dash, dash_table, html, dcc, callback, Output, Input, State, no
 import dash_bootstrap_components as dbc
 import plotly.express as px
 import uuid
+import json
 
 import dash_ag_grid as dag
 
 import pandas as pd
 import plotly.graph_objects as go
+
+from utils.mqtt_clients import MQTTPublisher
+
+def get_control_panel():
+    layout = html.Div([
+        dbc.Button("Start experiment", color="success", id="submit-experiment"),
+    ],
+    className="d-grid gap-2",
+    )       
+    return layout
+
+@callback(
+    Output('hidden-div', 'children'),
+    Input('submit-experiment', 'n_clicks'),
+    State("experiment-config", "data"),
+    prevent_initial_call=True
+)
+def update_output(n_clicks, table_data):
+    # Prepare data for transmission
+    json_data = json.dumps(table_data).encode("utf-8")
+    
+    # Publish data
+    client = MQTTPublisher.get_instance()
+    client.publish("ui/start", json_data)
+    return None
 
 
 def get_control_window(params=[]):

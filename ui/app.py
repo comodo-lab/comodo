@@ -10,10 +10,22 @@ import top_matter as tm
 import main_window as mw
 import control_window as cw
 
+from utils.mqtt_clients import MQTTPublisher
+import os
+
 app = Dash(
     external_stylesheets=[dbc.themes.LUX],
     suppress_callback_exceptions=True
 )
+
+# Initialise publisher singleton
+publisher = MQTTPublisher.get_instance(
+    broker_address=os.getenv("MQTT_ADDR"),
+    user=os.getenv("MQTT_USER"),
+    password=os.getenv("MQTT_PASS"),
+    connection_timeout=5,
+)
+
 
 app.clientside_callback(
     """
@@ -57,9 +69,6 @@ else:
         dbc.Row(dbc.Col(graph_layout, width=12))
     ])
 
-control_window = cw.get_control_window(PARAM_DICT)
-
-
 @callback(
     Output("tab-content", "children"),
     Input("tab-selector", "value")
@@ -84,7 +93,7 @@ def render_page(pathname):
     elif pathname == "/metadata":
         return "hello"
     elif pathname == "/control":
-        return "world"
+        return cw.get_control_panel()
     else:
         return html.Div("404 - Page not found")
 
@@ -94,6 +103,8 @@ app.layout = dbc.Container([
     dcc.Interval(id="interval-short", interval=SHORT_INTERVAL),
     dcc.Location(id="url", refresh=False),
     dcc.Store(id='timezone-store'),
+    dcc.Store(id='experiment-config'),
+    html.Div(id='hidden-div', style={'display':'none'}),
     tm.get_header_bar(),
     dbc.Nav([
         dbc.NavItem(dbc.NavLink("Experiment Designer", href="/designer", active="exact")),
