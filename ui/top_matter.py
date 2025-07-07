@@ -15,7 +15,7 @@ def get_status_card(header, title, text, status, id):
         dbc.CardHeader(header),
         dbc.CardBody([
             html.H4(title, className="card-title", id=f"{id}-title"),
-            html.P(text, className="card-text"),
+            html.P(text, className="card-text", id=f"{id}-time"),
         ])
     ], color=status, inverse=True, id=id)
     return card
