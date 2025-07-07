@@ -44,12 +44,10 @@ else:
                 )
             )
 
-app.layout = html.Div(
-    [
+app.layout = dbc.Container([
         tm.get_header_bar(),
         main_window,
-    ]
-)
+])
 
 
 if __name__ == "__main__":
