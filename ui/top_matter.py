@@ -54,7 +54,7 @@ def update_header_status(n_intervals):
         status = query_influxdb_params(
             fields=["status"],
             topics=["heartbeat/controller"],
-            start="-3h",
+            start="-1m",
             aggregate="last"
         )[-1].get_value()
     except Exception as e:
