@@ -14,7 +14,7 @@ def get_status_card(header, title, text, status, id):
     card = dbc.Card([
         dbc.CardHeader(header),
         dbc.CardBody([
-            html.H4(title, className="card-title", id=f"{id-title}"),
+            html.H4(title, className="card-title", id=f"{id}-title"),
             html.P(text, className="card-text"),
         ])
     ], color=status, inverse=True, id=id)
@@ -38,7 +38,7 @@ def get_header_bar():
 @callback(
     Output("controller_status-title", "title"),
     Output("controller_status", "color"),
-    Input("interval", "n_intervals"),
+    Input("controller_interval", "n_intervals"),
     prevent_initial_call=True
 )
 def update_header_status(n_intervals):
