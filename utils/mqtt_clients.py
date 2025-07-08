@@ -246,6 +246,7 @@ class MQTTPublisher:
     Usage:
         # First initialization with connection parameters
         publisher = MQTTPublisher.get_instance(
+            id="a_unique_id"
             broker_address="foo.example.com",
             port=1883,
             user="username",

@@ -13,6 +13,7 @@ import sensor_setup as ss
 
 from utils.mqtt_clients import MQTTPublisher
 import os
+import random
 
 app = Dash(
     external_stylesheets=[dbc.themes.LUX],
@@ -20,7 +21,9 @@ app = Dash(
 )
 
 # Initialise publisher singleton
+id_suffix = random.randint(0, 32768)
 publisher = MQTTPublisher.get_instance(
+    id=f"ui-publisher-{id_suffix}",
     broker_address=os.getenv("MQTT_ADDR"),
     user=os.getenv("MQTT_USER"),
     password=os.getenv("MQTT_PASS"),
