@@ -1,5 +1,6 @@
 from dash import Dash, dash_table, html, dcc, callback, Output, Input, State, no_update, ctx
 import dash_bootstrap_components as dbc
+from dash.exceptions import PreventUpdate
 import plotly.express as px
 import uuid
 import json
@@ -27,7 +28,7 @@ def get_control_panel():
     prevent_initial_call=True
 )
 def update_output(n_clicks, table_data, sensors):
-    if n_clicks == 0:
+    if n_clicks == None:
         raise PreventUpdate
         
     # Prepare data for transmission
@@ -36,7 +37,7 @@ def update_output(n_clicks, table_data, sensors):
     experiment_config = {
         "uid": experiment_id,
         "config": {
-            "resolution": sensors[0].get("resolution", 1.0),
+            "resolution": 1.0,
             "sensors": sensors
         },
         "experiment": table_data
