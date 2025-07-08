@@ -13,13 +13,22 @@ def get_sensor_setup(params=[]):
     component_id = 'sensor_setup'
 
     column_dicts = [{'headerName': 'Sensor Name', 'field': 'name', 'editable': True},
-                    {'headerName': 'Tolerance', 'field': 'tolerance', 'editable': True}]
+                    {'headerName': 'P', 'field': 'p', 'editable': True},
+                    {'headerName': 'I', 'field': 'i', 'editable': True},
+                    {'headerName': 'D', 'field': 'd', 'editable': True},
+                    {'headerName': 'Tolerance', 'field': 'tolerance', 'editable': True},
+                    {'headerName': 'Resolution', 'field': 'resolution', 'editable': True}
+                    ]
 
     data = []
     for param in params:
         data.append({
             'name': param,
-            'tolerance': 1.0  # Default tolerance, can be edited
+            'p': 0.21,
+            'i': 0.31,
+            'd': 0.41,
+            'tolerance': 1.0,  # Default tolerance, can be edited
+            'resolution': 1.0
         })
 
     # Layout with add/delete buttons and state

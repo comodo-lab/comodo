@@ -23,18 +23,20 @@ def get_control_panel():
     Output('hidden-div', 'children'),
     Input('submit-experiment', 'n_clicks'),
     State("experiment-designer-store", "data"),
-    State('experiment-resolution-store', "data"),
     State('sensor-store', 'data'),
     prevent_initial_call=True
 )
-def update_output(n_clicks, table_data, resolution, sensors):
+def update_output(n_clicks, table_data, sensors):
+    if n_clicks == 0:
+        raise PreventUpdate
+        
     # Prepare data for transmission
     experiment_id = str(uuid.uuid4())[:8]
 
     experiment_config = {
         "uid": experiment_id,
         "config": {
-            "resolution": resolution,
+            "resolution": sensors[0].get("resolution", 1.0),
             "sensors": sensors
         },
         "experiment": table_data

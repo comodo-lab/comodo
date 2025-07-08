@@ -126,19 +126,10 @@ def get_experiment_graph():
     return graph
 
 @callback(
-    Output("experiment-designer", "rowData"),
-    Input("experiment-designer-store", "data")
-)
-def update_table(data):
-    return data
-
-
-@callback(
     Output("experiment-designer-store", "data", allow_duplicate=True),
-    Output("experiment-config", "data", allow_duplicate=True),
     Input("experiment-designer-add", "n_clicks"),
     State("experiment-designer-store", "data"),
-    prevent_initial_call=True
+    prevent_initial_call='initial_duplicate'
 )
 def add_row(n_clicks, data):
     if not data:
@@ -167,7 +158,7 @@ def add_row(n_clicks, data):
     Input("experiment-designer-delete", "n_clicks"),
     State("experiment-designer", "selectedRows"),
     State("experiment-designer-store", "data"),
-    prevent_initial_call=True
+    prevent_initial_call='initial_duplicate'
 )
 def delete_selected(n_clicks, selected_rows, current_data):
     if not selected_rows:
@@ -178,10 +169,9 @@ def delete_selected(n_clicks, selected_rows, current_data):
 
 @callback(
     Output("experiment-plot", "figure"),
-    Input("experiment-designer", "cellValueChanged"),
     Input("experiment-designer-store", "data"),
 )
-def update(cell_changed, data):
+def update(data):
     if not data:
         return go.Figure()
     fig = plot_data_plotly(data, xlabel="Time (s)")
@@ -189,13 +179,11 @@ def update(cell_changed, data):
 
 
 @callback(
-    Output("experiment-designer-store", "data", allow_duplicate=True),
+    Output("experiment-designer-store", "data"),
     Input("experiment-designer", "cellValueChanged"),
     State("experiment-designer", "rowData"),
-    prevent_initial_call=True
 )
-def sync_edits_to_store(cell_change, current_rows):
+def update_table(cell_change, current_rows):
     # Sort the rows by time for presentation and ease of plotting
-    print(current_rows)
     sorted_rows = sorted(current_rows, key=lambda r: r.get("time", 0))
     return sorted_rows
