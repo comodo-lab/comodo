@@ -8,6 +8,7 @@ import top_matter as tm
 import main_window as mw
 import control_window as cw
 import sensor_setup as ss
+import graph_view as gv
 import experiment_config as ec
 
 from utils.mqtt_clients import MQTTPublisher
@@ -179,6 +180,7 @@ def initialize_experiment_store(pathname, current_data):
 
 
 control_window = cw.get_control_panel(PARAM_DICT)
+graph_layout = gv.get_experiment_graph()
 
 
 
@@ -197,6 +199,8 @@ def render_page(pathname):
         return "hello"
     elif pathname == "/control":
         return control_window
+    elif pathname == "/graph":
+        return graph_layout
     elif pathname == "/experiment-config":
         return dcc.Loading(html.Div(id='experiment-config-wrapper'))
     else:
@@ -220,6 +224,7 @@ app.layout = dbc.Container([
         dbc.NavItem(dbc.NavLink("Experiment Config", href="/experiment-config", active="exact")),
         dbc.NavItem(dbc.NavLink("Metadata Entry", href="/metadata", active="exact")),
         dbc.NavItem(dbc.NavLink("Control Panel", href="/control", active="exact")),
+        dbc.NavItem(dbc.NavLink("Graph View", href="/graph", active="exact")),
     ],
         pills=True,
         fill=True,
