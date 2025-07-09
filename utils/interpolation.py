@@ -113,7 +113,8 @@ def split_setpoints(setpoint_list, resolution):
     sp_variables = {}
 
     for sp in setpoint_list:
-        sp.pop('id')
+        if "id" in sp:
+            sp.pop('id')
 
     for key in setpoint_list[0].keys():
         if key not in required_keys and "_profile" not in key:

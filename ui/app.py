@@ -1,4 +1,5 @@
 from dash import Dash, html, dcc, Input, Output, callback, State, no_update
+from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 import dash_ag_grid as dag
 import plotly.express as px
@@ -46,8 +47,6 @@ CONTROL_INTERVAL = 5000  # milliseconds
 SHORT_INTERVAL = 1000  # milliseconds
 LONG_INTERVAL = 5000  # milliseconds
 
-SIDE_BY_SIDE = True
-
 PARAMS = [
     'temp_left',
     'temp_main',
@@ -64,19 +63,52 @@ SETTINGS = [
     {'name': 'resolution', 'display_name': 'Simulation Resolution (s)', 'value': 1},
 ]
 
-designer_layout = mw.get_experiment_designer(params=PARAMS, initial_data=None)
-graph_layout = mw.get_experiment_graph()
 
-if SIDE_BY_SIDE:
-    main_window = dbc.Row([
+INI_DATA_DICT = [
+    {'time': 0, 'temp_left': 0.0, 'temp_left_profile': 'linear', 'temp_main': 0.0, 'temp_main_profile': 'linear', 'temp_right': 0.0, 'temp_right_profile': 'linear'},
+    {'time': 30, 'temp_left': 250.0, 'temp_left_profile': 'exponential', 'temp_main': 300.0, 'temp_main_profile': 'linear', 'temp_right': 250.0, 'temp_right_profile': 'exponential'},
+    {'time': 60, 'temp_left': 300.0, 'temp_left_profile': 'step', 'temp_main': 350.0, 'temp_main_profile': 'step', 'temp_right': 350.0, 'temp_right_profile': 'step'},
+    {'time': 90, 'temp_left': 200.0, 'temp_left_profile': 'linear', 'temp_main': 200.0, 'temp_main_profile': 'linear', 'temp_right': 200.0, 'temp_right_profile': 'linear'},
+    {'time': 120, 'temp_left': 0.0, 'temp_left_profile': 'linear', 'temp_main': 0.0, 'temp_main_profile': 'linear', 'temp_right': 0.0, 'temp_right_profile': 'linear'}
+]
+
+
+
+# ---------------------------------------------------
+# MAIN WINDOW
+# ---------------------------------------------------
+
+def get_main_window(row_data):
+    designer_layout = mw.get_experiment_designer(params=PARAMS, data=row_data)
+    graph_layout = mw.get_experiment_graph()
+
+    return dbc.Row([
         dbc.Col(designer_layout),
         dbc.Col(graph_layout)
     ])
-else:
-    main_window = html.Div([
-        dbc.Row(dbc.Col(designer_layout, width=12)),
-        dbc.Row(dbc.Col(graph_layout, width=12))
-    ])
+
+
+@app.callback(
+    Output("designer-wrapper", "children"),
+    Input("experiment-designer-store", "data"),
+)
+def update_designer_page(data):
+    if data is None:
+        raise PreventUpdate  # Wait for initialization
+    return get_main_window(row_data=data)
+
+
+@app.callback(
+    Output("experiment-designer-store", "data", allow_duplicate=True),
+    Input("url", "pathname"),
+    State("experiment-designer-store", "data"),
+    prevent_initial_call=True
+)
+def initialize_experiment_store(pathname, current_data):
+    if pathname == "/designer" and not current_data:
+        return INI_DATA_DICT
+    return no_update
+
 
 sensor_window = ss.get_sensor_setup(params=PARAMS)
 control_window = cw.get_control_panel(PARAM_DICT)
@@ -93,7 +125,7 @@ def render_page(pathname):
     elif pathname == "/sensor":
         return sensor_window
     elif pathname == "/designer":
-        return main_window
+        return dcc.Loading(html.Div(id='designer-wrapper'))
     elif pathname == "/metadata":
         return "hello"
     elif pathname == "/control":
