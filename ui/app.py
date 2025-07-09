@@ -10,6 +10,7 @@ import top_matter as tm
 import main_window as mw
 import control_window as cw
 import sensor_setup as ss
+import graph_view as gv
 
 from utils.mqtt_clients import MQTTPublisher
 import os
@@ -75,6 +76,7 @@ else:
 
 sensor_window = ss.get_sensor_setup(params=PARAMS)
 control_window = cw.get_control_panel(PARAM_DICT)
+graph_layout = gv.get_experiment_graph()
 
 # @callback(
 #     Output("tab-content", "children"),
@@ -103,6 +105,8 @@ def render_page(pathname):
         return "hello"
     elif pathname == "/control":
         return control_window
+    elif pathname == "/graph":
+        return graph_layout
     else:
         return html.Div("404 - Page not found")
 
@@ -122,6 +126,7 @@ app.layout = dbc.Container([
         dbc.NavItem(dbc.NavLink("Sensor Setup", href="/sensor", active="exact")),
         dbc.NavItem(dbc.NavLink("Metadata Entry", href="/metadata", active="exact")),
         dbc.NavItem(dbc.NavLink("Control Panel", href="/control", active="exact")),
+        dbc.NavItem(dbc.NavLink("Graph View", href="/graph", active="exact")),
     ],
         pills=True,
         fill=True,
