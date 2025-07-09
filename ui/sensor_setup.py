@@ -4,7 +4,7 @@ import dash_bootstrap_components as dbc
 import dash_ag_grid as dag
 
 
-def get_sensor_setup(params=[]):
+def get_sensor_setup(data=[]):
     '''
     Creates a dash-ag-grid component for sensor setup with editing.
 
@@ -18,16 +18,6 @@ def get_sensor_setup(params=[]):
                     {'headerName': 'D', 'field': 'd', 'editable': True},
                     {'headerName': 'Tolerance', 'field': 'tolerance', 'editable': True},
                     ]
-
-    data = []
-    for param in params:
-        data.append({
-            'name': param,
-            'p': 0.21,
-            'i': 0.31,
-            'd': 0.41,
-            'tolerance': 1.0,  # Default tolerance, can be edited
-        })
 
     # Layout with add/delete buttons and state
     layout = [

@@ -73,6 +73,15 @@ INI_DATA_DICT = [
 ]
 
 
+INI_SENSOR_DICT = [{
+    'name': sensor,
+    'p': 0.21,
+    'i': 0.31,
+    'd': 0.41,
+    'tolerance': 1.0  # Default tolerance, can be edited
+} for sensor in PARAMS]
+
+
 
 # ---------------------------------------------------
 # MAIN WINDOW
@@ -110,7 +119,37 @@ def initialize_experiment_store(pathname, current_data):
     return no_update
 
 
-sensor_window = ss.get_sensor_setup(params=PARAMS)
+# ---------------------------------------------------
+# SENSOR SETUP
+# ---------------------------------------------------
+
+def get_sensor_window(row_data):
+    sensor_layout = ss.get_sensor_setup(data=row_data)
+    return sensor_layout
+
+
+@app.callback(
+    Output("sensor-wrapper", "children"),
+    Input("sensor-store", "data"),
+)
+def update_sensor_page(data):
+    if data is None:
+        raise PreventUpdate  # Wait for initialization
+    return get_sensor_window(row_data=data)
+
+
+@app.callback(
+    Output("sensor-store", "data", allow_duplicate=True),
+    Input("url", "pathname"),
+    State("sensor-store", "data"),
+    prevent_initial_call=True
+)
+def initialize_experiment_store(pathname, current_data):
+    if pathname == "/sensor" and not current_data:
+        return INI_SENSOR_DICT
+    return no_update
+
+
 control_window = cw.get_control_panel(PARAM_DICT)
 experiment_config = ec.get_experiment_config(params=SETTINGS)
 
@@ -123,7 +162,7 @@ def render_page(pathname):
     if pathname in ["/", None]:
         return dcc.Location(href="/designer", id="redirect")
     elif pathname == "/sensor":
-        return sensor_window
+        return dcc.Loading(html.Div(id='sensor-wrapper'))
     elif pathname == "/designer":
         return dcc.Loading(html.Div(id='designer-wrapper'))
     elif pathname == "/metadata":
