@@ -1,4 +1,4 @@
-from dash import Dash, html, dcc, Input, Output, callback
+from dash import Dash, html, dcc, Input, Output, callback, State, no_update
 import dash_bootstrap_components as dbc
 import dash_ag_grid as dag
 import plotly.express as px
@@ -10,6 +10,7 @@ import top_matter as tm
 import main_window as mw
 import control_window as cw
 import sensor_setup as ss
+import experiment_config as ec
 
 from utils.mqtt_clients import MQTTPublisher
 import os
@@ -59,6 +60,10 @@ PARAM_DICT = [
     {'name': 'temp_right', 'min': 0, 'max': 1000, 'step': 1}
 ]
 
+SETTINGS = [
+    {'name': 'resolution', 'display_name': 'Simulation Resolution (s)', 'value': 1},
+]
+
 designer_layout = mw.get_experiment_designer(params=PARAMS, initial_data=None)
 graph_layout = mw.get_experiment_graph()
 
@@ -75,18 +80,8 @@ else:
 
 sensor_window = ss.get_sensor_setup(params=PARAMS)
 control_window = cw.get_control_panel(PARAM_DICT)
+experiment_config = ec.get_experiment_config(params=SETTINGS)
 
-# @callback(
-#     Output("tab-content", "children"),
-#     Input("tab-selector", "value")
-# )
-# def render_tab_content(tab):
-#     if tab == "control":
-#         return control_window
-#     elif tab == "main":
-#         return main_window
-#     else:
-#         return html.Div("No content available for this tab.")
 
 @app.callback(
     Output("page-content", "children"),
@@ -103,6 +98,8 @@ def render_page(pathname):
         return "hello"
     elif pathname == "/control":
         return control_window
+    elif pathname == "/experiment-config":
+        return experiment_config
     else:
         return html.Div("404 - Page not found")
 
@@ -115,11 +112,13 @@ app.layout = dbc.Container([
     dcc.Store(id='timezone-store'),
     dcc.Store(id='experiment-designer-store'),
     dcc.Store(id='sensor-store'),
+    dcc.Store(id='experiment-config-store'),
     html.Div(id='hidden-div', style={'display': 'none'}),
     tm.get_header_bar(),
     dbc.Nav([
         dbc.NavItem(dbc.NavLink("Experiment Designer", href="/designer", active="exact")),
         dbc.NavItem(dbc.NavLink("Sensor Setup", href="/sensor", active="exact")),
+        dbc.NavItem(dbc.NavLink("Experiment Config", href="/experiment-config", active="exact")),
         dbc.NavItem(dbc.NavLink("Metadata Entry", href="/metadata", active="exact")),
         dbc.NavItem(dbc.NavLink("Control Panel", href="/control", active="exact")),
     ],

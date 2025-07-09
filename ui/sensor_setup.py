@@ -56,7 +56,7 @@ def update_table(data):
 
 
 @callback(
-    Output("sensor-store", "data", allow_duplicate=True),
+    Output("sensor-store", "data"),
     Input("sensor_setup", "cellValueChanged"),
     State("sensor_setup", "rowData"),
     prevent_initial_call=True
