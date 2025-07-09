@@ -1,10 +1,7 @@
 from dash import Dash, html, dcc, Input, Output, callback, State, no_update
 from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
-import dash_ag_grid as dag
-import plotly.express as px
 
-import dash_ag_grid as dag
 from dash import Dash, html
 
 import top_matter as tm
@@ -59,7 +56,7 @@ PARAM_DICT = [
     {'name': 'temp_right', 'min': 0, 'max': 1000, 'step': 1}
 ]
 
-SETTINGS = [
+INI_EXPERIMENT_CONFIG = [
     {'name': 'resolution', 'display_name': 'Simulation Resolution (s)', 'value': 1},
 ]
 
@@ -150,8 +147,39 @@ def initialize_experiment_store(pathname, current_data):
     return no_update
 
 
+# ---------------------------------------------------
+# EXPERIMENT CONFIG
+# ---------------------------------------------------
+
+def get_experiment_config_window(row_data):
+    sensor_layout = ec.get_experiment_config(data=row_data)
+    return sensor_layout
+
+
+@app.callback(
+    Output("experiment-config-wrapper", "children"),
+    Input("experiment-config-store", "data"),
+)
+def update_experiment_config_page(data):
+    if data is None:
+        raise PreventUpdate  # Wait for initialization
+    return get_experiment_config_window(row_data=data)
+
+
+@app.callback(
+    Output("experiment-config-store", "data", allow_duplicate=True),
+    Input("url", "pathname"),
+    State("experiment-config-store", "data"),
+    prevent_initial_call=True
+)
+def initialize_experiment_store(pathname, current_data):
+    if pathname == "/experiment-config" and not current_data:
+        return INI_EXPERIMENT_CONFIG
+    return no_update
+
+
 control_window = cw.get_control_panel(PARAM_DICT)
-experiment_config = ec.get_experiment_config(params=SETTINGS)
+
 
 
 @app.callback(
@@ -170,7 +198,7 @@ def render_page(pathname):
     elif pathname == "/control":
         return control_window
     elif pathname == "/experiment-config":
-        return experiment_config
+        return dcc.Loading(html.Div(id='experiment-config-wrapper'))
     else:
         return html.Div("404 - Page not found")
 

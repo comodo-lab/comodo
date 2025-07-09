@@ -4,7 +4,7 @@ import dash_bootstrap_components as dbc
 import dash_ag_grid as dag
 
 
-def get_experiment_config(params=[]):
+def get_experiment_config(data=[]):
     '''
     Creates a dash-ag-grid component for sensor setup with editing.
 
@@ -17,8 +17,6 @@ def get_experiment_config(params=[]):
         {'headerName': 'Name', 'field': 'name', 'editable': True, 'hide': True},
         {'headerName': 'Value', 'field': 'value', 'editable': True}
     ]
-
-    data = params
 
     # Layout with add/delete buttons and state
     layout = [
