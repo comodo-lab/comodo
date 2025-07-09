@@ -6,6 +6,7 @@ pandas
 dash-bootstrap-components
 # pyyaml
 dash-ag-grid
+dash-daq
 
 numpy
 influxdb-client

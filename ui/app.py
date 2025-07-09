@@ -73,6 +73,9 @@ else:
         dbc.Row(dbc.Col(graph_layout, width=12))
     ])
 
+sensor_window = ss.get_sensor_setup(params=PARAMS)
+control_window = cw.get_control_panel(PARAM_DICT)
+
 # @callback(
 #     Output("tab-content", "children"),
 #     Input("tab-selector", "value")
@@ -93,13 +96,13 @@ def render_page(pathname):
     if pathname in ["/", None]:
         return dcc.Location(href="/designer", id="redirect")
     elif pathname == "/sensor":
-        return ss.get_sensor_setup(params=PARAMS)
+        return sensor_window
     elif pathname == "/designer":
         return main_window
     elif pathname == "/metadata":
         return "hello"
     elif pathname == "/control":
-        return cw.get_control_panel()
+        return control_window
     else:
         return html.Div("404 - Page not found")
 
