@@ -1,13 +1,18 @@
 from dash import html
 import requests
 
-GRAFANA_URL="http://grafana:3000"
+BACKEND_GRAFANA_URL = "http://grafana:3000"
+QUERY_PATH = "/api/search"
+QUERY_PARAMS = "?query=&system-metrics"
+
+FRONTEND_GRAFANA_URL = "http://localhost:3000"
+DISPLAY_PARAMS = "?orgId=1&from=now-5m&to=now&timezone=browser&refresh=auto&theme=light&kiosk=true"
 
 def get_dashboard_json():
     ## Get all dashboards
     response = None
     try:
-        response = requests.get(f"{GRAFANA_URL}/api/search?query=&system-metrics")
+        response = requests.get(f"{BACKEND_GRAFANA_URL}{QUERY_PATH}{QUERY_PARAMS}")
         response.raise_for_status() 
 
         for d in response.json():
@@ -34,8 +39,8 @@ def get_experiment_graph():
     if not comodo_dashboard:
         return "Sad no dashboard noises"
 
-    url_base = f"http://localhost:3000{comodo_dashboard.get('url')}"
-    url = f"{url_base}?orgId=1&from=now-5m&to=now&timezone=browser&refresh=auto&theme=light&kiosk=true"
+    url_base = f"{FRONTEND_GRAFANA_URL}{comodo_dashboard.get('url')}"
+    url = f"{url_base}{DISPLAY_PARAMS}"
     graph = html.Div([
         html.Iframe(src=url, style={"width": "100%", "height": "80vh"})
     ])
