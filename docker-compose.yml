@@ -66,7 +66,11 @@ services:
       comodo:
 
   grafana:
-    image: grafana/grafana
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM grafana/grafana
+        COPY ./grafana/provisioning/ /etc/grafana/provisioning/
     container_name: comodo-grafana
     restart: unless-stopped
     environment:
@@ -76,6 +80,8 @@ services:
       - 3000:3000
     volumes:
       - grafana-storage:/var/lib/grafana
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+      - ./grafana/dashboard.yaml:/etc/grafana/provisioning/dashboards/main.yaml
     networks:
       comodo:
 
