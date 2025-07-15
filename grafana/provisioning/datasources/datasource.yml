@@ -1,0 +1,35 @@
+   # Configuration file version
+apiVersion: 1
+
+# Mark provisioned data sources for deletion if they are no longer in a provisioning file.
+# It takes no effect if data sources are already listed in the deleteDatasources section.
+prune: true
+
+# List of data sources to insert/update depending on what's
+# available in the database.
+datasources:
+  - name: Comodo
+    type: influxdb
+    access: proxy
+    orgId: 1
+    uid: bere8a3gzy800d
+    url: http://influxdb:8086
+    typeLogoUrl: public/app/plugins/datasource/influxdb/img/influxdb_logo.svg
+    user:
+    database:
+    basicAuth: False
+    basicAuthUser:
+    withCredentials: False
+    isDefault: True
+    jsonData:
+      defaultBucket: comodo
+      httpMode: POST
+      organization: comodo
+      version: Flux
+    secureJsonFields:
+      token: True
+    secureJsonData:
+      token: thisisareallylongtoken
+    version: 3
+    readOnly: false
+    apiVersion: 

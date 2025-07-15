@@ -9,11 +9,28 @@ from dash import Dash, html
 import top_matter as tm
 import main_window as mw
 import control_window as cw
+import sensor_setup as ss
+import graph_view as gv
+
+from utils.mqtt_clients import MQTTPublisher
+import os
+import random
 
 app = Dash(
     external_stylesheets=[dbc.themes.LUX],
     suppress_callback_exceptions=True
 )
+
+# Initialise publisher singleton
+id_suffix = random.randint(0, 32768)
+publisher = MQTTPublisher.get_instance(
+    id=f"ui-publisher-{id_suffix}",
+    broker_address=os.getenv("MQTT_ADDR"),
+    user=os.getenv("MQTT_USER"),
+    password=os.getenv("MQTT_PASS"),
+    connection_timeout=5,
+)
+
 
 app.clientside_callback(
     """
@@ -22,7 +39,7 @@ app.clientside_callback(
     }
     """,
     Output('timezone-store', 'data'),
-    Input('timezone-store', 'modified_timestamp')  
+    Input('timezone-store', 'modified_timestamp')
 )
 
 CONTROL_INTERVAL = 5000  # milliseconds
@@ -57,20 +74,21 @@ else:
         dbc.Row(dbc.Col(graph_layout, width=12))
     ])
 
-control_window = cw.get_control_window(PARAM_DICT)
+sensor_window = ss.get_sensor_setup(params=PARAMS)
+control_window = cw.get_control_panel(PARAM_DICT)
+graph_layout = gv.get_experiment_graph()
 
-
-@callback(
-    Output("tab-content", "children"),
-    Input("tab-selector", "value")
-)
-def render_tab_content(tab):
-    if tab == "control":
-        return control_window
-    elif tab == "main":
-        return main_window
-    else:
-        return html.Div("No content available for this tab.")
+# @callback(
+#     Output("tab-content", "children"),
+#     Input("tab-selector", "value")
+# )
+# def render_tab_content(tab):
+#     if tab == "control":
+#         return control_window
+#     elif tab == "main":
+#         return main_window
+#     else:
+#         return html.Div("No content available for this tab.")
 
 @app.callback(
     Output("page-content", "children"),
@@ -79,14 +97,19 @@ def render_tab_content(tab):
 def render_page(pathname):
     if pathname in ["/", None]:
         return dcc.Location(href="/designer", id="redirect")
+    elif pathname == "/sensor":
+        return sensor_window
     elif pathname == "/designer":
         return main_window
     elif pathname == "/metadata":
         return "hello"
     elif pathname == "/control":
-        return "world"
+        return control_window
+    elif pathname == "/graph":
+        return graph_layout
     else:
         return html.Div("404 - Page not found")
+
 
 app.layout = dbc.Container([
     dcc.Interval(id="interval", interval=CONTROL_INTERVAL),
@@ -94,11 +117,16 @@ app.layout = dbc.Container([
     dcc.Interval(id="interval-short", interval=SHORT_INTERVAL),
     dcc.Location(id="url", refresh=False),
     dcc.Store(id='timezone-store'),
+    dcc.Store(id='experiment-designer-store'),
+    dcc.Store(id='sensor-store'),
+    html.Div(id='hidden-div', style={'display': 'none'}),
     tm.get_header_bar(),
     dbc.Nav([
         dbc.NavItem(dbc.NavLink("Experiment Designer", href="/designer", active="exact")),
+        dbc.NavItem(dbc.NavLink("Sensor Setup", href="/sensor", active="exact")),
         dbc.NavItem(dbc.NavLink("Metadata Entry", href="/metadata", active="exact")),
         dbc.NavItem(dbc.NavLink("Control Panel", href="/control", active="exact")),
+        dbc.NavItem(dbc.NavLink("Graph View", href="/graph", active="exact")),
     ],
         pills=True,
         fill=True,
@@ -106,8 +134,8 @@ app.layout = dbc.Container([
     ),
     html.Hr(),
     html.Div(id="page-content")
-],
-fluid=True               
+    ],
+    fluid=True
 )
 
 

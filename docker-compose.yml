@@ -66,16 +66,24 @@ services:
       comodo:
 
   grafana:
-    image: grafana/grafana
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM grafana/grafana
+        COPY ./grafana/provisioning/ /etc/grafana/provisioning/
     container_name: comodo-grafana
     restart: unless-stopped
     environment:
       - GF_AUTH_ANONYMOUS_ENABLED=true
-      - GF_AUTH_ANONYMOUS_ORG_ROLE=Editor
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_SECURITY_ALLOW_EMBEDDING=true
+      - GF_AUTH_ANONYMOUS_ORG_NAME=Main Org.
     ports:
       - 3000:3000
     volumes:
       - grafana-storage:/var/lib/grafana
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+      - ./grafana/dashboard.yaml:/etc/grafana/provisioning/dashboards/main.yaml
     networks:
       comodo:
 
@@ -118,6 +126,8 @@ services:
       - ./ui/:/app/
       - ./utils:/app/utils
     environment:
+      - MQTT_ADDR=rabbitmq
+      - MQTT_PORT=1883
       - MQTT_USER=${MQTT_USER}
       - MQTT_PASS=${MQTT_PASS}
       - INFLUX_TOKEN=${INFLUX_TOKEN}

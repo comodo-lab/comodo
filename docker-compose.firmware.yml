@@ -1,5 +1,6 @@
 x-sensor-base: &sensor-template
   build:
+    context: firmware
     dockerfile_inline: |
       FROM micropython/unix
       WORKDIR /sensor

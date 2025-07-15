@@ -3,12 +3,14 @@ import dash_bootstrap_components as dbc
 from utils.influx_query import query_influxdb_params
 import pytz
 
+
 def status_item(item_name):
     status_item = dbc.Col([
         dbc.Row(html.H3(item_name)),
         dbc.Row(html.H4(f"{item_name} status"))
     ])
     return status_item
+
 
 def get_status_card(header, title, text, status, id):
     card = dbc.Card([
@@ -20,6 +22,7 @@ def get_status_card(header, title, text, status, id):
     ], color=status, inverse=True, id=id)
     return card
 
+
 def get_header_bar():
     header_bar = dbc.CardGroup([
         dbc.Card([
@@ -28,9 +31,9 @@ def get_header_bar():
                 html.H1("Comodo Lab", className="card-title"),
             ])
         ], color="primary", inverse=True),
-        get_status_card("Control System Status", "bad", "15:00:01", "danger", "controller_status"),
-        get_status_card("Experiment ID", "ABC-123", "14:44:24", "primary", "experiment_id"),
-        get_status_card("Adjusting", "t_left,t_right", "15:00:01", "success", "adjusting_status"),
+        get_status_card("Control System Status", "waiting", "15:00:01", "warning", "controller_status"),
+        get_status_card("Experiment ID", "Awaiting Experiment", "14:44:24", "primary", "experiment_id"),
+        get_status_card("Adjusting", "None", "15:00:01", "primary", "adjusting_status"),
     ])
     return header_bar
 
@@ -81,3 +84,83 @@ def update_header_status(n_intervals, timezone):
     print(f"Unknown status: {status}")
 
     return "Unknown Status", "primary", timestamp
+
+
+@callback(
+    Output("experiment_id-title", "children"),
+    Output("experiment_id", "color"),
+    Output("experiment_id-time", "children"),
+    Input("interval", "n_intervals"),
+    State("timezone-store", "data"),
+    prevent_initial_call=True
+)
+def update_header_id(n_intervals, timezone):
+    """
+    Updates the header bar with the latest experiment ID.
+    """
+    user_tz = pytz.timezone(timezone)
+
+    try:
+        result = query_influxdb_params(
+            fields=["experiment"],
+            topics=["heartbeat/controller"],
+            start="-1m",
+            aggregate="last"
+        )[-1]
+        id = result.get_value()
+        iso_timestamp = result.get_time()
+        timestamp = iso_timestamp.astimezone(user_tz).strftime("%Y-%m-%d %H:%M:%S")
+    except Exception as e:
+        print(f"Error querying id: {e}")
+        time = pytz.datetime.datetime.now(user_tz).strftime("%Y-%m-%d %H:%M:%S")
+        return "Awaiting Experiment", "primary", time
+
+    return id, "success", timestamp
+
+
+@callback(
+    Output("adjusting_status-title", "children"),
+    Output("adjusting_status", "color"),
+    Output("adjusting_status-time", "children"),
+    Input("interval", "n_intervals"),
+    State("sensor-store", "data"),
+    State("timezone-store", "data"),
+    prevent_initial_call=True
+)
+def update_header_id(n_intervals, sensors, timezone):
+    """
+    Updates the header bar with the latest experiment ID.
+    """
+    user_tz = pytz.timezone(timezone)
+    time = pytz.datetime.datetime.now(user_tz).strftime("%Y-%m-%d %H:%M:%S")
+
+    adjusting = []
+
+    if sensors is None:
+        return "None Adjusting", "primary", time
+
+    for sensor in sensors:
+        sensor_name = sensor['name']
+        print(f"Checking sensor: {sensor_name}")
+        try:
+            result = query_influxdb_params(
+                fields=["status"],
+                topics=[f"heartbeat/sensor/{sensor_name}"],
+                start="-1m",
+                aggregate="last"
+            )[-1]
+            id = result.get_value()
+            if id == 'adjusting':
+                adjusting.append(sensor_name)
+            iso_timestamp = result.get_time()
+            timestamp = iso_timestamp.astimezone(user_tz).strftime("%Y-%m-%d %H:%M:%S")
+        except Exception as e:
+            print(f"Error querying awaiting: {e}")
+            return "None Adjusting", "primary", time
+        
+    if len(adjusting) == 0:
+        return "None Adjusting", "primary", timestamp
+    else:
+        adjusting_str = ", ".join(' '.join(sensor.split('_')).capitalize() for sensor in adjusting)
+
+    return adjusting_str, "success", timestamp

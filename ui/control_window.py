@@ -1,15 +1,62 @@
-from dash import Dash, dash_table, html, dcc, callback, Output, Input, State, no_update, ctx
+from dash import Dash, dash_table, html, dcc, callback, Output, Input, State, no_update, ctx, MATCH
 import dash_bootstrap_components as dbc
+from dash.exceptions import PreventUpdate
 import plotly.express as px
 import uuid
+import json
+import pytz
+
 
 import dash_ag_grid as dag
+import dash_daq as daq
 
 import pandas as pd
 import plotly.graph_objects as go
 
+from utils.mqtt_clients import MQTTPublisher
+from utils.influx_query import query_influxdb_params
 
-def get_control_window(params=[]):
+def get_control_panel(params=[]):
+    layout = html.Div([
+            dbc.Button("Start experiment", color="success", id="submit-experiment"),
+            get_manual_panel(params=params),
+        ],
+    className="d-grid gap-2",
+    )
+    return layout
+
+@callback(
+    Output('hidden-div', 'children'),
+    Input('submit-experiment', 'n_clicks'),
+    State("experiment-designer-store", "data"),
+    State('sensor-store', 'data'),
+    prevent_initial_call=True
+)
+def update_output(n_clicks, table_data, sensors):
+    if n_clicks == None:
+        raise PreventUpdate
+        
+    # Prepare data for transmission
+    experiment_id = str(uuid.uuid4())[:8]
+
+    experiment_config = {
+        "uid": experiment_id,
+        "config": {
+            "resolution": 1.0,
+            "sensors": sensors
+        },
+        "experiment": table_data
+    }
+    json_data = json.dumps(experiment_config).encode("utf-8")
+
+    print(f"Data: {json_data}")
+    # Publish data
+    client = MQTTPublisher.get_instance()
+    client.publish("ui/start", json_data)
+    return None
+
+
+def get_manual_panel(params=[]):
     """
     Creates the control window for the experiment designer.
     """
@@ -17,7 +64,9 @@ def get_control_window(params=[]):
         raise ValueError("Parameter list cannot be empty. Please provide at least one parameter.")
 
     control_rows = [
-        dbc.Row(html.H2("Control Window")),
+        dbc.Row(html.H2("Manual Control Window")),
+        dbc.Row(html.Hr()),
+        dbc.Row(html.P("Last update: N/A", id="control-last-update")),
     ]
 
     for param in params:
@@ -61,7 +110,7 @@ def get_control_component(param_name=None, min_val=0, max_val=100, step=1):
         dbc.Row([
             dbc.Col(
                 dcc.Slider(
-                    id="control-slider",
+                    id={"type": "control-slider", "index": param_name},
                     min=min_val,
                     max=max_val,
                     step=step,
@@ -70,18 +119,13 @@ def get_control_component(param_name=None, min_val=0, max_val=100, step=1):
                 ),
             ),
             dbc.Col(
-                dcc.Graph(
-                    id={"type": "control-gauge-combined", "param": param_name},
-                    figure=make_combined_gauge(
-                        setpoint=(min_val + max_val) // 2,
-                        current=(min_val + max_val) // 2,
-                        min_val=min_val,
-                        max_val=max_val,
-                        param=param_name
-                    ),
-                    config={"displayModeBar": False}
+                daq.Gauge(
+                    id={"type": "control-gauge", "index": param_name},
+                    min=min_val,
+                    max=max_val,
+                    value=(min_val + max_val) // 2
                 ),
-                width=6
+                width=4
             )
         ])
     ])
@@ -89,49 +133,53 @@ def get_control_component(param_name=None, min_val=0, max_val=100, step=1):
     return control_component
 
 
-def make_combined_gauge(setpoint, current, min_val=0, max_val=100, param="temp"):
-    fig = go.Figure()
+@callback(
+    Output({"type": "control-gauge", "index": MATCH}, "value"),
+    Output({"type": "control-slider", "index": MATCH}, "value"),
+    # Output("control-last-update", "children"),
+    Input("interval", "n_intervals"),
+    State("sensor-store", "data"),
+    State({"type": "control-slider", "index": MATCH}, "id"),
+    State("timezone-store", "data"),
+)
+def update_control_component(n_intervals, sensors, slider_id, timezone):
+    """
+    Updates the control component based on the selected parameter.
+    """
+    # Extract the parameter name from the slider's id
+    param_name = slider_id["index"]
 
-    # Main gauge with no dominant bar
-    fig.add_trace(go.Indicator(
-        mode="gauge+number",
-        value=current,
-        title={"text": f"{param.capitalize()} - Current Value"},
-        gauge={
-            "axis": {"range": [min_val, max_val]},
-            "bar": {"color": "lightgray", "thickness": 0.2},
-            "steps": [
-                {"range": [min_val, max_val], "color": "white"}
-            ],
-        },
-        domain={"x": [0, 1], "y": [0, 1]}
-    ))
+    # Find the corresponding sensor data
+    sensor = next((s for s in sensors if s['name'] == param_name), None)
 
-    # Add a line to represent the setpoint on the gauge
-    angle = (setpoint - min_val) / (max_val - min_val) * 180
-    radius = 0.5
+    try:
+        user_tz = pytz.timezone(timezone)
+        time = pytz.datetime.datetime.now(user_tz).strftime("%Y-%m-%d %H:%M:%S")
+    except Exception as e:
+        print(f"Error getting current time: {e}")
+        time = "N/A"
 
-    import math
-    x_center, y_center = 0.5, 0.5
-    x = x_center + radius * math.cos(math.radians(180 - angle))
-    y = y_center + radius * math.sin(math.radians(180 - angle))
+    if not sensor:
+        return no_update, no_update#, time
 
-    fig.add_trace(go.Scatter(
-        x=[x],
-        y=[y],
-        mode="markers+text",
-        marker=dict(symbol="line-ns-open", size=20, color="red", line=dict(width=4)),
-        text=[f"Setpoint: {setpoint}"],
-        textposition="top center",
-        showlegend=False,
-        hoverinfo="text"
-    ))
+    # Query setpoint and actual value for the parameter
+    try:
+        setpoint = query_influxdb_params(
+            fields=[param_name],
+            topics=["sensor/setpoint"],
+            start="-1m",
+            aggregate="last"
+        )[-1].get_value()
 
-    fig.update_layout(
-        margin=dict(l=20, r=20, t=40, b=20),
-        height=300,
-        xaxis=dict(visible=False),
-        yaxis=dict(visible=False)
-    )
+        actual_value = query_influxdb_params(
+            fields=["value"],
+            topics=[f"measurement/{param_name}"],
+            start="-1m",
+            aggregate="last"
+        )[-1].get_value()
+    except Exception as e:
+        print(f"Error querying InfluxDB for {param_name}: {e}")
+        return no_update, no_update#, time
 
-    return fig
+    # Update the gauge and slider values
+    return actual_value, setpoint#, time
