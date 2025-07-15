@@ -39,7 +39,7 @@ def get_experiment_designer(params=[], data=[]):
 
     # Ensure each row has a unique ID
     for row in data:
-        row.setdefault("id", str(uuid.uuid4()))
+        row["id"] = str(uuid.uuid4())
 
     # Construct column definitions
     column_dicts = [{'headerName': ' '.join(w.capitalize() for w in col.split('_')), 'field': col}
@@ -118,7 +118,7 @@ def get_experiment_graph():
 )
 def add_row(n_clicks, data):
     if not data:
-        return data, data
+        return data
     new_row = {"id": str(uuid.uuid4())}
     for col in data[0]:
         if col == "id":
@@ -135,7 +135,7 @@ def add_row(n_clicks, data):
         if isinstance(row.get("time"), (int, float))
     )
     new_row["time"] = last_time + 30
-    return data + [new_row], data + [new_row]
+    return data + [new_row]
 
 
 @callback(
