@@ -24,16 +24,7 @@ PARAMS = [
     'temp_right'
 ]
 
-ini_data_dict = [
-    {'time': 0, 'temp_left': 0.0, 'temp_left_profile': 'linear', 'temp_main': 0.0, 'temp_main_profile': 'linear', 'temp_right': 0.0, 'temp_right_profile': 'linear'},
-    {'time': 30, 'temp_left': 250.0, 'temp_left_profile': 'exponential', 'temp_main': 300.0, 'temp_main_profile': 'linear', 'temp_right': 250.0, 'temp_right_profile': 'exponential'},
-    {'time': 60, 'temp_left': 300.0, 'temp_left_profile': 'step', 'temp_main': 350.0, 'temp_main_profile': 'step', 'temp_right': 350.0, 'temp_right_profile': 'step'},
-    {'time': 90, 'temp_left': 200.0, 'temp_left_profile': 'linear', 'temp_main': 200.0, 'temp_main_profile': 'linear', 'temp_right': 200.0, 'temp_right_profile': 'linear'},
-    {'time': 120, 'temp_left': 0.0, 'temp_left_profile': 'linear', 'temp_main': 0.0, 'temp_main_profile': 'linear', 'temp_right': 0.0, 'temp_right_profile': 'linear'}
-]
-
-
-def get_experiment_designer(params=[], initial_data=None):
+def get_experiment_designer(params=[], data=[]):
     '''
     Creates a dash-ag-grid component for experimental control data with
     editing, dropdowns, and row add/delete support.
@@ -45,12 +36,6 @@ def get_experiment_designer(params=[], initial_data=None):
     for col in params:
         columns.append(col)
         columns.append(f'{col}_profile')
-
-    # Use provided data or fallback to sample
-    if initial_data is None:
-        data = ini_data_dict
-    else:
-        data = initial_data
 
     # Ensure each row has a unique ID
     for row in data:
@@ -171,7 +156,7 @@ def delete_selected(n_clicks, selected_rows, current_data):
     Output("experiment-plot", "figure"),
     Input("experiment-designer-store", "data"),
 )
-def update(data):
+def update_figure(data):
     if not data:
         return go.Figure()
     fig = plot_data_plotly(data, xlabel="Time (s)")

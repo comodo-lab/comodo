@@ -30,19 +30,28 @@ def get_control_panel(params=[]):
     Input('submit-experiment', 'n_clicks'),
     State("experiment-designer-store", "data"),
     State('sensor-store', 'data'),
+    State('experiment-config-store', 'data'),
     prevent_initial_call=True
 )
-def update_output(n_clicks, table_data, sensors):
+def update_output(n_clicks, table_data, sensors, exp_config):
     if n_clicks == None:
         raise PreventUpdate
         
     # Prepare data for transmission
     experiment_id = str(uuid.uuid4())[:8]
 
+    for config in exp_config:
+        if config['name'] == 'resolution':
+            resolution = config['value']
+
+    if resolution is None:
+        print("No resolution set, defaulting to 1 second.")
+        resolution = 1
+
     experiment_config = {
         "uid": experiment_id,
         "config": {
-            "resolution": 1.0,
+            "resolution": resolution,
             "sensors": sensors
         },
         "experiment": table_data
