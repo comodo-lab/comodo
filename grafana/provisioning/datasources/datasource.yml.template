@@ -22,14 +22,14 @@ datasources:
     withCredentials: False
     isDefault: True
     jsonData:
-      defaultBucket: comodo
+      defaultBucket: ${INFLUX_BUCKET}
       httpMode: POST
-      organization: comodo
+      organization: ${INFLUX_ORG}
       version: Flux
     secureJsonFields:
       token: True
     secureJsonData:
-      token: thisisareallylongtoken
-    version: 3
+      token: ${INFLUX_TOKEN}
+    version: 1
     readOnly: false
     apiVersion: 

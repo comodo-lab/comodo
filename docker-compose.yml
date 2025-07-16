@@ -70,7 +70,16 @@ services:
       context: .
       dockerfile_inline: |
         FROM grafana/grafana
+        USER root
+        RUN apk add envsubst
+        USER grafana
+        ARG INFLUX_TOKEN=${INFLUX_TOKEN}
+        ARG INFLUX_BUCKET=${INFLUX_BUCKET}
+        ARG INFLUX_ORG=${INFLUX_ORG}
         COPY ./grafana/provisioning/ /etc/grafana/provisioning/
+        RUN envsubst < /etc/grafana/provisioning/datasources/datasource.yml.template > /etc/grafana/provisioning/datasources/datasource.yml.temp
+        RUN cp /etc/grafana/provisioning/datasources/datasource.yml.temp /etc/grafana/provisioning/datasources/datasource.yml
+        RUN /sbin/reboot
     container_name: comodo-grafana
     restart: unless-stopped
     environment:
