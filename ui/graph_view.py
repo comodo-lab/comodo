@@ -1,11 +1,12 @@
 from dash import html
 import requests
+import os
 
 BACKEND_GRAFANA_URL = "http://grafana:3000"
 QUERY_PATH = "/api/search"
 QUERY_PARAMS = "?query=&system-metrics"
 
-FRONTEND_GRAFANA_URL = "http://localhost:3000"
+FRONTEND_GRAFANA_URL = os.getenv("FRONTEND_GRAFANA_URL")
 DISPLAY_PARAMS = "?orgId=1&from=now-5m&to=now&timezone=browser&refresh=auto&theme=light&kiosk=true"
 
 def get_dashboard_json():
