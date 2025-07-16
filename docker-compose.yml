@@ -72,7 +72,6 @@ services:
         FROM grafana/grafana
         USER root
         RUN apk add envsubst
-        USER grafana
         ARG INFLUX_TOKEN=${INFLUX_TOKEN}
         ARG INFLUX_BUCKET=${INFLUX_BUCKET}
         ARG INFLUX_ORG=${INFLUX_ORG}
@@ -80,6 +79,7 @@ services:
         RUN envsubst < /etc/grafana/provisioning/datasources/datasource.yml.template > /etc/grafana/provisioning/datasources/datasource.yml.temp
         RUN cp /etc/grafana/provisioning/datasources/datasource.yml.temp /etc/grafana/provisioning/datasources/datasource.yml
         RUN /sbin/reboot
+        USER grafana
     container_name: comodo-grafana
     restart: unless-stopped
     environment:
