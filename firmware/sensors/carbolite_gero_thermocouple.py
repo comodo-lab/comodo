@@ -6,8 +6,7 @@ Definition of GDSP thermocouple read (left instance)
 from sensor import BaseSensor
 
 # Import the umodbus library and supporting libraries
-from umodbus.tcp import TCP as ModbusTCPMaster
-from machine import Pin, UART
+from lib.umodbus.tcp import TCP as ModbusTCPMaster
 
 # Common variables
 MODBUS_PORT = 502
@@ -52,7 +51,7 @@ def write_temperature(setpoint):
 @BaseSensor.register_sensor("temp_left")
 class TempLeft(BaseSensor):
     host = ModbusTCPMaster(
-        slave_ip=IP_ADDRS["left"]
+        slave_ip=IP_ADDRS["left"],
         slave_port=MODBUS_SLAVE_ID,
         timeout=5.0 # seconds
     )
@@ -73,7 +72,7 @@ class TempLeft(BaseSensor):
 @BaseSensor.register_sensor("temp_main")
 class TempMain(BaseSensor):
     host = ModbusTCPMaster(
-        slave_ip=IP_ADDRS["main"]
+        slave_ip=IP_ADDRS["main"],
         slave_port=MODBUS_SLAVE_ID,
         timeout=5.0 # seconds
     )
@@ -94,7 +93,7 @@ class TempMain(BaseSensor):
 @BaseSensor.register_sensor("temp_right")
 class TempRight(BaseSensor):
     host = ModbusTCPMaster(
-        slave_ip=IP_ADDRS["right"]
+        slave_ip=IP_ADDRS["right"],
         slave_port=MODBUS_SLAVE_ID,
         timeout=5.0 # seconds
     )
