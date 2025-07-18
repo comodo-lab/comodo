@@ -12,9 +12,7 @@ import connect as con
 import state
 
 # Sensor imports (trigger sensor registration)
-import sensors.temp_left as temp_left
-import sensors.temp_main as temp_main
-import sensors.temp_right as temp_right
+from sensors.carbolite_gero_thermocouple import TempLeft,TempMain,TempRight
 
 # Initialize the state
 state = state.SensorState()
@@ -62,11 +60,17 @@ def send_measurement():
 if board == "linux":
     async def heartbeat_tick(timer):
         while True:
-            send_heartbeat()
+            try:
+                send_heartbeat()
+            except:
+                print("Error sending heartbeat")
             await asyncio.sleep_ms(int(state.config["HEARTBEAT_INTERVAL"]))
     async def measurement_tick(timer):
         while True:
-            send_measurement()
+            try:
+                send_measurement()
+            except:
+                print("Error sending measurement")
             await asyncio.sleep_ms(int(state.config["MEASUREMENT_INTERVAL"]))
 else:
     def heartbeat_tick(timer):
