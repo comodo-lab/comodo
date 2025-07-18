@@ -12,7 +12,8 @@ from machine import Pin, UART
 # Common variables
 MODBUS_PORT = 502
 MODBUS_SLAVE_ID = 255
-MODBUS_REGISTER_ADDRESS = 1
+MODBUS_REGISTER_READ_ADDRESS = 1
+MODBUS_REGISTER_WRITE_ADDRESS = 2
 MODBUS_REGISTER_COUNT = 1
 
 IP_ADDRS = {
@@ -24,18 +25,29 @@ IP_ADDRS = {
 # ------------------------------------------------------------------------------
 # Helper functions
 
-def read_modbus_temperature():
-    # Read the temperature
+def read_temperature():
     try:
         register_value = self.host.read_holding_registers(
             slave_addr=MODBUS_SLAVE_ID, 
-            starting_addr=MODBUS_REGISTER_ADDRESS, 
+            starting_addr=MODBUS_REGISTER_READ_ADDRESS, 
             register_qty=MODBUS_REGISTER_COUNT,
         )  
         state.measurement = register_value[0]
     except Exception as e:
         print(f'Error reading hreg! \n\t {e}')
         pass
+
+def write_temperature(setpoint):
+    try:
+        result = self.host.write_single_register(
+            slave_addr=MODBUS_SLAVE_ID,
+            register_address=MODBUS_REGISTER_WRITE_ADDRESS,
+            register_value=setpoint
+        )           
+    except Exception as e:
+        print(f'Error reading hreg! \n\t {e}')
+        pass
+    
 
 @BaseSensor.register_sensor("temp_left")
 class TempLeft(BaseSensor):
@@ -49,13 +61,13 @@ class TempLeft(BaseSensor):
         return
 
     def go_to_setpoint(self, setpoint):
-        pass
+        write_temperature(setpoint)
 
     def set_config(self, config):
         pass
 
     def get_measurement(self, state):
-        read_modbus_temperature()
+        read_temperature()
     
 
 @BaseSensor.register_sensor("temp_main")
@@ -70,13 +82,13 @@ class TempMain(BaseSensor):
         return
 
     def go_to_setpoint(self, setpoint):
-        pass
+        write_temperature(setpoint)
 
     def set_config(self, config):
         pass
 
     def get_measurement(self, state):
-        read_modbus_temperature()
+        read_temperature()
 
 
 @BaseSensor.register_sensor("temp_right")
@@ -91,10 +103,10 @@ class TempRight(BaseSensor):
         return
 
     def go_to_setpoint(self, setpoint):
-        pass
+        write_temperature(setpoint)
 
     def set_config(self, config):
         pass
 
     def get_measurement(self, state):
-        read_modbus_temperature()
+        read_temperature()
