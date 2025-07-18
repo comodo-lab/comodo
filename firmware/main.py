@@ -12,7 +12,9 @@ import connect as con
 import state
 
 # Sensor imports (trigger sensor registration)
-#import sensors.eurotherm_3204 as eurotherm_3204
+import sensors.temp_left as temp_left
+import sensors.temp_main as temp_main
+import sensors.temp_right as temp_right
 
 # Initialize the state
 state = state.SensorState()
