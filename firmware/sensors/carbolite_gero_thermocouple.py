@@ -5,10 +5,45 @@ Definition of GDSP thermocouple read (left instance)
 # Import the BaseSensor class
 from sensor import BaseSensor
 
+# Import the umodbus library and supporting libraries
+from umodbus.tcp import TCP as ModbusTCPMaster
+from machine import Pin, UART
+
+# Common variables
+MODBUS_PORT = 502
+MODBUS_SLAVE_ID = 255
+MODBUS_REGISTER_ADDRESS = 1
+MODBUS_REGISTER_COUNT = 1
+
+IP_ADDRS = {
+    "main": "192.168.111.222",
+    "left": "192.168.111.224",
+    "right": "192.168.111.225"
+}
+
+# ------------------------------------------------------------------------------
+# Helper functions
+
+def read_modbus_temperature():
+    # Read the temperature
+    try:
+        register_value = self.host.read_holding_registers(
+            slave_addr=MODBUS_SLAVE_ID, 
+            starting_addr=MODBUS_REGISTER_ADDRESS, 
+            register_qty=MODBUS_REGISTER_COUNT,
+        )  
+        state.measurement = register_value[0]
+    except Exception as e:
+        print(f'Error reading hreg! \n\t {e}')
+        pass
 
 @BaseSensor.register_sensor("temp_left")
 class TempLeft(BaseSensor):
-    host = None
+    host = ModbusTCPMaster(
+        slave_ip=IP_ADDRS["left"]
+        slave_port=MODBUS_SLAVE_ID,
+        timeout=5.0 # seconds
+    )
 
     def __init__(self):
         return
@@ -20,11 +55,16 @@ class TempLeft(BaseSensor):
         pass
 
     def get_measurement(self, state):
-        pass
+        read_modbus_temperature()
+    
 
 @BaseSensor.register_sensor("temp_main")
 class TempMain(BaseSensor):
-    host = None
+    host = ModbusTCPMaster(
+        slave_ip=IP_ADDRS["main"]
+        slave_port=MODBUS_SLAVE_ID,
+        timeout=5.0 # seconds
+    )
 
     def __init__(self):
         return
@@ -36,11 +76,16 @@ class TempMain(BaseSensor):
         pass
 
     def get_measurement(self, state):
-        pass
+        read_modbus_temperature()
+
 
 @BaseSensor.register_sensor("temp_right")
 class TempRight(BaseSensor):
-    host = None
+    host = ModbusTCPMaster(
+        slave_ip=IP_ADDRS["right"]
+        slave_port=MODBUS_SLAVE_ID,
+        timeout=5.0 # seconds
+    )
 
     def __init__(self):
         return
@@ -52,4 +97,4 @@ class TempRight(BaseSensor):
         pass
 
     def get_measurement(self, state):
-        pass
+        read_modbus_temperature()
