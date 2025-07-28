@@ -1,11 +1,9 @@
+version: '3.9'
+
 x-sensor-base: &sensor-template
   build:
     context: firmware
-    dockerfile_inline: |
-      FROM micropython/unix
-      WORKDIR /sensor
-      COPY . .
-      CMD micropython main.py
+    dockerfile: Dockerfile  # now using the one with the static binary build
   network_mode: host
 
 name: comodo-firmware
