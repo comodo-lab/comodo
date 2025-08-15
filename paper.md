@@ -28,9 +28,9 @@ bibliography: paper.bib
 # Summary
 
 Laboratory experiments remain the bedrock of scientific endeavour and
-discovery. However, despite this noble status, the reality of
-experimental undertaking can be unglamorous and inefficient. Early
-career researchers often spend long hours running and maintaining
+discovery. Despite this noble status, the reality of experimental
+undertaking can be unglamorous and inefficient. Early career
+researchers often spend long hours running and maintaining
 experiments. Data is not always preserved and often not analysed. The
 collection of metadata and provenance is not standard and not widely
 practiced.
