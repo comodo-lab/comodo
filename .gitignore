@@ -1,6 +1,11 @@
 # Comodo
 .env
 
+# JOSS
+*.bib
+*.pdf
+jats/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
