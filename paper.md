@@ -27,25 +27,6 @@ bibliography: paper.bib
 
 # Summary
 
-Laboratory experiments remain the bedrock of scientific endeavour and
-discovery. Despite this noble status, the reality of experimental
-undertaking can be unglamorous and inefficient. Early career
-researchers often spend long hours running and maintaining
-experiments. Data is not always preserved and often not analysed. The
-collection of metadata and provenance is not standard and not widely
-practiced.
-
-Most significantly of all, many experiments are run manually or with
-limited, manufacturer produced interfaces. Alternatively, some groups
-create homebrewed automations, but this is time consuming and removes
-scientists from their primary purpose.
-
-There is a need for a generalised framework for running laboratory
-experiments, using modern technologies and architectures, easily
-extended to the hardware used in each unique experiment.
-
-# Statement of need
-
 `Comodo-Lab` is a software package for running, managing and
 developing laboratory experiments. It employs a distributed
 architecture with users accessing the interface through their browser
@@ -67,6 +48,25 @@ communicate internally.
 
 `Comodo-Lab` has been deployed successfully in this work @author:mcfe
 and is soon to be deployed on a second experiment.
+
+# Statement of need
+
+Laboratory experiments remain the bedrock of scientific endeavour and
+discovery. Despite this noble status, the reality of experimental
+undertaking can be unglamorous and inefficient. Early career
+researchers often spend long hours running and maintaining
+experiments. Data is not always preserved and often not analysed. The
+collection of metadata and provenance is not standard and not widely
+practiced.
+
+Most significantly of all, many experiments are run manually or with
+limited, manufacturer produced interfaces. Alternatively, some groups
+create homebrewed automations, but this is time consuming and removes
+scientists from their primary purpose.
+
+There is a need for a generalised framework for running laboratory
+experiments, using modern technologies and architectures, easily
+extended to the hardware used in each unique experiment.
 
 # Acknowledgements
 
