@@ -69,6 +69,7 @@ class TempLeft(BaseSensor):
             pass
 
     def go_to_setpoint(self, setpoint):
+        print(f'Setting left temperature to {setpoint}')
         write_temperature(self.host, setpoint)
 
     def set_config(self, config):
@@ -94,6 +95,7 @@ class TempMain(BaseSensor):
             pass
 
     def go_to_setpoint(self, setpoint):
+        print(f'Setting main temperature to {setpoint}')
         write_temperature(self.host, setpoint)
 
     def set_config(self, config):
@@ -119,6 +121,7 @@ class TempRight(BaseSensor):
             pass
 
     def go_to_setpoint(self, setpoint):
+        print(f'Setting right temperature to {setpoint}')
         write_temperature(self.host, setpoint)
 
     def set_config(self, config):
