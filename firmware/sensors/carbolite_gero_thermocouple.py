@@ -24,7 +24,7 @@ IP_ADDRS = {
 # ------------------------------------------------------------------------------
 # Helper functions
 
-def read_temperature(host):
+def read_temperature(host, state):
     try:
         register_value = host.read_holding_registers(
             slave_addr=MODBUS_SLAVE_ID, 
@@ -70,7 +70,7 @@ class TempLeft(BaseSensor):
         pass
 
     def get_measurement(self, state):
-        read_temperature(self.host)
+        read_temperature(self.host, state)
 
 
 @BaseSensor.register_sensor("temp_main")
@@ -95,7 +95,7 @@ class TempMain(BaseSensor):
         pass
 
     def get_measurement(self, state):
-        read_temperature(self.host)
+        read_temperature(self.host, state)
 
 
 @BaseSensor.register_sensor("temp_right")
@@ -120,4 +120,4 @@ class TempRight(BaseSensor):
         pass
 
     def get_measurement(self, state):
-        read_temperature(self.host)
+        read_temperature(self.host, state)
