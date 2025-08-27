@@ -31,7 +31,7 @@ def read_temperature(host, state):
             slave_addr=MODBUS_SLAVE_ID,
             starting_addr=MODBUS_REGISTER_READ_ADDRESS,
             register_qty=MODBUS_REGISTER_COUNT,
-        )  
+        )
         state.measurement = register_value[0]
     except Exception as e:
         print(f'Error reading hreg! \n\t {e}')
@@ -45,6 +45,7 @@ def write_temperature(host, setpoint):
             register_address=MODBUS_REGISTER_WRITE_ADDRESS,
             register_value=setpoint
         )
+        print(f'Result of writing {setpoint}: {result}')
     except Exception as e:
         print(f'Error reading hreg! \n\t {e}')
         pass
@@ -59,11 +60,10 @@ class TempLeft(BaseSensor):
             print(IP_ADDRS["left"])
             self.host = ModbusTCPMaster(
                 slave_ip=IP_ADDRS["left"],
-                slave_port=MODBUS_PORT,
-                timeout=10 # seconds
+                slave_port=MODBUS_PORT
             )
         except Exception as e:
-            print(f'Error initializing ModbusTCPMaster for temp_left! \n\t {e}')
+            print(f'Error initializing ModbusTCPMaster for temp_left!\n{e}')
             pass
 
     def go_to_setpoint(self, setpoint):
@@ -83,11 +83,10 @@ class TempMain(BaseSensor):
         try:
             self.host = ModbusTCPMaster(
                 slave_ip=IP_ADDRS["main"],
-                slave_port=MODBUS_PORT,
-                timeout=20 # seconds
+                slave_port=MODBUS_PORT
             )
         except Exception as e:
-            print(f'Error initializing ModbusTCPMaster for temp_main! \n\t {e}')
+            print(f'Error initializing ModbusTCPMaster for temp_main!\n{e}')
             pass
 
     def go_to_setpoint(self, setpoint):
@@ -107,11 +106,10 @@ class TempRight(BaseSensor):
         try:
             self.host = ModbusTCPMaster(
                 slave_ip=IP_ADDRS["right"],
-                slave_port=MODBUS_PORT,
-                timeout=30 # seconds
+                slave_port=MODBUS_PORT
             )
         except Exception as e:
-            print(f'Error initializing ModbusTCPMaster for temp_right! \n\t {e}')
+            print(f'Error initializing ModbusTCPMaster for temp_right!\n{e}')
             pass
 
     def go_to_setpoint(self, setpoint):
