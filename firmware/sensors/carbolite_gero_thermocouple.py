@@ -52,21 +52,21 @@ def write_temperature(host, setpoint):
 
 @BaseSensor.register_sensor("temp_left")
 class TempLeft(BaseSensor):
-    try:
-        host = ModbusTCPMaster(
-            slave_ip=IP_ADDRS["left"],
-            slave_port=MODBUS_SLAVE_ID,
-            timeout=5.0 # seconds
-        )
-    except Exception as e:
-        print(f'Error initializing ModbusTCPMaster for temp_left! \n\t {e}')
-        pass
 
     def __init__(self):
+        try:
+            self.host = ModbusTCPMaster(
+                slave_ip=IP_ADDRS["left"],
+                slave_port=MODBUS_SLAVE_ID,
+                timeout=5.0 # seconds
+            )
+        except Exception as e:
+            print(f'Error initializing ModbusTCPMaster for temp_left! \n\t {e}')
+            pass
         return
 
     def go_to_setpoint(self, setpoint):
-        write_temperature(self.host,setpoint)
+        write_temperature(self.host, setpoint)
 
     def set_config(self, config):
         pass
@@ -77,17 +77,17 @@ class TempLeft(BaseSensor):
 
 @BaseSensor.register_sensor("temp_main")
 class TempMain(BaseSensor):
-    try:
-        host = ModbusTCPMaster(
-            slave_ip=IP_ADDRS["main"],
-            slave_port=MODBUS_SLAVE_ID,
-            timeout=5.0 # seconds
-        )
-    except Exception as e:
-        print(f'Error initializing ModbusTCPMaster for temp_main! \n\t {e}')
-        pass
 
     def __init__(self):
+        try:
+            self.host = ModbusTCPMaster(
+                slave_ip=IP_ADDRS["main"],
+                slave_port=MODBUS_SLAVE_ID,
+                timeout=5.0 # seconds
+            )
+        except Exception as e:
+            print(f'Error initializing ModbusTCPMaster for temp_main! \n\t {e}')
+            pass
         return
 
     def go_to_setpoint(self, setpoint):
@@ -102,17 +102,17 @@ class TempMain(BaseSensor):
 
 @BaseSensor.register_sensor("temp_right")
 class TempRight(BaseSensor):
-    try:
-        host = ModbusTCPMaster(
-            slave_ip=IP_ADDRS["right"],
-            slave_port=MODBUS_SLAVE_ID,
-            timeout=5.0 # seconds
-        )
-    except Exception as e:
-        print(f'Error initializing ModbusTCPMaster for temp_right! \n\t {e}')
-        pass
 
     def __init__(self):
+        try:
+            self.host = ModbusTCPMaster(
+                slave_ip=IP_ADDRS["right"],
+                slave_port=MODBUS_SLAVE_ID,
+                timeout=5.0 # seconds
+            )
+        except Exception as e:
+            print(f'Error initializing ModbusTCPMaster for temp_right! \n\t {e}')
+            pass
         return
 
     def go_to_setpoint(self, setpoint):
