@@ -32,6 +32,7 @@ def read_temperature(host, state):
             starting_addr=MODBUS_REGISTER_READ_ADDRESS,
             register_qty=MODBUS_REGISTER_COUNT,
         )
+        print(register_value[0])
         state.measurement = register_value[0]
     except Exception as e:
         print(f'Error reading hreg! \n\t {e}')
@@ -120,3 +121,11 @@ class TempRight(BaseSensor):
 
     def get_measurement(self, state):
         read_temperature(self.host, state)
+
+
+if __name__ == "__main__":
+    host = ModbusTCPMaster(
+        slave_ip=IP_ADDRS["left"],
+        slave_port=MODBUS_PORT
+    )
+    read_temperature(host, None)
