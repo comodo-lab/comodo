@@ -24,9 +24,9 @@ IP_ADDRS = {
 # ------------------------------------------------------------------------------
 # Helper functions
 
-def read_temperature():
+def read_temperature(host):
     try:
-        register_value = self.host.read_holding_registers(
+        register_value = host.read_holding_registers(
             slave_addr=MODBUS_SLAVE_ID, 
             starting_addr=MODBUS_REGISTER_READ_ADDRESS, 
             register_qty=MODBUS_REGISTER_COUNT,
@@ -36,9 +36,9 @@ def read_temperature():
         print(f'Error reading hreg! \n\t {e}')
         pass
 
-def write_temperature(setpoint):
+def write_temperature(host, setpoint):
     try:
-        result = self.host.write_single_register(
+        result = host.write_single_register(
             slave_addr=MODBUS_SLAVE_ID,
             register_address=MODBUS_REGISTER_WRITE_ADDRESS,
             register_value=setpoint
@@ -64,13 +64,13 @@ class TempLeft(BaseSensor):
         return
 
     def go_to_setpoint(self, setpoint):
-        write_temperature(setpoint)
+        write_temperature(self.host,setpoint)
 
     def set_config(self, config):
         pass
 
     def get_measurement(self, state):
-        read_temperature()
+        read_temperature(self.host)
 
 
 @BaseSensor.register_sensor("temp_main")
@@ -89,13 +89,13 @@ class TempMain(BaseSensor):
         return
 
     def go_to_setpoint(self, setpoint):
-        write_temperature(setpoint)
+        write_temperature(self.host, setpoint)
 
     def set_config(self, config):
         pass
 
     def get_measurement(self, state):
-        read_temperature()
+        read_temperature(self.host)
 
 
 @BaseSensor.register_sensor("temp_right")
@@ -114,10 +114,10 @@ class TempRight(BaseSensor):
         return
 
     def go_to_setpoint(self, setpoint):
-        write_temperature(setpoint)
+        write_temperature(self.host, setpoint)
 
     def set_config(self, config):
         pass
 
     def get_measurement(self, state):
-        read_temperature()
+        read_temperature(self.host)
