@@ -27,10 +27,11 @@ IP_ADDRS = {
 
 def read_temperature(host, state):
     try:
+        print(host)
         register_value = host.read_holding_registers(
-            slave_addr=MODBUS_SLAVE_ID,
-            starting_addr=MODBUS_REGISTER_READ_ADDRESS,
-            register_qty=MODBUS_REGISTER_COUNT,
+            slave_addr=255, #MODBUS_SLAVE_ID,
+            starting_addr=1, #MODBUS_REGISTER_READ_ADDRESS,
+            register_qty=1 #MODBUS_REGISTER_COUNT,
         )
         print(register_value[0])
         state.measurement = register_value[0]
@@ -63,6 +64,7 @@ class TempLeft(BaseSensor):
                 slave_ip=IP_ADDRS["left"],
                 slave_port=MODBUS_PORT
             )
+            print('managed to register host for left')
         except Exception as e:
             print(f'Error initializing ModbusTCPMaster for temp_left!\n{e}')
             pass
