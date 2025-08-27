@@ -93,6 +93,7 @@ class SensorState (object):
         if topic.decode("utf-8") == f"sensor/setpoint":
             params = ujson.loads(msg)
             self.status["setpoint"] = params[self.config['SENSOR_ID']]
+            self.sensor.go_to_setpoint(self.status["setpoint"])
             self.client.set_callback(self.adjusting_cb)
             self.status["status"] = "adjusting"
 
@@ -115,6 +116,7 @@ class SensorState (object):
         if topic.decode("utf-8") == f"sensor/setpoint":
             params = ujson.loads(msg)
             self.status["setpoint"] = params[self.config['SENSOR_ID']]
+            self.sensor.go_to_setpoint(self.status["setpoint"])
             self.client.set_callback(self.adjusting_cb)
             self.status["status"] = "adjusting"
         if topic.decode("utf-8") == f"sensor/{self.config['SENSOR_ID']}/setpoint_reached":
@@ -142,6 +144,7 @@ class SensorState (object):
         if topic.decode("utf-8") == "sensor/setpoint":
             params = ujson.loads(msg)
             self.status["setpoint"] = params[self.config['SENSOR_ID']]
+            self.sensor.go_to_setpoint(self.status["setpoint"])
             self.client.set_callback(self.adjusting_cb)
             self.status["status"] = "adjusting"
         # if controller/end is received, move to the awaiting_config state

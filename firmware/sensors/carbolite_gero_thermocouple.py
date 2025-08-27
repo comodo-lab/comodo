@@ -44,7 +44,7 @@ def write_temperature(host, setpoint):
         result = host.write_single_register(
             slave_addr=MODBUS_SLAVE_ID,
             register_address=MODBUS_REGISTER_WRITE_ADDRESS,
-            register_value=setpoint
+            register_value=int(setpoint)
         )
         print(f'Result of writing {setpoint}: {result}')
     except Exception as e:
@@ -96,7 +96,7 @@ class TempMain(BaseSensor):
 
     def go_to_setpoint(self, setpoint):
         print(f'Setting main temperature to {setpoint}')
-        write_temperature(self.host, setpoint)
+        write_temperature(self.host, setpoint*10)
 
     def set_config(self, config):
         pass
