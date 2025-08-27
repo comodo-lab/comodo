@@ -62,15 +62,15 @@ if board == "linux":
         while True:
             try:
                 send_heartbeat()
-            except:
-                print("Error sending heartbeat")
+            except Exception as e:
+                print(f"Error sending heartbeat: {e}")
             await asyncio.sleep_ms(int(state.config["HEARTBEAT_INTERVAL"]))
     async def measurement_tick(timer):
         while True:
             try:
                 send_measurement()
-            except:
-                print("Error sending measurement")
+            except Exception as e:
+                print(f"Error sending measurement: {e}")
             await asyncio.sleep_ms(int(state.config["MEASUREMENT_INTERVAL"]))
 else:
     def heartbeat_tick(timer):
