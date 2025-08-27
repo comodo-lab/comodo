@@ -100,7 +100,7 @@ class TempMain(BaseSensor):
         pass
 
     def get_measurement(self, state):
-        measurement = (read_temperature(self.host) / 10
+        measurement = read_temperature(self.host) / 10
         state.measurement = measurement
         return measurement
 
