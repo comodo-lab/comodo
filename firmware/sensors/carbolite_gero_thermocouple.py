@@ -55,10 +55,12 @@ class TempLeft(BaseSensor):
 
     def __init__(self):
         try:
+            print(MODBUS_PORT)
+            print(IP_ADDRS["left"])
             self.host = ModbusTCPMaster(
                 slave_ip=IP_ADDRS["left"],
                 slave_port=MODBUS_PORT,
-                timeout=5.0 # seconds
+                timeout=10 # seconds
             )
         except Exception as e:
             print(f'Error initializing ModbusTCPMaster for temp_left! \n\t {e}')
@@ -82,7 +84,7 @@ class TempMain(BaseSensor):
             self.host = ModbusTCPMaster(
                 slave_ip=IP_ADDRS["main"],
                 slave_port=MODBUS_PORT,
-                timeout=5.0 # seconds
+                timeout=20 # seconds
             )
         except Exception as e:
             print(f'Error initializing ModbusTCPMaster for temp_main! \n\t {e}')
@@ -106,7 +108,7 @@ class TempRight(BaseSensor):
             self.host = ModbusTCPMaster(
                 slave_ip=IP_ADDRS["right"],
                 slave_port=MODBUS_PORT,
-                timeout=5.0 # seconds
+                timeout=30 # seconds
             )
         except Exception as e:
             print(f'Error initializing ModbusTCPMaster for temp_right! \n\t {e}')
