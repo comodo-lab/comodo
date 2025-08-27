@@ -26,5 +26,5 @@ services:
     <<: *sensor-template
     environment:
       - SENSOR_ID=temp_right
-      - HEARTBEAT_INTERVAL=2000
-      - MEASUREMENT_INTERVAL=2000
+      - HEARTBEAT_INTERVAL=1000
+      - MEASUREMENT_INTERVAL=1000
