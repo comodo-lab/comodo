@@ -25,7 +25,7 @@ IP_ADDRS = {
 # Helper functions
 
 
-def read_temperature(host, state):
+def read_temperature(host):
     try:
         register_value = host.read_holding_registers(
             slave_addr=MODBUS_SLAVE_ID,
@@ -33,10 +33,10 @@ def read_temperature(host, state):
             register_qty=MODBUS_REGISTER_COUNT,
         )
         print(register_value[0])
-        state.measurement = register_value[0]
+        return float(register_value[0])
     except Exception as e:
         print(f'Error reading! \n\t {e}')
-        pass
+        return None
 
 
 def write_temperature(host, setpoint):
@@ -75,7 +75,9 @@ class TempLeft(BaseSensor):
         pass
 
     def get_measurement(self, state):
-        return read_temperature(self.host, state)
+        measurement = read_temperature(self.host)
+        state.measurement = measurement
+        return measurement
 
 
 @BaseSensor.register_sensor("temp_main")
@@ -98,7 +100,9 @@ class TempMain(BaseSensor):
         pass
 
     def get_measurement(self, state):
-        return read_temperature(self.host, state)
+        measurement = (read_temperature(self.host) / 10
+        state.measurement = measurement
+        return measurement
 
 
 @BaseSensor.register_sensor("temp_right")
@@ -121,7 +125,9 @@ class TempRight(BaseSensor):
         pass
 
     def get_measurement(self, state):
-        return read_temperature(self.host, state)
+        measurement = read_temperature(self.host)
+        state.measurement = measurement
+        return measurement
 
 
 if __name__ == "__main__":
