@@ -27,11 +27,11 @@ IP_ADDRS = {
 
 def read_temperature(host, state):
     try:
-        print(host)
+        print(f'Variables input:\nMODBUS_SLAVE_ID: {MODBUS_SLAVE_ID}\nMODBUS_REGISTER_READ_ADDRESS: {MODBUS_REGISTER_READ_ADDRESS}\nMODBUS_REGISTER_COUNT: {MODBUS_REGISTER_COUNT}')
         register_value = host.read_holding_registers(
-            slave_addr=255, #MODBUS_SLAVE_ID,
-            starting_addr=1, #MODBUS_REGISTER_READ_ADDRESS,
-            register_qty=1 #MODBUS_REGISTER_COUNT,
+            slave_addr=MODBUS_SLAVE_ID,
+            starting_addr=MODBUS_REGISTER_READ_ADDRESS,
+            register_qty=MODBUS_REGISTER_COUNT,
         )
         print(register_value[0])
         state.measurement = register_value[0]
