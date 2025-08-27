@@ -57,13 +57,12 @@ class TempLeft(BaseSensor):
         try:
             self.host = ModbusTCPMaster(
                 slave_ip=IP_ADDRS["left"],
-                slave_port=MODBUS_SLAVE_ID,
+                slave_port=MODBUS_PORT,
                 timeout=5.0 # seconds
             )
         except Exception as e:
             print(f'Error initializing ModbusTCPMaster for temp_left! \n\t {e}')
             pass
-        return
 
     def go_to_setpoint(self, setpoint):
         write_temperature(self.host, setpoint)
@@ -82,13 +81,12 @@ class TempMain(BaseSensor):
         try:
             self.host = ModbusTCPMaster(
                 slave_ip=IP_ADDRS["main"],
-                slave_port=MODBUS_SLAVE_ID,
+                slave_port=MODBUS_PORT,
                 timeout=5.0 # seconds
             )
         except Exception as e:
             print(f'Error initializing ModbusTCPMaster for temp_main! \n\t {e}')
             pass
-        return
 
     def go_to_setpoint(self, setpoint):
         write_temperature(self.host, setpoint)
@@ -107,13 +105,12 @@ class TempRight(BaseSensor):
         try:
             self.host = ModbusTCPMaster(
                 slave_ip=IP_ADDRS["right"],
-                slave_port=MODBUS_SLAVE_ID,
+                slave_port=MODBUS_PORT,
                 timeout=5.0 # seconds
             )
         except Exception as e:
             print(f'Error initializing ModbusTCPMaster for temp_right! \n\t {e}')
             pass
-        return
 
     def go_to_setpoint(self, setpoint):
         write_temperature(self.host, setpoint)
