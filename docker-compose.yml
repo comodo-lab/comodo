@@ -4,6 +4,7 @@ services:
     image: docker.io/bitnami/rabbitmq:3.12
     container_name: comodo-rabbitmq
     restart: unless-stopped
+    profiles: [mqtt]
     ports:
       - '1883:1883'
     environment:
@@ -29,6 +30,7 @@ services:
     image: influxdb:latest
     container_name: comodo-influx
     restart: unless-stopped
+    profiles: [live]
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -51,6 +53,7 @@ services:
     image: telegraf:latest
     container_name: comodo-telegraf
     restart: unless-stopped
+    profiles: [live]
     depends_on:
       - influxdb
     environment:
@@ -83,6 +86,7 @@ services:
         USER grafana
     container_name: comodo-grafana
     restart: unless-stopped
+    profiles: [live]
     environment:
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
