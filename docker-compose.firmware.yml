@@ -8,6 +8,7 @@ x-sensor-base: &sensor-template
       CMD micropython main.py
   network_mode: host
 
+name: comodo-firmware
 services:
   temp_main:
     <<: *sensor-template
