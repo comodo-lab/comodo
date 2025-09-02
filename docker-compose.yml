@@ -140,10 +140,11 @@ services:
       - ./ui/:/app/
       - ./utils:/app/utils
     environment:
-      - MQTT_ADDR=rabbitmq
+      - MQTT_ADDR=${MQTT_ADDR}
       - MQTT_PORT=1883
       - MQTT_USER=${MQTT_USER}
       - MQTT_PASS=${MQTT_PASS}
+      - INFLUX_ADDR=${INFLUX_ADDR}
       - INFLUX_TOKEN=${INFLUX_TOKEN}
       - INFLUX_BUCKET=${INFLUX_BUCKET}
       - INFLUX_ORG=${INFLUX_ORG}

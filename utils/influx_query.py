@@ -2,7 +2,7 @@ import influxdb_client
 import os
 
 
-URL = "http://comodo-influx:8086"
+URL = os.environ['INFLUX_ADDR']
 TOKEN = os.environ['INFLUX_TOKEN']
 ORG = os.environ['INFLUX_ORG']
 BUCKET = os.environ['INFLUX_BUCKET']
