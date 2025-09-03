@@ -118,6 +118,8 @@ services:
     build:
       context: ./
       dockerfile: controller/Dockerfile
+    env_file:
+      - .env
     container_name: comodo-controller
     restart: unless-stopped
     depends_on:
