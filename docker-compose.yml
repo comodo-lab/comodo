@@ -127,12 +127,10 @@ services:
         condition: service_healthy
     volumes:
       - ./controller/data:/controller/data
-      # - ./controller/config/config.json:/controller/config/config.json
-    environment:
-      - INFLUX_TOKEN=${INFLUX_TOKEN}
+      - ./controller/config/config.json:/controller/config/config.json
     networks:
       comodo:
-            
+
   ui:
     build:
       context: .
