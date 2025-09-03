@@ -13,7 +13,7 @@ COPY utils/mqtt_clients.py /controller
 COPY utils/interpolation.py /controller
 
 # Substitute env variables into the config
-RUN apk add envsubst
+RUN apt-get update && apt-get install -y gettext-base
 RUN envsubst < /controller/config/config.json.template > /controller/config/config.json
 
 # TEMP: copy copy manually modified pytest-mqtt
