@@ -35,7 +35,7 @@ services:
       timeout: 5s
       retries: 5
     volumes:
-      - ./nexus//probe.sh:/probe.sh:ro
+      - ./nexus/probe.sh:/probe.sh:ro
     networks:
       comodo:
 
