@@ -155,7 +155,7 @@ services:
       - ./ui/:/app/
       - ./utils:/app/utils
     environment:
-      - MQTT_ADDR=${MQTT_ADDR}
+      - MQTT_ADDR=${MQTT_BROKER_ADDRESS}
       - MQTT_PORT=1883
       - MQTT_USER=${MQTT_USER}
       - MQTT_PASS=${MQTT_PASS}
