@@ -1,5 +1,3 @@
-import random
-
 class BaseSensor:
     """ Base class for all sensors
 
@@ -20,7 +18,7 @@ class BaseSensor:
         Returns:
             function: The decorator function
         """
-        
+
         def decorator(sensor):
             print(f"Registering sensor: {sensor_name}")
             cls.sensor_map[sensor_name] = sensor
@@ -60,14 +58,14 @@ class BaseSensor:
         Returns:
             float: The measurement
         """
-        
+
         # Since this is a dummys sensor, move a little toward the setpoint
         setpoint = state.status['setpoint']
         value = state.measurement
 
         difference = setpoint - value
         half_diff = difference / 2
-        
+
         measurement = half_diff + value
 
         distance = abs(measurement - state.status["setpoint"])

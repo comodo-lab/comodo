@@ -1,5 +1,5 @@
 """
-Definition of GDSP thermocouple read (left instance)
+Definition of GDPS Carbolite Gero Furnace
 """
 
 # Import the BaseSensor class

@@ -1,5 +1,14 @@
-import json
+import sys
+
+board = sys.platform
+if board == "rp2":
+    # Micropython imports
+    import ujson as json
+elif board == "linux":
+    # Python imports
+    import json
 import os
+
 
 def load_config():
     """ Load the configuration file from env.json
@@ -13,6 +22,6 @@ def load_config():
         for key, value in config.items():
             new_value = os.getenv(key, value)
             config[key] = new_value.strip('"').strip("'")
-                
+
     print(config)
     return config

@@ -1,4 +1,3 @@
-from lib.umqtt import MQTTClient
 import sys
 import random
 
@@ -6,8 +5,11 @@ board = sys.platform
 if board == "rp2":
     import network
     from machine import Timer
+    from lib.umqtt import MQTTClient
+elif board == "linux":
+    from lib.mqtt import MQTTClient
 
-    
+
 def connect_wifi(ssid, password):
     """ Connect to the wifi network
 
@@ -15,14 +17,14 @@ def connect_wifi(ssid, password):
         None
 
     Raises:
-    
+
     """
     wlan = network.WLAN(network.STA_IF)
     if wlan.isconnected():
         wlan.active(False)
         wlan.disconnect()
 
-    wlan.active(True)        
+    wlan.active(True)
     wlan.connect(ssid, password)
     while not wlan.isconnected():
         pass
@@ -32,7 +34,7 @@ def timeout_mqtt(timer):
     print("Timeout")
     raise Exception("Timeout connecting to the mqtt broker")
 
-    
+
 def connect_mqtt(client_name, ip_address, port=1883, user=None, password=None):
     """ Connect to the mqtt broker
     Args:
@@ -41,7 +43,7 @@ def connect_mqtt(client_name, ip_address, port=1883, user=None, password=None):
         port: int: The port of the mqtt broker
         user: str: The user of the mqtt broker
         password: str: The password of the mqtt broker
-    
+
     Returns:
         MQTTClient: The mqtt client object
     """

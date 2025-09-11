@@ -1,6 +1,16 @@
-import ujson
+import sys
 
-import sensor 
+board = sys.platform
+
+if board == "rp2":
+    # Micropython imports
+    import ujson as json
+elif board == "linux":
+    # Python imports
+    import json
+
+import sensor
+
 
 class SensorState (object):
     def __init__(self):
@@ -12,7 +22,7 @@ class SensorState (object):
         Returns:
             None
         """
-        
+
         self.status = {
             "name": None,
             "status": "awaiting_config",
@@ -37,8 +47,8 @@ class SensorState (object):
         Returns:
             str: The status of the sensor
         """
-        
-        return ujson.dumps(self.status)
+
+        return json.dumps(self.status)
 
     # Set the config
     def set_config(self, config):
@@ -50,17 +60,16 @@ class SensorState (object):
         Returns:
             None
         """
-        
+
         self.config = config
 
-        
     def awaiting_config_cb(self, topic, msg):
         """ The callback function for the mqtt client when the sensor is awaiting config
-        Can move to the ready state if the setpoint is set      
+        Can move to the ready state if the setpoint is set
 
         Listens to: sensor/{SENSOR_ID}/setup
         Next states: ready
-        
+
         Args:
            topic: str: The topic of the message
            msg: str: The message
@@ -73,7 +82,6 @@ class SensorState (object):
             self._apply_config(msg)
             self.client.set_callback(self.no_setpoint_cb)
             self.status["status"] = "no_setpoint"
-
 
     def no_setpoint_cb(self, topic, msg):
         """ The callback function for the mqtt client when the sensor is awaiting setpoint
@@ -91,7 +99,7 @@ class SensorState (object):
         """
 
         if topic.decode("utf-8") == f"sensor/setpoint":
-            params = ujson.loads(msg)
+            params = json.loads(msg)
             self.status["setpoint"] = params[self.config['SENSOR_ID']]
             self.sensor.go_to_setpoint(self.status["setpoint"])
             self.client.set_callback(self.adjusting_cb)
@@ -114,7 +122,7 @@ class SensorState (object):
         """
 
         if topic.decode("utf-8") == f"sensor/setpoint":
-            params = ujson.loads(msg)
+            params = json.loads(msg)
             self.status["setpoint"] = params[self.config['SENSOR_ID']]
             self.sensor.go_to_setpoint(self.status["setpoint"])
             self.client.set_callback(self.adjusting_cb)
@@ -129,10 +137,9 @@ class SensorState (object):
             self.client.set_callback(self.awaiting_config_cb)
             self.status["status"] = "awaiting_config"
 
-
     def ready_cb(self, topic, msg):
         """ The callback function for the mqtt client when the sensor is ready
-        
+
         Args:
             topic: str: The topic of the message
             msg: str: The message
@@ -142,7 +149,7 @@ class SensorState (object):
         """
 
         if topic.decode("utf-8") == "sensor/setpoint":
-            params = ujson.loads(msg)
+            params = json.loads(msg)
             self.status["setpoint"] = params[self.config['SENSOR_ID']]
             self.sensor.go_to_setpoint(self.status["setpoint"])
             self.client.set_callback(self.adjusting_cb)
@@ -164,8 +171,8 @@ class SensorState (object):
         Returns:
             None
         """
-        
-        params = ujson.loads(msg)
+
+        params = json.loads(msg)
         self.status["config"]["p"] = params["p"]
         self.status["config"]["i"] = params["i"]
         self.status["config"]["d"] = params["d"]
@@ -173,4 +180,3 @@ class SensorState (object):
 
         self.status["name"] = params["name"]
         self.sensor = sensor.BaseSensor.create_sensor(params["name"], dummy=False)
-
