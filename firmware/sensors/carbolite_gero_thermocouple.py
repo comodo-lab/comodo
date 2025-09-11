@@ -6,7 +6,7 @@ Definition of GDPS Carbolite Gero Furnace
 from sensor import BaseSensor
 
 # Import the umodbus library and supporting libraries
-from lib.umodbus.tcp import TCP as ModbusTCPMaster
+from pymodbus.client import ModbusTcpClient
 
 # Common variables
 MODBUS_PORT = 502
@@ -27,13 +27,17 @@ IP_ADDRS = {
 
 def read_temperature(host):
     try:
-        register_value = host.read_holding_registers(
-            slave_addr=MODBUS_SLAVE_ID,
-            starting_addr=MODBUS_REGISTER_READ_ADDRESS,
-            register_qty=MODBUS_REGISTER_COUNT,
+        register_value = host.read_input_registers(
+            slave=MODBUS_SLAVE_ID,
+            address=MODBUS_REGISTER_READ_ADDRESS,
+            count=MODBUS_REGISTER_COUNT,
         )
-        print(register_value[0])
-        return float(register_value[0])
+        if not register_value.isError():
+            result = register_value.registers
+        else:
+            raise ValueError(f'Error reading register: {register_value}')
+        print(f"Read is {result[0]}, setvalue is {result[1]}")
+        return float(result[0])
     except Exception as e:
         print(f'Error reading! \n\t {e}')
         return None
@@ -41,10 +45,10 @@ def read_temperature(host):
 
 def write_temperature(host, setpoint):
     try:
-        result = host.write_single_register(
-            slave_addr=MODBUS_SLAVE_ID,
-            register_address=MODBUS_REGISTER_WRITE_ADDRESS,
-            register_value=int(setpoint)
+        result = host.write_register(
+            slave=MODBUS_SLAVE_ID,
+            address=MODBUS_REGISTER_WRITE_ADDRESS,
+            value=int(setpoint)
         )
         print(f'Result of writing {setpoint}: {result}')
     except Exception as e:
@@ -59,13 +63,13 @@ class TempLeft(BaseSensor):
         try:
             print(MODBUS_PORT)
             print(IP_ADDRS["left"])
-            self.host = ModbusTCPMaster(
-                slave_ip=IP_ADDRS["left"],
-                slave_port=MODBUS_PORT
+            self.host = ModbusTcpClient(
+                host=IP_ADDRS["left"],
+                port=MODBUS_PORT
             )
             print('managed to register host for left')
         except Exception as e:
-            print(f'Error initializing ModbusTCPMaster for temp_left!\n{e}')
+            print(f'Error initializing ModbusTcpClient for temp_left!\n{e}')
             pass
 
     def go_to_setpoint(self, setpoint):
@@ -86,12 +90,12 @@ class TempMain(BaseSensor):
 
     def __init__(self):
         try:
-            self.host = ModbusTCPMaster(
-                slave_ip=IP_ADDRS["main"],
-                slave_port=MODBUS_PORT
+            self.host = ModbusTcpClient(
+                host=IP_ADDRS["main"],
+                port=MODBUS_PORT
             )
         except Exception as e:
-            print(f'Error initializing ModbusTCPMaster for temp_main!\n{e}')
+            print(f'Error initializing ModbusTcpClient for temp_main!\n{e}')
             pass
 
     def go_to_setpoint(self, setpoint):
@@ -112,12 +116,12 @@ class TempRight(BaseSensor):
 
     def __init__(self):
         try:
-            self.host = ModbusTCPMaster(
-                slave_ip=IP_ADDRS["right"],
-                slave_port=MODBUS_PORT
+            self.host = ModbusTcpClient(
+                host=IP_ADDRS["right"],
+                port=MODBUS_PORT
             )
         except Exception as e:
-            print(f'Error initializing ModbusTCPMaster for temp_right!\n{e}')
+            print(f'Error initializing ModbusTcpClient for temp_right!\n{e}')
             pass
 
     def go_to_setpoint(self, setpoint):

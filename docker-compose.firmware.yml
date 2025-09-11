@@ -1,29 +1,35 @@
 version: '3.9'
 
-x-sensor-base: &sensor-template
+micropython-sensor-base: &micropython-sensor-template
   build:
     context: firmware
-    dockerfile: Dockerfile  # now using the one with the static binary build
+    dockerfile: Dockerfile-micropython
+  network_mode: host
+
+python-sensor-base: &python-sensor-template
+  build:
+    context: firmware
+    dockerfile: Dockerfile-python
   network_mode: host
 
 name: comodo-firmware
 services:
   temp_main:
-    <<: *sensor-template
+    <<: *python-sensor-template
     environment:
       - SENSOR_ID=temp_main
       - HEARTBEAT_INTERVAL=1000
       - MEASUREMENT_INTERVAL=1000
 
   temp_left:
-    <<: *sensor-template
+    <<: *python-sensor-template
     environment:
       - SENSOR_ID=temp_left
       - HEARTBEAT_INTERVAL=1000
       - MEASUREMENT_INTERVAL=1000
 
   temp_right:
-    <<: *sensor-template
+    <<: *python-sensor-template
     environment:
       - SENSOR_ID=temp_right
       - HEARTBEAT_INTERVAL=1000
