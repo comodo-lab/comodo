@@ -21,6 +21,8 @@ import state
 
 # Sensor imports (trigger sensor registration)
 from sensors.carbolite_gero_thermocouple import TempLeft, TempMain, TempRight
+from sensors.pfeiffer_mpt_200_pressure import PressureDownstream
+from sensors.el_flow_select_massflow import MassFlow, MassFlowTemp, MassFlowPressureUpstream, MassFlowPressureDownstream, MassFlowFluidTemp
 
 # Initialize the state
 state = state.SensorState()

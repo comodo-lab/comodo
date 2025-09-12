@@ -44,3 +44,53 @@ services:
     devices:
       - "/dev/ttyUSB0:/dev/ttyUSB0"
     privileged: true  # Optional but recommended for USB/serial access
+
+  massflow:
+    <<: *python-sensor-template
+    environment:
+      - SENSOR_ID=massflow
+      - HEARTBEAT_INTERVAL=1000
+      - MEASUREMENT_INTERVAL=1000
+    devices:
+      - "/dev/ttyUSB0:/dev/ttyUSB1"
+    privileged: true  # Optional but recommended for USB/serial access
+
+  massflow_temp:
+    <<: *python-sensor-template
+    environment:
+      - SENSOR_ID=massflow_temp
+      - HEARTBEAT_INTERVAL=1000
+      - MEASUREMENT_INTERVAL=1000
+    devices:
+      - "/dev/ttyUSB0:/dev/ttyUSB1"
+    privileged: true  # Optional but recommended for USB/serial access
+
+  massflow_pressure_upstream:
+    <<: *python-sensor-template
+    environment:
+      - SENSOR_ID=massflow_pressure_upstream
+      - HEARTBEAT_INTERVAL=1000
+      - MEASUREMENT_INTERVAL=1000
+    devices:
+      - "/dev/ttyUSB0:/dev/ttyUSB1"
+    privileged: true  # Optional but recommended for USB/serial access
+
+  massflow_pressure_downstream:
+    <<: *python-sensor-template
+    environment:
+      - SENSOR_ID=massflow_pressure_downstream
+      - HEARTBEAT_INTERVAL=1000
+      - MEASUREMENT_INTERVAL=1000
+    devices:
+      - "/dev/ttyUSB0:/dev/ttyUSB1"
+    privileged: true  # Optional but recommended for USB/serial access
+
+  massflow_fluid_temp:
+    <<: *python-sensor-template
+    environment:
+      - SENSOR_ID=massflow_fluid_temp
+      - HEARTBEAT_INTERVAL=1000
+      - MEASUREMENT_INTERVAL=1000
+    devices:
+      - "/dev/ttyUSB0:/dev/ttyUSB1"
+    privileged: true  # Optional but recommended for USB/serial access
