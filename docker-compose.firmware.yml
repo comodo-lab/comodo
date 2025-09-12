@@ -34,3 +34,13 @@ services:
       - SENSOR_ID=temp_right
       - HEARTBEAT_INTERVAL=1000
       - MEASUREMENT_INTERVAL=1000
+
+  pressure_downstream:
+    <<: *python-sensor-template
+    environment:
+      - SENSOR_ID=pressure_downstream
+      - HEARTBEAT_INTERVAL=1000
+      - MEASUREMENT_INTERVAL=1000
+    devices:
+      - "/dev/ttyUSB0:/dev/ttyUSB0"
+    privileged: true  # Optional but recommended for USB/serial access
