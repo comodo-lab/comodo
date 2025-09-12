@@ -10,7 +10,6 @@ from pymodbus.client import ModbusTcpClient
 
 # Common variables
 MODBUS_PORT = 502
-MODBUS_SLAVE_ID = 255
 MODBUS_REGISTER_READ_ADDRESS = 1
 MODBUS_REGISTER_WRITE_ADDRESS = 2
 MODBUS_REGISTER_COUNT = 1
@@ -28,9 +27,8 @@ IP_ADDRS = {
 def read_temperature(host):
     try:
         register_value = host.read_input_registers(
-            slave=MODBUS_SLAVE_ID,
             address=MODBUS_REGISTER_READ_ADDRESS,
-            count=MODBUS_REGISTER_COUNT,
+            count=MODBUS_REGISTER_COUNT
         )
         if not register_value.isError():
             result = register_value.registers
@@ -46,7 +44,6 @@ def read_temperature(host):
 def write_temperature(host, setpoint):
     try:
         result = host.write_register(
-            slave=MODBUS_SLAVE_ID,
             address=MODBUS_REGISTER_WRITE_ADDRESS,
             value=int(setpoint)
         )
@@ -135,11 +132,3 @@ class TempRight(BaseSensor):
         measurement = read_temperature(self.host)
         state.measurement = measurement
         return measurement
-
-
-if __name__ == "__main__":
-    host = ModbusTCPMaster(
-        slave_ip=IP_ADDRS["left"],
-        slave_port=MODBUS_PORT
-    )
-    read_temperature(host, None)
