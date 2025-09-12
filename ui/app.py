@@ -51,7 +51,8 @@ PARAMS = [
     'temp_right',
     'pressure_downstream',
     'pressure_upstream',
-    'massflow_temp'
+    'massflow_temp',
+    'mass_spec'
 ]
 
 PARAM_DICT = [

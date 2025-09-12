@@ -27,6 +27,7 @@ from sensors.test_sensor import TestSensor
 from sensors.carbolite_gero_thermocouple import TempLeft, TempMain, TempRight
 from sensors.pfeiffer_mpt_200_pressure import PressureDownstream, PressureUpstream
 from sensors.el_flow_select_massflow import MassFlow, MassFlowTemp, MassFlowPressureUpstream, MassFlowPressureDownstream, MassFlowFluidTemp
+from sensors.pfeiffer_prismapro import MassSpec
 
 # Initialize the state
 state = state.SensorState()
