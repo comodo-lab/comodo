@@ -139,3 +139,20 @@ class PressureDownstream(BaseSensor):
         measurement = get_pressure()
         state.measurement = measurement
         return measurement
+
+@BaseSensor.register_sensor("pressure_upstream")
+class PressureUpstream(BaseSensor):
+
+    def __init__(self):
+        pass
+
+    def go_to_setpoint(self, setpoint):
+        print(f'Setting upstream pressure to {setpoint} - not supported!')
+
+    def set_config(self, config):
+        pass
+
+    def get_measurement(self, state):
+        measurement = get_pressure()
+        state.measurement = measurement
+        return measurement
