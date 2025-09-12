@@ -63,7 +63,7 @@ services:
       - HEARTBEAT_INTERVAL=1000
       - MEASUREMENT_INTERVAL=1000
     devices:
-      - "/dev/ttyUSB2:/dev/ttyUSB0"
+      - "/dev/ttyUSB2:/dev/ttyUSB2"
     privileged: true  # Optional but recommended for USB/serial access
 
   massflow_temp:
@@ -73,7 +73,7 @@ services:
       - HEARTBEAT_INTERVAL=1000
       - MEASUREMENT_INTERVAL=1000
     devices:
-      - "/dev/ttyUSB2:/dev/ttyUSB0"
+      - "/dev/ttyUSB2:/dev/ttyUSB2"
     privileged: true  # Optional but recommended for USB/serial access
 
   massflow_pressure_upstream:
@@ -83,7 +83,7 @@ services:
       - HEARTBEAT_INTERVAL=1000
       - MEASUREMENT_INTERVAL=1000
     devices:
-      - "/dev/ttyUSB2:/dev/ttyUSB0"
+      - "/dev/ttyUSB2:/dev/ttyUSB2"
     privileged: true  # Optional but recommended for USB/serial access
 
   massflow_pressure_downstream:
@@ -93,7 +93,7 @@ services:
       - HEARTBEAT_INTERVAL=1000
       - MEASUREMENT_INTERVAL=1000
     devices:
-      - "/dev/ttyUSB2:/dev/ttyUSB0"
+      - "/dev/ttyUSB2:/dev/ttyUSB2"
     privileged: true  # Optional but recommended for USB/serial access
 
   massflow_fluid_temp:
@@ -103,5 +103,5 @@ services:
       - HEARTBEAT_INTERVAL=1000
       - MEASUREMENT_INTERVAL=1000
     devices:
-      - "/dev/ttyUSB2:/dev/ttyUSB0"
+      - "/dev/ttyUSB2:/dev/ttyUSB2"
     privileged: true  # Optional but recommended for USB/serial access
