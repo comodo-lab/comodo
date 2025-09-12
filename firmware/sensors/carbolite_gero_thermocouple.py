@@ -70,7 +70,7 @@ class TempLeft(BaseSensor):
             pass
 
     def go_to_setpoint(self, setpoint):
-        print(f'Setting left temperature to {setpoint}')
+        # print(f'Setting left temperature to {setpoint}')
         write_temperature(self.host, setpoint)
 
     def set_config(self, config):
