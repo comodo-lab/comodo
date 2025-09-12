@@ -4,6 +4,7 @@ import sys
 
 # Determine the board and set the watchdog timer
 board = sys.platform
+python_flavour = sys.executable
 
 if board == "rp2":
     # Micropython imports
@@ -90,7 +91,10 @@ elif board == "linux":
                 send_heartbeat()
             except Exception as e:
                 print(f"Error sending heartbeat: {e}")
-            await asyncio.sleep_ms(int(state.config["HEARTBEAT_INTERVAL"]))
+            if python_flavour == "micropython":
+                await asyncio.sleep_ms(int(state.config["HEARTBEAT_INTERVAL"]))
+            else:
+                await asyncio.sleep(int(state.config["HEARTBEAT_INTERVAL"])/1000)
 
     async def measurement_tick(timer):
         while True:
@@ -98,7 +102,10 @@ elif board == "linux":
                 send_measurement()
             except Exception as e:
                 print(f"Error sending measurement: {e}")
-            await asyncio.sleep_ms(int(state.config["MEASUREMENT_INTERVAL"]))
+            if python_flavour == "micropython":
+                await asyncio.sleep_ms(int(state.config["MEASUREMENT_INTERVAL"]))
+            else:
+                await asyncio.sleep(int(state.config["MEASUREMENT_INTERVAL"])/1000)
 
 # ----------------- Main function ----------------- ##
 
