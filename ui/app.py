@@ -70,9 +70,7 @@ INI_EXPERIMENT_CONFIG = [
 INI_DATA_DICT = [
     {'time': 0, 'temp_left': 0.0, 'temp_left_profile': 'linear', 'temp_main': 0.0, 'temp_main_profile': 'linear', 'temp_right': 0.0, 'temp_right_profile': 'linear'}, #, 'massflow': 0.0, 'massflow_profile': 'linear'},
     {'time': 30, 'temp_left': 250.0, 'temp_left_profile': 'exponential', 'temp_main': 300.0, 'temp_main_profile': 'linear', 'temp_right': 250.0, 'temp_right_profile': 'exponential'}, #, 'massflow': 25.0, 'massflow_profile': 'exponential'},
-    {'time': 60, 'temp_left': 300.0, 'temp_left_profile': 'step', 'temp_main': 350.0, 'temp_main_profile': 'step', 'temp_right': 350.0, 'temp_right_profile': 'step'}, #, 'massflow': 30.0, 'massflow_profile': 'step'},
-    {'time': 90, 'temp_left': 200.0, 'temp_left_profile': 'linear', 'temp_main': 200.0, 'temp_main_profile': 'linear', 'temp_right': 200.0, 'temp_right_profile': 'linear'}, #, 'massflow': 20.0, 'massflow_profile': 'linear'},
-    {'time': 120, 'temp_left': 0.0, 'temp_left_profile': 'linear', 'temp_main': 0.0, 'temp_main_profile': 'linear', 'temp_right': 0.0, 'temp_right_profile': 'linear'}, #, 'massflow': 0.0, 'massflow_profile': 'linear'}
+    {'time': 60, 'temp_left': 0.0, 'temp_left_profile': 'step', 'temp_main': 0.0, 'temp_main_profile': 'step', 'temp_right': 0.0, 'temp_right_profile': 'step'}, #, 'massflow': 0.0, 'massflow_profile': 'step'}
 ]
 
 
