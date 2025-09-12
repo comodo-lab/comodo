@@ -53,7 +53,7 @@ services:
       - HEARTBEAT_INTERVAL=1000
       - MEASUREMENT_INTERVAL=1000
     devices:
-      - "/dev/ttyUSB1:/dev/ttyUSB0"
+      - "/dev/ttyUSB1:/dev/ttyUSB1"
     privileged: true  # Optional but recommended for USB/serial access
 
   massflow:

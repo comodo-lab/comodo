@@ -107,9 +107,9 @@ def process_response(response):
 
 ################################################################################
 # Get Pressure (main method)
-def get_pressure():
+def get_pressure(device):
     try:
-        with serial.Serial('/dev/ttyUSB0', 9600, timeout=1) as ser:
+        with serial.Serial(device, 9600, timeout=1) as ser:
             ser.write(get_pressure_read_command().encode('ascii'))
             response = ser.read(64)  # Adjust as needed
             print("Response:", response.decode('ascii', errors='replace'))
@@ -120,7 +120,7 @@ def get_pressure():
         print(f'An error occurred: {e}')
         pressure = None
 
-    return pressure
+    return float(pressure)
 
 
 @BaseSensor.register_sensor("pressure_downstream")
@@ -136,7 +136,7 @@ class PressureDownstream(BaseSensor):
         pass
 
     def get_measurement(self, state):
-        measurement = get_pressure()
+        measurement = get_pressure('/dev/ttyUSB0')
         state.measurement = measurement
         return measurement
 
@@ -153,6 +153,6 @@ class PressureUpstream(BaseSensor):
         pass
 
     def get_measurement(self, state):
-        measurement = get_pressure()
+        measurement = get_pressure('/dev/ttyUSB1')
         state.measurement = measurement
         return measurement

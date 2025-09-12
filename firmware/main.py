@@ -63,7 +63,6 @@ def send_measurement():
         None
     """
     if (state.client is not None) and \
-       (state.status['setpoint'] is not None) and \
        (state.sensor is not None):
         measurement = state.sensor.get_measurement(state)
         measurement_structure = {"value": measurement}
