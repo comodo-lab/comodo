@@ -1,16 +1,17 @@
 version: '3.9'
 
-micropython-sensor-template: &micropython-sensor-template
-  build:
-    context: firmware
-    dockerfile: Dockerfile-micropython
-  network_mode: host
+x-templates:
+  micropython-sensor-template: &micropython-sensor-template
+    build:
+      context: firmware
+      dockerfile: Dockerfile-micropython
+    network_mode: host
 
-python-sensor-template: &python-sensor-template
-  build:
-    context: firmware
-    dockerfile: Dockerfile-python
-  network_mode: host
+  python-sensor-template: &python-sensor-template
+    build:
+      context: firmware
+      dockerfile: Dockerfile-python
+    network_mode: host
 
 name: comodo-firmware
 services:
