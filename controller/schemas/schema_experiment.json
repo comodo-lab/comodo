@@ -29,9 +29,11 @@
             "time": { "type": "number", "minimum": 0 },
             "temp_right": { "type": "number"},
             "temp_main": { "type": "number" },
-            "temp_left": { "type": "number" }
+            "temp_left": { "type": "number" },
+            "pressure_downstream": { "type": "number" },
+            "pressure_upstream": { "type": "number" }
           },
-          "required": ["time", "temp_main", "temp_left", "temp_right"]
+          "required": ["time", "temp_main", "temp_left", "temp_right", "pressure_downstream", "pressure_upstream"]
         }
       }
     },

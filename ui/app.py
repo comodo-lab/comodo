@@ -48,7 +48,9 @@ LONG_INTERVAL = 5000  # milliseconds
 PARAMS = [
     'temp_left',
     'temp_main',
-    'temp_right'
+    'temp_right',
+    'pressure_downstream',
+    'pressure_upstream'
 ]
 
 PARAM_DICT = [
