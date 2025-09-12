@@ -105,3 +105,10 @@ services:
     devices:
       - "/dev/ttyUSB2:/dev/ttyUSB2"
     privileged: true  # Optional but recommended for USB/serial access
+
+  mass_spec:
+    <<: *python-sensor-template
+    environment:
+      - SENSOR_ID=mass_spec
+      - HEARTBEAT_INTERVAL=1000
+      - MEASUREMENT_INTERVAL=1000

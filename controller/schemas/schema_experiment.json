@@ -29,10 +29,9 @@
             "time": { "type": "number", "minimum": 0 },
             "temp_right": { "type": "number"},
             "temp_main": { "type": "number" },
-            "temp_left": { "type": "number" },
-            "massflow": { "type": "number" }
+            "temp_left": { "type": "number" }
           },
-          "required": ["time", "temp_main", "temp_left", "temp_right", "massflow"]
+          "required": ["time", "temp_main", "temp_left", "temp_right"]
         }
       }
     },
