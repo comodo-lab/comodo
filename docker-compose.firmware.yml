@@ -1,12 +1,12 @@
 version: '3.9'
 
-micropython-sensor-base: &micropython-sensor-template
+sensor-base: &micropython-sensor-template
   build:
     context: firmware
     dockerfile: Dockerfile-micropython
   network_mode: host
 
-python-sensor-base: &python-sensor-template
+sensor-base: &python-sensor-template
   build:
     context: firmware
     dockerfile: Dockerfile-python
