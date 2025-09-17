@@ -237,8 +237,8 @@ class MassFlow(BaseSensor):
 
     def __init__(self):
         try:
-            # Map all docker containers to /dev/ttyUSB0)
-            self.instrument = propar.instrument('/dev/ttyUSB0')
+            # Map all docker containers to /dev/ttyUSB2)
+            self.instrument = propar.instrument('/dev/ttyUSB2')
             print('Connected to EL-Flow Select instrument')
         except Exception as e:
             print(f'Error initializing propar.Instrument!\n{e}')
@@ -278,15 +278,15 @@ class MassFlow(BaseSensor):
 
         print(f"Set Flow_Rate_Setpoint to {setpoint}% ({int(instrument_setpoint)} in instrument scale).")
         return result
-    
+
 
 @BaseSensor.register_sensor("massflow_temp")
 class MassFlowTemp(BaseSensor):
 
     def __init__(self):
         try:
-            # Map all docker containers to /dev/ttyUSB0)
-            self.instrument = propar.instrument('/dev/ttyUSB0')
+            # Map all docker containers to /dev/ttyUSB2)
+            self.instrument = propar.instrument('/dev/ttyUSB2')
             print('Connected to EL-Flow Select instrument')
         except Exception as e:
             print(f'Error initializing propar.Instrument!\n{e}')
@@ -311,15 +311,15 @@ class MassFlowTemp(BaseSensor):
     def go_to_setpoint(self, setpoint):
         print("MassFlowTemp does not support setting a setpoint.")
         return None
-    
+
 
 @BaseSensor.register_sensor("massflow_pressure_upstream")
 class MassFlowPressureUpstream(BaseSensor):
-    
+
     def __init__(self):
         try:
-            # Map all docker containers to /dev/ttyUSB0)
-            self.instrument = propar.instrument('/dev/ttyUSB0')
+            # Map all docker containers to /dev/ttyUSB2)
+            self.instrument = propar.instrument('/dev/ttyUSB2')
             print('Connected to EL-Flow Select instrument')
         except Exception as e:
             print(f'Error initializing propar.Instrument!\n{e}')
@@ -344,15 +344,15 @@ class MassFlowPressureUpstream(BaseSensor):
     def go_to_setpoint(self, setpoint):
         print("MassFlowPressureUpstream does not support setting a setpoint.")
         return None
-    
+
 
 @BaseSensor.register_sensor("massflow_pressure_downstream")
 class MassFlowPressureDownstream(BaseSensor):
-    
+
     def __init__(self):
         try:
-            # Map all docker containers to /dev/ttyUSB0)
-            self.instrument = propar.instrument('/dev/ttyUSB0')
+            # Map all docker containers to /dev/ttyUSB2)
+            self.instrument = propar.instrument('/dev/ttyUSB2')
             print('Connected to EL-Flow Select instrument')
         except Exception as e:
             print(f'Error initializing propar.Instrument!\n{e}')
@@ -377,15 +377,15 @@ class MassFlowPressureDownstream(BaseSensor):
     def go_to_setpoint(self, setpoint):
         print("MassFlowPressureDownstream does not support setting a setpoint.")
         return None
-    
+
 
 @BaseSensor.register_sensor("massflow_fluid_temp")
 class MassFlowFluidTemp(BaseSensor):
 
     def __init__(self):
         try:
-            # Map all docker containers to /dev/ttyUSB0)
-            self.instrument = propar.instrument('/dev/ttyUSB0')
+            # Map all docker containers to /dev/ttyUSB2)
+            self.instrument = propar.instrument('/dev/ttyUSB2')
             print('Connected to EL-Flow Select instrument')
         except Exception as e:
             print(f'Error initializing propar.Instrument!\n{e}')

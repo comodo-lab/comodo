@@ -25,8 +25,9 @@ from sensors.test_sensor import TestSensor
 
 # Sensor imports (trigger sensor registration)
 from sensors.carbolite_gero_thermocouple import TempLeft, TempMain, TempRight
-from sensors.pfeiffer_mpt_200_pressure import PressureDownstream
+from sensors.pfeiffer_mpt_200_pressure import PressureDownstream, PressureUpstream
 from sensors.el_flow_select_massflow import MassFlow, MassFlowTemp, MassFlowPressureUpstream, MassFlowPressureDownstream, MassFlowFluidTemp
+from sensors.pfeiffer_prismapro import MassSpec
 
 # Initialize the state
 state = state.SensorState()
@@ -63,7 +64,6 @@ def send_measurement():
         None
     """
     if (state.client is not None) and \
-       (state.status['setpoint'] is not None) and \
        (state.sensor is not None):
         measurement = state.sensor.get_measurement(state)
         measurement_structure = {"value": measurement}

@@ -44,6 +44,16 @@ services:
       - "/dev/ttyUSB0:/dev/ttyUSB0"
     privileged: true
 
+  pressure_upstream:
+    <<: *python-sensor-template
+    environment:
+      - SENSOR_ID=pressure_upstream
+      - HEARTBEAT_INTERVAL=1000
+      - MEASUREMENT_INTERVAL=1000
+    devices:
+      - "/dev/ttyUSB1:/dev/ttyUSB1"
+    privileged: true  # Optional but recommended for USB/serial access
+
   massflow:
     <<: *python-sensor-template
     environment:
@@ -51,8 +61,8 @@ services:
       - HEARTBEAT_INTERVAL=1000
       - MEASUREMENT_INTERVAL=1000
     devices:
-      - "/dev/ttyUSB0:/dev/ttyUSB1"
-    privileged: true
+      - "/dev/ttyUSB2:/dev/ttyUSB2"
+    privileged: true  # Optional but recommended for USB/serial access
 
   massflow_temp:
     <<: *python-sensor-template
@@ -61,9 +71,8 @@ services:
       - HEARTBEAT_INTERVAL=1000
       - MEASUREMENT_INTERVAL=1000
     devices:
-      - "/dev/ttyUSB0:/dev/ttyUSB1"
+      - "/dev/ttyUSB2:/dev/ttyUSB2"
     privileged: true
-
   massflow_pressure_upstream:
     <<: *python-sensor-template
     environment:
@@ -71,7 +80,7 @@ services:
       - HEARTBEAT_INTERVAL=1000
       - MEASUREMENT_INTERVAL=1000
     devices:
-      - "/dev/ttyUSB0:/dev/ttyUSB1"
+      - "/dev/ttyUSB2:/dev/ttyUSB2"
     privileged: true
 
   massflow_pressure_downstream:
@@ -81,9 +90,9 @@ services:
       - HEARTBEAT_INTERVAL=1000
       - MEASUREMENT_INTERVAL=1000
     devices:
-      - "/dev/ttyUSB0:/dev/ttyUSB1"
+      - "/dev/ttyUSB2:/dev/ttyUSB2"
     privileged: true
-
+    
   massflow_fluid_temp:
     <<: *python-sensor-template
     environment:
@@ -91,5 +100,13 @@ services:
       - HEARTBEAT_INTERVAL=1000
       - MEASUREMENT_INTERVAL=1000
     devices:
-      - "/dev/ttyUSB0:/dev/ttyUSB1"
+      - "/dev/ttyUSB2:/dev/ttyUSB2"
     privileged: true
+
+  mass_spec:
+    <<: *python-sensor-template
+    environment:
+      - SENSOR_ID=mass_spec
+      - HEARTBEAT_INTERVAL=1000
+      - MEASUREMENT_INTERVAL=1000
+>>>>>>> b5852f808446a3f20f95513db5863cb371e4dd4e:docker-compose.firmware.yml
