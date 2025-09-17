@@ -1,23 +1,19 @@
 name: comodo-nexus
 services:
   rabbitmq:
-    image: docker.io/bitnami/rabbitmq:3.12
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM rabbitmq:4.1.3
+        RUN rabbitmq-plugins enable rabbitmq_mqtt
     container_name: comodo-rabbitmq
     restart: unless-stopped
     profiles: [mqtt]
+    environment:
+      RABBITMQ_DEFAULT_USER: ${MQTT_USER}
+      RABBITMQ_DEFAULT_PASS: ${MQTT_PASS}
     ports:
       - '1883:1883'
-    environment:
-      - RABBITMQ_SECURE_PASSWORD=yes
-      - RABBITMQ_DISK_FREE_RELATIVE_LIMIT=1.0
-      - RABBITMQ_DISK_FREE_ABSOLUTE_LIMIT=500MB
-      - RABBITMQ_MANAGEMENT_ALLOW_WEB_ACCESS=true
-      - RABBITMQ_USERNAME=${MQTT_USER}
-      - RABBITMQ_PASSWORD=${MQTT_PASS}
-      - RABBITMQ_PLUGINS=rabbitmq_mqtt,rabbitmq_management
-      - RABBITMQ_LOGS=-
-    volumes:
-      - rabbitmq_data:/bitnami/rabbitmq/mnesia
     networks:
       comodo:
 
@@ -25,7 +21,7 @@ services:
     image: eclipse-mosquitto:2
     command: tail -f /dev/null   # keep container running
     environment:
-      MQTT_HOST: ${MQTT_BROKER_ADDRESS}
+      MQTT_HOST: ${MQTT_HOST}
       MQTT_PORT: 1883
       MQTT_USER: ${MQTT_USER}
       MQTT_PASS: ${MQTT_PASS}
@@ -152,7 +148,7 @@ services:
       - ./ui/:/app/
       - ./utils:/app/utils
     environment:
-      - MQTT_ADDR=${MQTT_BROKER_ADDRESS}
+      - MQTT_ADDR=${MQTT_HOST}
       - MQTT_PORT=1883
       - MQTT_USER=${MQTT_USER}
       - MQTT_PASS=${MQTT_PASS}

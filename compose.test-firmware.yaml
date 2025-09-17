@@ -1,5 +1,3 @@
-version: '3.9'
-
 x-templates:
   micropython-sensor-template: &micropython-sensor-template
     build:
