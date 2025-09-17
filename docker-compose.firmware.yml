@@ -1,30 +1,97 @@
 version: '3.9'
 
-x-sensor-base: &sensor-template
-  build:
-    context: firmware
-    dockerfile: Dockerfile  # now using the one with the static binary build
-  network_mode: host
+x-templates:
+  micropython-sensor-template: &micropython-sensor-template
+    build:
+      context: firmware
+      dockerfile: Dockerfile-micropython
+    network_mode: host
+
+python-sensor-template: &python-sensor-template
+    build:
+      context: firmware
+      dockerfile: Dockerfile-python
+    network_mode: host
 
 name: comodo-firmware
 services:
   temp_main:
-    <<: *sensor-template
+    <<: *python-sensor-template
     environment:
       - SENSOR_ID=temp_main
       - HEARTBEAT_INTERVAL=1000
       - MEASUREMENT_INTERVAL=1000
 
   temp_left:
-    <<: *sensor-template
+    <<: *python-sensor-template
     environment:
       - SENSOR_ID=temp_left
       - HEARTBEAT_INTERVAL=1000
       - MEASUREMENT_INTERVAL=1000
 
   temp_right:
-    <<: *sensor-template
+    <<: *python-sensor-template
     environment:
       - SENSOR_ID=temp_right
       - HEARTBEAT_INTERVAL=1000
       - MEASUREMENT_INTERVAL=1000
+
+  pressure_downstream:
+    <<: *python-sensor-template
+    environment:
+      - SENSOR_ID=pressure_downstream
+      - HEARTBEAT_INTERVAL=1000
+      - MEASUREMENT_INTERVAL=1000
+    devices:
+      - "/dev/ttyUSB0:/dev/ttyUSB0"
+    privileged: true  # Optional but recommended for USB/serial access
+
+  massflow:
+    <<: *python-sensor-template
+    environment:
+      - SENSOR_ID=massflow
+      - HEARTBEAT_INTERVAL=1000
+      - MEASUREMENT_INTERVAL=1000
+    devices:
+      - "/dev/ttyUSB0:/dev/ttyUSB1"
+    privileged: true  # Optional but recommended for USB/serial access
+
+  massflow_temp:
+    <<: *python-sensor-template
+    environment:
+      - SENSOR_ID=massflow_temp
+      - HEARTBEAT_INTERVAL=1000
+      - MEASUREMENT_INTERVAL=1000
+    devices:
+      - "/dev/ttyUSB0:/dev/ttyUSB1"
+    privileged: true  # Optional but recommended for USB/serial access
+
+  massflow_pressure_upstream:
+    <<: *python-sensor-template
+    environment:
+      - SENSOR_ID=massflow_pressure_upstream
+      - HEARTBEAT_INTERVAL=1000
+      - MEASUREMENT_INTERVAL=1000
+    devices:
+      - "/dev/ttyUSB0:/dev/ttyUSB1"
+    privileged: true  # Optional but recommended for USB/serial access
+
+  massflow_pressure_downstream:
+    <<: *python-sensor-template
+    environment:
+      - SENSOR_ID=massflow_pressure_downstream
+      - HEARTBEAT_INTERVAL=1000
+      - MEASUREMENT_INTERVAL=1000
+    devices:
+      - "/dev/ttyUSB0:/dev/ttyUSB1"
+    privileged: true  # Optional but recommended for USB/serial access
+
+  massflow_fluid_temp:
+    <<: *python-sensor-template
+    environment:
+      - SENSOR_ID=massflow_fluid_temp
+      - HEARTBEAT_INTERVAL=1000
+      - MEASUREMENT_INTERVAL=1000
+    devices:
+      - "/dev/ttyUSB0:/dev/ttyUSB1"
+    privileged: true  # Optional but recommended for USB/serial access
