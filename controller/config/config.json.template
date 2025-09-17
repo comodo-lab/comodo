@@ -5,14 +5,14 @@
     },
     "sensor_setup_wait": 10,
     "mqtt": {
-        "broker_address": "rabbitmq",
-        "user": "comodo",
-        "password": "comodo",
+        "broker_address": "${MQTT_BROKER_ADDRESS}",
+        "user": "${MQTT_USER}",
+        "password": "${MQTT_PASS}",
         "connection_timeout": 10
     },
     "influxdb": {
-        "url": "https://influx:8086",
-        "org": "comodo",
+        "url": "${INFLUX_ADDR}",
+        "org": "${INFLUX_ORG}",
         "buckets": [
             "logs",
             "measurement",

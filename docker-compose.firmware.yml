@@ -7,7 +7,7 @@ x-templates:
       dockerfile: Dockerfile-micropython
     network_mode: host
 
-  python-sensor-template: &python-sensor-template
+python-sensor-template: &python-sensor-template
     build:
       context: firmware
       dockerfile: Dockerfile-python

@@ -18,11 +18,24 @@ services:
       - RABBITMQ_LOGS=-
     volumes:
       - rabbitmq_data:/bitnami/rabbitmq/mnesia
+    networks:
+      comodo:
+
+  mqtt-probe:
+    image: eclipse-mosquitto:2
+    command: tail -f /dev/null   # keep container running
+    environment:
+      MQTT_HOST: ${MQTT_BROKER_ADDRESS}
+      MQTT_PORT: 1883
+      MQTT_USER: ${MQTT_USER}
+      MQTT_PASS: ${MQTT_PASS}
     healthcheck:
-      test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
-      interval: 10s
+      test: ["CMD-SHELL", "/probe.sh"]
+      interval: 15s
       timeout: 5s
       retries: 5
+    volumes:
+      - ./nexus/probe.sh:/probe.sh:ro
     networks:
       comodo:
 
@@ -32,7 +45,7 @@ services:
     restart: unless-stopped
     profiles: [live]
     depends_on:
-      rabbitmq:
+      mqtt-probe:
         condition: service_healthy
     environment:
       - DOCKER_INFLUXDB_INIT_MODE=setup
@@ -105,19 +118,18 @@ services:
     build:
       context: ./
       dockerfile: controller/Dockerfile
+    env_file:
+      - .env
     container_name: comodo-controller
     restart: unless-stopped
     depends_on:
-      rabbitmq:
+      mqtt-probe:
         condition: service_healthy
     volumes:
       - ./controller/data:/controller/data
-      - ./controller/config/config.json:/controller/config/config.json
-    environment:
-      - INFLUX_TOKEN=${INFLUX_TOKEN}
     networks:
       comodo:
-            
+
   ui:
     build:
       context: .
@@ -132,7 +144,7 @@ services:
     container_name: comodo-ui
     restart: unless-stopped
     depends_on:
-      rabbitmq:
+      mqtt-probe:
         condition: service_healthy
     ports:
       - '8501:8050'
@@ -140,10 +152,11 @@ services:
       - ./ui/:/app/
       - ./utils:/app/utils
     environment:
-      - MQTT_ADDR=rabbitmq
+      - MQTT_ADDR=${MQTT_BROKER_ADDRESS}
       - MQTT_PORT=1883
       - MQTT_USER=${MQTT_USER}
       - MQTT_PASS=${MQTT_PASS}
+      - INFLUX_ADDR=${INFLUX_ADDR}
       - INFLUX_TOKEN=${INFLUX_TOKEN}
       - INFLUX_BUCKET=${INFLUX_BUCKET}
       - INFLUX_ORG=${INFLUX_ORG}
