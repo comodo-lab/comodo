@@ -42,7 +42,7 @@ services:
       - MEASUREMENT_INTERVAL=1000
     devices:
       - "/dev/ttyUSB0:/dev/ttyUSB0"
-    privileged: true  # Optional but recommended for USB/serial access
+    privileged: true
 
   massflow:
     <<: *python-sensor-template
@@ -52,7 +52,7 @@ services:
       - MEASUREMENT_INTERVAL=1000
     devices:
       - "/dev/ttyUSB0:/dev/ttyUSB1"
-    privileged: true  # Optional but recommended for USB/serial access
+    privileged: true
 
   massflow_temp:
     <<: *python-sensor-template
@@ -62,7 +62,7 @@ services:
       - MEASUREMENT_INTERVAL=1000
     devices:
       - "/dev/ttyUSB0:/dev/ttyUSB1"
-    privileged: true  # Optional but recommended for USB/serial access
+    privileged: true
 
   massflow_pressure_upstream:
     <<: *python-sensor-template
@@ -72,7 +72,7 @@ services:
       - MEASUREMENT_INTERVAL=1000
     devices:
       - "/dev/ttyUSB0:/dev/ttyUSB1"
-    privileged: true  # Optional but recommended for USB/serial access
+    privileged: true
 
   massflow_pressure_downstream:
     <<: *python-sensor-template
@@ -82,7 +82,7 @@ services:
       - MEASUREMENT_INTERVAL=1000
     devices:
       - "/dev/ttyUSB0:/dev/ttyUSB1"
-    privileged: true  # Optional but recommended for USB/serial access
+    privileged: true
 
   massflow_fluid_temp:
     <<: *python-sensor-template
@@ -92,4 +92,4 @@ services:
       - MEASUREMENT_INTERVAL=1000
     devices:
       - "/dev/ttyUSB0:/dev/ttyUSB1"
-    privileged: true  # Optional but recommended for USB/serial access
+    privileged: true
