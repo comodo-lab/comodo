@@ -1,20 +1,19 @@
 FROM python:3.13-slim
 
-# Setup python environment
 COPY controller/requirements.txt ./requirements.txt
 RUN pip install --no-cache -r requirements.txt
 
-# Copy the controller
 WORKDIR /controller
 COPY controller /controller
-
-# Copy the utils
 COPY utils/mqtt_clients.py /controller
 COPY utils/interpolation.py /controller
 
-# TEMP: copy copy manually modified pytest-mqtt
-COPY utils/pytest-mqtt /pytest-mqtt
-# RUN pip install /pytest-mqtt
+# Install envsubst
+RUN apt-get update && apt-get install -y gettext-base
 
-# Run the controller
+# Copy entrypoint
+COPY controller/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["python", "-u", "controller.py"]
