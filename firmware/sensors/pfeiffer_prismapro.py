@@ -76,7 +76,7 @@ class MMSP:
         self.send(f"/mmsp/scanSetup/set?@channel={chan}&enabled=True")
         self.send(f"/mmsp/scanSetup/set?@channel={chan}&startMass=0")
         self.send(f"/mmsp/scanSetup/set?@channel={chan}&stopMass={AMU}")
-        self.send(f"/mmsp/scanSetup/set?@channel={chan}&ppamu=5")
+        self.send(f"/mmsp/scanSetup/set?@channel={chan}&ppamu=1")
         self.send(f"/mmsp/scanSetup/set?@channel={chan}&dwell={DEFAULT_DWELL}")
 
         print("Applying acquisition settings...")
