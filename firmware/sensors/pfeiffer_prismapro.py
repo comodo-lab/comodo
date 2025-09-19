@@ -5,7 +5,7 @@ from sensor import BaseSensor
 
 # Configuration Parameters
 VERBOSE = True
-SCAN_COUNT = 5
+SCAN_COUNT = 1
 SCAN_INTERVAL = 9023   # ms between scans
 DEFAULT_DWELL = 32     # ms dwell time
 AMU = 50
@@ -133,10 +133,14 @@ class MMSP:
         print("Scan complete.")
         print("Downloading scans...")
         scan = self.dump_scans()[0]
-        print("Scan data:")
-        print(scan)
 
-        return scan
+        # Convert scan to dictionary
+        print("Converting scan to dictionary...")
+        scan_dict = {i: scan[i] for i in range(len(scan))}
+        print("Scan dictionary:")
+        print(scan_dict)
+
+        return scan_dict
 
 
 @BaseSensor.register_sensor("mass_spec")
