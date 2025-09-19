@@ -132,7 +132,7 @@ class MMSP:
         self.wait_for_scans()
         print("Scan complete.")
         print("Downloading scans...")
-        scan = self.dump_scans()
+        scan = self.dump_scans()[0]
         print("Scan data:")
         print(scan)
 
