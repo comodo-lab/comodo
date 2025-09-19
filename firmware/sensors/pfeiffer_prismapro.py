@@ -50,7 +50,7 @@ class MMSP:
             resp_rtn = resp.text
 
         if verbose:
-            self._printResponse(resp_rtn)
+            print(resp_rtn)
 
         return (resp.status_code, resp_rtn)
 
