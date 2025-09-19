@@ -1,11 +1,10 @@
-from __future__ import print_function
 import sys, os
 import time
 import pprint
 import json
 import http.client
-import re
-from datetime import datetime
+
+from sensor import BaseSensor
 
 # Configuration Parameters
 VERBOSE = False
@@ -65,56 +64,53 @@ class MMSP:
             print(("Response: [%s]" % status, outstr))
         print("")
 
-###############################################################################
-# Scan Setup
-###############################################################################
-def configure_instrument(mmsp):
-    print("Taking control...")
-    mmsp.send("/mmsp/communication/control/set?force")
-    mmsp.send("/mmsp/scanSetup/set?scanstop=1")
+    def configure_instrument(self, mmsp):
+        print("Taking control...")
+        mmsp.send("/mmsp/communication/control/set?force")
+        mmsp.send("/mmsp/scanSetup/set?scanstop=1")
 
-    print("Configuring ion source and detector...")
-    mmsp.send("/mmsp/sensorIonSource/emissionCurrent/set?2000")
-    mmsp.send("/mmsp/sensorIonSource/electronEnergy/set?70")
-    mmsp.send("/mmsp/sensorIonSource/anode/set?250")
-    mmsp.send("/mmsp/sensorIonSource/focus/set?25")
-    mmsp.send("/mmsp/sensorIonSource/ionEnergyGlobal/set?8000")
+        print("Configuring ion source and detector...")
+        mmsp.send("/mmsp/sensorIonSource/emissionCurrent/set?2000")
+        mmsp.send("/mmsp/sensorIonSource/electronEnergy/set?70")
+        mmsp.send("/mmsp/sensorIonSource/anode/set?250")
+        mmsp.send("/mmsp/sensorIonSource/focus/set?25")
+        mmsp.send("/mmsp/sensorIonSource/ionEnergyGlobal/set?8000")
 
-    mmsp.send("/mmsp/generalControl/setEmission?On")
-    mmsp.send("/mmsp/generalControl/setEM?On")
-    mmsp.send("/mmsp/sensorDetector/emVoltage/set?841")
+        mmsp.send("/mmsp/generalControl/setEmission?On")
+        mmsp.send("/mmsp/generalControl/setEM?On")
+        mmsp.send("/mmsp/sensorDetector/emVoltage/set?841")
 
-    print("Setting up sweep channel (0–50 amu, 5 points/amu, dwell=32)...")
-    chan = 1
-    mmsp.send(f"/mmsp/scanSetup/set?@channel={chan}&channelMode=Sweep")
-    mmsp.send(f"/mmsp/scanSetup/set?@channel={chan}&enabled=True")
-    mmsp.send(f"/mmsp/scanSetup/set?@channel={chan}&startMass=0")
-    mmsp.send(f"/mmsp/scanSetup/set?@channel={chan}&stopMass={AMU}")
-    mmsp.send(f"/mmsp/scanSetup/set?@channel={chan}&ppamu=5")
-    mmsp.send(f"/mmsp/scanSetup/set?@channel={chan}&dwell={DEFAULT_DWELL}")
+        print("Setting up sweep channel (0–50 amu, 5 points/amu, dwell=32)...")
+        chan = 1
+        mmsp.send(f"/mmsp/scanSetup/set?@channel={chan}&channelMode=Sweep")
+        mmsp.send(f"/mmsp/scanSetup/set?@channel={chan}&enabled=True")
+        mmsp.send(f"/mmsp/scanSetup/set?@channel={chan}&startMass=0")
+        mmsp.send(f"/mmsp/scanSetup/set?@channel={chan}&stopMass={AMU}")
+        mmsp.send(f"/mmsp/scanSetup/set?@channel={chan}&ppamu=5")
+        mmsp.send(f"/mmsp/scanSetup/set?@channel={chan}&dwell={DEFAULT_DWELL}")
 
-    print("Applying acquisition settings...")
-    mmsp.send(f"/mmsp/scanSetup/set?startchannel=1&stopchannel=1")
-    mmsp.send(f"/mmsp/scanSetup/set?scanCount={SCAN_COUNT}")
-    mmsp.send(f"/mmsp/scanSetup/set?scanInterval={SCAN_INTERVAL}")
-    mmsp.send(f"/mmsp/scanSetup/dwellGlobal/set?{DEFAULT_DWELL}")
-    mmsp.send(f"/mmsp/scanSetup/CaptureFileName/set?{CAPTURE_FILE}")
+        print("Applying acquisition settings...")
+        mmsp.send(f"/mmsp/scanSetup/set?startchannel=1&stopchannel=1")
+        mmsp.send(f"/mmsp/scanSetup/set?scanCount={SCAN_COUNT}")
+        mmsp.send(f"/mmsp/scanSetup/set?scanInterval={SCAN_INTERVAL}")
+        mmsp.send(f"/mmsp/scanSetup/dwellGlobal/set?{DEFAULT_DWELL}")
+        mmsp.send(f"/mmsp/scanSetup/CaptureFileName/set?{CAPTURE_FILE}")
 
-    print("Starting Scan...")
-    mmsp.send("/mmsp/scanSetup/set?scanstart=1")
+        print("Starting Scan...")
+        mmsp.send("/mmsp/scanSetup/set?scanstart=1")
 
-def dump_scan(mmsp):
-    http_code, resp = mmsp.send("/mmsp/measurement/nextScan/get")
-    data = resp['data']
-    system_status = data['systemStatus']
-    current_scan  = data['currentScan']
-    scan_num      = data['scannum']
-    scan_values   = data['values']
+    def dump_scan(self, mmsp):
+        http_code, resp = mmsp.send("/mmsp/measurement/nextScan/get")
+        data = resp['data']
+        system_status = data['systemStatus']
+        current_scan  = data['currentScan']
+        scan_num      = data['scannum']
+        scan_values   = data['values']
 
-    if scan_values is not None:
-        # Print live scan data (real time data for InfluxDB)
-        print(scan_num, scan_values)
-        return scan_values
+        if scan_values is not None:
+            # Print live scan data (real time data for InfluxDB)
+            print(scan_num, scan_values)
+            return scan_values
 
 @BaseSensor.register_sensor("mass_spec")
 class MassSpec(BaseSensor):
@@ -133,7 +129,7 @@ class MassSpec(BaseSensor):
         Returns:
             float: A random temperature value for testing purposes
         """
-        scan = dump_scans(mmsp)
+        scan = self.mmsp.dump_scan(self.mmsp)
 
         state.measurement = scan
         return state.measurement
