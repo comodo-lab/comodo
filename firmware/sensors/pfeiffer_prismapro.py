@@ -132,12 +132,29 @@ class MMSP:
         self.wait_for_scans()
         print("Scan complete.")
         print("Downloading scans...")
-        scan = self.dump_scans()[0]
+        scan_values = self.dump_scans()[0]
 
-        # Convert scan to dictionary
-        print("Converting scan to dictionary...")
-        scan_dict = {i: scan[i] for i in range(len(scan))}
-        print("Scan dictionary:")
+        # --- Correct negative noise ---
+        print("Correcting negative noise...")
+        print("Original scan values (0–50 AMU):")
+        print(scan_values)
+        scan_values = [max(0, x) for x in scan_values]
+        print("Corrected scan values (0–50 AMU, negative values zeroed):")
+        print(scan_values)
+
+        # --- Map to integer AMUs only ---
+        points_per_amu = (len(scan_values) - 1) // AMU
+        integer_amu_values = scan_values[::points_per_amu]
+
+        # Ensure we have exactly AMU+1 points (0–50)
+        if len(integer_amu_values) != AMU + 1:
+            # Sometimes rounding can cause off-by-one
+            integer_amu_values = integer_amu_values[:AMU+1]
+
+        # --- Convert to dictionary ---
+        scan_dict = {i: val for i, val in enumerate(integer_amu_values)}
+
+        print("Scan dictionary (0–50 AMU, negative values zeroed):")
         print(scan_dict)
 
         return scan_dict
