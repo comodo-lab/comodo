@@ -77,6 +77,7 @@ services:
     privileged: true
     volumes:
       - massflow_lock:/lock
+      
   massflow_pressure_upstream:
     <<: *python-sensor-template
     environment:
