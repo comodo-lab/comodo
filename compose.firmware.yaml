@@ -1,5 +1,3 @@
-version: '3.9'
-
 x-templates:
   micropython-sensor-template: &micropython-sensor-template
     build:
@@ -7,7 +5,7 @@ x-templates:
       dockerfile: Dockerfile-micropython
     network_mode: host
 
-  python-sensor-template: &python-sensor-template
+python-sensor-template: &python-sensor-template
     build:
       context: firmware
       dockerfile: Dockerfile-python
@@ -44,7 +42,7 @@ services:
       - MEASUREMENT_INTERVAL=1000
     devices:
       - "/dev/ttyUSB0:/dev/ttyUSB0"
-    privileged: true  # Optional but recommended for USB/serial access
+    privileged: true
 
   pressure_upstream:
     <<: *python-sensor-template
@@ -56,6 +54,18 @@ services:
       - "/dev/ttyUSB1:/dev/ttyUSB1"
     privileged: true  # Optional but recommended for USB/serial access
 
+  massflow:
+    <<: *python-sensor-template
+    environment:
+      - SENSOR_ID=massflow
+      - HEARTBEAT_INTERVAL=1000
+      - MEASUREMENT_INTERVAL=1000
+    devices:
+      - "/dev/ttyUSB2:/dev/ttyUSB2"
+    privileged: true  # Optional but recommended for USB/serial access
+    volumes:
+      - massflow_lock:/lock
+
   massflow_temp:
     <<: *python-sensor-template
     environment:
@@ -64,7 +74,45 @@ services:
       - MEASUREMENT_INTERVAL=1000
     devices:
       - "/dev/ttyUSB2:/dev/ttyUSB2"
-    privileged: true  # Optional but recommended for USB/serial access
+    privileged: true
+    volumes:
+      - massflow_lock:/lock
+      
+  massflow_pressure_upstream:
+    <<: *python-sensor-template
+    environment:
+      - SENSOR_ID=massflow_pressure_upstream
+      - HEARTBEAT_INTERVAL=1000
+      - MEASUREMENT_INTERVAL=1000
+    devices:
+      - "/dev/ttyUSB2:/dev/ttyUSB2"
+    privileged: true
+    volumes:
+      - massflow_lock:/lock
+
+  massflow_pressure_downstream:
+    <<: *python-sensor-template
+    environment:
+      - SENSOR_ID=massflow_pressure_downstream
+      - HEARTBEAT_INTERVAL=1000
+      - MEASUREMENT_INTERVAL=1000
+    devices:
+      - "/dev/ttyUSB2:/dev/ttyUSB2"
+    privileged: true
+    volumes:
+      - massflow_lock:/lock
+    
+  massflow_fluid_temp:
+    <<: *python-sensor-template
+    environment:
+      - SENSOR_ID=massflow_fluid_temp
+      - HEARTBEAT_INTERVAL=1000
+      - MEASUREMENT_INTERVAL=1000
+    devices:
+      - "/dev/ttyUSB2:/dev/ttyUSB2"
+    privileged: true
+    volumes:
+      - massflow_lock:/lock
 
   mass_spec:
     <<: *python-sensor-template
@@ -72,3 +120,6 @@ services:
       - SENSOR_ID=mass_spec
       - HEARTBEAT_INTERVAL=1000
       - MEASUREMENT_INTERVAL=1000
+
+volumes:
+  massflow_lock:
