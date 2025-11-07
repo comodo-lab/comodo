@@ -3,9 +3,34 @@ Bronkhorst EL-FLOW Select Mass Flow Meter interface.
 https://prod-bronkhorst-products-cdn-ccdwbfhmd0gfecfb.a02.azurefd.net/media/3u4iwfxh/917099-manual-el-flow-select.pdf
 """
 
-from sensor import BaseSensor
+import os
+import fcntl
+from contextlib import contextmanager
 
+from sensor import BaseSensor
 import propar
+
+ERROR_TIMEOUT = 10
+REPETITION_TIME = 2
+
+LOCK_FILE = os.environ.get("MASSFLOW_LOCK_FILE", "/lock/massflow.lock")
+
+
+@contextmanager
+def serial_lock():
+    """
+    Cross-process lock using flock on a shared file.
+
+    All propar calls to the same device must be wrapped in this.
+    """
+    fd = os.open(LOCK_FILE, os.O_CREAT | os.O_RDWR)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        yield
+    finally:
+        fcntl.flock(fd, fcntl.LOCK_UN)
+        os.close(fd)
+
 
 ERROR_TIMEOUT = 10  # Seconds to wait before retrying after an error
 REPETITION_TIME = 2  # Seconds to wait before requesting another datapoint
@@ -136,11 +161,13 @@ def read_parameter(instrument, channel):
     :return: The value of the parameter.
     """
     try:
-        return instrument.readParameter(channel)
+        with serial_lock():
+            value = instrument.readParameter(int(channel))
+        return value
     except Exception as e:
         print(f"Error reading channel {channel}: {e}")
         return None
-    
+
 
 def read_general(instrument, name):
     """
@@ -170,8 +197,9 @@ def write_param(instrument, channel, value):
     :return: The value of the parameter if written, None if error.
     """
     try:
-        # TODO - Check this is the correct syntax for write to instrument
-        write = instrument.writeParameter(channel, value)
+        with serial_lock():
+            # TODO - Check this is the correct syntax for write to instrument
+            write = instrument.writeParameter(int(channel), value)
         return write
     except Exception as e:
         print(f"Error writing {value} to channel {channel}: {e}")
@@ -238,7 +266,8 @@ class MassFlow(BaseSensor):
     def __init__(self):
         try:
             # Map all docker containers to /dev/ttyUSB2)
-            self.instrument = propar.instrument('/dev/ttyUSB2')
+            with serial_lock():
+                self.instrument = propar.instrument('/dev/ttyUSB2')
             print('Connected to EL-Flow Select instrument')
         except Exception as e:
             print(f'Error initializing propar.Instrument!\n{e}')
@@ -286,7 +315,8 @@ class MassFlowTemp(BaseSensor):
     def __init__(self):
         try:
             # Map all docker containers to /dev/ttyUSB2)
-            self.instrument = propar.instrument('/dev/ttyUSB2')
+            with serial_lock():
+                self.instrument = propar.instrument('/dev/ttyUSB2')
             print('Connected to EL-Flow Select instrument')
         except Exception as e:
             print(f'Error initializing propar.Instrument!\n{e}')
@@ -319,7 +349,8 @@ class MassFlowPressureUpstream(BaseSensor):
     def __init__(self):
         try:
             # Map all docker containers to /dev/ttyUSB2)
-            self.instrument = propar.instrument('/dev/ttyUSB2')
+            with serial_lock():
+                self.instrument = propar.instrument('/dev/ttyUSB2')
             print('Connected to EL-Flow Select instrument')
         except Exception as e:
             print(f'Error initializing propar.Instrument!\n{e}')
@@ -352,7 +383,8 @@ class MassFlowPressureDownstream(BaseSensor):
     def __init__(self):
         try:
             # Map all docker containers to /dev/ttyUSB2)
-            self.instrument = propar.instrument('/dev/ttyUSB2')
+            with serial_lock():
+                self.instrument = propar.instrument('/dev/ttyUSB2')
             print('Connected to EL-Flow Select instrument')
         except Exception as e:
             print(f'Error initializing propar.Instrument!\n{e}')
@@ -385,7 +417,8 @@ class MassFlowFluidTemp(BaseSensor):
     def __init__(self):
         try:
             # Map all docker containers to /dev/ttyUSB2)
-            self.instrument = propar.instrument('/dev/ttyUSB2')
+            with serial_lock():
+                self.instrument = propar.instrument('/dev/ttyUSB2')
             print('Connected to EL-Flow Select instrument')
         except Exception as e:
             print(f'Error initializing propar.Instrument!\n{e}')
