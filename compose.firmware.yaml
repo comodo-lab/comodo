@@ -63,6 +63,8 @@ services:
     devices:
       - "/dev/ttyUSB2:/dev/ttyUSB2"
     privileged: true  # Optional but recommended for USB/serial access
+    volumes:
+      - massflow_lock:/lock
 
   massflow_temp:
     <<: *python-sensor-template
@@ -73,6 +75,9 @@ services:
     devices:
       - "/dev/ttyUSB2:/dev/ttyUSB2"
     privileged: true
+    volumes:
+      - massflow_lock:/lock
+      
   massflow_pressure_upstream:
     <<: *python-sensor-template
     environment:
@@ -82,6 +87,8 @@ services:
     devices:
       - "/dev/ttyUSB2:/dev/ttyUSB2"
     privileged: true
+    volumes:
+      - massflow_lock:/lock
 
   massflow_pressure_downstream:
     <<: *python-sensor-template
@@ -92,6 +99,8 @@ services:
     devices:
       - "/dev/ttyUSB2:/dev/ttyUSB2"
     privileged: true
+    volumes:
+      - massflow_lock:/lock
     
   massflow_fluid_temp:
     <<: *python-sensor-template
@@ -102,6 +111,8 @@ services:
     devices:
       - "/dev/ttyUSB2:/dev/ttyUSB2"
     privileged: true
+    volumes:
+      - massflow_lock:/lock
 
   mass_spec:
     <<: *python-sensor-template
@@ -109,4 +120,6 @@ services:
       - SENSOR_ID=mass_spec
       - HEARTBEAT_INTERVAL=1000
       - MEASUREMENT_INTERVAL=1000
->>>>>>> b5852f808446a3f20f95513db5863cb371e4dd4e:docker-compose.firmware.yml
+
+volumes:
+  massflow_lock:
