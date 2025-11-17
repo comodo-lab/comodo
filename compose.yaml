@@ -1,5 +1,13 @@
 name: comodo-nexus
 services:
+  config:
+    image: docker.io/linkml/linkml
+    command: linkml-validate -s schema.yaml config.yaml
+    working_dir: /work
+    volumes:
+      - ./comodo.yaml:/work/config.yaml
+      - ./comodo.yaml.schema:/work/schema.yaml
+
   rabbitmq:
     build:
       context: .
@@ -121,6 +129,8 @@ services:
     depends_on:
       mqtt-probe:
         condition: service_healthy
+      config:
+        condition: service_completed_successfully
     volumes:
       - ./controller/data:/controller/data
     networks:
@@ -142,6 +152,8 @@ services:
     depends_on:
       mqtt-probe:
         condition: service_healthy
+      config:
+        condition: service_completed_successfully
     ports:
       - '8501:8050'
     volumes:
