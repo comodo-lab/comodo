@@ -1,114 +1,114 @@
 global:
- error_timeout: 1s
+  error_timeout: 1s
 instruments:
- furnace:
-   sensors:
-     temperature_centre:
-       address: "192.168.111.222"
-       measurement_interval: 1s
-       sensor: # experiment/sensor/temperature_centre
-         type: float
-         min: 0
-         max: 1000
-         unit: C
-         correction_multiplier: 10 # Does this fit here?
-       actuator: # experiment/actuator/temperature_centre
-         type: float
-         min: 0
-         max: 1000
-         unit: C
-         correction_multiplier: 0.1 # Does this fit here?
-     temperature_left:
-       address: "192.168.111.224"
-       measurement_interval: 1s
-       sensor:
-         type: float
-         min: 0
-         max: 1000
-         unit: C
-       actuator:
-         type: float
-         min: 0
-         max: 1000
-         unit: °C
-     temperature_right:
-       address: "192.168.111.225"
-       measurement_interval: 1s
-       sensor:
-         type: float
-         min: 0
-         max: 1000
-         unit: C
-       actuator:
-         type: float
-         min: 0
-         max: 1000
-         unit: C
- pressure_downstream:
-   sensors:
-     pressure_downstream:
-       address: "/dev/ttyUSB0"
-       measurement_interval: 1s
-       sensor:
-         type: float
-         min: 0
-         max: 10
-         unit: bar
- pressure_upstream:
-   sensors:
-     pressure_upstream:
-       address: "/dev/ttyUSB1"
-       measurement_interval: 1s
-       sensor:
-         type: float
-         min: 0
-         max: 10
-         unit: bar
- mass_flow:
-   sensors:
-     mass_flow:
-       address: "/dev/ttyUSB2"
-       measurement_interval: 1s
-       sensor:
-         type: float
-         min: 0
-         max: 100
-         unit: \%
-       actuator:
-         type: float
-         min: 0
-         max: 100
-         unit: \%
-     mass_flow_temp:
-       address: "/dev/ttyUSB2"
-       measurement_interval: 1s
-       sensor:
-         type: float
-         min: 0
-         max: 100
-         unit: °C
-     mass_flow_pressure_upstream:
-       address: "/dev/ttyUSB2"
-       measurement_interval: 1s
-       sensor:
-         type: float
-         min: 0
-         max: 10
-         unit: bar
-     mass_flow_pressure_downstream:
-       address: "/dev/ttyUSB2"
-       measurement_interval: 1s
-       sensor:
-         type: float
-         min: 0
-         max: 10
-         unit: bar
- mass_spec:
-   sensors:
-     mass_spec:
-       address: "192.168.1.100"
-       sensor:
-         type: array
+  furnace:
+    sensors:
+      temperature_centre:
+        address: "192.168.111.222"
+        measurement_interval: 1s
+        sensor: # experiment/sensor/temperature_centre
+          type: float
+          min: 0
+          max: 1000
+          unit: C
+          correction_multiplier: 10 # Does this fit here?
+        actuator: # experiment/actuator/temperature_centre
+          type: float
+          min: 0
+          max: 1000
+          unit: C
+          correction_multiplier: 0.1 # Does this fit here?
+      temperature_left:
+        address: "192.168.111.224"
+        measurement_interval: 1s
+        sensor:
+          type: float
+          min: 0
+          max: 1000
+          unit: C
+        actuator:
+          type: float
+          min: 0
+          max: 1000
+          unit: °C
+      temperature_right:
+        address: "192.168.111.225"
+        measurement_interval: 1s
+        sensor:
+          type: float
+          min: 0
+          max: 1000
+          unit: C
+        actuator:
+          type: float
+          min: 0
+          max: 1000
+          unit: C
+  pressure_downstream:
+    sensors:
+      pressure_downstream:
+        address: "/dev/ttyUSB0"
+        measurement_interval: 1s
+        sensor:
+          type: float
+          min: 0
+          max: 10
+          unit: bar
+  pressure_upstream:
+    sensors:
+      pressure_upstream:
+        address: "/dev/ttyUSB1"
+        measurement_interval: 1s
+        sensor:
+          type: float
+          min: 0
+          max: 10
+          unit: bar
+  mass_flow:
+    sensors:
+      mass_flow:
+        address: "/dev/ttyUSB2"
+        measurement_interval: 1s
+        sensor:
+          type: float
+          min: 0
+          max: 100
+          unit: \%
+        actuator:
+          type: float
+          min: 0
+          max: 100
+          unit: \%
+      mass_flow_temp:
+        address: "/dev/ttyUSB2"
+        measurement_interval: 1s
+        sensor:
+          type: float
+          min: 0
+          max: 100
+          unit: °C
+      mass_flow_pressure_upstream:
+        address: "/dev/ttyUSB2"
+        measurement_interval: 1s
+        sensor:
+          type: float
+          min: 0
+          max: 10
+          unit: bar
+      mass_flow_pressure_downstream:
+        address: "/dev/ttyUSB2"
+        measurement_interval: 1s
+        sensor:
+          type: float
+          min: 0
+          max: 10
+          unit: bar
+  mass_spec:
+    sensors:
+      mass_spec:
+        address: "192.168.1.100"
+        sensor:
+          type: array
 visualisations:
   temperature_graph:
     title: Temperature Control
