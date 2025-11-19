@@ -31,6 +31,7 @@ classes:
       - measurement_interval
       - sensor
       - actuator
+      - setpoint_controller
 
   SensorConfig:
     slots:
@@ -45,6 +46,14 @@ classes:
       - min
       - max
       - unit
+
+  SetpointControllerConfig:
+    slots:
+      - external_sensor
+      - P
+      - I
+      - D
+      - output_function
 
   Visualisation:
     abstract: true
@@ -91,6 +100,10 @@ slots:
     range: ActuatorConfig
     inlined: true
 
+  setpoint_controller:
+    range: SetpointControllerConfig
+    inlined: true
+
   error_timeout:
     range: string
 
@@ -108,6 +121,18 @@ slots:
     range: float
   unit:
     range: string
+
+  external_sensor:
+    range: string
+  P:
+    range: float
+  I:
+    range: float
+  D:
+    range: float
+  output_function:
+    range: string
+
 
   visualisations:
     range: Visualisation

@@ -78,6 +78,12 @@ instruments:
           min: 0
           max: 100
           unit: \%
+        setpoint_controller:
+          external_sensor: pressure_upstream.pressure_upstream
+          P: 10.0
+          I: 1.0
+          D: 0.1
+          output_function: "sigma"
       mass_flow_temp:
         address: "/dev/ttyUSB2"
         measurement_interval: 1s
