@@ -1,23 +1,22 @@
 global:
   error_timeout: 1s
+
 instruments:
   furnace:
-    sensors:
+    variables:
       temperature_centre:
         address: "192.168.111.222"
         measurement_interval: 1s
-        sensor: # experiment/sensor/temperature_centre
+        sensor:
           type: float
           min: 0
           max: 1000
-          unit: C
-          correction_multiplier: 10 # Does this fit here?
-        actuator: # experiment/actuator/temperature_centre
+          unit: °C
+        actuator:
           type: float
           min: 0
           max: 1000
-          unit: C
-          correction_multiplier: 0.1 # Does this fit here?
+          unit: °C
       temperature_left:
         address: "192.168.111.224"
         measurement_interval: 1s
@@ -25,7 +24,7 @@ instruments:
           type: float
           min: 0
           max: 1000
-          unit: C
+          unit: °C
         actuator:
           type: float
           min: 0
@@ -38,14 +37,14 @@ instruments:
           type: float
           min: 0
           max: 1000
-          unit: C
+          unit: °C
         actuator:
           type: float
           min: 0
           max: 1000
-          unit: C
+          unit: °C
   pressure_downstream:
-    sensors:
+    variables:
       pressure_downstream:
         address: "/dev/ttyUSB0"
         measurement_interval: 1s
@@ -55,7 +54,7 @@ instruments:
           max: 10
           unit: bar
   pressure_upstream:
-    sensors:
+    variables:
       pressure_upstream:
         address: "/dev/ttyUSB1"
         measurement_interval: 1s
@@ -65,7 +64,7 @@ instruments:
           max: 10
           unit: bar
   mass_flow:
-    sensors:
+    variables:
       mass_flow:
         address: "/dev/ttyUSB2"
         measurement_interval: 1s
@@ -104,11 +103,12 @@ instruments:
           max: 10
           unit: bar
   mass_spec:
-    sensors:
+    variables:
       mass_spec:
         address: "192.168.1.100"
         sensor:
           type: array
+
 visualisations:
   temperature_graph:
     title: Temperature Control

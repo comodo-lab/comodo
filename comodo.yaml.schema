@@ -22,9 +22,9 @@ classes:
   Instrument:
     slots:
       - id
-      - sensors
+      - variables
 
-  Sensor:
+  Variable:
     slots:
       - id
       - address
@@ -38,7 +38,6 @@ classes:
       - min
       - max
       - unit
-      - correction_multiplier
 
   ActuatorConfig:
     slots:
@@ -46,7 +45,6 @@ classes:
       - min
       - max
       - unit
-      - correction_multiplier
 
   Visualisation:
     abstract: true
@@ -79,8 +77,8 @@ slots:
     inlined: true
     inlined_as_list: false
 
-  sensors:
-    range: Sensor
+  variables:
+    range: Variable
     multivalued: true
     inlined: true
     inlined_as_list: false
@@ -110,8 +108,6 @@ slots:
     range: float
   unit:
     range: string
-  correction_multiplier:
-    range: float
 
   visualisations:
     range: Visualisation
