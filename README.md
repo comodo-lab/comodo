@@ -8,10 +8,11 @@ This repo contains everything you need to get started using Comodo for automatin
   - [What is Comodo?](#what-is-comodo)
   - [Central Configuration File](#central-configuration-file)
     - [Global Settings](#global-settings)
-    - [Instruments and Variables](#instruments-and-variables)
-      - [Sensors](#sensors)
-      - [Actuators](#actuators)
-      - [Setpoint Controllers](#setpoint-controllers)
+    - [Instruments](#instruments)
+      - [Variables](#variables)
+        - [Sensors](#sensors)
+        - [Actuators](#actuators)
+        - [Setpoint Controllers](#setpoint-controllers)
     - [Visualizations](#visualizations)
   - [Automatic deployment](#automatic-deployment)
   - [Manual deployment](#manual-deployment)
@@ -71,8 +72,8 @@ visualizations: # Definitions of monitoring visualizations
 
 That is, at the top level, the file is divided into three main sections: `global`, `instruments`, and `visualizations`.
 - The [`global`](#global-settings) section contains settings that apply to the entire experiment.
-- The [`instruments`](#instruments-and-variables) section is where you define each instrument in the experiment.
-  Each *instrument* should represent a physical device and can be composed of multiple [`variables`](#instruments-and-variables).
+- The [`instruments`](#instruments) section is where you define each instrument in the experiment.
+  Each *instrument* should represent a physical device and can be composed of multiple [`variables`](#variables).
 - The [`visualizations`](#visualizations) section defines how the data from the experiment will be monitored in the UI.
 
 ### Global Settings
@@ -80,17 +81,36 @@ Experiment global settings are defined in the `global` section of the `comodo.ym
 
 Currently implemented settings include:
 - `error_timeout`: The time in seconds to wait before considering an instrument unresponsive.
+- `measurement_interval`: The default interval in seconds at which measurements are taken from all instruments.
+  This can be overridden for individual instruments if needed.
 
-### Instruments and Variables
+### Instruments
 Instruments are meant to represent physical devices in your experiment.
-Each instrument can be monitoring or controlling multiple variables, so each instrument is composed of multiple `variables`.
+Each instrument can be monitoring or controlling multiple variables, so each instrument is composed of multiple [`variables`](#variables).
+However, an instrument has a single `firmware` and `address`, which define how to communicate with the physical device.
 
-Each variable represents a specific measurement.
-Since they always have to be measured, a [`sensor`](#sensors) must always be associated with a variable.
-In some cases, a variable can also be controlled, in which case an [`actuator`](#actuators) can be associated with the variable.
-Finally, a variable's actuator can be controlled based on the measurement of another variable's sensor, in which case a [`setpoint_controller`](#setpoint-controllers) can be defined for the variable.
+Each instrument can have the following properties:
+- `firmware`: [required] The type of firmware the instrument is running.
+  This defines how to communicate with the instrument, and it should match one of the supported firmware types in the [firmware directory](firmware/).
+- `address`: [required] The address of the instrument.
+  This can be an IP address and port (e.g., `192.168.10:502`), a serial port (e.g., `/dev/ttyUSB0`), or any other identifier required to communicate with the instrument.
+- `measurement_interval`: [optional] The interval in seconds at which measurements are taken from the instrument.
+  If not specified, the global `measurement_interval` will be used.
+- [`variables`](#variables): [required] The (named) variables monitored or controlled by the instrument.
 
-#### Sensors
+#### Variables
+
+Variables represents specific measurement points in an instrument.
+
+Each variable can have the following properties:
+- [`sensor`](#sensors): [required] Defines how the variable is measured.
+  Since all variables need to be measured, a sensor must always be specified.
+- [`actuator`](#actuators): [optional] Defines how the variable can be *directly* controlled.
+  Not all variables are being directly controlled, so an actuator is optional.
+- [`setpoint_controller`](#setpoint-controllers): [optional] Defines a relationship between the variable's actuator and another variable's sensor.
+  This is used to define a control feedback, that is, the actuator will be controlled based on the readings from an external sensor.
+
+##### Sensors
 A `sensor` defines how a variable is measured.
 All variables need to be measured, so a sensor must always be specified for a variable.
 
@@ -100,16 +120,18 @@ Each sensor can have the following properties:
 - `max`:  [optional] The maximum value the sensor can report.
 - `unit`: [optional] The unit of measurement for the sensor's readings (e.g., `°C`, `Pa`, `m/s`).
 
-#### Actuators
+##### Actuators
 An `actuator` defines how a variable can be controlled.
-Not all variables are being controlled, so an actuator is optional for a variable.
+Not all variables are being directly controlled, so an actuator is optional for a variable.
+When the variable is *indirectly* controlled by another variable's actuator, a `setpoint_controller` should be set for that variable.
+
 Each actuator can have the following properties:
 - `type`: [required] The data type accepted by the actuator.
 - `min`:  [optional] The minimum value the actuator can accept.
 - `max`:  [optional] The maximum value the actuator can accept.
 - `unit`: [optional] The unit of measurement for the actuator's input.
 
-#### Setpoint Controllers
+##### Setpoint Controllers
 A `setpoint_controller` defines a relationship between its variable's actuator and another variable's sensor.
 It is used to define a control feedback.
 That is, the actuator will be controlled based on the readings from an external sensor.

@@ -18,17 +18,19 @@ classes:
   GlobalSettings:
     slots:
       - error_timeout
+      - measurement_interval
 
   Instrument:
     slots:
+      - firmware
+      - address
+      - measurement_interval
       - id
       - variables
 
   Variable:
     slots:
       - id
-      - address
-      - measurement_interval
       - sensor
       - actuator
       - setpoint_controller
@@ -105,6 +107,9 @@ slots:
     inlined: true
 
   error_timeout:
+    range: string
+
+  firmware:
     range: string
 
   address:

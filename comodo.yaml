@@ -1,12 +1,13 @@
 global:
   error_timeout: 1s
+  measurement_interval: 1s
 
 instruments:
-  furnace:
+  furnace_centre:
+    firmware: carbolite_gero/tg3
+    address: "192.168.111.222:502"
     variables:
-      temperature_centre:
-        address: "192.168.111.222"
-        measurement_interval: 1s
+      temperature:
         sensor:
           type: float
           min: 0
@@ -17,9 +18,11 @@ instruments:
           min: 0
           max: 1000
           unit: °C
-      temperature_left:
-        address: "192.168.111.224"
-        measurement_interval: 1s
+  furnace_left:
+    firmware: carbolite_gero/tg3
+    address: "192.168.111.224:502"
+    variables:
+      temperature:
         sensor:
           type: float
           min: 0
@@ -30,9 +33,11 @@ instruments:
           min: 0
           max: 1000
           unit: °C
-      temperature_right:
-        address: "192.168.111.225"
-        measurement_interval: 1s
+  furnace_right:
+    firmware: carbolite_gero/tg3
+    address: "192.168.111.225:502"
+    variables:
+      temperature:
         sensor:
           type: float
           min: 0
@@ -44,30 +49,31 @@ instruments:
           max: 1000
           unit: °C
   pressure_downstream:
+    firmware: pfeiffer/mpt200
+    address: "/dev/ttyUSB0"
     variables:
-      pressure_downstream:
-        address: "/dev/ttyUSB0"
-        measurement_interval: 1s
+      pressure:
         sensor:
           type: float
           min: 0
           max: 10
           unit: bar
   pressure_upstream:
+    firmware: pfeiffer/mpt200
+    address: "/dev/ttyUSB1"
+    measurement_interval: 0.5s
     variables:
-      pressure_upstream:
-        address: "/dev/ttyUSB1"
-        measurement_interval: 1s
+      pressure:
         sensor:
           type: float
           min: 0
           max: 10
           unit: bar
   mass_flow:
+    firmware: bronkhorst/el_flow_select
+    address: "/dev/ttyUSB2"
     variables:
       mass_flow:
-        address: "/dev/ttyUSB2"
-        measurement_interval: 1s
         sensor:
           type: float
           min: 0
@@ -79,39 +85,34 @@ instruments:
           max: 100
           unit: \%
         setpoint_controller:
-          external_sensor: pressure_upstream.pressure_upstream
+          external_sensor: pressure_upstream.pressure
           P: 10.0
           I: 1.0
           D: 0.1
           output_function: "sigma"
-      mass_flow_temp:
-        address: "/dev/ttyUSB2"
-        measurement_interval: 1s
+      temperature:
         sensor:
           type: float
           min: 0
           max: 100
           unit: °C
-      mass_flow_pressure_upstream:
-        address: "/dev/ttyUSB2"
-        measurement_interval: 1s
+      pressure_upstream:
         sensor:
           type: float
           min: 0
           max: 10
           unit: bar
-      mass_flow_pressure_downstream:
-        address: "/dev/ttyUSB2"
-        measurement_interval: 1s
+      pressure_downstream:
         sensor:
           type: float
           min: 0
           max: 10
           unit: bar
   mass_spec:
+    firmware: pfeiffer/prisma_pro
+    address: "192.168.1.100"
     variables:
       mass_spec:
-        address: "192.168.1.100"
         sensor:
           type: array
 
