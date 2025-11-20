@@ -1,5 +1,23 @@
 name: comodo-nexus
 services:
+  mqttui:
+    # Run this with `docker compose run --build mqttui` and then run `mqttui` in the container
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM alpine:3.22
+        RUN apk update && apk add mqttui
+    container_name: comodo-mqttui
+    tty: true
+    environment:
+      MQTTUI_BROKER: mqtt://${MQTT_HOST}:1883
+      MQTTUI_USERNAME: ${MQTT_USER}
+      MQTTUI_PASSWORD: ${MQTT_PASS}
+      MQTTUI_CLIENTID: mqttui-comodo
+    profiles: [debug]
+    networks:
+      comodo:
+
   config:
     image: docker.io/linkml/linkml
     command: linkml-validate -s schema.yaml config.yaml
