@@ -15,6 +15,9 @@ This repo contains everything you need to get started using Comodo for automatin
     - [Visualizations](#visualizations)
   - [Automatic deployment](#automatic-deployment)
   - [Manual deployment](#manual-deployment)
+    - [Requirements:](#requirements)
+    - [Setting up Comodo](#setting-up-comodo)
+    - [Setting up the firmware for the sensors and actuators](#setting-up-the-firmware-for-the-sensors-and-actuators)
     - [Environment variables](#environment-variables)
     - [Publishing the Grafana dashboard](#publishing-the-grafana-dashboard)
 
@@ -138,25 +141,44 @@ Currently not available.
 
 ## Manual deployment
 
-Requirements:
+### Requirements:
 - These ports must be available:
   - `1883` - MQTT broker
   - `8501` - UI
   - `8086` - InfluxDB
   - `3000` - Grafana
 
-Steps:
+### Setting up Comodo
 
 - Set up the [environment variables](#environment-variables).
-- Run `docker compose --profile mqtt --profile live up -d`.
+- Run `docker compose --profile mqtt --profile live up --build -d`.
 - Publish the [Grafana dashboard](#publishing-the-grafana-dashboard).
 - Update the `FRONTEND_GRAFANA_URL` environment variable in your `.env` file.
 - Run `docker compose --profile live up -d` to apply the changes.
 - Visit `localhost:8501` to access the Comodo UI.
 
-Setting up the firmware for the sensors and actuators:
+If you must bring the stack down and want to start from scratch, run `docker compose --profile mqtt --profile live down -v`.
 
-Currently this is done through the `compose.firmware.yaml` file. <!-- How? -->
+### Setting up the firmware for the sensors and actuators
+
+Currently this is done through the `compose.firmware.yaml` file.
+
+First, in the firmware directory, create env.json file from env.json.template:
+
+```bash
+cp firmware/env.json.template firmware/env.json
+```
+Copy the mqtt credentials you set up in the .env file into the firmware/env.json.
+If any of the hardware needs internet access, set the credentials in the file. Otherwise, you may delete these rows, or leave them empty.
+The settings sensor id, heartbeat interval and measurement interval will be overwritten (in firmware.config.py),
+with the environment variable values in the compose.firmware.yaml file.
+
+Then run:
+
+```bash
+docker compose -f compose.firmware.yaml up --build -d
+```
+
 
 ### Environment variables
 
@@ -170,7 +192,8 @@ To manually deploy Comodo you'll need to copy the `env.template` file to a file 
 - `INFLUX_ADDR` is the address of your InfluxDB instance.
     If you're running the Comodo stack locally, set this to `https://influx:8086`.
 - `INFLUX_TOKEN` is the authentication token for your InfluxDB instance. You can set this to whatever you like.
-- `INFLUX_BUCKET` is the bucket name in InfluxDB where data will be stored. You can set this to whatever you like.
+- `INFLUX_BUCKET` is the bucket name in InfluxDB where data will be stored. ~~You can set this to whatever you like.~~
+  This currently has to be `comodo` for Grafana to work.
 - `INFLUX_ORG` is the organization name in InfluxDB.
 - If you're running the Comodo stack locally, set this to `comodo`.
 - `FRONTEND_GRAFANA_URL` is the URL of your Grafana dashboard.

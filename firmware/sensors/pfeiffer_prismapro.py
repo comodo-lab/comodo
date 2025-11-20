@@ -7,6 +7,8 @@ import http.client
 import re
 from datetime import datetime
 
+from sensor import BaseSensor
+
 # Configuration Parameters
 VERBOSE = False
 SCAN_COUNT = 5
