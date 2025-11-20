@@ -17,6 +17,7 @@ from on_controller_message import *
 from on_timer_message import *
 from on_heartbeat_message import *
 
+
 def main():
     print(f"Starting...")
     # Load configuration
@@ -52,7 +53,7 @@ def main():
         password=password,
         connection_timeout=connection_timeout,
     )
-    
+
     # Load MQTT clients
     watchdog = MQTTClient(
         id="watchdog",
