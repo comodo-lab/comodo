@@ -111,6 +111,7 @@ services:
         FROM grafana/grafana
         USER root
         RUN apk add envsubst
+        ARG INFLUX_ADDR=${INFLUX_ADDR}
         ARG INFLUX_TOKEN=${INFLUX_TOKEN}
         ARG INFLUX_BUCKET=${INFLUX_BUCKET}
         ARG INFLUX_ORG=${INFLUX_ORG}
@@ -178,7 +179,7 @@ services:
       - ./ui/:/app/
       - ./utils:/app/utils
     environment:
-      - MQTT_ADDR=${MQTT_HOST}
+      - MQTT_HOST=${MQTT_HOST}
       - MQTT_PORT=1883
       - MQTT_USER=${MQTT_USER}
       - MQTT_PASS=${MQTT_PASS}

@@ -212,7 +212,7 @@ To manually deploy Comodo you'll need to copy the `env.template` file to a file 
 - `MQTT_USER` is the username for your MQTT broker. You can set this to whatever you like.
 - `MQTT_PASS` is the password for your MQTT broker. You can set this to whatever you like.
 - `INFLUX_ADDR` is the address of your InfluxDB instance.
-    If you're running the Comodo stack locally, set this to `https://influx:8086`.
+    If you're running the Comodo stack locally, set this to `http://influxdb:8086`.
 - `INFLUX_TOKEN` is the authentication token for your InfluxDB instance. You can set this to whatever you like.
 - `INFLUX_BUCKET` is the bucket name in InfluxDB where data will be stored. ~~You can set this to whatever you like.~~
   This currently has to be `comodo` for Grafana to work.
