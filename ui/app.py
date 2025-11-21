@@ -46,13 +46,17 @@ SHORT_INTERVAL = 1000  # milliseconds
 LONG_INTERVAL = 5000  # milliseconds
 
 PARAMS = [
-    'temp_left',
-    'temp_main',
-    'temp_right',
-    'pressure_downstream',
-    'pressure_upstream',
-    'massflow_temp',
-    'mass_spec'
+    "temp_left",
+    "temp_main",
+    "temp_right",
+    "pressure_downstream",
+    "pressure_upstream",
+    "massflow",
+    "massflow_temp",
+    "massflow_pressure_upstream",
+    "massflow_pressure_downstream",
+    "massflow_fluid_temp",
+    "mass_spec",
 ]
 
 PARAM_DICT = [
