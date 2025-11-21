@@ -257,7 +257,11 @@ class TestSuite:
     def _load_module(self, mod):
         for tn in dir(mod):
             c = getattr(mod, tn)
-            if isinstance(c, object) and isinstance(c, type) and issubclass(c, TestCase):
+            if (
+                isinstance(c, object)
+                and isinstance(c, type)
+                and issubclass(c, TestCase)
+            ):
                 self.addTest(c)
             elif tn.startswith("test") and callable(c):
                 self.addTest(c)
@@ -309,7 +313,7 @@ class TestResult:
         sep = "----------------------------------------------------------------------"
         for c, e in lst:
             detail = " ".join((str(i) for i in c))
-            print("======================================================================")
+            print("===================================================================")
             print(f"FAIL: {detail}")
             print(sep)
             print(e)
@@ -403,7 +407,9 @@ def _run_suite(c, test_result: TestResult, suite_name=""):
             test_result.skipped.append((name, c, reason))
         except Exception as ex:
             _handle_test_exception(
-                current_test=(name, c), test_result=test_result, exc_info=(type(ex), ex, None)
+                current_test=(name, c),
+                test_result=test_result,
+                exc_info=(type(ex), ex, None),
             )
             # Uncomment to investigate failure in detail
             # raise

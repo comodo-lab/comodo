@@ -1,5 +1,5 @@
-"""JSON token scanner
-"""
+"""JSON token scanner"""
+
 import re
 
 try:
@@ -10,7 +10,8 @@ except ImportError:
 __all__ = ["make_scanner"]
 
 NUMBER_RE = re.compile(
-    r"(-?(?:0|[1-9]\d*))(\.\d+)?([eE][-+]?\d+)?", (re.VERBOSE | re.MULTILINE | re.DOTALL)
+    r"(-?(?:0|[1-9]\d*))(\.\d+)?([eE][-+]?\d+)?",
+    (re.VERBOSE | re.MULTILINE | re.DOTALL),
 )
 
 
@@ -37,7 +38,12 @@ def py_make_scanner(context):
             return parse_string(string, idx + 1, strict)
         elif nextchar == "{":
             return parse_object(
-                (string, idx + 1), strict, _scan_once, object_hook, object_pairs_hook, memo
+                (string, idx + 1),
+                strict,
+                _scan_once,
+                object_hook,
+                object_pairs_hook,
+                memo,
             )
         elif nextchar == "[":
             return parse_array((string, idx + 1), _scan_once)

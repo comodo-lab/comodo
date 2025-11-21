@@ -27,17 +27,17 @@ from .typing import Optional, Tuple, Union
 
 class ModbusTCP(Modbus):
     """Modbus TCP client class"""
+
     def __init__(self):
         super().__init__(
             # set itf to TCPServer object, addr_list to None
             TCPServer(),
-            None
+            None,
         )
 
-    def bind(self,
-             local_ip: str,
-             local_port: int = 502,
-             max_connections: int = 10) -> None:
+    def bind(
+        self, local_ip: str, local_port: int = 502, max_connections: int = 10
+    ) -> None:
         """
         Bind IP and port for incomming requests
 
@@ -74,10 +74,8 @@ class TCP(CommonModbusFunctions):
     :param      timeout:     Socket timeout in seconds
     :type       timeout:     float
     """
-    def __init__(self,
-                 slave_ip: str,
-                 slave_port: int = 502,
-                 timeout: float = 5.0):
+
+    def __init__(self, slave_ip: str, slave_port: int = 502, timeout: float = 5.0):
         self._sock = socket.socket()
         self.trans_id_ctr = 0
 
@@ -87,9 +85,7 @@ class TCP(CommonModbusFunctions):
 
         self._sock.settimeout(timeout)
 
-    def _create_mbap_hdr(self,
-                         slave_addr: int,
-                         modbus_pdu: bytes) -> Tuple[bytes, int]:
+    def _create_mbap_hdr(self, slave_addr: int, modbus_pdu: bytes) -> Tuple[bytes, int]:
         """
         Create a Modbus header.
 
@@ -109,17 +105,18 @@ class TCP(CommonModbusFunctions):
         trans_id = self.trans_id_ctr
         self.trans_id_ctr += 1
 
-        mbap_hdr = struct.pack(
-            '>HHHB', trans_id, 0, len(modbus_pdu) + 1, slave_addr)
+        mbap_hdr = struct.pack(">HHHB", trans_id, 0, len(modbus_pdu) + 1, slave_addr)
 
         return mbap_hdr, trans_id
 
-    def _validate_resp_hdr(self,
-                           response: bytearray,
-                           trans_id: int,
-                           slave_addr: int,
-                           function_code: int,
-                           count: bool = False) -> bytes:
+    def _validate_resp_hdr(
+        self,
+        response: bytearray,
+        trans_id: int,
+        slave_addr: int,
+        function_code: int,
+        count: bool = False,
+    ) -> bytes:
         """
         Validate the response header.
 
@@ -138,30 +135,28 @@ class TCP(CommonModbusFunctions):
         :rtype:     bytes
         """
         rec_tid, rec_pid, rec_len, rec_uid, rec_fc = struct.unpack(
-            '>HHHBB', response[:Const.MBAP_HDR_LENGTH + 1])
+            ">HHHBB", response[: Const.MBAP_HDR_LENGTH + 1]
+        )
 
-        if (trans_id != rec_tid):
-            raise ValueError('wrong transaction ID')
+        if trans_id != rec_tid:
+            raise ValueError("wrong transaction ID")
 
-        if (rec_pid != 0):
-            raise ValueError('invalid protocol ID')
+        if rec_pid != 0:
+            raise ValueError("invalid protocol ID")
 
-        if (slave_addr != rec_uid):
-            raise ValueError('wrong slave ID')
+        if slave_addr != rec_uid:
+            raise ValueError("wrong slave ID")
 
-        if (rec_fc == (function_code + Const.ERROR_BIAS)):
-            raise ValueError('slave returned exception code: {:d}'.
-                             format(rec_fc))
+        if rec_fc == (function_code + Const.ERROR_BIAS):
+            raise ValueError("slave returned exception code: {:d}".format(rec_fc))
 
-        hdr_length = (Const.MBAP_HDR_LENGTH + 2) if count else \
-            (Const.MBAP_HDR_LENGTH + 1)
+        hdr_length = (
+            (Const.MBAP_HDR_LENGTH + 2) if count else (Const.MBAP_HDR_LENGTH + 1)
+        )
 
         return response[hdr_length:]
 
-    def _send_receive(self,
-                      slave_addr: int,
-                      modbus_pdu: bytes,
-                      count: bool) -> bytes:
+    def _send_receive(self, slave_addr: int, modbus_pdu: bytes, count: bool) -> bytes:
         """
         Send a modbus message and receive the reponse.
 
@@ -175,22 +170,26 @@ class TCP(CommonModbusFunctions):
         :returns:   Modbus data
         :rtype:     bytes
         """
-        mbap_hdr, trans_id = self._create_mbap_hdr(slave_addr=slave_addr,
-                                                   modbus_pdu=modbus_pdu)
+        mbap_hdr, trans_id = self._create_mbap_hdr(
+            slave_addr=slave_addr, modbus_pdu=modbus_pdu
+        )
         self._sock.send(mbap_hdr + modbus_pdu)
 
         response = self._sock.recv(256)
-        modbus_data = self._validate_resp_hdr(response=response,
-                                              trans_id=trans_id,
-                                              slave_addr=slave_addr,
-                                              function_code=modbus_pdu[0],
-                                              count=count)
+        modbus_data = self._validate_resp_hdr(
+            response=response,
+            trans_id=trans_id,
+            slave_addr=slave_addr,
+            function_code=modbus_pdu[0],
+            count=count,
+        )
 
         return modbus_data
 
 
 class TCPServer(object):
     """Modbus TCP host class"""
+
     def __init__(self):
         self._sock = None
         self._client_sock = None
@@ -215,10 +214,7 @@ class TCPServer(object):
         """
         return self._is_bound
 
-    def bind(self,
-             local_ip: str,
-             local_port: int = 502,
-             max_connections: int = 10):
+    def bind(self, local_ip: str, local_port: int = 502, max_connections: int = 10):
         """
         Bind IP and port for incomming requests
 
@@ -255,18 +251,22 @@ class TCPServer(object):
         :type       slave_addr:  int
         """
         size = len(modbus_pdu)
-        fmt = 'B' * size
-        adu = struct.pack('>HHHB' + fmt, self._req_tid, 0, size + 1, slave_addr, *modbus_pdu)
+        fmt = "B" * size
+        adu = struct.pack(
+            ">HHHB" + fmt, self._req_tid, 0, size + 1, slave_addr, *modbus_pdu
+        )
         self._client_sock.send(adu)
 
-    def send_response(self,
-                      slave_addr: int,
-                      function_code: int,
-                      request_register_addr: int,
-                      request_register_qty: int,
-                      request_data: list,
-                      values: Optional[list] = None,
-                      signed: bool = True) -> None:
+    def send_response(
+        self,
+        slave_addr: int,
+        function_code: int,
+        request_register_addr: int,
+        request_register_qty: int,
+        request_data: list,
+        values: Optional[list] = None,
+        signed: bool = True,
+    ) -> None:
         """
         Send a response to a client.
 
@@ -285,18 +285,19 @@ class TCPServer(object):
         :param      signed:                 Indicates if signed
         :type       signed:                 bool
         """
-        modbus_pdu = functions.response(function_code,
-                                        request_register_addr,
-                                        request_register_qty,
-                                        request_data,
-                                        values,
-                                        signed)
+        modbus_pdu = functions.response(
+            function_code,
+            request_register_addr,
+            request_register_qty,
+            request_data,
+            values,
+            signed,
+        )
         self._send(modbus_pdu, slave_addr)
 
-    def send_exception_response(self,
-                                slave_addr: int,
-                                function_code: int,
-                                exception_code: int) -> None:
+    def send_exception_response(
+        self, slave_addr: int, function_code: int, exception_code: int
+    ) -> None:
         """
         Send an exception response to a client.
 
@@ -307,13 +308,12 @@ class TCPServer(object):
         :param      exception_code:  The exception code
         :type       exception_code:  int
         """
-        modbus_pdu = functions.exception_response(function_code,
-                                                  exception_code)
+        modbus_pdu = functions.exception_response(function_code, exception_code)
         self._send(modbus_pdu, slave_addr)
 
-    def _accept_request(self,
-                        accept_timeout: float,
-                        unit_addr_list: list) -> Union[Request, None]:
+    def _accept_request(
+        self, accept_timeout: float, unit_addr_list: list
+    ) -> Union[Request, None]:
         """
         Accept, read and decode a socket based request
 
@@ -328,7 +328,7 @@ class TCPServer(object):
         try:
             new_client_sock, client_address = self._sock.accept()
         except OSError as e:
-            if e.args[0] != 11:     # 11 = timeout expired
+            if e.args[0] != 11:  # 11 = timeout expired
                 raise e
 
         if new_client_sock is not None:
@@ -349,9 +349,13 @@ class TCPServer(object):
                 if len(req) == 0:
                     return None
 
-                req_header_no_uid = req[:Const.MBAP_HDR_LENGTH - 1]
-                self._req_tid, req_pid, req_len = struct.unpack('>HHH', req_header_no_uid)
-                req_uid_and_pdu = req[Const.MBAP_HDR_LENGTH - 1:Const.MBAP_HDR_LENGTH + req_len - 1]
+                req_header_no_uid = req[: Const.MBAP_HDR_LENGTH - 1]
+                self._req_tid, req_pid, req_len = struct.unpack(
+                    ">HHH", req_header_no_uid
+                )
+                req_uid_and_pdu = req[
+                    Const.MBAP_HDR_LENGTH - 1 : Const.MBAP_HDR_LENGTH + req_len - 1
+                ]
             except OSError:
                 # MicroPython raises an OSError instead of socket.timeout
                 # print("Socket OSError aka TimeoutError: {}".format(e))
@@ -362,26 +366,26 @@ class TCPServer(object):
                 self._client_sock = None
                 return None
 
-            if (req_pid != 0):
+            if req_pid != 0:
                 # print("Modbus request error: PID not 0")
                 self._client_sock.close()
                 self._client_sock = None
                 return None
 
-            if ((unit_addr_list is not None) and (req_uid_and_pdu[0] not in unit_addr_list)):
+            if (unit_addr_list is not None) and (
+                req_uid_and_pdu[0] not in unit_addr_list
+            ):
                 return None
 
             try:
                 return Request(self, req_uid_and_pdu)
             except ModbusException as e:
-                self.send_exception_response(req[0],
-                                             e.function_code,
-                                             e.exception_code)
+                self.send_exception_response(req[0], e.function_code, e.exception_code)
                 return None
 
-    def get_request(self,
-                    unit_addr_list: Optional[list] = None,
-                    timeout: int = None) -> Union[Request, None]:
+    def get_request(
+        self, unit_addr_list: Optional[list] = None, timeout: int = None
+    ) -> Union[Request, None]:
         """
         Check for request within the specified timeout
 
@@ -396,14 +400,16 @@ class TCPServer(object):
         :raises     Exception:       If no socket is configured and bound
         """
         if self._sock is None:
-            raise Exception('Modbus TCP server not bound')
+            raise Exception("Modbus TCP server not bound")
 
         if timeout > 0:
             start_ms = time.ticks_ms()
             elapsed = 0
             while True:
                 if self._client_sock is None:
-                    accept_timeout = None if timeout is None else (timeout - elapsed) / 1000
+                    accept_timeout = (
+                        None if timeout is None else (timeout - elapsed) / 1000
+                    )
                 else:
                     accept_timeout = 0
                 req = self._accept_request(accept_timeout, unit_addr_list)

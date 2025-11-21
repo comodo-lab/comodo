@@ -1,5 +1,5 @@
-"""Implementation of JSONEncoder
-"""
+"""Implementation of JSONEncoder"""
+
 import re
 
 try:
@@ -224,7 +224,11 @@ class JSONEncoder(object):
             _encoder = encode_basestring
 
         def floatstr(
-            o, allow_nan=self.allow_nan, _repr=FLOAT_REPR, _inf=INFINITY, _neginf=-INFINITY
+            o,
+            allow_nan=self.allow_nan,
+            _repr=FLOAT_REPR,
+            _inf=INFINITY,
+            _neginf=-INFINITY,
         ):
             # Check for specials.  Note that this type of test is processor
             # and/or platform-specific, so do tests which don't depend on the
@@ -240,7 +244,9 @@ class JSONEncoder(object):
                 return _repr(o)
 
             if not allow_nan:
-                raise ValueError("Out of range float values are not JSON compliant: " + repr(o))
+                raise ValueError(
+                    "Out of range float values are not JSON compliant: " + repr(o)
+                )
 
             return text
 

@@ -12,14 +12,15 @@ from sensor import BaseSensor
 # Configuration Parameters
 VERBOSE = False
 SCAN_COUNT = 5
-SCAN_INTERVAL = 9023   # ms between scans
-DEFAULT_DWELL = 32     # ms dwell time
-AMU =50
+SCAN_INTERVAL = 9023  # ms between scans
+DEFAULT_DWELL = 32  # ms dwell time
+AMU = 50
 TARGET_IP_ADDR = "192.168.1.100"
+
 
 class MMSP:
     def __init__(self, target_ip, port=80):
-        self.conn = http.client.HTTPConnection('%s:%d' % (target_ip, port), timeout=10)
+        self.conn = http.client.HTTPConnection("%s:%d" % (target_ip, port), timeout=10)
 
     def send(self, request, verbose=None):
         if verbose is None:
@@ -28,7 +29,7 @@ class MMSP:
         if verbose:
             print("Request: %s" % request)
 
-        self.conn.request('GET', request)
+        self.conn.request("GET", request)
         resp = self.conn.getresponse()
         http_status = resp.status
 
@@ -55,9 +56,9 @@ class MMSP:
             print("Response:", resp)
             return
 
-        data = resp.get('data', None)
-        conditions = resp.get('conditions')
-        status = resp.get('name', None)
+        data = resp.get("data", None)
+        conditions = resp.get("conditions")
+        status = resp.get("name", None)
         if data is None:
             print("Response:")
             for key, value in list(resp.items()):
@@ -66,6 +67,7 @@ class MMSP:
             outstr = pprint.pformat(data, 2)
             print(("Response: [%s]" % status, outstr))
         print("")
+
 
 ###############################################################################
 # Scan Setup
@@ -105,18 +107,20 @@ def configure_instrument(mmsp):
     print("Starting Scan...")
     mmsp.send("/mmsp/scanSetup/set?scanstart=1")
 
+
 def dump_scan(mmsp):
     http_code, resp = mmsp.send("/mmsp/measurement/nextScan/get")
-    data = resp['data']
-    system_status = data['systemStatus']
-    current_scan  = data['currentScan']
-    scan_num      = data['scannum']
-    scan_values   = data['values']
+    data = resp["data"]
+    system_status = data["systemStatus"]
+    current_scan = data["currentScan"]
+    scan_num = data["scannum"]
+    scan_values = data["values"]
 
     if scan_values is not None:
         # Print live scan data (real time data for InfluxDB)
         print(scan_num, scan_values)
         return scan_values
+
 
 @BaseSensor.register_sensor("mass_spec")
 class MassSpec(BaseSensor):
@@ -127,10 +131,10 @@ class MassSpec(BaseSensor):
 
     def set_config(self, config):
         configure_instrument(self.mmsp)
-        return 
+        return
 
     def get_measurement(self, state):
-        """ Get the measurement
+        """Get the measurement
 
         Returns:
             float: A random temperature value for testing purposes
@@ -141,7 +145,7 @@ class MassSpec(BaseSensor):
         return state.measurement
 
     def go_to_setpoint(self, setpoint):
-        """ Go to the setpoint
+        """Go to the setpoint
         Args:
             setpoint: float: The setpoint
         Returns:

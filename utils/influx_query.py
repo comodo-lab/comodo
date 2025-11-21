@@ -2,10 +2,10 @@ import influxdb_client
 import os
 
 
-URL = os.environ['INFLUX_ADDR']
-TOKEN = os.environ['INFLUX_TOKEN']
-ORG = os.environ['INFLUX_ORG']
-BUCKET = os.environ['INFLUX_BUCKET']
+URL = os.environ["INFLUX_ADDR"]
+TOKEN = os.environ["INFLUX_TOKEN"]
+ORG = os.environ["INFLUX_ORG"]
+BUCKET = os.environ["INFLUX_BUCKET"]
 
 
 def query_influxdb(query):
@@ -28,7 +28,9 @@ def query_influxdb(query):
         client.close()
 
 
-def query_influxdb_params(fields=[], topics=[], start=None, stop=None, aggregate="last"):
+def query_influxdb_params(
+    fields=[], topics=[], start=None, stop=None, aggregate="last"
+):
     """
     Queries the InfluxDB for specific parameters within a time range.
 
@@ -43,7 +45,9 @@ def query_influxdb_params(fields=[], topics=[], start=None, stop=None, aggregate
     """
     aggregate_allowed = ["last", "mean", "min", "max", "sum"]
     if aggregate not in aggregate_allowed:
-        raise ValueError(f"Aggregate function must be one of {aggregate_allowed}, got '{aggregate}'.")
+        raise ValueError(
+            f"Aggregate function must be one of {aggregate_allowed}, got '{aggregate}'."
+        )
     if not fields:
         raise ValueError("No parameters specified for query.")
     if not start:
@@ -55,13 +59,21 @@ def query_influxdb_params(fields=[], topics=[], start=None, stop=None, aggregate
         time_filter = f"|> range(start: {start}, stop: {stop})"
 
     if len(fields) > 0:
-        field_filter = '|> filter(fn: (r) => ' + ' or '.join([f'r["_field"] == "{field}"' for field in fields]) + ')'
+        field_filter = (
+            "|> filter(fn: (r) => "
+            + " or ".join([f'r["_field"] == "{field}"' for field in fields])
+            + ")"
+        )
     else:
-        field_filter = ''
+        field_filter = ""
     if len(topics) > 0:
-        topic_filter = '|> filter(fn: (r) => ' + ' or '.join([f'r["topic"] == "{topic}"' for topic in topics]) + ')'
+        topic_filter = (
+            "|> filter(fn: (r) => "
+            + " or ".join([f'r["topic"] == "{topic}"' for topic in topics])
+            + ")"
+        )
     else:
-        topic_filter = ''
+        topic_filter = ""
 
     query = f"""
     from(bucket: "{BUCKET}")
