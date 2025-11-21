@@ -51,10 +51,10 @@ PARAMS = [
     'temp_right',
     'pressure_downstream',
     'pressure_upstream',
-    'massflow_temp',
+    # 'massflow_temp',
     'massflow_pressure_upstream',
     'massflow_pressure_downstream',
-    'massflow_fluid_temp',
+    # 'massflow_fluid_temp',
     'massflow',
     'mass_spec'
 ]
