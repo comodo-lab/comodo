@@ -111,7 +111,8 @@ def update_header_id(n_intervals, timezone):
         iso_timestamp = result.get_time()
         timestamp = iso_timestamp.astimezone(user_tz).strftime("%Y-%m-%d %H:%M:%S")
     except Exception as e:
-        print(f"Error querying id: {e}")
+        if "list index out of range" not in str(e):
+            print(f"Error querying id: {e}")
         time = pytz.datetime.datetime.now(user_tz).strftime("%Y-%m-%d %H:%M:%S")
         return "Awaiting Experiment", "primary", time
 
