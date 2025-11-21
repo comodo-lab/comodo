@@ -3,37 +3,13 @@ Bronkhorst EL-FLOW Select Mass Flow Meter interface.
 https://prod-bronkhorst-products-cdn-ccdwbfhmd0gfecfb.a02.azurefd.net/media/3u4iwfxh/917099-manual-el-flow-select.pdf
 """
 
-import os
-import fcntl
-from contextlib import contextmanager
-
 from sensor import BaseSensor
+
 import propar
-import time
+import json
+import os
 
-ERROR_TIMEOUT = 10
-REPETITION_TIME = 2
-
-LOCK_FILE = os.environ.get("MASSFLOW_LOCK_FILE", "/lock/massflow.lock")
-
-DELAY_TIME = 0.05  # Seconds to wait before accessing the instrument
-
-
-@contextmanager
-def serial_lock():
-    """
-    Cross-process lock using flock on a shared file.
-
-    All propar calls to the same device must be wrapped in this.
-    """
-    fd = os.open(LOCK_FILE, os.O_CREAT | os.O_RDWR)
-    try:
-        fcntl.flock(fd, fcntl.LOCK_EX)
-        yield
-    finally:
-        fcntl.flock(fd, fcntl.LOCK_UN)
-        os.close(fd)
-
+READ_FILE = os.environ.get("MASSFLOW_READ_FILE", '/shared/massflow_read.json')
 
 ERROR_TIMEOUT = 10  # Seconds to wait before retrying after an error
 REPETITION_TIME = 2  # Seconds to wait before requesting another datapoint
@@ -155,7 +131,7 @@ PARAMETER_MAPPING = {
 # -------------------------------------------------------------------
 
 
-def read_parameter(channel):
+def read_parameter(instrument, channel):
     """
     Reads a parameter from the EL-Flow Select instrument.
 
@@ -164,28 +140,13 @@ def read_parameter(channel):
     :return: The value of the parameter.
     """
     try:
-        with serial_lock():
-            try:
-                # Register to /dev/ttyUSB2
-                time.sleep(DELAY_TIME)
-                print('Connecting to EL-Flow Select instrument')
-                instrument = propar.instrument('/dev/ttyUSB2')
-                print('Connected to EL-Flow Select instrument')
-            except Exception as e:
-                print(f'Error initializing propar.Instrument!\n{e}')
-                return None
-            # Wait for delay time before reading
-            time.sleep(DELAY_TIME)
-            print(f'Reading channel {channel}') 
-            value = instrument.readParameter(int(channel))
-            print(f' Value of channel is {value} with type {type(value)}')
-        return value
+        return instrument.readParameter(channel)
     except Exception as e:
         print(f"Error reading channel {channel}: {e}")
         return None
 
 
-def read_general(name):
+def read_general(instrument, name):
     """
     Reads a general parameter from the EL-Flow Select instrument by name.
 
@@ -198,12 +159,12 @@ def read_general(name):
             if 'R' not in info['access']:
                 print(f"Parameter {name} is not readable.")
                 return None
-            return read_parameter(int(channel))
+            return read_parameter(instrument, int(channel))
     print(f"Parameter {name} not found in mapping.")
     return None
 
 
-def write_param(channel, value):
+def write_param(instrument, channel, value):
     """
     Writes a parameter to the EL-Flow Select instrument.
 
@@ -213,26 +174,15 @@ def write_param(channel, value):
     :return: The value of the parameter if written, None if error.
     """
     try:
-        with serial_lock():
-            try:
-                # Register to /dev/ttyUSB2
-                time.sleep(DELAY_TIME)
-                print('Connecting to EL-Flow Select instrument')
-                instrument = propar.instrument('/dev/ttyUSB2')
-                print('Connected to EL-Flow Select instrument')
-            except Exception as e:
-                print(f'Error initializing propar.Instrument!\n{e}')
-            # Wait for delay time before writing
-            time.sleep(DELAY_TIME)
-            # TODO - Check this is the correct syntax for write to instrument
-            write = instrument.writeParameter(int(channel), value)
+        # TODO - Check this is the correct syntax for write to instrument
+        write = instrument.writeParameter(channel, value)
         return write
     except Exception as e:
         print(f"Error writing {value} to channel {channel}: {e}")
         return None
 
 
-def write_param_protected(channel, value):
+def write_param_protected(instrument, channel, value):
     """
     Unlocks secured params for write
 
@@ -242,15 +192,6 @@ def write_param_protected(channel, value):
     :return: The value of the parameter if written, None if error.
     """
     try:
-        try:
-            # Register to /dev/ttyUSB2
-            time.sleep(DELAY_TIME)
-            print('Connecting to EL-Flow Select instrument')
-            instrument = propar.instrument('/dev/ttyUSB2')
-            print('Connected to EL-Flow Select instrument')
-        except Exception as e:
-            print(f'Error initializing propar.Instrument!\n{e}')
-            return None
         # TODO - Check this is the correct syntax for write to instrument
         unlock = write_param(instrument, 7, 64)  # Unlock protected write
         if unlock is None:
@@ -268,7 +209,7 @@ def write_param_protected(channel, value):
         return None
 
 
-def write_general(name, value):
+def write_general(instrument, name, value):
     """
     Writes a general parameter to the EL-Flow Select instrument by name.
 
@@ -283,11 +224,54 @@ def write_general(name, value):
                 print(f"Parameter {name} is not writable.")
                 return None
             if 'B' in info['access']:
-                return write_param_protected(int(channel), value)
+                return write_param_protected(instrument, int(channel), value)
             else:
-                return write_param(int(channel), value)
+                return write_param(instrument, int(channel), value)
     print(f"Parameter {name} not found in mapping.")
     return None
+
+
+def read_all(instrument):
+    """
+    Reads all parameters from the EL-Flow Select instrument
+    and writes out to the READ_FILE as JSON for the other 
+    processes to consume.
+
+    Will write in format of:
+    {
+        "Flow_Rate_Measured": value,
+        ...
+    }
+
+    :param instrument: The propar instrument object.
+    :return: A dictionary of all parameter values.
+    """
+    data = {}
+    for channel, info in PARAMETER_MAPPING.items():
+        if 'R' in info['access']:
+            value = read_parameter(instrument, int(channel))
+            data[info['name']] = value
+    with open(READ_FILE, 'w') as f:
+        json.dump(data, f)
+    print(data)
+    print(f"Wrote all parameters to {READ_FILE}")
+    return data
+
+
+def read_from_file(name):
+    """
+    Reads a parameter value from the READ_FILE JSON.
+
+    :param name: The name of the parameter to read.
+    :return: The value of the parameter if found, None otherwise.
+    """
+    try:
+        with open(READ_FILE, 'r') as f:
+            data = json.load(f)
+        return data.get(name, None)
+    except Exception as e:
+        print(f"Error reading from file {READ_FILE}: {e}")
+        return None
 
 
 # -------------------------------------------------------------------
@@ -299,41 +283,49 @@ def write_general(name, value):
 class MassFlow(BaseSensor):
 
     def __init__(self):
-        return
+        try:
+            # Map all docker containers to /dev/ttyUSB2)
+            self.instrument = propar.instrument('/dev/ttyUSB2')
+            print('Connected to EL-Flow Select instrument')
+        except Exception as e:
+            print(f'Error initializing propar.Instrument!\n{e}')
+            self.instrument = None
 
     def set_config(self, config):
         pass
 
     def get_measurement(self, state):
-        flow_rate = (read_general("Flow_Rate_Measured") / 41942) * 100  # Convert to percentage
-        if flow_rate is None:
-            print("Failed to read Flow_Rate_Measured.")
+        if self.instrument is None:
+            print("Instrument not initialized.")
             return None
 
-        state.measurement = flow_rate
+        read_all(self.instrument)
+        flow_rate = read_from_file("Flow_Rate_Measured")
+
+        if flow_rate is None:
+            print("Failed to read Flow_Rate_Measured from file.")
+            return None
+
         return flow_rate
 
     def go_to_setpoint(self, setpoint):
-        print('Not addded yet - testing')
-        return None
-    # def go_to_setpoint(self, setpoint):
-    #     if self.instrument is None:
-    #         print("Instrument not initialized.")
-    #         return None
+        if self.instrument is None:
+            print("Instrument not initialized.")
+            return None
 
-    #     if not (0 <= setpoint <= 100):
-    #         print("Setpoint must be between 0 and 100%.")
-    #         return None
+        if not (0 <= setpoint <= 100):
+            print("Setpoint must be between 0 and 100%.")
+            return None
 
-    #     # Convert percentage to instrument scale (0-32000)
-    #     instrument_setpoint = (setpoint / 100) * 32000
-    #     result = write_general(self.instrument, "Flow_Rate_Setpoint", int(instrument_setpoint))
-    #     if result is None:
-    #         print("Failed to write Flow_Rate_Setpoint.")
-    #         return None
+        # Convert percentage to instrument scale (0-32000)
+        instrument_setpoint = (setpoint / 100) * 32000
+        result = write_general(self.instrument, "Flow_Rate_Setpoint", int(instrument_setpoint))
+        if result is None:
+            print("Failed to write Flow_Rate_Setpoint.")
+            return None
 
-    #     print(f"Set Flow_Rate_Setpoint to {setpoint}% ({int(instrument_setpoint)} in instrument scale).")
-    #     return result
+        print(f"Set Flow_Rate_Setpoint to {setpoint}% ({int(instrument_setpoint)} in instrument scale).")
+        return result
 
 
 @BaseSensor.register_sensor("massflow_temp")
@@ -346,7 +338,8 @@ class MassFlowTemp(BaseSensor):
         pass
 
     def get_measurement(self, state):
-        temperature = read_general("Temperature")
+
+        temperature = read_from_file("Temperature")
         if temperature is None:
             print("Failed to read Temperature.")
             return None
@@ -369,7 +362,8 @@ class MassFlowPressureUpstream(BaseSensor):
         pass
 
     def get_measurement(self, state):
-        pressure = read_general("Inlet_Pressure")
+
+        pressure = read_from_file("Inlet_Pressure")
         if pressure is None:
             print("Failed to read Inlet_Pressure.")
             return None
@@ -392,7 +386,8 @@ class MassFlowPressureDownstream(BaseSensor):
         pass
 
     def get_measurement(self, state):
-        pressure = read_general("Outlet_Pressure")
+
+        pressure = read_from_file("Outlet_Pressure")
         if pressure is None:
             print("Failed to read Outlet_Pressure.")
             return None
@@ -415,7 +410,8 @@ class MassFlowFluidTemp(BaseSensor):
         pass
 
     def get_measurement(self, state):
-        temperature = read_general("Fluid_Temperature")
+
+        temperature = read_from_file("Fluid_Temperature")
         if temperature is None:
             print("Failed to read Fluid_Temperature.")
             return None

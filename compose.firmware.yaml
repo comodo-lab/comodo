@@ -64,7 +64,7 @@ services:
       - "/dev/ttyUSB2:/dev/ttyUSB2"
     privileged: true  # Optional but recommended for USB/serial access
     volumes:
-      - massflow_lock:/lock
+      - massflow_read:/shared
 
   massflow_pressure_upstream:
     <<: *python-sensor-template
@@ -76,7 +76,7 @@ services:
       - "/dev/ttyUSB2:/dev/ttyUSB2"
     privileged: true
     volumes:
-      - massflow_lock:/lock
+      - massflow_read:/shared
 
   massflow_pressure_downstream:
     <<: *python-sensor-template
@@ -88,7 +88,7 @@ services:
       - "/dev/ttyUSB2:/dev/ttyUSB2"
     privileged: true
     volumes:
-      - massflow_lock:/lock
+      - massflow_read:/shared
     
 volumes:
-  massflow_lock:
+  massflow_read:
