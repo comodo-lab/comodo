@@ -94,7 +94,7 @@ INI_SENSOR_DICT = [{
 # ---------------------------------------------------
 
 def get_main_window(row_data):
-    designer_layout = mw.get_experiment_designer(params=PARAMS, data=row_data)
+    designer_layout = mw.get_experiment_designer(data=row_data)
     graph_layout = mw.get_experiment_graph()
 
     return html.Div([
