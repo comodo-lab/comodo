@@ -9,11 +9,14 @@ from contextlib import contextmanager
 
 from sensor import BaseSensor
 import propar
+import time
 
 ERROR_TIMEOUT = 10
 REPETITION_TIME = 2
 
 LOCK_FILE = os.environ.get("MASSFLOW_LOCK_FILE", "/lock/massflow.lock")
+
+DELAY_TIME = 0.05  # Seconds to wait before accessing the instrument
 
 
 @contextmanager
@@ -162,6 +165,8 @@ def read_parameter(instrument, channel):
     """
     try:
         with serial_lock():
+            # Wait for delay time before reading
+            time.sleep(DELAY_TIME)
             value = instrument.readParameter(int(channel))
         return value
     except Exception as e:
@@ -198,6 +203,8 @@ def write_param(instrument, channel, value):
     """
     try:
         with serial_lock():
+            # Wait for delay time before writing
+            time.sleep(DELAY_TIME)
             # TODO - Check this is the correct syntax for write to instrument
             write = instrument.writeParameter(int(channel), value)
         return write
@@ -267,6 +274,8 @@ class MassFlow(BaseSensor):
         try:
             # Map all docker containers to /dev/ttyUSB2)
             with serial_lock():
+                # Wait for delay time before writing
+                time.sleep(DELAY_TIME)
                 self.instrument = propar.instrument('/dev/ttyUSB2')
             print('Connected to EL-Flow Select instrument')
         except Exception as e:
@@ -319,6 +328,8 @@ class MassFlowTemp(BaseSensor):
         try:
             # Map all docker containers to /dev/ttyUSB2)
             with serial_lock():
+                # Wait for delay time before writing
+                time.sleep(DELAY_TIME)
                 self.instrument = propar.instrument('/dev/ttyUSB2')
             print('Connected to EL-Flow Select instrument')
         except Exception as e:
@@ -353,6 +364,8 @@ class MassFlowPressureUpstream(BaseSensor):
         try:
             # Map all docker containers to /dev/ttyUSB2)
             with serial_lock():
+                # Wait for delay time before writing
+                time.sleep(DELAY_TIME)
                 self.instrument = propar.instrument('/dev/ttyUSB2')
             print('Connected to EL-Flow Select instrument')
         except Exception as e:
@@ -387,6 +400,8 @@ class MassFlowPressureDownstream(BaseSensor):
         try:
             # Map all docker containers to /dev/ttyUSB2)
             with serial_lock():
+                # Wait for delay time before writing
+                time.sleep(DELAY_TIME)
                 self.instrument = propar.instrument('/dev/ttyUSB2')
             print('Connected to EL-Flow Select instrument')
         except Exception as e:
@@ -421,6 +436,8 @@ class MassFlowFluidTemp(BaseSensor):
         try:
             # Map all docker containers to /dev/ttyUSB2)
             with serial_lock():
+                # Wait for delay time before writing
+                time.sleep(DELAY_TIME)
                 self.instrument = propar.instrument('/dev/ttyUSB2')
             print('Connected to EL-Flow Select instrument')
         except Exception as e:
