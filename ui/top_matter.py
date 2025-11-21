@@ -5,36 +5,67 @@ import pytz
 
 
 def status_item(item_name):
-    status_item = dbc.Col([
-        dbc.Row(html.H3(item_name)),
-        dbc.Row(html.H4(f"{item_name} status"))
-    ])
+    status_item = dbc.Col(
+        [
+            dbc.Row(html.H3(item_name)),
+            dbc.Row(html.H4(f"{item_name} status")),
+        ]
+    )
     return status_item
 
 
 def get_status_card(header, title, text, status, id):
-    card = dbc.Card([
-        dbc.CardHeader(header),
-        dbc.CardBody([
-            html.H4(title, className="card-title", id=f"{id}-title"),
-            html.P(text, className="card-text", id=f"{id}-time"),
-        ])
-    ], color=status, inverse=True, id=id)
+    card = dbc.Card(
+        [
+            dbc.CardHeader(header),
+            dbc.CardBody(
+                [
+                    html.H4(title, className="card-title", id=f"{id}-title"),
+                    html.P(text, className="card-text", id=f"{id}-time"),
+                ]
+            ),
+        ],
+        color=status,
+        inverse=True,
+        id=id,
+    )
     return card
 
 
 def get_header_bar():
-    header_bar = dbc.CardGroup([
-        dbc.Card([
-            dbc.CardHeader(""),
-            dbc.CardBody([
-                html.H1("Comodo Lab", className="card-title"),
-            ])
-        ], color="primary", inverse=True),
-        get_status_card("Control System Status", "waiting", "15:00:01", "warning", "controller_status"),
-        get_status_card("Experiment ID", "Awaiting Experiment", "14:44:24", "primary", "experiment_id"),
-        get_status_card("Adjusting", "None", "15:00:01", "primary", "adjusting_status"),
-    ])
+    header_bar = dbc.CardGroup(
+        [
+            dbc.Card(
+                [
+                    dbc.CardHeader(""),
+                    dbc.CardBody(
+                        [
+                            html.H1("Comodo Lab", className="card-title"),
+                        ]
+                    ),
+                ],
+                color="primary",
+                inverse=True,
+            ),
+            get_status_card(
+                "Control System Status",
+                "waiting",
+                "15:00:01",
+                "warning",
+                "controller_status",
+            ),
+            get_status_card(
+                "Experiment ID",
+                "Awaiting Experiment",
+                "14:44:24",
+                "primary",
+                "experiment_id",
+            ),
+            get_status_card(
+                "Adjusting", "None", "15:00:01", "primary", "adjusting_status"
+            ),
+        ]
+    )
     return header_bar
 
 
@@ -44,7 +75,7 @@ def get_header_bar():
     Output("controller_status-time", "children"),
     Input("interval", "n_intervals"),
     State("timezone-store", "data"),
-    prevent_initial_call=True
+    prevent_initial_call=True,
 )
 def update_header_status(n_intervals, timezone):
     """
@@ -53,11 +84,11 @@ def update_header_status(n_intervals, timezone):
     user_tz = pytz.timezone(timezone)
 
     try:
-        result= query_influxdb_params(
+        result = query_influxdb_params(
             fields=["status"],
             topics=["heartbeat/controller"],
             start="-1m",
-            aggregate="last"
+            aggregate="last",
         )[-1]
         status = result.get_value()
         iso_timestamp = result.get_time()
@@ -92,7 +123,7 @@ def update_header_status(n_intervals, timezone):
     Output("experiment_id-time", "children"),
     Input("interval", "n_intervals"),
     State("timezone-store", "data"),
-    prevent_initial_call=True
+    prevent_initial_call=True,
 )
 def update_header_id(n_intervals, timezone):
     """
@@ -105,7 +136,7 @@ def update_header_id(n_intervals, timezone):
             fields=["experiment"],
             topics=["heartbeat/controller"],
             start="-1m",
-            aggregate="last"
+            aggregate="last",
         )[-1]
         id = result.get_value()
         iso_timestamp = result.get_time()
@@ -126,7 +157,7 @@ def update_header_id(n_intervals, timezone):
     Input("interval", "n_intervals"),
     State("sensor-store", "data"),
     State("timezone-store", "data"),
-    prevent_initial_call=True
+    prevent_initial_call=True,
 )
 def update_header_id(n_intervals, sensors, timezone):
     """
@@ -141,27 +172,29 @@ def update_header_id(n_intervals, sensors, timezone):
         return "None Adjusting", "primary", time
 
     for sensor in sensors:
-        sensor_name = sensor['name']
+        sensor_name = sensor["name"]
         print(f"Checking sensor: {sensor_name}")
         try:
             result = query_influxdb_params(
                 fields=["status"],
                 topics=[f"heartbeat/sensor/{sensor_name}"],
                 start="-1m",
-                aggregate="last"
+                aggregate="last",
             )[-1]
             id = result.get_value()
-            if id == 'adjusting':
+            if id == "adjusting":
                 adjusting.append(sensor_name)
             iso_timestamp = result.get_time()
             timestamp = iso_timestamp.astimezone(user_tz).strftime("%Y-%m-%d %H:%M:%S")
         except Exception as e:
             print(f"Error querying awaiting: {e}")
             return "None Adjusting", "primary", time
-        
+
     if len(adjusting) == 0:
         return "None Adjusting", "primary", timestamp
     else:
-        adjusting_str = ", ".join(' '.join(sensor.split('_')).capitalize() for sensor in adjusting)
+        adjusting_str = ", ".join(
+            " ".join(sensor.split("_")).capitalize() for sensor in adjusting
+        )
 
     return adjusting_str, "success", timestamp
