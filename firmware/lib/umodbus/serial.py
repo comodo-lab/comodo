@@ -46,37 +46,44 @@ class ModbusRTU(Modbus):
     :param      uart_id:     The ID of the used UART
     :type       uart_id:     int
     """
-    def __init__(self,
-                 addr: int,
-                 baudrate: int = 9600,
-                 data_bits: int = 8,
-                 stop_bits: int = 1,
-                 parity: Optional[int] = None,
-                 pins: List[Union[int, Pin], Union[int, Pin]] = None,
-                 ctrl_pin: int = None,
-                 uart_id: int = 1):
+
+    def __init__(
+        self,
+        addr: int,
+        baudrate: int = 9600,
+        data_bits: int = 8,
+        stop_bits: int = 1,
+        parity: Optional[int] = None,
+        pins: List[Union[int, Pin], Union[int, Pin]] = None,
+        ctrl_pin: int = None,
+        uart_id: int = 1,
+    ):
         super().__init__(
             # set itf to Serial object, addr_list to [addr]
-            Serial(uart_id=uart_id,
-                   baudrate=baudrate,
-                   data_bits=data_bits,
-                   stop_bits=stop_bits,
-                   parity=parity,
-                   pins=pins,
-                   ctrl_pin=ctrl_pin),
-            [addr]
+            Serial(
+                uart_id=uart_id,
+                baudrate=baudrate,
+                data_bits=data_bits,
+                stop_bits=stop_bits,
+                parity=parity,
+                pins=pins,
+                ctrl_pin=ctrl_pin,
+            ),
+            [addr],
         )
 
 
 class Serial(CommonModbusFunctions):
-    def __init__(self,
-                 uart_id: int = 1,
-                 baudrate: int = 9600,
-                 data_bits: int = 8,
-                 stop_bits: int = 1,
-                 parity=None,
-                 pins: List[Union[int, Pin], Union[int, Pin]] = None,
-                 ctrl_pin: int = None):
+    def __init__(
+        self,
+        uart_id: int = 1,
+        baudrate: int = 9600,
+        data_bits: int = 8,
+        stop_bits: int = 1,
+        parity=None,
+        pins: List[Union[int, Pin], Union[int, Pin]] = None,
+        ctrl_pin: int = None,
+    ):
         """
         Setup Serial/RTU Modbus
 
@@ -97,16 +104,17 @@ class Serial(CommonModbusFunctions):
         """
         # UART flush function is introduced in Micropython v1.20.0
         self._has_uart_flush = callable(getattr(UART, "flush", None))
-        self._uart = UART(uart_id,
-                          baudrate=baudrate,
-                          bits=data_bits,
-                          parity=parity,
-                          stop=stop_bits,
-                          # timeout_chars=2,  # WiPy only
-                          # pins=pins         # WiPy only
-                          tx=pins[0],
-                          rx=pins[1]
-                          )
+        self._uart = UART(
+            uart_id,
+            baudrate=baudrate,
+            bits=data_bits,
+            parity=parity,
+            stop=stop_bits,
+            # timeout_chars=2,  # WiPy only
+            # pins=pins         # WiPy only
+            tx=pins[0],
+            rx=pins[1],
+        )
 
         if ctrl_pin is not None:
             self._ctrlPin = Pin(ctrl_pin, mode=Pin.OUT)
@@ -139,7 +147,7 @@ class Serial(CommonModbusFunctions):
         for char in data:
             crc = (crc >> 8) ^ Const.CRC16_TABLE[((crc) ^ char) & 0xFF]
 
-        return struct.pack('<H', crc)
+        return struct.pack("<H", crc)
 
     def _exit_read(self, response: bytearray) -> bool:
         """
@@ -156,8 +164,12 @@ class Serial(CommonModbusFunctions):
         if response_len >= 2 and response[1] >= Const.ERROR_BIAS:
             if response_len < Const.ERROR_RESP_LEN:
                 return False
-        elif response_len >= 3 and (Const.READ_COILS <= response[1] <= Const.READ_INPUT_REGISTER):
-            expected_len = Const.RESPONSE_HDR_LENGTH + 1 + response[2] + Const.CRC_LENGTH
+        elif response_len >= 3 and (
+            Const.READ_COILS <= response[1] <= Const.READ_INPUT_REGISTER
+        ):
+            expected_len = (
+                Const.RESPONSE_HDR_LENGTH + 1 + response[2] + Const.CRC_LENGTH
+            )
             if response_len < expected_len:
                 return False
         elif response_len < Const.FIXED_RESP_LEN:
@@ -210,7 +222,7 @@ class Serial(CommonModbusFunctions):
         start_us = time.ticks_us()
 
         # stay inside this while loop at least for the timeout time
-        while (time.ticks_diff(time.ticks_us(), start_us) <= timeout):
+        while time.ticks_diff(time.ticks_us(), start_us) <= timeout:
             # check amount of available characters
             if self._uart.any():
                 # remember this time in microseconds
@@ -218,7 +230,10 @@ class Serial(CommonModbusFunctions):
 
                 # do not stop reading and appending the result to the buffer
                 # until the time between two frames elapsed
-                while time.ticks_diff(time.ticks_us(), last_byte_ts) <= self._inter_frame_delay:
+                while (
+                    time.ticks_diff(time.ticks_us(), last_byte_ts)
+                    <= self._inter_frame_delay
+                ):
                     # WiPy only
                     # r = self._uart.readall()
                     r = self._uart.read()
@@ -280,19 +295,16 @@ class Serial(CommonModbusFunctions):
             time.sleep_us(self._t1char)
         else:
             sleep_time_us = (
-                self._t1char * len(modbus_adu) -    # total frame time in us
-                time.ticks_diff(send_finish_time, send_start_time) +
-                100     # only required at baudrates above 57600, but hey 100us
+                self._t1char * len(modbus_adu)  # total frame time in us
+                - time.ticks_diff(send_finish_time, send_start_time)
+                + 100  # only required at baudrates above 57600, but hey 100us
             )
             time.sleep_us(sleep_time_us)
 
         if self._ctrlPin:
             self._ctrlPin.off()
 
-    def _send_receive(self,
-                      modbus_pdu: bytes,
-                      slave_addr: int,
-                      count: bool) -> bytes:
+    def _send_receive(self, modbus_pdu: bytes, slave_addr: int, count: bool) -> bytes:
         """
         Send a modbus message and receive the reponse.
 
@@ -312,16 +324,16 @@ class Serial(CommonModbusFunctions):
         self._send(modbus_pdu=modbus_pdu, slave_addr=slave_addr)
 
         response = self._uart_read()
-        return self._validate_resp_hdr(response=response,
-                                       slave_addr=slave_addr,
-                                       function_code=modbus_pdu[0],
-                                       count=count)
+        return self._validate_resp_hdr(
+            response=response,
+            slave_addr=slave_addr,
+            function_code=modbus_pdu[0],
+            count=count,
+        )
 
-    def _validate_resp_hdr(self,
-                           response: bytearray,
-                           slave_addr: int,
-                           function_code: int,
-                           count: bool) -> bytes:
+    def _validate_resp_hdr(
+        self, response: bytearray, slave_addr: int, function_code: int, count: bool
+    ) -> bytes:
         """
         Validate the response header.
 
@@ -338,37 +350,38 @@ class Serial(CommonModbusFunctions):
         :rtype:     bytes
         """
         if len(response) == 0:
-            raise OSError('no data received from slave')
+            raise OSError("no data received from slave")
 
-        resp_crc = response[-Const.CRC_LENGTH:]
+        resp_crc = response[-Const.CRC_LENGTH :]
         expected_crc = self._calculate_crc16(
-            response[0:len(response) - Const.CRC_LENGTH]
+            response[0 : len(response) - Const.CRC_LENGTH]
         )
 
-        if ((resp_crc[0] is not expected_crc[0]) or
-                (resp_crc[1] is not expected_crc[1])):
-            raise OSError('invalid response CRC')
+        if (resp_crc[0] is not expected_crc[0]) or (resp_crc[1] is not expected_crc[1]):
+            raise OSError("invalid response CRC")
 
-        if (response[0] != slave_addr):
-            raise ValueError('wrong slave address')
+        if response[0] != slave_addr:
+            raise ValueError("wrong slave address")
 
-        if (response[1] == (function_code + Const.ERROR_BIAS)):
-            raise ValueError('slave returned exception code: {:d}'.
-                             format(response[2]))
+        if response[1] == (function_code + Const.ERROR_BIAS):
+            raise ValueError("slave returned exception code: {:d}".format(response[2]))
 
-        hdr_length = (Const.RESPONSE_HDR_LENGTH + 1) if count else \
-            Const.RESPONSE_HDR_LENGTH
+        hdr_length = (
+            (Const.RESPONSE_HDR_LENGTH + 1) if count else Const.RESPONSE_HDR_LENGTH
+        )
 
-        return response[hdr_length:len(response) - Const.CRC_LENGTH]
+        return response[hdr_length : len(response) - Const.CRC_LENGTH]
 
-    def send_response(self,
-                      slave_addr: int,
-                      function_code: int,
-                      request_register_addr: int,
-                      request_register_qty: int,
-                      request_data: list,
-                      values: Optional[list] = None,
-                      signed: bool = True) -> None:
+    def send_response(
+        self,
+        slave_addr: int,
+        function_code: int,
+        request_register_addr: int,
+        request_register_qty: int,
+        request_data: list,
+        values: Optional[list] = None,
+        signed: bool = True,
+    ) -> None:
         """
         Send a response to a client.
 
@@ -393,15 +406,14 @@ class Serial(CommonModbusFunctions):
             request_register_qty=request_register_qty,
             request_data=request_data,
             value_list=values,
-            signed=signed
+            signed=signed,
         )
         print(f"SLAVE Sending response: {modbus_pdu}")
         self._send(modbus_pdu=modbus_pdu, slave_addr=slave_addr)
 
-    def send_exception_response(self,
-                                slave_addr: int,
-                                function_code: int,
-                                exception_code: int) -> None:
+    def send_exception_response(
+        self, slave_addr: int, function_code: int, exception_code: int
+    ) -> None:
         """
         Send an exception response to a client.
 
@@ -413,13 +425,13 @@ class Serial(CommonModbusFunctions):
         :type       exception_code:  int
         """
         modbus_pdu = functions.exception_response(
-            function_code=function_code,
-            exception_code=exception_code)
+            function_code=function_code, exception_code=exception_code
+        )
         self._send(modbus_pdu=modbus_pdu, slave_addr=slave_addr)
 
-    def get_request(self,
-                    unit_addr_list: List[int],
-                    timeout: Optional[int] = None) -> Union[Request, None]:
+    def get_request(
+        self, unit_addr_list: List[int], timeout: Optional[int] = None
+    ) -> Union[Request, None]:
         """
         Check for request within the specified timeout
 
@@ -439,8 +451,8 @@ class Serial(CommonModbusFunctions):
         if req[0] not in unit_addr_list:
             return None
 
-        req_crc = req[-Const.CRC_LENGTH:]
-        req_no_crc = req[:-Const.CRC_LENGTH]
+        req_crc = req[-Const.CRC_LENGTH :]
+        req_no_crc = req[: -Const.CRC_LENGTH]
         expected_crc = self._calculate_crc16(req_no_crc)
 
         if (req_crc[0] != expected_crc[0]) or (req_crc[1] != expected_crc[1]):
@@ -452,7 +464,8 @@ class Serial(CommonModbusFunctions):
             self.send_exception_response(
                 slave_addr=req[0],
                 function_code=e.function_code,
-                exception_code=e.exception_code)
+                exception_code=e.exception_code,
+            )
             return None
 
         return request

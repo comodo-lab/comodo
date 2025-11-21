@@ -11,7 +11,7 @@ import os
 
 
 def load_config():
-    """ Load the configuration file from env.json
+    """Load the configuration file from env.json
 
     Returns:
         dict: The configuration file

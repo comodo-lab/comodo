@@ -10,7 +10,7 @@ https://github.com/micropython/micropython-lib/blob/3d779b8ceab5b65b9f70accbcbb1
 """
 
 
-class _Subscriptable():
+class _Subscriptable:
     def __getitem__(self, item):
         return None
 

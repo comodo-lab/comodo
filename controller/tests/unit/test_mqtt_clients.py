@@ -14,6 +14,7 @@ user = config["mqtt"]["user"]
 password = config["mqtt"]["password"]
 connection_timeout = config["mqtt"]["connection_timeout"]
 
+
 def callback_with_error(client, msg, obj):
     raise ValueError("This is a test error")
 
@@ -28,7 +29,7 @@ def test_connection_error(capsys):
             port=1882,
             user=user,
             password=password,
-            connection_timeout=connection_timeout
+            connection_timeout=connection_timeout,
         )
 
     # Error in console
@@ -50,7 +51,7 @@ def test_connection_timeout(capsys):
                 port=1883,
                 user=user,
                 password=password,
-                connection_timeout=1
+                connection_timeout=1,
             )
 
     expected_err = "Client tester creation timed out waiting for ready"
@@ -70,8 +71,7 @@ def test_connection_ok(capsys):
         port=1883,
         user=user,
         password=password,
-        connection_timeout=connection_timeout
-
+        connection_timeout=connection_timeout,
     )
     # Wait until the client is connected
     t_now = t.time()
@@ -97,7 +97,7 @@ def test_unhandled_exceptions(capmqtt, capsys):
         port=1883,
         user=user,
         password=password,
-        connection_timeout=connection_timeout
+        connection_timeout=connection_timeout,
     )
     assert tester.client.is_connected() == True
     assert tester.callback == callback_with_error
@@ -108,7 +108,7 @@ def test_unhandled_exceptions(capmqtt, capsys):
         password=password,
         connection_timeout=connection_timeout,
     )
-    
+
     capmqtt.publish(
         topic="tester/test",
         payload="test",

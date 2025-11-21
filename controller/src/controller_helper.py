@@ -11,7 +11,7 @@ from error_helper import *
 
 config = json.load(open("config/config.json"))
 
-INFLUX_TOKEN = os.environ['INFLUX_TOKEN']
+INFLUX_TOKEN = os.environ["INFLUX_TOKEN"]
 
 
 class internal_stop_msg:
@@ -62,7 +62,7 @@ def dump_database_for_experiment(obj):
     # get everything from influx database
     buckets = config["influxdb"]["buckets"]
     client = influxdb_client.InfluxDBClient(
-        url='http://comodo-influx:8086',
+        url="http://comodo-influx:8086",
         token=INFLUX_TOKEN,
         org=config["influxdb"]["org"],
     )

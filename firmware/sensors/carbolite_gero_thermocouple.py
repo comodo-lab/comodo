@@ -17,7 +17,7 @@ MODBUS_REGISTER_COUNT = 1
 IP_ADDRS = {
     "main": "192.168.111.222",
     "left": "192.168.111.224",
-    "right": "192.168.111.225"
+    "right": "192.168.111.225",
 }
 
 # ------------------------------------------------------------------------------
@@ -27,29 +27,27 @@ IP_ADDRS = {
 def read_temperature(host):
     try:
         register_value = host.read_input_registers(
-            address=MODBUS_REGISTER_READ_ADDRESS,
-            count=MODBUS_REGISTER_COUNT
+            address=MODBUS_REGISTER_READ_ADDRESS, count=MODBUS_REGISTER_COUNT
         )
         if not register_value.isError():
             result = register_value.registers
         else:
-            raise ValueError(f'Error reading register: {register_value}')
+            raise ValueError(f"Error reading register: {register_value}")
         # print(f"Read is {result[0]}")
         return float(result[0])
     except Exception as e:
-        print(f'Error reading! \n\t {e}')
+        print(f"Error reading! \n\t {e}")
         return None
 
 
 def write_temperature(host, setpoint):
     try:
         result = host.write_register(
-            address=MODBUS_REGISTER_WRITE_ADDRESS,
-            value=int(setpoint)
+            address=MODBUS_REGISTER_WRITE_ADDRESS, value=int(setpoint)
         )
         # print(f'Result of writing {setpoint}: {result}')
     except Exception as e:
-        print(f'Error writing! \n\t {e}')
+        print(f"Error writing! \n\t {e}")
         pass
 
 
@@ -60,13 +58,10 @@ class TempLeft(BaseSensor):
         try:
             print(MODBUS_PORT)
             print(IP_ADDRS["left"])
-            self.host = ModbusTcpClient(
-                host=IP_ADDRS["left"],
-                port=MODBUS_PORT
-            )
-            print('managed to register host for left')
+            self.host = ModbusTcpClient(host=IP_ADDRS["left"], port=MODBUS_PORT)
+            print("managed to register host for left")
         except Exception as e:
-            print(f'Error initializing ModbusTcpClient for temp_left!\n{e}')
+            print(f"Error initializing ModbusTcpClient for temp_left!\n{e}")
             pass
 
     def go_to_setpoint(self, setpoint):
@@ -87,17 +82,14 @@ class TempMain(BaseSensor):
 
     def __init__(self):
         try:
-            self.host = ModbusTcpClient(
-                host=IP_ADDRS["main"],
-                port=MODBUS_PORT
-            )
+            self.host = ModbusTcpClient(host=IP_ADDRS["main"], port=MODBUS_PORT)
         except Exception as e:
-            print(f'Error initializing ModbusTcpClient for temp_main!\n{e}')
+            print(f"Error initializing ModbusTcpClient for temp_main!\n{e}")
             pass
 
     def go_to_setpoint(self, setpoint):
         # print(f'Setting main temperature to {setpoint}')
-        write_temperature(self.host, setpoint*10)
+        write_temperature(self.host, setpoint * 10)
 
     def set_config(self, config):
         pass
@@ -113,12 +105,9 @@ class TempRight(BaseSensor):
 
     def __init__(self):
         try:
-            self.host = ModbusTcpClient(
-                host=IP_ADDRS["right"],
-                port=MODBUS_PORT
-            )
+            self.host = ModbusTcpClient(host=IP_ADDRS["right"], port=MODBUS_PORT)
         except Exception as e:
-            print(f'Error initializing ModbusTcpClient for temp_right!\n{e}')
+            print(f"Error initializing ModbusTcpClient for temp_right!\n{e}")
             pass
 
     def go_to_setpoint(self, setpoint):

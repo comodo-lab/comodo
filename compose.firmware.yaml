@@ -3,13 +3,15 @@ x-templates:
     build:
       context: firmware
       dockerfile: Dockerfile-micropython
-    network_mode: host
+    networks:
+      comodo-network:
 
-python-sensor-template: &python-sensor-template
+  python-sensor-template: &python-sensor-template
     build:
       context: firmware
       dockerfile: Dockerfile-python
-    network_mode: host
+    networks:
+      comodo-network:
 
 name: comodo-firmware
 services:
@@ -109,4 +111,8 @@ services:
       - SENSOR_ID=mass_spec
       - HEARTBEAT_INTERVAL=1000
       - MEASUREMENT_INTERVAL=1000
->>>>>>> b5852f808446a3f20f95513db5863cb371e4dd4e:docker-compose.firmware.yml
+
+networks:
+  comodo-network:
+    name: comodo
+    external: true

@@ -25,6 +25,7 @@ user = config["mqtt"]["user"]
 password = config["mqtt"]["password"]
 connection_timeout = config["mqtt"]["connection_timeout"]
 
+
 def valid_schema_path():
     return "schemas/schema_experiment.json"
 

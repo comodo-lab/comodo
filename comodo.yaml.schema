@@ -18,19 +18,22 @@ classes:
   GlobalSettings:
     slots:
       - error_timeout
+      - measurement_interval
 
   Instrument:
     slots:
-      - id
-      - sensors
-
-  Sensor:
-    slots:
-      - id
+      - firmware
       - address
       - measurement_interval
+      - id
+      - variables
+
+  Variable:
+    slots:
+      - id
       - sensor
       - actuator
+      - setpoint_controller
 
   SensorConfig:
     slots:
@@ -38,7 +41,6 @@ classes:
       - min
       - max
       - unit
-      - correction_multiplier
 
   ActuatorConfig:
     slots:
@@ -46,7 +48,14 @@ classes:
       - min
       - max
       - unit
-      - correction_multiplier
+
+  SetpointControllerConfig:
+    slots:
+      - external_sensor
+      - P
+      - I
+      - D
+      - output_function
 
   Visualisation:
     abstract: true
@@ -79,8 +88,8 @@ slots:
     inlined: true
     inlined_as_list: false
 
-  sensors:
-    range: Sensor
+  variables:
+    range: Variable
     multivalued: true
     inlined: true
     inlined_as_list: false
@@ -93,7 +102,14 @@ slots:
     range: ActuatorConfig
     inlined: true
 
+  setpoint_controller:
+    range: SetpointControllerConfig
+    inlined: true
+
   error_timeout:
+    range: string
+
+  firmware:
     range: string
 
   address:
@@ -110,8 +126,18 @@ slots:
     range: float
   unit:
     range: string
-  correction_multiplier:
+
+  external_sensor:
+    range: string
+  P:
     range: float
+  I:
+    range: float
+  D:
+    range: float
+  output_function:
+    range: string
+
 
   visualisations:
     range: Visualisation
