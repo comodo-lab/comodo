@@ -290,23 +290,26 @@ class MassFlow(BaseSensor):
         return flow_rate
 
     def go_to_setpoint(self, setpoint):
-        if self.instrument is None:
-            print("Instrument not initialized.")
-            return None
+        print('Not addded yet - testing')
+        return None
+    # def go_to_setpoint(self, setpoint):
+    #     if self.instrument is None:
+    #         print("Instrument not initialized.")
+    #         return None
 
-        if not (0 <= setpoint <= 100):
-            print("Setpoint must be between 0 and 100%.")
-            return None
+    #     if not (0 <= setpoint <= 100):
+    #         print("Setpoint must be between 0 and 100%.")
+    #         return None
 
-        # Convert percentage to instrument scale (0-32000)
-        instrument_setpoint = (setpoint / 100) * 32000
-        result = write_general(self.instrument, "Flow_Rate_Setpoint", int(instrument_setpoint))
-        if result is None:
-            print("Failed to write Flow_Rate_Setpoint.")
-            return None
+    #     # Convert percentage to instrument scale (0-32000)
+    #     instrument_setpoint = (setpoint / 100) * 32000
+    #     result = write_general(self.instrument, "Flow_Rate_Setpoint", int(instrument_setpoint))
+    #     if result is None:
+    #         print("Failed to write Flow_Rate_Setpoint.")
+    #         return None
 
-        print(f"Set Flow_Rate_Setpoint to {setpoint}% ({int(instrument_setpoint)} in instrument scale).")
-        return result
+    #     print(f"Set Flow_Rate_Setpoint to {setpoint}% ({int(instrument_setpoint)} in instrument scale).")
+    #     return result
 
 
 @BaseSensor.register_sensor("massflow_temp")
