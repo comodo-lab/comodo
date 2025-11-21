@@ -300,6 +300,12 @@ class MassFlow(BaseSensor):
         read_all(self.instrument)
         flow_rate = read_from_file("Flow_Rate_Measured")
 
+        # Convert to percentage of full scale
+        if flow_rate is not None:
+            flow_rate = (flow_rate / 32000) * 100
+        
+        state.measurement = flow_rate
+
         if flow_rate is None:
             print("Failed to read Flow_Rate_Measured from file.")
             return None
