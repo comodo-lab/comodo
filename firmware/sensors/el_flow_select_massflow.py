@@ -253,8 +253,6 @@ def read_all(instrument):
             data[info['name']] = value
     with open(READ_FILE, 'w') as f:
         json.dump(data, f)
-    print(data)
-    print(f"Wrote all parameters to {READ_FILE}")
     return data
 
 
