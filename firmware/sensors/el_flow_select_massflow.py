@@ -268,7 +268,7 @@ def write_param_protected(channel, value):
         return None
 
 
-def write_general(instrument, name, value):
+def write_general(name, value):
     """
     Writes a general parameter to the EL-Flow Select instrument by name.
 
@@ -283,9 +283,9 @@ def write_general(instrument, name, value):
                 print(f"Parameter {name} is not writable.")
                 return None
             if 'B' in info['access']:
-                return write_param_protected(instrument, int(channel), value)
+                return write_param_protected(int(channel), value)
             else:
-                return write_param(instrument, int(channel), value)
+                return write_param(int(channel), value)
     print(f"Parameter {name} not found in mapping.")
     return None
 
