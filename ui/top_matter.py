@@ -161,7 +161,7 @@ def update_header_id(n_intervals, timezone):
 )
 def update_header_id(n_intervals, sensors, timezone):
     """
-    Updates the header bar with the latest experiment ID.
+    Updates the header bar with the variables currently being adjusted.
     """
     user_tz = pytz.timezone(timezone)
     time = pytz.datetime.datetime.now(user_tz).strftime("%Y-%m-%d %H:%M:%S")
@@ -171,9 +171,9 @@ def update_header_id(n_intervals, sensors, timezone):
     if sensors is None:
         return "None Adjusting", "primary", time
 
+    print(f"Checking state of {len(sensors)} sensors...")
     for sensor in sensors:
         sensor_name = sensor["name"]
-        print(f"Checking sensor: {sensor_name}")
         try:
             result = query_influxdb_params(
                 fields=["status"],
@@ -187,7 +187,7 @@ def update_header_id(n_intervals, sensors, timezone):
             iso_timestamp = result.get_time()
             timestamp = iso_timestamp.astimezone(user_tz).strftime("%Y-%m-%d %H:%M:%S")
         except Exception as e:
-            print(f"Error querying awaiting: {e}")
+            print(f"Error querying awaiting for {sensor_name}: {e}")
             return "None Adjusting", "primary", time
 
     if len(adjusting) == 0:
