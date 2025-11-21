@@ -155,7 +155,7 @@ PARAMETER_MAPPING = {
 # -------------------------------------------------------------------
 
 
-def read_parameter(instrument, channel):
+def read_parameter(channel):
     """
     Reads a parameter from the EL-Flow Select instrument.
 
@@ -165,6 +165,15 @@ def read_parameter(instrument, channel):
     """
     try:
         with serial_lock():
+            try:
+                # Register to /dev/ttyUSB2
+                time.sleep(DELAY_TIME)
+                print('Connecting to EL-Flow Select instrument')
+                instrument = propar.instrument('/dev/ttyUSB2')
+                print('Connected to EL-Flow Select instrument')
+            except Exception as e:
+                print(f'Error initializing propar.Instrument!\n{e}')
+                return None
             # Wait for delay time before reading
             time.sleep(DELAY_TIME)
             print(f'Reading channel {channel}') 
@@ -176,7 +185,7 @@ def read_parameter(instrument, channel):
         return None
 
 
-def read_general(instrument, name):
+def read_general(name):
     """
     Reads a general parameter from the EL-Flow Select instrument by name.
 
@@ -189,12 +198,12 @@ def read_general(instrument, name):
             if 'R' not in info['access']:
                 print(f"Parameter {name} is not readable.")
                 return None
-            return read_parameter(instrument, int(channel))
+            return read_parameter(int(channel))
     print(f"Parameter {name} not found in mapping.")
     return None
 
 
-def write_param(instrument, channel, value):
+def write_param(channel, value):
     """
     Writes a parameter to the EL-Flow Select instrument.
 
@@ -205,6 +214,14 @@ def write_param(instrument, channel, value):
     """
     try:
         with serial_lock():
+            try:
+                # Register to /dev/ttyUSB2
+                time.sleep(DELAY_TIME)
+                print('Connecting to EL-Flow Select instrument')
+                instrument = propar.instrument('/dev/ttyUSB2')
+                print('Connected to EL-Flow Select instrument')
+            except Exception as e:
+                print(f'Error initializing propar.Instrument!\n{e}')
             # Wait for delay time before writing
             time.sleep(DELAY_TIME)
             # TODO - Check this is the correct syntax for write to instrument
@@ -215,7 +232,7 @@ def write_param(instrument, channel, value):
         return None
 
 
-def write_param_protected(instrument, channel, value):
+def write_param_protected(channel, value):
     """
     Unlocks secured params for write
 
@@ -225,6 +242,15 @@ def write_param_protected(instrument, channel, value):
     :return: The value of the parameter if written, None if error.
     """
     try:
+        try:
+            # Register to /dev/ttyUSB2
+            time.sleep(DELAY_TIME)
+            print('Connecting to EL-Flow Select instrument')
+            instrument = propar.instrument('/dev/ttyUSB2')
+            print('Connected to EL-Flow Select instrument')
+        except Exception as e:
+            print(f'Error initializing propar.Instrument!\n{e}')
+            return None
         # TODO - Check this is the correct syntax for write to instrument
         unlock = write_param(instrument, 7, 64)  # Unlock protected write
         if unlock is None:
@@ -273,26 +299,13 @@ def write_general(instrument, name, value):
 class MassFlow(BaseSensor):
 
     def __init__(self):
-        try:
-            # Map all docker containers to /dev/ttyUSB2)
-            with serial_lock():
-                # Wait for delay time before writing
-                time.sleep(DELAY_TIME)
-                self.instrument = propar.instrument('/dev/ttyUSB2')
-            print('Connected to EL-Flow Select instrument')
-        except Exception as e:
-            print(f'Error initializing propar.Instrument!\n{e}')
-            self.instrument = None
+        return
 
     def set_config(self, config):
         pass
 
     def get_measurement(self, state):
-        if self.instrument is None:
-            print("Instrument not initialized.")
-            return None
-
-        flow_rate = (read_general(self.instrument, "Flow_Rate_Measured") / 41942) * 100  # Convert to percentage
+        flow_rate = (read_general("Flow_Rate_Measured") / 41942) * 100  # Convert to percentage
         if flow_rate is None:
             print("Failed to read Flow_Rate_Measured.")
             return None
@@ -327,26 +340,13 @@ class MassFlow(BaseSensor):
 class MassFlowTemp(BaseSensor):
 
     def __init__(self):
-        try:
-            # Map all docker containers to /dev/ttyUSB2)
-            with serial_lock():
-                # Wait for delay time before writing
-                time.sleep(DELAY_TIME)
-                self.instrument = propar.instrument('/dev/ttyUSB2')
-            print('Connected to EL-Flow Select instrument')
-        except Exception as e:
-            print(f'Error initializing propar.Instrument!\n{e}')
-            self.instrument = None
+        return
 
     def set_config(self, config):
         pass
 
     def get_measurement(self, state):
-        if self.instrument is None:
-            print("Instrument not initialized.")
-            return None
-
-        temperature = read_general(self.instrument, "Temperature")
+        temperature = read_general("Temperature")
         if temperature is None:
             print("Failed to read Temperature.")
             return None
@@ -363,26 +363,13 @@ class MassFlowTemp(BaseSensor):
 class MassFlowPressureUpstream(BaseSensor):
 
     def __init__(self):
-        try:
-            # Map all docker containers to /dev/ttyUSB2)
-            with serial_lock():
-                # Wait for delay time before writing
-                time.sleep(DELAY_TIME)
-                self.instrument = propar.instrument('/dev/ttyUSB2')
-            print('Connected to EL-Flow Select instrument')
-        except Exception as e:
-            print(f'Error initializing propar.Instrument!\n{e}')
-            self.instrument = None
+        return
 
     def set_config(self, config):
         pass
 
     def get_measurement(self, state):
-        if self.instrument is None:
-            print("Instrument not initialized.")
-            return None
-
-        pressure = read_general(self.instrument, "Inlet_Pressure")
+        pressure = read_general("Inlet_Pressure")
         if pressure is None:
             print("Failed to read Inlet_Pressure.")
             return None
@@ -399,26 +386,13 @@ class MassFlowPressureUpstream(BaseSensor):
 class MassFlowPressureDownstream(BaseSensor):
 
     def __init__(self):
-        try:
-            # Map all docker containers to /dev/ttyUSB2)
-            with serial_lock():
-                # Wait for delay time before writing
-                time.sleep(DELAY_TIME)
-                self.instrument = propar.instrument('/dev/ttyUSB2')
-            print('Connected to EL-Flow Select instrument')
-        except Exception as e:
-            print(f'Error initializing propar.Instrument!\n{e}')
-            self.instrument = None
+        return
 
     def set_config(self, config):
         pass
 
     def get_measurement(self, state):
-        if self.instrument is None:
-            print("Instrument not initialized.")
-            return None
-
-        pressure = read_general(self.instrument, "Outlet_Pressure")
+        pressure = read_general("Outlet_Pressure")
         if pressure is None:
             print("Failed to read Outlet_Pressure.")
             return None
@@ -435,26 +409,13 @@ class MassFlowPressureDownstream(BaseSensor):
 class MassFlowFluidTemp(BaseSensor):
 
     def __init__(self):
-        try:
-            # Map all docker containers to /dev/ttyUSB2)
-            with serial_lock():
-                # Wait for delay time before writing
-                time.sleep(DELAY_TIME)
-                self.instrument = propar.instrument('/dev/ttyUSB2')
-            print('Connected to EL-Flow Select instrument')
-        except Exception as e:
-            print(f'Error initializing propar.Instrument!\n{e}')
-            self.instrument = None
+        return
 
     def set_config(self, config):
         pass
 
     def get_measurement(self, state):
-        if self.instrument is None:
-            print("Instrument not initialized.")
-            return None
-
-        temperature = read_general(self.instrument, "Fluid_Temperature")
+        temperature = read_general("Fluid_Temperature")
         if temperature is None:
             print("Failed to read Fluid_Temperature.")
             return None
