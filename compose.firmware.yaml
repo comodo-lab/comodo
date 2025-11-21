@@ -5,7 +5,7 @@ x-templates:
       dockerfile: Dockerfile-micropython
     network_mode: host
 
-python-sensor-template: &python-sensor-template
+  python-sensor-template: &python-sensor-template
     build:
       context: firmware
       dockerfile: Dockerfile-python
@@ -66,18 +66,6 @@ services:
     volumes:
       - massflow_lock:/lock
 
-  massflow_temp:
-    <<: *python-sensor-template
-    environment:
-      - SENSOR_ID=massflow_temp
-      - HEARTBEAT_INTERVAL=1000
-      - MEASUREMENT_INTERVAL=1000
-    devices:
-      - "/dev/ttyUSB2:/dev/ttyUSB2"
-    privileged: true
-    volumes:
-      - massflow_lock:/lock
-      
   massflow_pressure_upstream:
     <<: *python-sensor-template
     environment:
@@ -102,24 +90,5 @@ services:
     volumes:
       - massflow_lock:/lock
     
-  massflow_fluid_temp:
-    <<: *python-sensor-template
-    environment:
-      - SENSOR_ID=massflow_fluid_temp
-      - HEARTBEAT_INTERVAL=1000
-      - MEASUREMENT_INTERVAL=1000
-    devices:
-      - "/dev/ttyUSB2:/dev/ttyUSB2"
-    privileged: true
-    volumes:
-      - massflow_lock:/lock
-
-  mass_spec:
-    <<: *python-sensor-template
-    environment:
-      - SENSOR_ID=mass_spec
-      - HEARTBEAT_INTERVAL=1000
-      - MEASUREMENT_INTERVAL=1000
-
 volumes:
   massflow_lock:

@@ -167,7 +167,9 @@ def read_parameter(instrument, channel):
         with serial_lock():
             # Wait for delay time before reading
             time.sleep(DELAY_TIME)
+            print(f'Reading channel {channel}') 
             value = instrument.readParameter(int(channel))
+            print(f' Value of channel is {value} with type {type(value)}')
         return value
     except Exception as e:
         print(f"Error reading channel {channel}: {e}")
