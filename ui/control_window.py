@@ -187,8 +187,9 @@ def update_control_component(n_intervals, sensors, slider_id, timezone):
             aggregate="last"
         )[-1].get_value()
     except Exception as e:
-        print(f"Error querying InfluxDB for {param_name}: {e}")
-        return no_update, no_update#, time
+        if "list index out of range" not in str(e):
+            print(f"Error querying InfluxDB for {param_name}: {e}")
+        return no_update, no_update  # , time
 
     # Update the gauge and slider values
     return actual_value, setpoint#, time
