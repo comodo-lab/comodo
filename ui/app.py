@@ -57,7 +57,7 @@ PARAMS = [
     'massflow_pressure_downstream',
     'massflow_fluid_temp',
     'massflow',
-    'mass_spec'
+    # 'mass_spec'
 ]
 
 PARAM_DICT = [

@@ -102,12 +102,12 @@ services:
     volumes:
       - massflow_read:/shared
 
-  massspec:
-    <<: *micropython-sensor-template
-    environment:
-      - SENSOR_ID=mass_spec
-      - HEARTBEAT_INTERVAL=1000
-      - MEASUREMENT_INTERVAL=5000
+  # massspec:
+  #   <<: *micropython-sensor-template
+  #   environment:
+  #     - SENSOR_ID=mass_spec
+  #     - HEARTBEAT_INTERVAL=1000
+  #     - MEASUREMENT_INTERVAL=5000
 
 volumes:
   massflow_read:
