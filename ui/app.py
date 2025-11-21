@@ -96,9 +96,9 @@ def get_main_window(row_data):
     designer_layout = mw.get_experiment_designer(params=PARAMS, data=row_data)
     graph_layout = mw.get_experiment_graph()
 
-    return dbc.Row([
-        dbc.Col(designer_layout),
-        dbc.Col(graph_layout)
+    return html.Div([
+        designer_layout,
+        graph_layout
     ])
 
 
