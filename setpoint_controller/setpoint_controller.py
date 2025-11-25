@@ -12,17 +12,47 @@ def main():
     print(f"Starting...")
     # Load configuration
     heartbeat_interval = int(os.getenv("HEARTBEAT_INTERVAL", 1))
-    mqtt_host = os.getenv("MQTT_HOST")
-    mqtt_user = os.getenv("MQTT_USER")
-    mqtt_pass = os.getenv("MQTT_PASS")
+    try:
+        mqtt_host = os.getenv("MQTT_HOST")
+        mqtt_user = os.getenv("MQTT_USER")
+        mqtt_pass = os.getenv("MQTT_PASS")
 
-    sensor = os.getenv("SENSOR")
-    actuator = os.getenv("ACTUATOR")
+        sensor = os.getenv("SENSOR")
+        actuator = os.getenv("ACTUATOR")
+    except KeyError as e:
+        print(f"Missing required environment variable: {e}")
+        exit(1)
+
+    k_p = os.getenv("K_P", None)
+    k_i = os.getenv("K_I", None)
+    k_d = os.getenv("K_D", None)
+    k_aw = os.getenv("K_AW", None)
+    k_df = os.getenv("K_DF", None)
+    max_output = os.getenv("OUT_MAX", None)
+    min_output = os.getenv("OUT_MIN", None)
+    max_rate_output = os.getenv("OUT_MAX_R", None)
+
+    # create dict of PID parameters and filter out None values
+    pid_params = {
+        k: float(v)
+        for k, v in {
+            "k_p": k_p,
+            "k_i": k_i,
+            "k_d": k_d,
+            "k_aw": k_aw,
+            "k_df": k_df,
+            "max": max_output,
+            "min": min_output,
+            "max_rate": max_rate_output,
+        }.items()
+        if v is not None
+    }
 
     pid = PID(
         id=f"pid/{sensor}__{actuator}",
         sensor=sensor,
         actuator=actuator,
+        **pid_params,  # unpack PID parameters
     )
 
     # Initialize MQTT client

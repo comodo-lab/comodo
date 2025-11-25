@@ -1,14 +1,138 @@
 import pytest
 import json
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, MagicMock, call
 
-from setpoint_controller import on_sensor_message
+from setpoint_controller import on_sensor_message, main
 from tests.conftest import (
     MockMessage,
     parse_message_args,
     mock_mqtt_publisher,
     mock_pid,
 )
+
+
+class Test_main:
+
+    @pytest.fixture(autouse=True)
+    def mocks_for_main(self):
+        """Patch all functions used in main, to prevent repetition in test."""
+        with patch("setpoint_controller.MQTTClient") as mock_mqtt_client_class, patch(
+            "setpoint_controller.PID"
+        ) as mock_pid_class, patch("os.getenv") as mock_getenv:
+            # Configure the mocks
+            mock_client_instance = MagicMock()
+            mock_mqtt_client_class.return_value = mock_client_instance
+
+            mock_pid_instance = MagicMock()
+            mock_pid_instance.healthy = False  # To exit the while loop immediately
+            mock_pid_instance.sensor = "test_sensor"
+            mock_pid_instance.actuator = "test_actuator"
+            mock_pid_instance.id = "pid/A__B"
+            mock_pid_class.return_value = mock_pid_instance
+
+            # Yield mocks for use in tests
+            yield {
+                "client_class": mock_mqtt_client_class,
+                "client": mock_client_instance,
+                "pid_class": mock_pid_class,
+                "pid": mock_pid_instance,
+                "getenv": mock_getenv,
+            }
+
+    def test_fails_to_start_without_required_env_vars(self, mocks_for_main):
+        mocks = mocks_for_main
+
+        # Simulate missing required environment variable
+        def getenv_side_effect(var, default=None):
+            if var == "MQTT_HOST":
+                raise KeyError("MQTT_HOST")
+            return default
+
+        mocks["getenv"].side_effect = getenv_side_effect
+
+        with pytest.raises(SystemExit):
+            main()
+
+        # Ensure that PID and MQTTClient were never initialized
+        mocks["pid_class"].assert_not_called()
+        mocks["client_class"].assert_not_called()
+
+    def test_parameters_pulled_from_env(self, mocks_for_main):
+        mocks = mocks_for_main
+
+        main()
+
+        assert mocks["getenv"].call_args_list == [
+            call("HEARTBEAT_INTERVAL", 1),
+            call("MQTT_HOST"),
+            call("MQTT_USER"),
+            call("MQTT_PASS"),
+            call("SENSOR"),
+            call("ACTUATOR"),
+            call("K_P", None),
+            call("K_I", None),
+            call("K_D", None),
+            call("K_AW", None),
+            call("K_DF", None),
+            call("OUT_MAX", None),
+            call("OUT_MIN", None),
+            call("OUT_MAX_R", None),
+        ]
+
+    def test_pid_initialized_with_correct_params(self, mocks_for_main):
+        mocks = mocks_for_main
+
+        env_values = {
+            "SENSOR": "A",
+            "ACTUATOR": "B",
+            "K_P": 1.0,
+            "K_I": 0.1,
+            "K_D": 0.01,
+            "K_AW": 0.5,
+            "K_DF": 0.2,
+        }
+        mocks["getenv"].side_effect = lambda var, default=None: env_values.get(
+            var, default
+        )
+
+        main()
+
+        mocks["pid_class"].assert_called_once_with(
+            id=f"pid/A__B",
+            sensor="A",
+            actuator="B",
+            k_p=1.0,
+            k_i=0.1,
+            k_d=0.01,
+            k_aw=0.5,
+            k_df=0.2,
+        )
+
+    def test_mqtt_client_initialized_with_correct_params(self, mocks_for_main):
+        mocks = mocks_for_main
+
+        env_values = {
+            "MQTT_HOST": "localhost",
+            "MQTT_USER": "test_user",
+            "MQTT_PASS": "test_pass",
+            "SENSOR": "A",
+            "ACTUATOR": "B",
+        }
+        mocks["getenv"].side_effect = lambda var, default=None: env_values.get(
+            var, default
+        )
+
+        main()
+
+        mocks["client_class"].assert_called_once_with(
+            id="pid/A__B",
+            callback=on_sensor_message,
+            topics=["sensor/A/setpoint", "measurement/A"],
+            broker_address="localhost",
+            user="test_user",
+            password="test_pass",
+            obj=mocks["pid"],
+        )
 
 
 class Test_on_sensor_message:
