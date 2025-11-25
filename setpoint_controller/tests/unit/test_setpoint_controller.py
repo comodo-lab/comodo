@@ -18,17 +18,29 @@ class Test_main:
         """Patch all functions used in main, to prevent repetition in test."""
         with patch("setpoint_controller.MQTTClient") as mock_mqtt_client_class, patch(
             "setpoint_controller.PID"
-        ) as mock_pid_class, patch("os.getenv") as mock_getenv:
+        ) as mock_pid_class, patch("os.getenv") as mock_getenv, patch(
+            "setpoint_controller.MQTTPublisher"
+        ) as mock_mqtt_publisher_class, patch(
+            "setpoint_controller.t.sleep"
+        ) as mock_sleep:
             # Configure the mocks
             mock_client_instance = MagicMock()
             mock_mqtt_client_class.return_value = mock_client_instance
 
             mock_pid_instance = MagicMock()
-            mock_pid_instance.healthy = False  # To exit the while loop immediately
+            mock_pid_instance.healthy = True
             mock_pid_instance.sensor = "test_sensor"
             mock_pid_instance.actuator = "test_actuator"
             mock_pid_instance.id = "pid/A__B"
             mock_pid_class.return_value = mock_pid_instance
+
+            mock_publisher_instance = MagicMock()
+            mock_mqtt_publisher_class.get_instance.return_value = (
+                mock_publisher_instance
+            )
+            mock_publisher_instance.publish.side_effect = (
+                lambda *args, **kwargs: setattr(mock_pid_instance, "healthy", False)
+            )
 
             # Yield mocks for use in tests
             yield {
@@ -37,6 +49,9 @@ class Test_main:
                 "pid_class": mock_pid_class,
                 "pid": mock_pid_instance,
                 "getenv": mock_getenv,
+                "publisher_class": mock_mqtt_publisher_class,
+                "publisher": mock_publisher_instance,
+                "sleep": mock_sleep,
             }
 
     def test_fails_to_start_without_required_env_vars(self, mocks_for_main):
@@ -133,6 +148,17 @@ class Test_main:
             password="test_pass",
             obj=mocks["pid"],
         )
+
+    def test_heartbeat_loop_is_entered(self, mocks_for_main):
+        mocks = mocks_for_main
+
+        main()
+
+        # Ensure that publish was called at least once
+        mocks["publisher"].publish.assert_called_once_with(
+            f"heartbeat/{mocks['pid'].id}", f"{mocks['pid'].get_state()}"
+        )
+        mocks["sleep"].assert_called_once_with(1)
 
 
 class Test_on_sensor_message:

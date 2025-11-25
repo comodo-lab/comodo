@@ -16,8 +16,8 @@ services:
       - ../.env
     networks:
       comodo:
-    # command: bash -c "coverage run -m pytest tests/ && echo '' && coverage report"
-    command: ["python","-m", "pytest", "tests/", "-vv"]
+    command: bash -c "coverage run -m pytest tests/ && echo '' && coverage report && coverage html -d /memory/htmlcov"
+    # command: ["python","-m", "pytest", "tests/", "-vv"] #, "--lf"] #, "--reruns", "3", "--reruns-delay", "1"]
 
 volumes:
   memory:
