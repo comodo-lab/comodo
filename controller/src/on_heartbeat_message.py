@@ -52,8 +52,7 @@ def on_heartbeat_message(client, msg, obj):
         ):
             obj.sensors["configured"] = True
             MQTTPublisher.get_instance().publish(
-                "controller/ready",
-                json.dumps({"uid": obj.experiment_uid})
+                "controller/ready", json.dumps({"uid": obj.experiment_uid})
             )
     else:
         obj_sensor["status"] = sensor["status"]

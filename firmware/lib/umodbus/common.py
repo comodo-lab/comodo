@@ -21,20 +21,21 @@ from .typing import List, Optional, Tuple, Union
 
 class Request(object):
     """Deconstruct request data received via TCP or Serial"""
+
     def __init__(self, interface, data: bytearray) -> None:
         self._itf = interface
         self.unit_addr = data[0]
-        self.function, self.register_addr = struct.unpack_from('>BH', data, 1)
+        self.function, self.register_addr = struct.unpack_from(">BH", data, 1)
 
         if self.function in [Const.READ_COILS, Const.READ_DISCRETE_INPUTS]:
-            self.quantity = struct.unpack_from('>H', data, 4)[0]
+            self.quantity = struct.unpack_from(">H", data, 4)[0]
 
             if self.quantity < 0x0001 or self.quantity > 0x07D0:
                 raise ModbusException(self.function, Const.ILLEGAL_DATA_VALUE)
 
             self.data = None
         elif self.function in [Const.READ_HOLDING_REGISTERS, Const.READ_INPUT_REGISTER]:
-            self.quantity = struct.unpack_from('>H', data, 4)[0]
+            self.quantity = struct.unpack_from(">H", data, 4)[0]
 
             if self.quantity < 0x0001 or self.quantity > 0x007D:
                 raise ModbusException(self.function, Const.ILLEGAL_DATA_VALUE)
@@ -52,14 +53,14 @@ class Request(object):
             self.data = data[4:6]
             # all values allowed
         elif self.function == Const.WRITE_MULTIPLE_COILS:
-            self.quantity = struct.unpack_from('>H', data, 4)[0]
+            self.quantity = struct.unpack_from(">H", data, 4)[0]
             if self.quantity < 0x0001 or self.quantity > 0x07D0:
                 raise ModbusException(self.function, Const.ILLEGAL_DATA_VALUE)
             self.data = data[7:]
             if len(self.data) != ((self.quantity - 1) // 8) + 1:
                 raise ModbusException(self.function, Const.ILLEGAL_DATA_VALUE)
         elif self.function == Const.WRITE_MULTIPLE_REGISTERS:
-            self.quantity = struct.unpack_from('>H', data, 4)[0]
+            self.quantity = struct.unpack_from(">H", data, 4)[0]
             if self.quantity < 0x0001 or self.quantity > 0x007B:
                 raise ModbusException(self.function, Const.ILLEGAL_DATA_VALUE)
             self.data = data[7:]
@@ -70,9 +71,7 @@ class Request(object):
             self.quantity = None
             self.data = data[4:]
 
-    def send_response(self,
-                      values: Optional[list] = None,
-                      signed: bool = True) -> None:
+    def send_response(self, values: Optional[list] = None, signed: bool = True) -> None:
         """
         Send a response via the configured interface.
 
@@ -81,13 +80,15 @@ class Request(object):
         :param      signed:  Indicates if signed values are used
         :type       signed:  bool
         """
-        self._itf.send_response(self.unit_addr,
-                                self.function,
-                                self.register_addr,
-                                self.quantity,
-                                self.data,
-                                values,
-                                signed)
+        self._itf.send_response(
+            self.unit_addr,
+            self.function,
+            self.register_addr,
+            self.quantity,
+            self.data,
+            values,
+            signed,
+        )
 
     def send_exception(self, exception_code: int) -> None:
         """
@@ -96,13 +97,12 @@ class Request(object):
         :param      exception_code:  The exception code
         :type       exception_code:  int
         """
-        self._itf.send_exception_response(self.unit_addr,
-                                          self.function,
-                                          exception_code)
+        self._itf.send_exception_response(self.unit_addr, self.function, exception_code)
 
 
 class ModbusException(Exception):
     """Exception for signaling modbus errors"""
+
     def __init__(self, function_code: int, exception_code: int) -> None:
         self.function_code = function_code
         self.exception_code = exception_code
@@ -110,13 +110,13 @@ class ModbusException(Exception):
 
 class CommonModbusFunctions(object):
     """Common Modbus functions"""
+
     def __init__(self):
         pass
 
-    def read_coils(self,
-                   slave_addr: int,
-                   starting_addr: int,
-                   coil_qty: int) -> List[bool]:
+    def read_coils(
+        self, slave_addr: int, starting_addr: int, coil_qty: int
+    ) -> List[bool]:
         """
         Read coils (COILS).
 
@@ -130,22 +130,21 @@ class CommonModbusFunctions(object):
         :returns:   State of read coils as list
         :rtype:     List[bool]
         """
-        modbus_pdu = functions.read_coils(starting_address=starting_addr,
-                                          quantity=coil_qty)
+        modbus_pdu = functions.read_coils(
+            starting_address=starting_addr, quantity=coil_qty
+        )
 
-        response = self._send_receive(slave_addr=slave_addr,
-                                      modbus_pdu=modbus_pdu,
-                                      count=True)
+        response = self._send_receive(
+            slave_addr=slave_addr, modbus_pdu=modbus_pdu, count=True
+        )
 
-        status_pdu = functions.bytes_to_bool(byte_list=response,
-                                             bit_qty=coil_qty)
+        status_pdu = functions.bytes_to_bool(byte_list=response, bit_qty=coil_qty)
 
         return status_pdu
 
-    def read_discrete_inputs(self,
-                             slave_addr: int,
-                             starting_addr: int,
-                             input_qty: int) -> List[bool]:
+    def read_discrete_inputs(
+        self, slave_addr: int, starting_addr: int, input_qty: int
+    ) -> List[bool]:
         """
         Read discrete inputs (ISTS).
 
@@ -160,23 +159,24 @@ class CommonModbusFunctions(object):
         :rtype:     List[bool]
         """
         modbus_pdu = functions.read_discrete_inputs(
-            starting_address=starting_addr,
-            quantity=input_qty)
+            starting_address=starting_addr, quantity=input_qty
+        )
 
-        response = self._send_receive(slave_addr=slave_addr,
-                                      modbus_pdu=modbus_pdu,
-                                      count=True)
+        response = self._send_receive(
+            slave_addr=slave_addr, modbus_pdu=modbus_pdu, count=True
+        )
 
-        status_pdu = functions.bytes_to_bool(byte_list=response,
-                                             bit_qty=input_qty)
+        status_pdu = functions.bytes_to_bool(byte_list=response, bit_qty=input_qty)
 
         return status_pdu
 
-    def read_holding_registers(self,
-                               slave_addr: int,
-                               starting_addr: int,
-                               register_qty: int,
-                               signed: bool = True) -> Tuple[int, ...]:
+    def read_holding_registers(
+        self,
+        slave_addr: int,
+        starting_addr: int,
+        register_qty: int,
+        signed: bool = True,
+    ) -> Tuple[int, ...]:
         """
         Read holding registers (HREGS).
 
@@ -193,22 +193,24 @@ class CommonModbusFunctions(object):
         :rtype:     Tuple[int, ...]
         """
         modbus_pdu = functions.read_holding_registers(
-            starting_address=starting_addr,
-            quantity=register_qty)
+            starting_address=starting_addr, quantity=register_qty
+        )
 
-        response = self._send_receive(slave_addr=slave_addr,
-                                      modbus_pdu=modbus_pdu,
-                                      count=True)
+        response = self._send_receive(
+            slave_addr=slave_addr, modbus_pdu=modbus_pdu, count=True
+        )
 
         register_value = functions.to_short(byte_array=response, signed=signed)
 
         return register_value
 
-    def read_input_registers(self,
-                             slave_addr: int,
-                             starting_addr: int,
-                             register_qty: int,
-                             signed: bool = True) -> Tuple[int, ...]:
+    def read_input_registers(
+        self,
+        slave_addr: int,
+        starting_addr: int,
+        register_qty: int,
+        signed: bool = True,
+    ) -> Tuple[int, ...]:
         """
         Read input registers (IREGS).
 
@@ -225,21 +227,20 @@ class CommonModbusFunctions(object):
         :rtype:     Tuple[int, ...]
         """
         modbus_pdu = functions.read_input_registers(
-            starting_address=starting_addr,
-            quantity=register_qty)
+            starting_address=starting_addr, quantity=register_qty
+        )
 
-        response = self._send_receive(slave_addr=slave_addr,
-                                      modbus_pdu=modbus_pdu,
-                                      count=True)
+        response = self._send_receive(
+            slave_addr=slave_addr, modbus_pdu=modbus_pdu, count=True
+        )
 
         register_value = functions.to_short(byte_array=response, signed=signed)
 
         return register_value
 
-    def write_single_coil(self,
-                          slave_addr: int,
-                          output_address: int,
-                          output_value: Union[int, bool]) -> bool:
+    def write_single_coil(
+        self, slave_addr: int, output_address: int, output_value: Union[int, bool]
+    ) -> bool:
         """
         Update a single coil.
 
@@ -253,12 +254,13 @@ class CommonModbusFunctions(object):
         :returns:   Result of operation
         :rtype:     bool
         """
-        modbus_pdu = functions.write_single_coil(output_address=output_address,
-                                                 output_value=output_value)
+        modbus_pdu = functions.write_single_coil(
+            output_address=output_address, output_value=output_value
+        )
 
-        response = self._send_receive(slave_addr=slave_addr,
-                                      modbus_pdu=modbus_pdu,
-                                      count=False)
+        response = self._send_receive(
+            slave_addr=slave_addr, modbus_pdu=modbus_pdu, count=False
+        )
 
         if response is None:
             return False
@@ -268,15 +270,18 @@ class CommonModbusFunctions(object):
             function_code=Const.WRITE_SINGLE_COIL,
             address=output_address,
             value=output_value,
-            signed=False)
+            signed=False,
+        )
 
         return operation_status
 
-    def write_single_register(self,
-                              slave_addr: int,
-                              register_address: int,
-                              register_value: int,
-                              signed: bool = True) -> bool:
+    def write_single_register(
+        self,
+        slave_addr: int,
+        register_address: int,
+        register_value: int,
+        signed: bool = True,
+    ) -> bool:
         """
         Update a single register.
 
@@ -295,11 +300,12 @@ class CommonModbusFunctions(object):
         modbus_pdu = functions.write_single_register(
             register_address=register_address,
             register_value=register_value,
-            signed=signed)
+            signed=signed,
+        )
 
-        response = self._send_receive(slave_addr=slave_addr,
-                                      modbus_pdu=modbus_pdu,
-                                      count=False)
+        response = self._send_receive(
+            slave_addr=slave_addr, modbus_pdu=modbus_pdu, count=False
+        )
 
         if response is None:
             return False
@@ -309,14 +315,17 @@ class CommonModbusFunctions(object):
             function_code=Const.WRITE_SINGLE_REGISTER,
             address=register_address,
             value=register_value,
-            signed=signed)
+            signed=signed,
+        )
 
         return operation_status
 
-    def write_multiple_coils(self,
-                             slave_addr: int,
-                             starting_address: int,
-                             output_values: List[Union[int, bool]]) -> bool:
+    def write_multiple_coils(
+        self,
+        slave_addr: int,
+        starting_address: int,
+        output_values: List[Union[int, bool]],
+    ) -> bool:
         """
         Update multiple coils.
 
@@ -331,12 +340,12 @@ class CommonModbusFunctions(object):
         :rtype:     bool
         """
         modbus_pdu = functions.write_multiple_coils(
-            starting_address=starting_address,
-            value_list=output_values)
+            starting_address=starting_address, value_list=output_values
+        )
 
-        response = self._send_receive(slave_addr=slave_addr,
-                                      modbus_pdu=modbus_pdu,
-                                      count=False)
+        response = self._send_receive(
+            slave_addr=slave_addr, modbus_pdu=modbus_pdu, count=False
+        )
 
         if response is None:
             return False
@@ -345,15 +354,18 @@ class CommonModbusFunctions(object):
             data=response,
             function_code=Const.WRITE_MULTIPLE_COILS,
             address=starting_address,
-            quantity=len(output_values))
+            quantity=len(output_values),
+        )
 
         return operation_status
 
-    def write_multiple_registers(self,
-                                 slave_addr: int,
-                                 starting_address: int,
-                                 register_values: List[int],
-                                 signed: bool = True) -> bool:
+    def write_multiple_registers(
+        self,
+        slave_addr: int,
+        starting_address: int,
+        register_values: List[int],
+        signed: bool = True,
+    ) -> bool:
         """
         Update multiple registers.
 
@@ -372,11 +384,12 @@ class CommonModbusFunctions(object):
         modbus_pdu = functions.write_multiple_registers(
             starting_address=starting_address,
             register_values=register_values,
-            signed=signed)
+            signed=signed,
+        )
 
-        response = self._send_receive(slave_addr=slave_addr,
-                                      modbus_pdu=modbus_pdu,
-                                      count=False)
+        response = self._send_receive(
+            slave_addr=slave_addr, modbus_pdu=modbus_pdu, count=False
+        )
 
         if response is None:
             return False
@@ -386,7 +399,7 @@ class CommonModbusFunctions(object):
             function_code=Const.WRITE_MULTIPLE_REGISTERS,
             address=starting_address,
             quantity=len(register_values),
-            signed=signed
+            signed=signed,
         )
 
         return operation_status

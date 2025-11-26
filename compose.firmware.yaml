@@ -3,13 +3,15 @@ x-templates:
     build:
       context: firmware
       dockerfile: Dockerfile-micropython
-    network_mode: host
+    networks:
+      comodo-network:
 
   python-sensor-template: &python-sensor-template
     build:
       context: firmware
       dockerfile: Dockerfile-python
-    network_mode: host
+    networks:
+      comodo-network:
 
 name: comodo-firmware
 services:
@@ -111,3 +113,8 @@ services:
 
 volumes:
   massflow_read:
+
+networks:
+  comodo-network:
+    name: comodo
+    external: true

@@ -33,7 +33,9 @@ def on_timer_message(client, msg, obj):
             t.sleep(0.1)
             if t.time() - t0 > sensor_setup_wait:
                 controller_timeout(message["uid"], "sensors", "Stopping")
-                MQTTPublisher.get_instance().publish("controller/stop", json.dumps({"uid": message["uid"]}))
+                MQTTPublisher.get_instance().publish(
+                    "controller/stop", json.dumps({"uid": message["uid"]})
+                )
                 return
     elif msg.topic == "timer/start/setpoint":
         try:

@@ -7,18 +7,21 @@ QUERY_PATH = "/api/search"
 QUERY_PARAMS = "?query=&system-metrics"
 
 FRONTEND_GRAFANA_URL = os.getenv("FRONTEND_GRAFANA_URL")
-DISPLAY_PARAMS = "?orgId=1&from=now-5m&to=now&timezone=browser&refresh=auto&theme=light&kiosk=true"
+DISPLAY_PARAMS = (
+    "?orgId=1&from=now-5m&to=now&timezone=browser&refresh=auto&theme=light&kiosk=true"
+)
+
 
 def get_dashboard_json():
     ## Get all dashboards
     response = None
     try:
         response = requests.get(f"{BACKEND_GRAFANA_URL}{QUERY_PATH}{QUERY_PARAMS}")
-        response.raise_for_status() 
+        response.raise_for_status()
 
         for d in response.json():
             print(f"Title: {d['title']}  UID: {d['uid']}  URL: {d['url']}")
-            if d['title'] == "Comodo State Testing":
+            if d["title"] == "Comodo State Testing":
                 return d
 
         # Not found
@@ -42,7 +45,5 @@ def get_experiment_graph():
 
     url_base = f"{FRONTEND_GRAFANA_URL}{comodo_dashboard.get('url')}"
     url = f"{url_base}{DISPLAY_PARAMS}"
-    graph = html.Div([
-        html.Iframe(src=url, style={"width": "100%", "height": "80vh"})
-    ])
+    graph = html.Div([html.Iframe(src=url, style={"width": "100%", "height": "80vh"})])
     return graph

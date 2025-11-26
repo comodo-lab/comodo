@@ -1,4 +1,16 @@
-from dash import Dash, dash_table, html, dcc, callback, Output, Input, State, no_update, ctx, MATCH
+from dash import (
+    Dash,
+    dash_table,
+    html,
+    dcc,
+    callback,
+    Output,
+    Input,
+    State,
+    no_update,
+    ctx,
+    MATCH,
+)
 import dash_bootstrap_components as dbc
 from dash.exceptions import PreventUpdate
 import plotly.express as px
@@ -16,33 +28,36 @@ import plotly.graph_objects as go
 from utils.mqtt_clients import MQTTPublisher
 from utils.influx_query import query_influxdb_params
 
+
 def get_control_panel(params=[]):
-    layout = html.Div([
+    layout = html.Div(
+        [
             dbc.Button("Start experiment", color="success", id="submit-experiment"),
             get_manual_panel(params=params),
         ],
-    className="d-grid gap-2",
+        className="d-grid gap-2",
     )
     return layout
 
+
 @callback(
-    Output('hidden-div', 'children'),
-    Input('submit-experiment', 'n_clicks'),
+    Output("hidden-div", "children"),
+    Input("submit-experiment", "n_clicks"),
     State("experiment-designer-store", "data"),
-    State('sensor-store', 'data'),
-    State('experiment-config-store', 'data'),
-    prevent_initial_call=True
+    State("sensor-store", "data"),
+    State("experiment-config-store", "data"),
+    prevent_initial_call=True,
 )
 def update_output(n_clicks, table_data, sensors, exp_config):
     if n_clicks == None:
         raise PreventUpdate
-        
+
     # Prepare data for transmission
     experiment_id = str(uuid.uuid4())[:8]
 
     for config in exp_config:
-        if config['name'] == 'resolution':
-            resolution = config['value']
+        if config["name"] == "resolution":
+            resolution = config["value"]
 
     if resolution is None:
         print("No resolution set, defaulting to 1 second.")
@@ -50,11 +65,8 @@ def update_output(n_clicks, table_data, sensors, exp_config):
 
     experiment_config = {
         "uid": experiment_id,
-        "config": {
-            "resolution": resolution,
-            "sensors": sensors
-        },
-        "experiment": table_data
+        "config": {"resolution": resolution, "sensors": sensors},
+        "experiment": table_data,
     }
     json_data = json.dumps(experiment_config).encode("utf-8")
 
@@ -70,7 +82,9 @@ def get_manual_panel(params=[]):
     Creates the control window for the experiment designer.
     """
     if not params:
-        raise ValueError("Parameter list cannot be empty. Please provide at least one parameter.")
+        raise ValueError(
+            "Parameter list cannot be empty. Please provide at least one parameter."
+        )
 
     control_rows = [
         dbc.Row(html.H2("Manual Control Window")),
@@ -79,20 +93,22 @@ def get_manual_panel(params=[]):
     ]
 
     for param in params:
-        param_name = param['name']
-        param_min = param.get('min', 0)
-        param_max = param.get('max', 100)
-        param_step = param.get('step', 1)
+        param_name = param["name"]
+        param_min = param.get("min", 0)
+        param_max = param.get("max", 100)
+        param_step = param.get("step", 1)
 
         control_rows.append(
-            html.H4(f"Control: {' '.join(w.capitalize() for w in param_name.split('_'))}")
+            html.H4(
+                f"Control: {' '.join(w.capitalize() for w in param_name.split('_'))}"
+            )
         )
         control_rows.append(
             get_control_component(
                 param_name=param_name,
                 min_val=param_min,
                 max_val=param_max,
-                step=param_step
+                step=param_step,
             )
         )
 
@@ -112,32 +128,36 @@ def get_control_component(param_name=None, min_val=0, max_val=100, step=1):
             [
                 html.H4("No Parameter Selected"),
             ],
-            id="control-component-no-param"
+            id="control-component-no-param",
         )
 
-    control_component = dbc.Container([
-        dbc.Row([
-            dbc.Col(
-                dcc.Slider(
-                    id={"type": "control-slider", "index": param_name},
-                    min=min_val,
-                    max=max_val,
-                    step=step,
-                    value=(min_val + max_val) // 2,
-                    tooltip={"placement": "bottom", "always_visible": True}
-                ),
-            ),
-            dbc.Col(
-                daq.Gauge(
-                    id={"type": "control-gauge", "index": param_name},
-                    min=min_val,
-                    max=max_val,
-                    value=(min_val + max_val) // 2
-                ),
-                width=4
+    control_component = dbc.Container(
+        [
+            dbc.Row(
+                [
+                    dbc.Col(
+                        dcc.Slider(
+                            id={"type": "control-slider", "index": param_name},
+                            min=min_val,
+                            max=max_val,
+                            step=step,
+                            value=(min_val + max_val) // 2,
+                            tooltip={"placement": "bottom", "always_visible": True},
+                        ),
+                    ),
+                    dbc.Col(
+                        daq.Gauge(
+                            id={"type": "control-gauge", "index": param_name},
+                            min=min_val,
+                            max=max_val,
+                            value=(min_val + max_val) // 2,
+                        ),
+                        width=4,
+                    ),
+                ]
             )
-        ])
-    ])
+        ]
+    )
 
     return control_component
 
@@ -159,7 +179,7 @@ def update_control_component(n_intervals, sensors, slider_id, timezone):
     param_name = slider_id["index"]
 
     # Find the corresponding sensor data
-    sensor = next((s for s in sensors if s['name'] == param_name), None)
+    sensor = next((s for s in sensors if s["name"] == param_name), None)
 
     try:
         user_tz = pytz.timezone(timezone)
@@ -169,7 +189,7 @@ def update_control_component(n_intervals, sensors, slider_id, timezone):
         time = "N/A"
 
     if not sensor:
-        return no_update, no_update#, time
+        return no_update, no_update  # , time
 
     # Query setpoint and actual value for the parameter
     try:
@@ -177,18 +197,19 @@ def update_control_component(n_intervals, sensors, slider_id, timezone):
             fields=[param_name],
             topics=["sensor/setpoint"],
             start="-1m",
-            aggregate="last"
+            aggregate="last",
         )[-1].get_value()
 
         actual_value = query_influxdb_params(
             fields=["value"],
             topics=[f"measurement/{param_name}"],
             start="-1m",
-            aggregate="last"
+            aggregate="last",
         )[-1].get_value()
     except Exception as e:
-        print(f"Error querying InfluxDB for {param_name}: {e}")
-        return no_update, no_update#, time
+        if "list index out of range" not in str(e):
+            print(f"Error querying InfluxDB for {param_name}: {e}")
+        return no_update, no_update  # , time
 
     # Update the gauge and slider values
-    return actual_value, setpoint#, time
+    return actual_value, setpoint  # , time

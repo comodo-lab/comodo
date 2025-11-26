@@ -114,7 +114,7 @@ def split_setpoints(setpoint_list, resolution):
 
     for sp in setpoint_list:
         if "id" in sp:
-            sp.pop('id')
+            sp.pop("id")
 
     for key in setpoint_list[0].keys():
         if key not in required_keys and "_profile" not in key:
@@ -127,16 +127,20 @@ def split_setpoints(setpoint_list, resolution):
 
     for name in variable_names:
         try:
-            sp_variables[name] = np.array([(sp[name], sp[f"{name}_profile"]) for sp in setpoint_list])
+            sp_variables[name] = np.array(
+                [(sp[name], sp[f"{name}_profile"]) for sp in setpoint_list]
+            )
         except KeyError:
             # Deafult to linear profile if not specified
-            sp_variables[name] = np.array([(sp[name], "linear") for sp in setpoint_list])
+            sp_variables[name] = np.array(
+                [(sp[name], "linear") for sp in setpoint_list]
+            )
 
     time_intervals = [times[i] - times[i - 1] for i in range(1, len(times))]
     time_intervals.insert(0, 0)
 
     # Interpolate each variable
-    setpoint_values = [{'duration': float(duration)} for duration in time_intervals]
+    setpoint_values = [{"duration": float(duration)} for duration in time_intervals]
     for name, values in sp_variables.items():
         previous_time = 0
         previous_setpoint = 0
@@ -150,34 +154,50 @@ def split_setpoints(setpoint_list, resolution):
                 # Calculate the time interval since the last setpoint
                 time_interval = time - previous_time
                 if time_interval <= 0:
-                    raise ValueError(f"Invalid time interval: {time_interval} for variable {name}")
+                    raise ValueError(
+                        f"Invalid time interval: {time_interval} for variable {name}"
+                    )
 
                 # Calculate the number of steps needed for interpolation
                 num_steps = int(time_interval / resolution)
                 if num_steps < 2:
                     if num_steps == 1:
-                        print(f"Skipping interpolation for {name} due to insufficient steps: {num_steps}, just assigning setpoint value.")
+                        print(
+                            f"Skipping interpolation for {name} due to insufficient steps: {num_steps}, just assigning setpoint value."
+                        )
                         new_values = [float(setpoint)]
                         continue
                     else:
-                        raise ValueError(f"Invalid number of steps for interpolation: {num_steps} for variable {name}")
+                        raise ValueError(
+                            f"Invalid number of steps for interpolation: {num_steps} for variable {name}"
+                        )
 
                 # Interpolate based on the profile type
                 if profile == "linear":
-                    new_values = linear_interpolation(float(previous_setpoint), float(setpoint), num_steps)
+                    new_values = linear_interpolation(
+                        float(previous_setpoint), float(setpoint), num_steps
+                    )
                 elif profile == "exponential":
-                    new_values = exponential_interpolation(float(previous_setpoint), float(setpoint), num_steps)
+                    new_values = exponential_interpolation(
+                        float(previous_setpoint), float(setpoint), num_steps
+                    )
                 elif profile == "logarithmic":
-                    new_values = logarithmic_interpolation(float(previous_setpoint), float(setpoint), num_steps)
+                    new_values = logarithmic_interpolation(
+                        float(previous_setpoint), float(setpoint), num_steps
+                    )
                 elif profile == "step":
-                    new_values = step_interpolation(float(previous_setpoint), float(setpoint), num_steps)
+                    new_values = step_interpolation(
+                        float(previous_setpoint), float(setpoint), num_steps
+                    )
                 else:
                     raise ValueError(f"Unknown profile type: {profiles}")
             else:
                 # For the first setpoint, just use the setpoint value
                 new_values = [float(setpoint)]
 
-            interpolated_values = np.append(interpolated_values, new_values)  # Skip the first value as it is the previous setpoint
+            interpolated_values = np.append(
+                interpolated_values, new_values
+            )  # Skip the first value as it is the previous setpoint
             previous_setpoint = setpoint
             previous_time = time
             step += 1

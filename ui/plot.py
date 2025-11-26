@@ -23,11 +23,11 @@ def plot_data_plotly(data, xlabel="Time", ylabel="Temperature"):
 
     data = split_setpoints(data, resolution=1)
 
-    special_keys = ['duration']
+    special_keys = ["duration"]
     keys = list(data[0].keys())
 
     # Compute cumulative time
-    durations = [entry['duration'] for entry in data]
+    durations = [entry["duration"] for entry in data]
     time = np.cumsum(durations)
 
     # Prepare figure
@@ -38,34 +38,21 @@ def plot_data_plotly(data, xlabel="Time", ylabel="Temperature"):
         if key in special_keys:
             continue
         y = [entry[key] for entry in data]
-        fig.add_trace(go.Scatter(
-            x=time,
-            y=y,
-            mode='lines',
-            name=key
-        ))
+        fig.add_trace(go.Scatter(x=time, y=y, mode="lines", name=key))
 
     # Layout
     fig.update_layout(
         xaxis_title=xlabel,
         yaxis_title=ylabel,
-        template='plotly_white',
+        template="plotly_white",
         hovermode="x unified",
-        legend={
-            "xanchor": "auto",
-            "yanchor": "auto"
-        },
-        margin={
-            "autoexpand": True,
-            "l": 0,
-            "r": 0,
-            "t": 0,
-            "b": 0
-        }
+        legend={"xanchor": "auto", "yanchor": "auto"},
+        margin={"autoexpand": True, "l": 0, "r": 0, "t": 0, "b": 0},
     )
 
     # fig.show()
     return fig
+
 
 def plot_data_matplotlib(data, xlabel="X-axis", ylabel="Y-axis"):
     """
@@ -79,10 +66,10 @@ def plot_data_matplotlib(data, xlabel="X-axis", ylabel="Y-axis"):
     if not data:
         raise ValueError("Input data is empty.")
 
-    special_keys = ['duration']
+    special_keys = ["duration"]
 
     # Extract cumulative time
-    durations = [entry['duration'] for entry in data]
+    durations = [entry["duration"] for entry in data]
     time = np.cumsum(durations)
 
     # Plotting
@@ -98,7 +85,7 @@ def plot_data_matplotlib(data, xlabel="X-axis", ylabel="Y-axis"):
         index = keys.index(key) - len(special_keys)
         values[index] = [entry[key] for entry in data]
 
-        axes[index].plot(time, values[index], label=key, color='tab:blue')
+        axes[index].plot(time, values[index], label=key, color="tab:blue")
         axes[index].set_ylabel(key)
         axes[index].grid(True)
 
@@ -109,6 +96,6 @@ def plot_data_matplotlib(data, xlabel="X-axis", ylabel="Y-axis"):
 
 
 if __name__ == "__main__":
-    with open('data.json', 'r') as f:
+    with open("data.json", "r") as f:
         json_data = json.load(f)  # Load your JSON data here
     plot_data_matplotlib(json_data)
