@@ -2,7 +2,7 @@ import pytest
 import json
 from unittest.mock import Mock, patch, MagicMock, call
 
-from setpoint_controller import on_sensor_message, main
+from setpoint_controller import main, SetpointController
 from tests.conftest import (
     MockMessage,
     parse_message_args,
@@ -16,9 +16,109 @@ class Test_main:
     @pytest.fixture(autouse=True)
     def mocks_for_main(self):
         """Patch all functions used in main, to prevent repetition in test."""
+        with patch("os.getenv") as mock_getenv, patch(
+            "setpoint_controller.SetpointController"
+        ) as mock_spc_class:
+            # Configure the mocks
+            mock_spc_instance = MagicMock()
+            start_heartbeat_loop_mock = MagicMock()
+            mock_spc_instance.start_heartbeat_loop = start_heartbeat_loop_mock
+            mock_spc_class.return_value = mock_spc_instance
+
+            env_values = {}
+            mock_getenv.side_effect = lambda var, default=None: env_values.get(
+                var, default
+            )
+
+            # Yield mocks for use in tests
+            yield {
+                "env_values": env_values,
+                "getenv": mock_getenv,
+                "spc_class": mock_spc_class,
+            }
+
+    def test_fails_to_start_without_required_env_vars(self, mocks_for_main):
+        mocks = mocks_for_main
+
+        # Simulate missing required environment variable
+        def getenv_side_effect(var, default=None):
+            if var == "MQTT_HOST":
+                raise KeyError("MQTT_HOST")
+            return default
+
+        mocks["getenv"].side_effect = getenv_side_effect
+
+        with pytest.raises(SystemExit):
+            main()
+
+        # Ensure that SetpointController was never initialized
+        mocks["spc_class"].assert_not_called()
+
+    def test_parameters_pulled_from_env(self, mocks_for_main):
+        mocks = mocks_for_main
+
+        main()
+
+        assert mocks["getenv"].call_args_list == [
+            call("HEARTBEAT_INTERVAL", 1),
+            call("MQTT_HOST"),
+            call("MQTT_USER"),
+            call("MQTT_PASS"),
+            call("SENSOR"),
+            call("ACTUATOR"),
+            call("K_P", None),
+            call("K_I", None),
+            call("K_D", None),
+            call("K_AW", None),
+            call("K_DF", None),
+            call("OUT_MAX", None),
+            call("OUT_MIN", None),
+            call("OUT_MAX_R", None),
+        ]
+
+    def test_spc_initialized_with_correct_params(self, mocks_for_main):
+        mocks = mocks_for_main
+
+        mocks["env_values"].update(
+            {
+                "HEARTBEAT_INTERVAL": 2,
+                "MQTT_HOST": "test_host",
+                "MQTT_USER": "test_user",
+                "MQTT_PASS": "test_pass",
+                "SENSOR": "A",
+                "ACTUATOR": "B",
+                "K_P": 1.0,
+                "K_I": 0.1,
+                "K_D": 0.01,
+                "K_AW": 0.5,
+                "K_DF": 0.2,
+            }
+        )
+
+        main()
+
+        mocks["spc_class"].assert_called_once_with(
+            mqtt_host="test_host",
+            mqtt_user="test_user",
+            mqtt_pass="test_pass",
+            heartbeat_interval=2,
+            sensor="A",
+            actuator="B",
+            k_p=1.0,
+            k_i=0.1,
+            k_d=0.01,
+            k_aw=0.5,
+            k_df=0.2,
+        )
+
+
+class Test_SetpointController_init:
+
+    @pytest.fixture(autouse=True)
+    def mocks_for_spc_init(self):
         with patch("setpoint_controller.MQTTClient") as mock_mqtt_client_class, patch(
             "setpoint_controller.PID"
-        ) as mock_pid_class, patch("os.getenv") as mock_getenv, patch(
+        ) as mock_pid_class, patch(
             "setpoint_controller.MQTTPublisher"
         ) as mock_mqtt_publisher_class, patch(
             "setpoint_controller.t.sleep"
@@ -48,69 +148,27 @@ class Test_main:
                 "client": mock_client_instance,
                 "pid_class": mock_pid_class,
                 "pid": mock_pid_instance,
-                "getenv": mock_getenv,
                 "publisher_class": mock_mqtt_publisher_class,
                 "publisher": mock_publisher_instance,
                 "sleep": mock_sleep,
             }
 
-    def test_fails_to_start_without_required_env_vars(self, mocks_for_main):
-        mocks = mocks_for_main
+    def test_pid_initialized_with_correct_params(self, mocks_for_spc_init):
+        mocks = mocks_for_spc_init
 
-        # Simulate missing required environment variable
-        def getenv_side_effect(var, default=None):
-            if var == "MQTT_HOST":
-                raise KeyError("MQTT_HOST")
-            return default
-
-        mocks["getenv"].side_effect = getenv_side_effect
-
-        with pytest.raises(SystemExit):
-            main()
-
-        # Ensure that PID and MQTTClient were never initialized
-        mocks["pid_class"].assert_not_called()
-        mocks["client_class"].assert_not_called()
-
-    def test_parameters_pulled_from_env(self, mocks_for_main):
-        mocks = mocks_for_main
-
-        main()
-
-        assert mocks["getenv"].call_args_list == [
-            call("HEARTBEAT_INTERVAL", 1),
-            call("MQTT_HOST"),
-            call("MQTT_USER"),
-            call("MQTT_PASS"),
-            call("SENSOR"),
-            call("ACTUATOR"),
-            call("K_P", None),
-            call("K_I", None),
-            call("K_D", None),
-            call("K_AW", None),
-            call("K_DF", None),
-            call("OUT_MAX", None),
-            call("OUT_MIN", None),
-            call("OUT_MAX_R", None),
-        ]
-
-    def test_pid_initialized_with_correct_params(self, mocks_for_main):
-        mocks = mocks_for_main
-
-        env_values = {
-            "SENSOR": "A",
-            "ACTUATOR": "B",
-            "K_P": 1.0,
-            "K_I": 0.1,
-            "K_D": 0.01,
-            "K_AW": 0.5,
-            "K_DF": 0.2,
-        }
-        mocks["getenv"].side_effect = lambda var, default=None: env_values.get(
-            var, default
+        spc = SetpointController(
+            mqtt_host="test_host",
+            mqtt_user="test_user",
+            mqtt_pass="test_pass",
+            heartbeat_interval=1,
+            sensor="A",
+            actuator="B",
+            k_p=1.0,
+            k_i=0.1,
+            k_d=0.01,
+            k_aw=0.5,
+            k_df=0.2,
         )
-
-        main()
 
         mocks["pid_class"].assert_called_once_with(
             id=f"pid/A__B",
@@ -123,36 +181,41 @@ class Test_main:
             k_df=0.2,
         )
 
-    def test_mqtt_client_initialized_with_correct_params(self, mocks_for_main):
-        mocks = mocks_for_main
+    def test_mqtt_client_initialized_with_correct_params(self, mocks_for_spc_init):
+        mocks = mocks_for_spc_init
 
-        env_values = {
-            "MQTT_HOST": "localhost",
-            "MQTT_USER": "test_user",
-            "MQTT_PASS": "test_pass",
-            "SENSOR": "A",
-            "ACTUATOR": "B",
-        }
-        mocks["getenv"].side_effect = lambda var, default=None: env_values.get(
-            var, default
+        spc = SetpointController(
+            mqtt_host="test_host",
+            mqtt_user="test_user",
+            mqtt_pass="test_pass",
+            heartbeat_interval=1,
+            sensor="A",
+            actuator="B",
         )
-
-        main()
 
         mocks["client_class"].assert_called_once_with(
             id="pid/A__B",
-            callback=on_sensor_message,
+            callback=spc.on_sensor_message,
             topics=["sensor/A/setpoint", "measurement/A"],
-            broker_address="localhost",
+            broker_address="test_host",
             user="test_user",
             password="test_pass",
             obj=mocks["pid"],
         )
 
-    def test_heartbeat_loop_is_entered(self, mocks_for_main):
-        mocks = mocks_for_main
+    def test_heartbeat_loop_is_entered(self, mocks_for_spc_init):
+        mocks = mocks_for_spc_init
 
-        main()
+        spc = SetpointController(
+            mqtt_host="test_host",
+            mqtt_user="test_user",
+            mqtt_pass="test_pass",
+            heartbeat_interval=1,
+            sensor="A",
+            actuator="B",
+        )
+
+        spc.start_heartbeat_loop()
 
         # Ensure that publish was called at least once
         mocks["publisher"].publish.assert_called_once_with(
@@ -169,7 +232,7 @@ class Test_on_sensor_message:
             "this is not valid json {",
         )
 
-        on_sensor_message(client, msg, mock_pid)
+        SetpointController.on_sensor_message(client, msg, mock_pid)
 
         mock_mqtt_publisher.publish.assert_called_once()
         topic, message = parse_message_args(mock_mqtt_publisher.publish.call_args[0])
@@ -188,7 +251,7 @@ class Test_on_setpoint_message:
             json.dumps({mock_pid.sensor: setpoint_value}),
         )
 
-        on_sensor_message(client, msg, mock_pid)
+        SetpointController.on_sensor_message(client, msg, mock_pid)
 
         assert mock_pid.setpoint == setpoint_value
         mock_mqtt_publisher.publish.assert_not_called()
@@ -200,20 +263,21 @@ class Test_on_setpoint_message:
             json.dumps({"some_other_sensor": 42.42}),
         )
 
-        on_sensor_message(client, msg, mock_pid)
+        SetpointController.on_sensor_message(client, msg, mock_pid)
 
         assert mock_pid.setpoint == None
         assert mock_mqtt_publisher.publish.call_count == 0
 
 
 class Test_on_measurement_message:
+
     def test_skips_if_setpoint_undefined(self, mock_pid, mock_mqtt_publisher):
         client = Mock()
         mock_pid.setpoint = None
         msg = MockMessage(f"measurement/{mock_pid.sensor}", json.dumps({"value": 45.0}))
 
         with patch("src.pid.PID.step") as mock_pid_step:
-            on_sensor_message(client, msg, mock_pid)
+            SetpointController.on_sensor_message(client, msg, mock_pid)
 
             mock_pid_step.assert_not_called()
             mock_mqtt_publisher.publish.assert_not_called()
@@ -228,7 +292,7 @@ class Test_on_measurement_message:
         )
 
         with patch("src.pid.PID.step", return_value=6.7) as mock_pid_step:
-            on_sensor_message(client, msg, mock_pid)
+            SetpointController.on_sensor_message(client, msg, mock_pid)
 
             mock_pid_step.assert_called_once_with(measurement_value, mock_pid.setpoint)
             mock_mqtt_publisher.publish.assert_called_once_with(
