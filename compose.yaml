@@ -170,7 +170,6 @@ services:
       - '8501:8050'
     volumes:
       - ./ui/:/app/
-      - ./utils:/app/utils
     environment:
       - MQTT_HOST=${MQTT_HOST}
       - MQTT_PORT=1883
