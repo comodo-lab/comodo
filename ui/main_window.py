@@ -26,8 +26,15 @@ PROFILES = ["linear", "logarithmic", "exponential", "step"]
 
 PARAMS = ["temp_left", "temp_main", "temp_right"]
 
+# Params to actuate
+PARAMS = [
+    'temp_left',
+    'temp_main',
+    'temp_right',
+    'massflow'
+]
 
-def get_experiment_designer(params=[], data=[]):
+def get_experiment_designer(data=[]):
     """
     Creates a dash-ag-grid component for experimental control data with
     editing, dropdowns, and row add/delete support.
@@ -35,8 +42,8 @@ def get_experiment_designer(params=[], data=[]):
     component_id = "experiment-designer"
 
     # Build column list
-    columns = ["time"]
-    for col in params:
+    columns = ['time']
+    for col in PARAMS:
         columns.append(col)
         columns.append(f"{col}_profile")
 

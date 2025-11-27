@@ -45,25 +45,26 @@ CONTROL_INTERVAL = 5000  # milliseconds
 SHORT_INTERVAL = 1000  # milliseconds
 LONG_INTERVAL = 5000  # milliseconds
 
+# Params to read / actuate
 PARAMS = [
-    "temp_left",
-    "temp_main",
-    "temp_right",
-    "pressure_downstream",
-    "pressure_upstream",
-    "massflow",
-    "massflow_temp",
-    "massflow_pressure_upstream",
-    "massflow_pressure_downstream",
-    "massflow_fluid_temp",
-    "mass_spec",
+    'temp_left',
+    'temp_main',
+    'temp_right',
+    'pressure_downstream',
+    'pressure_upstream',
+    'massflow_temp',
+    'massflow_pressure_upstream',
+    'massflow_pressure_downstream',
+    'massflow_fluid_temp',
+    'massflow',
+    # 'mass_spec'
 ]
 
 PARAM_DICT = [
-    {"name": "temp_left", "min": 0, "max": 1000, "step": 1},
-    {"name": "temp_main", "min": 0, "max": 1000, "step": 1},
-    {"name": "temp_right", "min": 0, "max": 1000, "step": 1},
-    # {'name': 'massflow', 'min': 0, 'max': 100, 'step': 0.1},
+    {'name': 'temp_left', 'min': 0, 'max': 1000, 'step': 1},
+    {'name': 'temp_main', 'min': 0, 'max': 1000, 'step': 1},
+    {'name': 'temp_right', 'min': 0, 'max': 1000, 'step': 1},
+    {'name': 'massflow', 'min': 0, 'max': 100, 'step': 0.1},
 ]
 
 INI_EXPERIMENT_CONFIG = [
@@ -80,7 +81,9 @@ INI_DATA_DICT = [
         "temp_main_profile": "linear",
         "temp_right": 0.0,
         "temp_right_profile": "linear",
-    },  # , 'massflow': 0.0, 'massflow_profile': 'linear'},
+        "massflow": 0.0,
+        "massflow_profile": "linear"
+    },
     {
         "time": 30,
         "temp_left": 250.0,
@@ -89,7 +92,9 @@ INI_DATA_DICT = [
         "temp_main_profile": "linear",
         "temp_right": 250.0,
         "temp_right_profile": "exponential",
-    },  # , 'massflow': 25.0, 'massflow_profile': 'exponential'},
+        "massflow": 5.0,
+        "massflow_profile": "exponential"
+    },
     {
         "time": 60,
         "temp_left": 0.0,
@@ -98,7 +103,9 @@ INI_DATA_DICT = [
         "temp_main_profile": "step",
         "temp_right": 0.0,
         "temp_right_profile": "step",
-    },  # , 'massflow': 0.0, 'massflow_profile': 'step'}
+        "massflow": 0.0,
+        "massflow_profile": "step"
+    }
 ]
 
 
@@ -120,10 +127,10 @@ INI_SENSOR_DICT = [
 
 
 def get_main_window(row_data):
-    designer_layout = mw.get_experiment_designer(params=PARAMS, data=row_data)
+    designer_layout = mw.get_experiment_designer(data=row_data)
     graph_layout = mw.get_experiment_graph()
 
-    return dbc.Row([dbc.Col(designer_layout), dbc.Col(graph_layout)])
+    return html.Div([designer_layout, graph_layout])
 
 
 @app.callback(
