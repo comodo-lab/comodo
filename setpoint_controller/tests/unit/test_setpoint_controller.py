@@ -82,7 +82,7 @@ class Test_main:
 
         mocks["env_values"].update(
             {
-                "HEARTBEAT_INTERVAL": 2,
+                "HEARTBEAT_INTERVAL": 2000,
                 "MQTT_HOST": "test_host",
                 "MQTT_USER": "test_user",
                 "MQTT_PASS": "test_pass",

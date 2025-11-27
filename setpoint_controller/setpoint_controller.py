@@ -23,6 +23,13 @@ def main():
         print(f"Missing required environment variable: {e}")
         exit(1)
 
+    # Initialise publisher singleton
+    publisher = MQTTPublisher.get_instance(
+        broker_address=mqtt_host,
+        user=mqtt_user,
+        password=mqtt_pass,
+    )
+
     k_p = os.getenv("K_P", None)
     k_i = os.getenv("K_I", None)
     k_d = os.getenv("K_D", None)
