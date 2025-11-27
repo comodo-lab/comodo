@@ -11,7 +11,7 @@ from src.pid import PID
 def main():
     print(f"Starting...")
     # Load configuration
-    heartbeat_interval = int(os.getenv("HEARTBEAT_INTERVAL", 1))
+    heartbeat_interval = float(os.getenv("HEARTBEAT_INTERVAL", 1)) / 1000
     try:
         mqtt_host = os.getenv("MQTT_HOST")
         mqtt_user = os.getenv("MQTT_USER")
@@ -103,6 +103,12 @@ class SetpointController:
             obj=self.pid,
         )
 
+        # Publish initial setpoint as None
+        MQTTPublisher.get_instance().publish(
+            f"{self.pid.id}/setpoint",
+            json.dumps({self.pid.sensor: None}),
+        )
+
     def on_sensor_message(client, msg, pid):
         """Callback function for handling sensor messages."""
         try:
@@ -119,6 +125,10 @@ class SetpointController:
             setpoint = message.get(pid.sensor)
             if setpoint:
                 pid.setpoint = setpoint
+                MQTTPublisher.get_instance().publish(
+                    f"{pid.id}/setpoint",
+                    json.dumps({pid.sensor: setpoint}),
+                )
             return
         elif msg.topic == f"measurement/{pid.sensor}":
             if pid.setpoint is not None:

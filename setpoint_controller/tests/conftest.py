@@ -48,6 +48,57 @@ def parse_message_args(args):
 
 
 @pytest.fixture(autouse=True)
+def mock_MQTTClient(message_bus):
+    """Mock the MQTTClient singleton."""
+    with patch("setpoint_controller.MQTTClient") as mock_client_class:
+        mock_instance = MagicMock()
+
+        def create_client(*args, **kwargs):
+            # Extract init parameters
+            client_id = kwargs.get("id", "client")
+            callback = kwargs.get("callback")
+            topics = kwargs.get("topics", [])
+            obj = kwargs.get("obj")
+            # Set properties on the mock instance
+            mock_instance.id = client_id
+            mock_instance.obj = obj
+            mock_instance.callback = callback
+
+            # Wrapper to adapt message bus callback to MQTT client callback signature
+            def callback_wrapper(topic, msg):
+                # Original: (client, msg, obj), where client here is self (automatically passed)
+                callback(msg, obj)
+
+            # Subscribe to topics using the message bus
+            if isinstance(topics, str):
+                topics = [topics]
+            for topic in topics:
+                message_bus.subscribe(topic, callback_wrapper)
+
+        mock_client_class.side_effect = create_client
+        mock_client_class.return_value = mock_instance
+
+        yield mock_client_class
+
+
+@pytest.fixture(autouse=True)
+def mock_load_message():
+    """Mock the load_message function to handle MockMessage objects."""
+    # Patch where it's actually imported and used
+    with patch("setpoint_controller.load_message") as mock:
+
+        def load_message(msg):
+            payload = msg.payload if hasattr(msg, "payload") else msg
+            if isinstance(payload, bytes):
+                return json.loads(payload.decode("utf-8"))
+            elif isinstance(payload, str):
+                return json.loads(payload)
+
+        mock.side_effect = load_message
+        yield mock
+
+
+@pytest.fixture(autouse=True)
 def mock_MQTTPublisher(message_bus):
     """Mock the MQTTPublisher singleton."""
     with patch("setpoint_controller.MQTTPublisher") as mock_publisher_class:
@@ -75,9 +126,12 @@ class InMemoryMessageBus:
                 self.subscribers[topic_pattern] = []
             self.subscribers[topic_pattern].append(callback)
 
-    def publish(self, topic: str, payload: str):
+    def publish(self, topic: str, payload):
         """Publish a message to a topic."""
-        msg = MockMessage(topic=topic, payload=payload)
+        if isinstance(payload, str):
+            msg = MockMessage(topic=topic, payload=payload.encode("utf-8"))
+        else:
+            msg = payload
 
         with self.lock:
             self.message_history.append(msg)
@@ -88,15 +142,19 @@ class InMemoryMessageBus:
                     for callback in callbacks:
                         # Call callback in a separate thread to simulate async behaviour
                         threading.Thread(
-                            target=callback, args=(topic, payload), daemon=True
+                            target=callback, args=(topic, msg), daemon=True
                         ).start()
 
     def get_messages(self, topic: str = None) -> list[MockMessage]:
         """Get message history, optionally filtered by topic."""
         with self.lock:
-            if topic:
-                return [m for m in self.message_history if m.topic == topic]
-            return self.message_history.copy()
+            if not topic:
+                return self.message_history.copy()
+            if any(c in topic for c in "*?[]"):  # accept wildcard characters
+                return [
+                    m for m in self.message_history if fnmatch.fnmatch(m.topic, topic)
+                ]
+            return [m for m in self.message_history if m.topic == topic]
 
 
 @pytest.fixture
@@ -177,3 +235,17 @@ def rand_pid():
         min=rand(0.01, 10.0),
         max_rate=rand(0.01, 10.0),
     )
+
+
+@pytest.fixture
+def mock_pid_time():
+    """Mock time.time() only within PID.step for deterministic testing."""
+    mock_time = [0.0]
+
+    def increment_time():
+        result = mock_time[0]
+        mock_time[0] += 1  # 1 second per call
+        return result
+
+    with patch("src.pid.PID.now", side_effect=increment_time):
+        yield mock_time

@@ -101,7 +101,11 @@ class PID:
                 )
         return state
 
-    def step(self, measurement, setpoint, time=t.time()):
+    def now(self):
+        """Return the current time."""
+        return t.time()
+
+    def step(self, measurement, setpoint, time=None):
         """
         Execute a step of the PID controller.
 
@@ -121,7 +125,7 @@ class PID:
         # Current inputs
         self.measurement = measurement
         self.setpoint = setpoint
-        self.t = time
+        self.t = self.now() if time is None else time
         if self.prev_t is not None:
             self.dt = self.t - self.prev_t
         self.err = self.setpoint - self.measurement

@@ -119,11 +119,7 @@ class Test_SetpointController_init:
     def mocks_for_spc_init(self):
         with patch("setpoint_controller.MQTTClient") as mock_mqtt_client_class, patch(
             "setpoint_controller.PID"
-        ) as mock_pid_class, patch(
-            "setpoint_controller.MQTTPublisher"
-        ) as mock_mqtt_publisher_class, patch(
-            "setpoint_controller.t.sleep"
-        ) as mock_sleep:
+        ) as mock_pid_class, patch("setpoint_controller.t.sleep") as mock_sleep:
             # Configure the mocks
             mock_client_instance = MagicMock()
             mock_mqtt_client_class.return_value = mock_client_instance
@@ -135,12 +131,8 @@ class Test_SetpointController_init:
             mock_pid_instance.id = "pid/A__B"
             mock_pid_class.return_value = mock_pid_instance
 
-            mock_publisher_instance = MagicMock()
-            mock_mqtt_publisher_class.get_instance.return_value = (
-                mock_publisher_instance
-            )
-            mock_publisher_instance.publish.side_effect = (
-                lambda *args, **kwargs: setattr(mock_pid_instance, "healthy", False)
+            mock_sleep.side_effect = lambda *args, **kwargs: setattr(
+                mock_pid_instance, "healthy", False
             )
 
             # Yield mocks for use in tests
@@ -149,8 +141,6 @@ class Test_SetpointController_init:
                 "client": mock_client_instance,
                 "pid_class": mock_pid_class,
                 "pid": mock_pid_instance,
-                "publisher_class": mock_mqtt_publisher_class,
-                "publisher": mock_publisher_instance,
                 "sleep": mock_sleep,
             }
 
@@ -191,16 +181,18 @@ class Test_SetpointController_init:
             obj=mocks["pid"],
         )
 
-    def test_heartbeat_loop_is_entered(self, mocks_for_spc_init):
+    def test_heartbeat_loop_is_entered(self, mocks_for_spc_init, mock_MQTTPublisher):
         mocks = mocks_for_spc_init
 
         spc = base_SPC()
         spc.start_heartbeat_loop()
 
-        # Ensure that publish was called at least once
-        mocks["publisher"].publish.assert_called_once_with(
-            f"heartbeat/{mocks['pid'].id}", f"{mocks['pid'].get_state()}"
-        )
+        assert mock_MQTTPublisher.publish.call_args_list == [
+            # Should publish initial setpoint as None upon creation
+            call(f"{mocks['pid'].id}/setpoint", json.dumps({spc.pid.sensor: None})),
+            # Then publish heartbeat
+            call(f"heartbeat/{mocks['pid'].id}", str(mocks["pid"].get_state())),
+        ]
         mocks["sleep"].assert_called_once_with(1)
 
 
@@ -234,7 +226,11 @@ class Test_on_setpoint_message:
         SetpointController.on_sensor_message(client, msg, mock_pid)
 
         assert mock_pid.setpoint == setpoint_value
-        mock_MQTTPublisher.publish.assert_not_called()
+        # Should publish updated setpoint
+        mock_MQTTPublisher.publish.assert_called_once_with(
+            f"{mock_pid.id}/setpoint",
+            json.dumps({mock_pid.sensor: setpoint_value}),
+        )
 
     def test_ignores_other_setpoints(self, mock_pid, mock_MQTTPublisher):
         client = Mock()
