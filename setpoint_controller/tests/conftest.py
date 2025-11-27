@@ -5,7 +5,24 @@ import pytest
 from unittest.mock import patch, MagicMock
 from random import uniform as rand
 
+import threading
+import fnmatch
+from typing import Dict
+
 from src.pid import PID
+
+
+@pytest.hookimpl(tryfirst=True, hookwrapper=True)
+def pytest_runtest_makereport(item, call):
+    """
+    Hook to access test results and execute code on test failure.
+    This allows fixtures to know if their test failed.
+    """
+    outcome = yield
+    rep = outcome.get_result()
+
+    # Store the test result in the item for fixtures to access
+    setattr(item, f"rep_{rep.when}", rep)
 
 
 class MockMessage:
@@ -36,6 +53,63 @@ def mock_mqtt_publisher():
         mock_instance = MagicMock()
         mock_publisher_class.get_instance.return_value = mock_instance
         yield mock_instance
+
+
+class InMemoryMessageBus:
+    """
+    A thread-safe in-memory message bus that simulates MQTT publish/subscribe behaviour.
+    The message history can be accessed through the get_messages method, optionally filtered by topic.
+    """
+
+    def __init__(self):
+        self.subscribers: Dict[str, list] = {}  # pattern -> list of callbacks
+        self.lock = threading.Lock()
+        self.message_history: list[MockMessage] = []
+
+    def subscribe(self, topic_pattern: str, callback: callable):
+        """Subscribe a callback to a topic pattern (supports * wildcards)."""
+        with self.lock:
+            if topic_pattern not in self.subscribers:
+                self.subscribers[topic_pattern] = []
+            self.subscribers[topic_pattern].append(callback)
+
+    def publish(self, topic: str, payload: str):
+        """Publish a message to a topic."""
+        msg = MockMessage(topic=topic, payload=payload)
+
+        with self.lock:
+            self.message_history.append(msg)
+
+            # Notify all subscribers whose patterns match this topic
+            for pattern, callbacks in self.subscribers.items():
+                if fnmatch.fnmatch(topic, pattern):
+                    for callback in callbacks:
+                        # Call callback in a separate thread to simulate async behaviour
+                        threading.Thread(
+                            target=callback, args=(topic, payload), daemon=True
+                        ).start()
+
+    def get_messages(self, topic: str = None) -> list[MockMessage]:
+        """Get message history, optionally filtered by topic."""
+        with self.lock:
+            if topic:
+                return [m for m in self.message_history if m.topic == topic]
+            return self.message_history.copy()
+
+
+@pytest.fixture
+def message_bus(request):
+    """Provide a fresh message bus for each test."""
+    message_bus = InMemoryMessageBus()
+    yield message_bus
+
+    # After test completes, if the test failed, print message bus history
+    if hasattr(request.node, "rep_call") and request.node.rep_call.failed:
+        print("Message Bus History:")
+        print("-" * 60)
+        for message in message_bus.get_messages():
+            print(f"  {message.topic}: {message.payload.decode('utf-8')}")
+        print("-" * 60 + "\n")
 
 
 def base_pid(kwargs=None):

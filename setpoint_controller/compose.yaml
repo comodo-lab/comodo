@@ -12,16 +12,8 @@ services:
     container_name: setpoint-controller
     volumes:
       - memory:/memory  # Used to persist pytest cache between runs
-    env_file:
-      - ../.env
-    networks:
-      comodo:
     command: bash -c "coverage run -m pytest tests/ && echo '' && coverage report && coverage html -d /memory/htmlcov"
     # command: ["python","-m", "pytest", "tests/", "-vv"] #, "--lf"] #, "--reruns", "3", "--reruns-delay", "1"]
 
 volumes:
   memory:
-
-networks:
-  comodo:
-    external: true
