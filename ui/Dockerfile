@@ -1,7 +1,20 @@
 FROM python:3.13-slim
+
+WORKDIR /app
+
+# Install Python deps
 COPY ui/requirements.txt ./requirements.txt
-RUN pip install -r ./requirements.txt
+RUN pip install --no-cache-dir -r ./requirements.txt
+
+# Copy app code
 COPY ui /app
+COPY utils /app/utils
 COPY utils/mqtt_clients.py /app/mqtt_clients.py
 COPY utils/interpolation.py /app/interpolation.py
+
+# Copy entrypoint that handles *_FILE secrets
+COPY ui/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["python", "-u", "/app/app.py"]
