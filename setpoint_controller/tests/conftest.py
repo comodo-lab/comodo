@@ -9,6 +9,7 @@ import threading
 import fnmatch
 from typing import Dict
 
+from setpoint_controller import SetpointController
 from src.pid import PID
 
 
@@ -47,10 +48,11 @@ def parse_message_args(args):
 
 
 @pytest.fixture(autouse=True)
-def mock_mqtt_publisher():
+def mock_MQTTPublisher(message_bus):
     """Mock the MQTTPublisher singleton."""
     with patch("setpoint_controller.MQTTPublisher") as mock_publisher_class:
         mock_instance = MagicMock()
+        mock_instance.publish.side_effect = message_bus.publish
         mock_publisher_class.get_instance.return_value = mock_instance
         yield mock_instance
 
@@ -112,20 +114,45 @@ def message_bus(request):
         print("-" * 60 + "\n")
 
 
-def base_pid(kwargs=None):
+def base_SPC(**kwargs):
     """
-    Create a PID controller with default values for id, sensor and actuator.
-    Allows overriding any of these or other PID parameters via the kwargs dict.
+    Create a SetpointController with default values for mqtt and sensor/actuator.
+    Allows overriding any of these via kwargs.
 
     Inputs:
-        kwargs: dict of parameters to override defaults
+        **kwargs: keyword arguments to override defaults
+    Returns:
+        SetpointController instance
+    """
+    d_kwargs = {
+        "mqtt_host": "test_host",
+        "mqtt_user": "test_user",
+        "mqtt_pass": "test_pass",
+        "sensor": "test_sensor",
+        "actuator": "test_actuator",
+        "sensor": "A",
+        "actuator": "B",
+        "heartbeat_interval": 1,
+    }
+    d_kwargs.update(kwargs)
+
+    # Create and return SetpointController instance
+    return SetpointController(**d_kwargs)
+
+
+def base_PID(**kwargs):
+    """
+    Create a PID controller with default values for id, sensor and actuator.
+    Allows overriding any of these via kwargs.
+
+    Inputs:
+        **kwargs: keyword arguments to override defaults
     Returns:
         PID instance
     """
     d_kwargs = {"id": "test_pid", "sensor": "mock_sensor", "actuator": "mock_actuator"}
 
-    if kwargs is not None:
-        d_kwargs.update(kwargs)
+    d_kwargs.update(kwargs)
 
     # Create and return PID instance
     return PID(**d_kwargs)
@@ -134,21 +161,19 @@ def base_pid(kwargs=None):
 @pytest.fixture
 def mock_pid():
     """PID with default parameters."""
-    return base_pid()
+    return base_PID()
 
 
 @pytest.fixture
 def rand_pid():
     """PID with random parameters."""
-    return base_pid(
-        {
-            "k_p": rand(0.01, 10.0),
-            "k_i": rand(0.01, 10.0),
-            "k_d": rand(0.01, 10.0),
-            "k_aw": rand(0.01, 10.0),
-            "k_df": rand(0.01, 10.0),
-            "max": rand(0.01, 10.0),
-            "min": rand(0.01, 10.0),
-            "max_rate": rand(0.01, 10.0),
-        }
+    return base_PID(
+        k_p=rand(0.01, 10.0),
+        k_i=rand(0.01, 10.0),
+        k_d=rand(0.01, 10.0),
+        k_aw=rand(0.01, 10.0),
+        k_df=rand(0.01, 10.0),
+        max=rand(0.01, 10.0),
+        min=rand(0.01, 10.0),
+        max_rate=rand(0.01, 10.0),
     )

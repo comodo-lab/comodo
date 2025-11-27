@@ -3,7 +3,7 @@ import time as t
 
 from src.pid import PID
 
-from tests.conftest import base_pid
+from tests.conftest import base_PID
 
 
 class TestPIDInitialization:
@@ -141,26 +141,26 @@ class TestGetState:
 class TestProportionalControl:
 
     def test_positive_error_gives_positive_output(self):
-        pid = base_pid()
+        pid = base_PID()
         output = pid.step(measurement=40.0, setpoint=50.0)
 
         assert output > 0
 
     def test_negative_error_gives_negative_output(self):
-        pid = base_pid({"min": -100.0})  # Allow negative outputs
+        pid = base_PID(min=-100.0)  # Allow negative outputs
         output = pid.step(measurement=60.0, setpoint=50.0)
 
         assert output < 0
 
     def test_zero_error_with_no_history_gives_zero_output(self):
-        pid = base_pid()
+        pid = base_PID()
         output = pid.step(measurement=50.0, setpoint=50.0)
 
         assert output == 0.0
 
     def test_k_p_scaling(self):
-        pid_low = base_pid({"k_p": 0.5})
-        pid_high = base_pid({"k_p": 2.0})
+        pid_low = base_PID(k_p=0.5)
+        pid_high = base_PID(k_p=2.0)
 
         output_low = pid_low.step(measurement=40.0, setpoint=50.0)
         output_high = pid_high.step(measurement=40.0, setpoint=50.0)
@@ -171,7 +171,7 @@ class TestProportionalControl:
 class TestIntegralControl:
 
     def test_accumulates_over_time(self):
-        pid = base_pid({"k_i": 100.0})
+        pid = base_PID(k_i=100.0)
         states = []
         for i in range(5):
             output = pid.step(measurement=40.0, setpoint=50.0, time=i / 10)
@@ -180,7 +180,7 @@ class TestIntegralControl:
             assert states[i]["integral"] <= states[i + 1]["integral"]
 
     def test_does_not_accumulate_with_zero_k_i(self):
-        pid = base_pid({"k_i": 0.0, "k_aw": 0.0})
+        pid = base_PID(k_i=0.0, k_aw=0.0)
         outputs = []
         states = []
         for i in range(5):
@@ -193,7 +193,7 @@ class TestIntegralControl:
             assert states[0]["integral"] == states[i]["integral"]
 
     def test_responds_to_sign_change(self):
-        pid = base_pid({"k_i": 100.0})
+        pid = base_PID(k_i=100.0)
         states = []
         # Positive error
         for i in range(5):
@@ -208,8 +208,8 @@ class TestIntegralControl:
             assert states[4 + i]["integral"] >= states[4 + i + 1]["integral"]
 
     def test_k_i_scaling(self):
-        pid_low = base_pid({"k_i": 0.05})
-        pid_high = base_pid({"k_i": 0.2})
+        pid_low = base_PID(k_i=0.05)
+        pid_high = base_PID(k_i=0.2)
 
         states = {"low": [], "high": []}
         for pid, name in (pid_low, "low"), (pid_high, "high"):
@@ -226,7 +226,7 @@ class TestIntegralControl:
 class TestDerivativeControl:
 
     def test_can_handle_dt_zero(self):
-        pid = base_pid()
+        pid = base_PID()
         assert pid.k_df == 0.0
         outputs = []
         states = []
@@ -242,7 +242,7 @@ class TestDerivativeControl:
             assert states[i]["derivative"] == 0
 
     def test_is_negative_when_approaching_setpoint_from_below(self):
-        pid = base_pid()
+        pid = base_PID()
         states = []
         for i in range(5):
             _ = pid.step(measurement=i * 10, setpoint=50, time=i / 10)
@@ -251,7 +251,7 @@ class TestDerivativeControl:
             assert states[i]["derivative"] < 0
 
     def test_is_positive_when_approaching_setpoint_from_above(self):
-        pid = base_pid()
+        pid = base_PID()
         states = []
         for i in range(5):
             _ = pid.step(measurement=100 - i * 10, setpoint=50, time=i / 10)
@@ -261,7 +261,7 @@ class TestDerivativeControl:
             assert states[i]["derivative"] > 0
 
     def test_derivative_responds_to_rate_of_change(self):
-        pid = base_pid()
+        pid = base_PID()
         states = []
         for i in range(5):
             # Step through errors with increasing rate: 0 -> 10 -> 30...
@@ -272,8 +272,8 @@ class TestDerivativeControl:
             assert states[i]["derivative"] > states[i + 1]["derivative"]
 
     def test_k_d_scaling(self):
-        pid_low = base_pid({"k_d": 0.05})
-        pid_high = base_pid({"k_d": 0.2})
+        pid_low = base_PID(k_d=0.05)
+        pid_high = base_PID(k_d=0.2)
 
         states = {"low": [], "high": []}
         for pid, name in (pid_low, "low"), (pid_high, "high"):
@@ -291,7 +291,7 @@ class TestAntiWindup:
 
     def test_anti_windup_limits_integral_growth(self):
         steps = 20
-        pid = base_pid({"k_p": 1.0, "k_i": 1.0, "k_d": 0.0, "k_aw": 0.5, "max": 10.0})
+        pid = base_PID(k_p=1.0, k_i=1.0, k_d=0.0, k_aw=0.5, max=10.0)
 
         # Saturate output and continue to drive integral
         states = []
@@ -310,8 +310,8 @@ class TestAntiWindup:
 
     def test_k_aw_scaling(self):
         steps = 20
-        pid_low = base_pid({"k_i": 1.0, "k_aw": 0.1})
-        pid_high = base_pid({"k_i": 1.0, "k_aw": 0.5})
+        pid_low = base_PID(k_i=1.0, k_aw=0.1)
+        pid_high = base_PID(k_i=1.0, k_aw=0.5)
 
         tot_int = {"low": [], "high": []}
         for pid, name in (pid_low, "low"), (pid_high, "high"):
@@ -328,23 +328,19 @@ class TestAntiWindup:
 class TestDerivativeFiltering:
 
     def test_filters_smooths_derivative(self):
-        pid_u = base_pid(
-            {
-                "k_p": 0.0,
-                "k_i": 0.0,
-                "k_d": 0.1,
-                "k_df": 0.0,  # Unfiltered derivative
-                "min": -100.0,
-            }
+        pid_u = base_PID(
+            k_p=0.0,
+            k_i=0.0,
+            k_d=0.1,
+            k_df=0.0,  # Unfiltered derivative
+            min=-100.0,
         )
-        pid_f = base_pid(
-            {
-                "k_p": 0.0,
-                "k_i": 0.0,
-                "k_d": 0.1,
-                "k_df": 0.05,  # Filtered derivative
-                "min": -100.0,
-            }
+        pid_f = base_PID(
+            k_p=0.0,
+            k_i=0.0,
+            k_d=0.1,
+            k_df=0.05,  # Filtered derivative
+            min=-100.0,
         )
 
         outputs = {"filtered": [], "unfiltered": []}
@@ -360,12 +356,8 @@ class TestDerivativeFiltering:
             assert dev_change_f < dev_change_u
 
     def test_k_df_scaling(self):
-        pid_low = base_pid(
-            {"k_p": 0.0, "k_i": 0.0, "k_d": 0.1, "k_df": 0.01, "min": -100.0}
-        )
-        pid_high = base_pid(
-            {"k_p": 0.0, "k_i": 0.0, "k_d": 0.1, "k_df": 0.05, "min": -100.0}
-        )
+        pid_low = base_PID(k_p=0.0, k_i=0.0, k_d=0.1, k_df=0.01, min=-100.0)
+        pid_high = base_PID(k_p=0.0, k_i=0.0, k_d=0.1, k_df=0.05, min=-100.0)
 
         outputs = {"low": [], "high": []}
         for pid, name in (pid_high, "high"), (pid_low, "low"):
@@ -386,7 +378,7 @@ class TestOutputLimits:
 
     def test_output_not_unnecessarily_limited(self):
         max_rate = 5.0
-        pid = base_pid({"max": 100.0, "min": -100.0, "max_rate": max_rate})
+        pid = base_PID(max=100.0, min=-100.0, max_rate=max_rate)
 
         # small error should not be rate-limited
         out_1 = pid.step(measurement=49.0, setpoint=50.0)
@@ -395,7 +387,7 @@ class TestOutputLimits:
         assert out_1 == pid.output_sat
 
     def test_output_max(self):
-        pid = base_pid({"max": 50.0})
+        pid = base_PID(max=50.0)
 
         out = pid.step(measurement=0.0, setpoint=100.0)
 
@@ -404,7 +396,7 @@ class TestOutputLimits:
         assert out == pid.output_sat
 
     def test_output_min(self):
-        pid = base_pid({"min": -10.0})
+        pid = base_PID(min=-10.0)
 
         out = pid.step(measurement=100.0, setpoint=0.0)
 
@@ -414,7 +406,7 @@ class TestOutputLimits:
 
     def test_output_max_rate_pos(self):
         max_rate = 5.0
-        pid = base_pid({"max_rate": max_rate})
+        pid = base_PID(max_rate=max_rate)
 
         out = pid.step(measurement=0.0, setpoint=50.0)
 
@@ -424,7 +416,7 @@ class TestOutputLimits:
 
     def test_output_max_rate_neg(self):
         max_rate = 5.0
-        pid = base_pid({"min": -100, "max_rate": max_rate})
+        pid = base_PID(min=-100, max_rate=max_rate)
 
         out = pid.step(measurement=50.0, setpoint=0.0)
 
