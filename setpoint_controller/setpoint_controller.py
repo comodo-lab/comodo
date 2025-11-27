@@ -64,11 +64,6 @@ def main():
     print(f"Exiting...")
 
 
-if __name__ == "__main__":
-
-    main()
-
-
 class SetpointController:
     """Setpoint controller, which has a PID controller and its MQTT client."""
 
@@ -147,3 +142,8 @@ class SetpointController:
                 f"{self.pid.get_state()}",
             )
             t.sleep(self.heartbeat_interval)
+
+
+if __name__ == "__main__":
+
+    main()
