@@ -84,28 +84,20 @@ services:
       - SENSOR_ID=massflow
       - HEARTBEAT_INTERVAL=1000
       - MEASUREMENT_INTERVAL=1000
-    devices:
+    devices: # Critical this is up as all other massflow sensors read from this device
       - "/dev/ttyUSB2:/dev/ttyUSB2"
     privileged: true  # Optional but recommended for USB/serial access
+    volumes:
+      - massflow_read:/shared
 
-  massflow_temp:
-    <<: *python-sensor-template
-    environment:
-      - SENSOR_ID=massflow_temp
-      - HEARTBEAT_INTERVAL=1000
-      - MEASUREMENT_INTERVAL=1000
-    devices:
-      - "/dev/ttyUSB2:/dev/ttyUSB2"
-    privileged: true
   massflow_pressure_upstream:
     <<: *python-sensor-template
     environment:
       - SENSOR_ID=massflow_pressure_upstream
       - HEARTBEAT_INTERVAL=1000
       - MEASUREMENT_INTERVAL=1000
-    devices:
-      - "/dev/ttyUSB2:/dev/ttyUSB2"
-    privileged: true
+    volumes:
+      - massflow_read:/shared
 
   massflow_pressure_downstream:
     <<: *python-sensor-template
@@ -113,28 +105,31 @@ services:
       - SENSOR_ID=massflow_pressure_downstream
       - HEARTBEAT_INTERVAL=1000
       - MEASUREMENT_INTERVAL=1000
-    devices:
-      - "/dev/ttyUSB2:/dev/ttyUSB2"
-    privileged: true
-    
+    volumes:
+      - massflow_read:/shared
+
   massflow_fluid_temp:
     <<: *python-sensor-template
     environment:
       - SENSOR_ID=massflow_fluid_temp
       - HEARTBEAT_INTERVAL=1000
       - MEASUREMENT_INTERVAL=1000
-    devices:
-      - "/dev/ttyUSB2:/dev/ttyUSB2"
-    privileged: true
+    volumes:
+      - massflow_read:/shared
 
-  mass_spec:
+  massflow_temp:
     <<: *python-sensor-template
     environment:
-      - SENSOR_ID=mass_spec
+      - SENSOR_ID=massflow_temp
       - HEARTBEAT_INTERVAL=1000
       - MEASUREMENT_INTERVAL=1000
+    volumes:
+      - massflow_read:/shared
 
 networks:
   comodo-network:
     name: comodo
     external: true
+
+volumes:
+  massflow_read:

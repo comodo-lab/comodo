@@ -6,6 +6,10 @@ https://prod-bronkhorst-products-cdn-ccdwbfhmd0gfecfb.a02.azurefd.net/media/3u4i
 from sensor import BaseSensor
 
 import propar
+import json
+import os
+
+READ_FILE = os.environ.get("MASSFLOW_READ_FILE", '/shared/massflow_read.json')
 
 ERROR_TIMEOUT = 10  # Seconds to wait before retrying after an error
 REPETITION_TIME = 2  # Seconds to wait before requesting another datapoint
@@ -227,6 +231,47 @@ def write_general(instrument, name, value):
     return None
 
 
+def read_all(instrument):
+    """
+    Reads all parameters from the EL-Flow Select instrument
+    and writes out to the READ_FILE as JSON for the other 
+    processes to consume.
+
+    Will write in format of:
+    {
+        "Flow_Rate_Measured": value,
+        ...
+    }
+
+    :param instrument: The propar instrument object.
+    :return: A dictionary of all parameter values.
+    """
+    data = {}
+    for channel, info in PARAMETER_MAPPING.items():
+        if 'R' in info['access']:
+            value = read_parameter(instrument, int(channel))
+            data[info['name']] = value
+    with open(READ_FILE, 'w') as f:
+        json.dump(data, f)
+    return data
+
+
+def read_from_file(name):
+    """
+    Reads a parameter value from the READ_FILE JSON.
+
+    :param name: The name of the parameter to read.
+    :return: The value of the parameter if found, None otherwise.
+    """
+    try:
+        with open(READ_FILE, 'r') as f:
+            data = json.load(f)
+        return data.get(name, None)
+    except Exception as e:
+        print(f"Error reading from file {READ_FILE}: {e}")
+        return None
+
+
 # -------------------------------------------------------------------
 # Main Function
 # -------------------------------------------------------------------
@@ -252,14 +297,13 @@ class MassFlow(BaseSensor):
             print("Instrument not initialized.")
             return None
 
-        flow_rate = (
-            read_general(self.instrument, "Flow_Rate_Measured") / 41942
-        ) * 100  # Convert to percentage
+        read_all(self.instrument)
+        flow_rate = read_from_file("Flow_Rate_Measured")
+
         if flow_rate is None:
-            print("Failed to read Flow_Rate_Measured.")
+            print("Failed to read Flow_Rate_Measured from file.")
             return None
 
-        state.measurement = flow_rate
         return flow_rate
 
     def go_to_setpoint(self, setpoint):
@@ -290,23 +334,14 @@ class MassFlow(BaseSensor):
 class MassFlowTemp(BaseSensor):
 
     def __init__(self):
-        try:
-            # Map all docker containers to /dev/ttyUSB2)
-            self.instrument = propar.instrument("/dev/ttyUSB2")
-            print("Connected to EL-Flow Select instrument")
-        except Exception as e:
-            print(f"Error initializing propar.Instrument!\n{e}")
-            self.instrument = None
+        return
 
     def set_config(self, config):
         pass
 
     def get_measurement(self, state):
-        if self.instrument is None:
-            print("Instrument not initialized.")
-            return None
 
-        temperature = read_general(self.instrument, "Temperature")
+        temperature = read_from_file("Temperature")
         if temperature is None:
             print("Failed to read Temperature.")
             return None
@@ -323,23 +358,14 @@ class MassFlowTemp(BaseSensor):
 class MassFlowPressureUpstream(BaseSensor):
 
     def __init__(self):
-        try:
-            # Map all docker containers to /dev/ttyUSB2)
-            self.instrument = propar.instrument("/dev/ttyUSB2")
-            print("Connected to EL-Flow Select instrument")
-        except Exception as e:
-            print(f"Error initializing propar.Instrument!\n{e}")
-            self.instrument = None
+        return
 
     def set_config(self, config):
         pass
 
     def get_measurement(self, state):
-        if self.instrument is None:
-            print("Instrument not initialized.")
-            return None
 
-        pressure = read_general(self.instrument, "Inlet_Pressure")
+        pressure = read_from_file("Inlet_Pressure")
         if pressure is None:
             print("Failed to read Inlet_Pressure.")
             return None
@@ -356,23 +382,14 @@ class MassFlowPressureUpstream(BaseSensor):
 class MassFlowPressureDownstream(BaseSensor):
 
     def __init__(self):
-        try:
-            # Map all docker containers to /dev/ttyUSB2)
-            self.instrument = propar.instrument("/dev/ttyUSB2")
-            print("Connected to EL-Flow Select instrument")
-        except Exception as e:
-            print(f"Error initializing propar.Instrument!\n{e}")
-            self.instrument = None
+        return
 
     def set_config(self, config):
         pass
 
     def get_measurement(self, state):
-        if self.instrument is None:
-            print("Instrument not initialized.")
-            return None
 
-        pressure = read_general(self.instrument, "Outlet_Pressure")
+        pressure = read_from_file("Outlet_Pressure")
         if pressure is None:
             print("Failed to read Outlet_Pressure.")
             return None
@@ -389,23 +406,14 @@ class MassFlowPressureDownstream(BaseSensor):
 class MassFlowFluidTemp(BaseSensor):
 
     def __init__(self):
-        try:
-            # Map all docker containers to /dev/ttyUSB2)
-            self.instrument = propar.instrument("/dev/ttyUSB2")
-            print("Connected to EL-Flow Select instrument")
-        except Exception as e:
-            print(f"Error initializing propar.Instrument!\n{e}")
-            self.instrument = None
+        return
 
     def set_config(self, config):
         pass
 
     def get_measurement(self, state):
-        if self.instrument is None:
-            print("Instrument not initialized.")
-            return None
 
-        temperature = read_general(self.instrument, "Fluid_Temperature")
+        temperature = read_from_file("Fluid_Temperature")
         if temperature is None:
             print("Failed to read Fluid_Temperature.")
             return None
