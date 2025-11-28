@@ -5,6 +5,7 @@ import json
 import os
 import threading
 from threading import Event
+import time
 
 
 def print_message(client, msg, timestamped=False):
@@ -106,7 +107,7 @@ def on_connect(client, userdata, flags, rc, properties):
     # Check connection was ok
     if rc != 0:
         raise TimeoutError("{id} client failed to connect.")
-    else:
+    elif id != "publisher":
         print(f"Client {id} successfully connected to broker.")
 
     # Selectively subscribe to topics
@@ -116,7 +117,8 @@ def on_connect(client, userdata, flags, rc, properties):
     if isinstance(topics, str):
         topics = [topics]
     elif topics == None:
-        print("No topics registered. Ready and exiting")
+        if id != "publisher":
+            print("No topics registered. Ready and exiting")
         userdata["ready"].set()
         return
 
@@ -309,4 +311,9 @@ class MQTTPublisher:
         elif cls._instance is not None and kwargs:
             print("MQTTPublisher already initialised; further parameters are ignored")
 
+        # Only return once connected
+        t = 2000  # timeout in ms
+        while not cls._instance.client.client.is_connected() and t > 0:
+            time.sleep(0.001)
+            t -= 1
         return cls._instance
