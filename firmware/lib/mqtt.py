@@ -95,7 +95,11 @@ class MQTTClient:
 
         self.sock.sendall(premsg[: i + 2])
         self.sock.sendall(msg)
-        self._send_str(self.client_id.encode() if isinstance(self.client_id, str) else self.client_id)
+        self._send_str(
+            self.client_id.encode()
+            if isinstance(self.client_id, str)
+            else self.client_id
+        )
         if self.lw_topic:
             self._send_str(self.lw_topic.encode())
             self._send_str(self.lw_msg.encode())

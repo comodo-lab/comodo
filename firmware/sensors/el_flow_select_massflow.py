@@ -39,7 +39,7 @@ PARAMETER_MAPPING = {
         "access": "R",
         "range": "-250 - 500",
         "units": "°C",
-        "notes": "Internal temperature in the instrument housing, approximation of the actual media temperature."
+        "notes": "Internal temperature in the instrument housing, approximation of the actual media temperature.",
     },
     "143": {
         "name": "Pressure",
@@ -56,7 +56,7 @@ PARAMETER_MAPPING = {
         "access": "R",
         "range": "-3.4E+38 – 3.4E+38",
         "units": "From Capacity Unit",
-        "notes": "The actual flow rate measured by the instrument, in the unit specified by the Capacity Unit parameter."
+        "notes": "The actual flow rate measured by the instrument, in the unit specified by the Capacity Unit parameter.",
     },
     "206": {
         "name": "Fsetpoint",
@@ -64,7 +64,7 @@ PARAMETER_MAPPING = {
         "access": "RW",
         "range": "0 – 3.4E+38",
         "units": "From Capacity Unit",
-        "notes": "The flow rate setpoint for the instrument, in the unit specified by the Capacity Unit parameter."
+        "notes": "The flow rate setpoint for the instrument, in the unit specified by the Capacity Unit parameter.",
     },
     "10": {
         "name": "Setpoint_Slope",
@@ -72,7 +72,7 @@ PARAMETER_MAPPING = {
         "access": "RW",
         "range": "0 – 30000",
         "units": "s",
-        "notes": "The time in seconds to go from 0-100% setpoint for flow rate adjustment. A value of 0 means no slope, i.e., the setpoint is reached immediately."
+        "notes": "The time in seconds to go from 0-100% setpoint for flow rate adjustment. A value of 0 means no slope, i.e., the setpoint is reached immediately.",
     },
     "122": {
         "name": "Counter_Value",
@@ -80,7 +80,7 @@ PARAMETER_MAPPING = {
         "access": "RW",
         "range": "0 – 10000000",
         "unit": "From Counter Unit",
-        "notes": "Current counter value in units selected with parameter Counter Unit."
+        "notes": "Current counter value in units selected with parameter Counter Unit.",
     },
     "124": {
         "name": "Counter_Limit",
@@ -88,7 +88,7 @@ PARAMETER_MAPPING = {
         "access": "RW",
         "range": "0 – 9999999",
         "unit": "From Counter Unit",
-        "notes": "The limit for the counter. When the counter reaches this value, it will stop counting."
+        "notes": "The limit for the counter. When the counter reaches this value, it will stop counting.",
     },
     # Fluid Set
     "21": {
@@ -106,7 +106,7 @@ PARAMETER_MAPPING = {
         "access": "RW B",
         "range": "0 – 3.4E+38",
         "units": "bar",
-        "notes": "Upstream pressure of the selected fluid in bar(a)."
+        "notes": "Upstream pressure of the selected fluid in bar(a).",
     },
     "179": {
         "name": "Outlet_Pressure",
@@ -114,7 +114,7 @@ PARAMETER_MAPPING = {
         "access": "RW B",
         "range": "0 – 3.4E+38",
         "units": "bar",
-        "notes": "Downstream pressure of the selected fluid in bar(a)."
+        "notes": "Downstream pressure of the selected fluid in bar(a).",
     },
     "181": {
         "name": "Fluid_Temperature",
@@ -122,7 +122,7 @@ PARAMETER_MAPPING = {
         "access": "RW B",
         "range": "-250 – 500",
         "units": "°C",
-        "notes": "The temperature of the selected fluid."
+        "notes": "The temperature of the selected fluid.",
     },
 }
 
@@ -155,8 +155,8 @@ def read_general(instrument, name):
     :return: The value of the parameter if found, None otherwise.
     """
     for channel, info in PARAMETER_MAPPING.items():
-        if info['name'] == name:
-            if 'R' not in info['access']:
+        if info["name"] == name:
+            if "R" not in info["access"]:
                 print(f"Parameter {name} is not readable.")
                 return None
             return read_parameter(instrument, int(channel))
@@ -195,13 +195,13 @@ def write_param_protected(instrument, channel, value):
         # TODO - Check this is the correct syntax for write to instrument
         unlock = write_param(instrument, 7, 64)  # Unlock protected write
         if unlock is None:
-            raise PermissionError('Could not unlock protected write param')
+            raise PermissionError("Could not unlock protected write param")
 
         write = write_param(instrument, channel, value)
 
         lock = write_param(instrument, 7, 82)  # Lock protected write
         if lock is None:
-            raise PermissionError('Could not lock protected write param')
+            raise PermissionError("Could not lock protected write param")
         return write
 
     except Exception as e:
@@ -219,11 +219,11 @@ def write_general(instrument, name, value):
     :return: The value of the parameter if written, None if error.
     """
     for channel, info in PARAMETER_MAPPING.items():
-        if info['name'] == name:
-            if 'W' not in info['access']:
+        if info["name"] == name:
+            if "W" not in info["access"]:
                 print(f"Parameter {name} is not writable.")
                 return None
-            if 'B' in info['access']:
+            if "B" in info["access"]:
                 return write_param_protected(instrument, int(channel), value)
             else:
                 return write_param(instrument, int(channel), value)
@@ -283,10 +283,10 @@ class MassFlow(BaseSensor):
     def __init__(self):
         try:
             # Map all docker containers to /dev/ttyUSB2)
-            self.instrument = propar.instrument('/dev/ttyUSB2')
-            print('Connected to EL-Flow Select instrument')
+            self.instrument = propar.instrument("/dev/ttyUSB2")
+            print("Connected to EL-Flow Select instrument")
         except Exception as e:
-            print(f'Error initializing propar.Instrument!\n{e}')
+            print(f"Error initializing propar.Instrument!\n{e}")
             self.instrument = None
 
     def set_config(self, config):
@@ -317,12 +317,16 @@ class MassFlow(BaseSensor):
 
         # Convert percentage to instrument scale (0-32000)
         instrument_setpoint = (setpoint / 100) * 32000
-        result = write_general(self.instrument, "Flow_Rate_Setpoint", int(instrument_setpoint))
+        result = write_general(
+            self.instrument, "Flow_Rate_Setpoint", int(instrument_setpoint)
+        )
         if result is None:
             print("Failed to write Flow_Rate_Setpoint.")
             return None
 
-        print(f"Set Flow_Rate_Setpoint to {setpoint}% ({int(instrument_setpoint)} in instrument scale).")
+        print(
+            f"Set Flow_Rate_Setpoint to {setpoint}% ({int(instrument_setpoint)} in instrument scale)."
+        )
         return result
 
 

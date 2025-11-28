@@ -5,6 +5,7 @@ import json
 import os
 import threading
 from threading import Event
+import time
 
 
 def print_message(client, msg, timestamped=False):
@@ -77,13 +78,16 @@ def mqtt_publish_exceptions(name, func):
 
     return wrapper
 
+
 def on_subscribe(client, userdata, mid, reason_code_list, properties):
     print(f"Client '{userdata.get("id")}' succeded? {reason_code_list} in subscribing.")
     if all(rc <= 2 for rc in reason_code_list):
         print(f"Client '{userdata.get('id')}' successfully subscribed (mid {mid}).")
         userdata["successful_mids"].append(mid)
     else:
-        raise RuntimeError(f"Client '{userdata.get('id')}' FAILED to subscribe (mid {mid}): {reason_codes}")
+        raise RuntimeError(
+            f"Client '{userdata.get('id')}' FAILED to subscribe (mid {mid}): {reason_codes}"
+        )
 
     sorted_registered_mids = sorted(userdata.get("registered_mids"))
     sorted_successful_mids = sorted(userdata.get("successful_mids"))
@@ -91,19 +95,21 @@ def on_subscribe(client, userdata, mid, reason_code_list, properties):
         # All mids now registered
         userdata["ready"].set()
 
+
 def on_connect_fail(client, userdata):
     print(f"Client '{userdata.get("id")}' failed to connect.")
     raise RuntimeError(f"Client '{userdata.get("id")}' failed to connect.")
 
+
 def on_connect(client, userdata, flags, rc, properties):
     id = userdata.get("id")
-    
+
     # Check connection was ok
     if rc != 0:
         raise TimeoutError("{id} client failed to connect.")
-    else:
+    elif id != "publisher":
         print(f"Client {id} successfully connected to broker.")
-    
+
     # Selectively subscribe to topics
     topics = userdata.get("topics")
 
@@ -111,9 +117,10 @@ def on_connect(client, userdata, flags, rc, properties):
     if isinstance(topics, str):
         topics = [topics]
     elif topics == None:
-        print("No topics registered. Ready and exiting")
+        if id != "publisher":
+            print("No topics registered. Ready and exiting")
         userdata["ready"].set()
-        return 
+        return
 
     # Verify topics is list, otherwise exit
     if not isinstance(topics, list):
@@ -123,10 +130,11 @@ def on_connect(client, userdata, flags, rc, properties):
     for topic in topics:
         result, mid = client.subscribe(topic=topic, qos=2)
         userdata["registered_mids"].append(mid)
-        
+
         if result != mqtt.MQTT_ERR_SUCCESS:
             raise RuntimeError(f"Client {id} unable to subscribe to {topic}")
-    
+
+
 class MQTTClient:
     """
     A class to simplify the process of creating and setting up MQTT clients.
@@ -169,17 +177,18 @@ class MQTTClient:
         self.client = mqtt.Client(
             client_id=id,
             callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
-            userdata={"id": id,
-                      "topics": topics,
-                      "registered_mids": [],
-                      "successful_mids": [],
-                      "ready": self.ready_event
-                      },
+            userdata={
+                "id": id,
+                "topics": topics,
+                "registered_mids": [],
+                "successful_mids": [],
+                "ready": self.ready_event,
+            },
         )
         self.client.on_connect = on_connect
         self.client.on_subscribe = on_subscribe
         self.client.enable_logger()
-        
+
         self.obj = obj
         self.callback = callback
         if user is not None:
@@ -203,7 +212,6 @@ class MQTTClient:
         """
         msg = self.client.publish(topic, msg, 2)
         msg.wait_for_publish()
-        
 
     @property
     def callback(self):
@@ -238,11 +246,11 @@ def load_message(msg):
 class MQTTPublisher:
     """
     A thread-safe singleton class for publishing MQTT messages.
-    
+
     This class provides a central object for message publishing, shared throughout
     the application. It implements the singleton pattern to ensure only one
     publisher instance exists.
-    
+
     Usage:
         # First initialization with connection parameters
         publisher = MQTTPublisher.get_instance(
@@ -252,25 +260,26 @@ class MQTTPublisher:
             user="username",
             password="password"
         )
-        
+
         # Later usage from anywhere in the application
         publisher = MQTTPublisher.get_instance()
         publisher.publish("topic/subtopic", "message payload")
-    
+
     Note:
         The instance must be initialized with parameters on first call to get_instance().
         Subsequent calls can omit parameters and will return the existing instance.
     """
+
     _instance = None
 
     def __init__(
-            self,
-            id: str = "publisher",
-            broker_address: str = "localhost",
-            port: int = 1883,
-            user: Optional[str] = None,
-            password: Optional[str] = None,
-            connection_timeout: int = 0,
+        self,
+        id: str = "publisher",
+        broker_address: str = "localhost",
+        port: int = 1883,
+        user: Optional[str] = None,
+        password: Optional[str] = None,
+        connection_timeout: int = 0,
     ):
         self.client = MQTTClient(
             id=id,
@@ -283,7 +292,7 @@ class MQTTPublisher:
             connection_timeout=connection_timeout,
         )
         self._lock = threading.Lock()
-        
+
     def publish(self, topic: str, payload: str):
         with self._lock:
             try:
@@ -295,9 +304,16 @@ class MQTTPublisher:
     def get_instance(cls, **kwargs):
         if cls._instance is None:
             if not kwargs:
-                raise RuntimeError("MQTTPublisher not yet initialised; call get_instance(...) with parameters first")
+                raise RuntimeError(
+                    "MQTTPublisher not yet initialised; call get_instance(...) with parameters first"
+                )
             cls._instance = cls(**kwargs)
         elif cls._instance is not None and kwargs:
             print("MQTTPublisher already initialised; further parameters are ignored")
 
+        # Only return once connected
+        t = 2000  # timeout in ms
+        while not cls._instance.client.client.is_connected() and t > 0:
+            time.sleep(0.001)
+            t -= 1
         return cls._instance

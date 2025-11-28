@@ -11,7 +11,7 @@ elif board == "linux":
 
 
 def connect_wifi(ssid, password):
-    """ Connect to the wifi network
+    """Connect to the wifi network
 
     Returns:
         None
@@ -36,7 +36,7 @@ def timeout_mqtt(timer):
 
 
 def connect_mqtt(client_name, ip_address, port=1883, user=None, password=None):
-    """ Connect to the mqtt broker
+    """Connect to the mqtt broker
     Args:
         client_name: str: The name of the client
         ip_address: str: The ip address of the mqtt broker
@@ -47,20 +47,19 @@ def connect_mqtt(client_name, ip_address, port=1883, user=None, password=None):
     Returns:
         MQTTClient: The mqtt client object
     """
-    c = MQTTClient(f'{client_name}-{random.randint(0, 10000)}',
-                   ip_address,
-                   port=port,
-                   user=user,
-                   password=password
-                   )
+    c = MQTTClient(
+        f"{client_name}-{random.randint(0, 10000)}",
+        ip_address,
+        port=port,
+        user=user,
+        password=password,
+    )
 
     if board == "rp2":
-        timeout_timer = Timer(period=5000,
-                              mode=Timer.ONE_SHOT,
-                              callback=timeout_mqt)
+        timeout_timer = Timer(period=5000, mode=Timer.ONE_SHOT, callback=timeout_mqt)
     c.connect()
     if board == "rp2":
         timeout_timer.deinit()
-    print(f'Connected to the mqtt broker at {ip_address}:{port}')
+    print(f"Connected to the mqtt broker at {ip_address}:{port}")
 
     return c

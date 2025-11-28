@@ -2,6 +2,7 @@ import json
 import textwrap
 from mqtt_clients import MQTTPublisher
 
+
 def wrong_json(msg, e, source="controller"):
     """
     Publishes an error message when a JSON message cannot be decoded.

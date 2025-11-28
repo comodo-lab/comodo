@@ -1,0 +1,19 @@
+
+# This compose file runs the tests for the setpoint controller and exits when done.
+# To run the tests, cd into setpoint_controller/ and execute:
+#   docker compose up --build
+
+name: setpoint-controller-tests
+services:
+  setpoint-controller:
+    build:
+      context: ../
+      dockerfile: setpoint_controller/Dockerfile
+    container_name: setpoint-controller
+    volumes:
+      - memory:/memory  # Used to persist pytest cache between runs
+    command: bash -c "coverage run -m pytest tests/ && echo '' && coverage report && coverage html -d /memory/htmlcov"
+    # command: ["python","-m", "pytest", "tests/", "-vv"] #, "--lf"] #, "--reruns", "3", "--reruns-delay", "1"]
+
+volumes:
+  memory:

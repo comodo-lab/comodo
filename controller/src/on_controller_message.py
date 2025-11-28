@@ -48,7 +48,9 @@ def c_idle(client, msg, obj):
         obj.exp_config = exp_config
         # Update state and callback of controller
         client.callback = c_starting
-        MQTTPublisher.get_instance().publish("controller/start", json.dumps({"uid": m["uid"]}))
+        MQTTPublisher.get_instance().publish(
+            "controller/start", json.dumps({"uid": m["uid"]})
+        )
     except ValidationException as e:
         experiment_validation_error(e, temp_uid)
         obj.experiment_uid = None
@@ -92,10 +94,14 @@ def c_starting(client, msg, obj):
     # Update state and callback of controller
     obj.status = "awaiting_sensors"
     client.callback = c_ready
-    MQTTPublisher.get_instance().publish("timer/start/sensor_setup", json.dumps({"uid": obj.experiment_uid}))
+    MQTTPublisher.get_instance().publish(
+        "timer/start/sensor_setup", json.dumps({"uid": obj.experiment_uid})
+    )
     # Send sensor config
     for sensor in obj.exp_config["config"]["sensors"]:
-        MQTTPublisher.get_instance().publish(f"sensor/{sensor['name']}/setup", json.dumps(sensor))
+        MQTTPublisher.get_instance().publish(
+            f"sensor/{sensor['name']}/setup", json.dumps(sensor)
+        )
 
 
 def c_ready(client, msg, obj):
@@ -121,7 +127,9 @@ def c_ready(client, msg, obj):
     assign_serial_id(obj)
     # Update state and callback of controller
     client.callback = c_running
-    MQTTPublisher.get_instance().publish("controller/run", json.dumps({"uid": obj.experiment_uid}))
+    MQTTPublisher.get_instance().publish(
+        "controller/run", json.dumps({"uid": obj.experiment_uid})
+    )
 
 
 def c_running(client, msg, obj):
@@ -147,7 +155,9 @@ def c_running(client, msg, obj):
         obj.past_setpoints.append(obj.current_setpoint)
         obj.current_setpoint = None
         client.callback = c_stopping
-        MQTTPublisher.get_instance().publish("controller/end", json.dumps({"uid": obj.experiment_uid}))
+        MQTTPublisher.get_instance().publish(
+            "controller/end", json.dumps({"uid": obj.experiment_uid})
+        )
         return
 
     if obj.current_setpoint is None:
@@ -157,7 +167,16 @@ def c_running(client, msg, obj):
     next_setpoint = obj.setpoints.pop(0)
     obj.current_setpoint = next_setpoint
     print(f"Next setpoint: {next_setpoint}")
-    MQTTPublisher.get_instance().publish("sensor/setpoint", json.dumps(next_setpoint))
+    duration = next_setpoint.get("duration")
+    for sensor, setpoint in next_setpoint.items():
+        if sensor == "duration":
+            continue
+        sp = {sensor: setpoint}
+        if duration is not None:
+            sp["duration"] = duration
+        MQTTPublisher.get_instance().publish(
+            f"sensor/{sensor}/setpoint", json.dumps(sp)
+        )
     MQTTPublisher.get_instance().publish(
         "timer/start/setpoint",
         json.dumps({"uid": obj.experiment_uid, "duration": next_setpoint["duration"]}),
@@ -194,6 +213,8 @@ def c_stopping(client, msg, obj):
         ###
         uid = obj.experiment_uid
         obj.reset()
-        MQTTPublisher.get_instance().publish("controller/stopped", json.dumps({"uid": uid}))
+        MQTTPublisher.get_instance().publish(
+            "controller/stopped", json.dumps({"uid": uid})
+        )
     else:
         incompatible_uid(obj, msg)

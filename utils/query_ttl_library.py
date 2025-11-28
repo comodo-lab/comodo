@@ -9,8 +9,7 @@ graph_files = {
     "graph1": "GDPS_1.ttl",
     "graph2": "GDPS_2.ttl",
     "graph3": "GDPS_3.ttl",
-    "graph4": "GDPS_4.ttl"
-    
+    "graph4": "GDPS_4.ttl",
 }
 
 for name, file in graph_files.items():
@@ -18,14 +17,17 @@ for name, file in graph_files.items():
     g = Graph(dataset.store, uri)
     g.parse(file, format="ttl")
 
+
 # --- Utilities ---
 def get_local_name(uri):
-    return str(uri).split('/')[-1].split('#')[-1]
+    return str(uri).split("/")[-1].split("#")[-1]
+
 
 def get_unique_subjects():
     query = "SELECT DISTINCT ?s WHERE { GRAPH ?g { ?s ?p ?o . } }"
     results = dataset.query(query)
     return sorted(set(get_local_name(row.s) for row in results if row.s))
+
 
 def get_predicates_for_subject(subject_local):
     query = f"""
@@ -35,6 +37,7 @@ def get_predicates_for_subject(subject_local):
     """
     results = dataset.query(query)
     return sorted(set(get_local_name(row.p) for row in results if row.p))
+
 
 def get_objects_for_predicate(subject_local, predicate_local):
     query = f"""
@@ -46,6 +49,7 @@ def get_objects_for_predicate(subject_local, predicate_local):
     """
     results = dataset.query(query)
     return sorted(set(str(row.o) for row in results if row.o))
+
 
 def find_matching_graphs(filters):
     where_clauses = ""
@@ -67,6 +71,7 @@ def find_matching_graphs(filters):
     }}
     """
     return [row.g for row in dataset.query(query)]
+
 
 def get_all_experiment_related_predicates():
     query = """
@@ -91,10 +96,14 @@ def get_all_experiment_related_predicates():
     }
     """
     results = dataset.query(query)
-    return sorted(set(
-        get_local_name(row.p)
-        for row in results if row.p and get_local_name(row.p) not in ("name", "uuid")
-    ))
+    return sorted(
+        set(
+            get_local_name(row.p)
+            for row in results
+            if row.p and get_local_name(row.p) not in ("name", "uuid")
+        )
+    )
+
 
 def get_experiments_in_graph(graph_uri, extra_preds):
     select_clause = "?experiment ?uuid ?name"
@@ -129,7 +138,8 @@ def get_experiments_in_graph(graph_uri, extra_preds):
     """
     return dataset.query(query)
 
-##### GPT generated UI ##### Change to comodo 
+
+##### GPT generated UI ##### Change to comodo
 # --- UI Setup ---
 root = tk.Tk()
 root.title("RDF Multi-Graph Query Builder")
@@ -144,15 +154,22 @@ filters = {}
 
 # --- Subject Frame ---
 frame_s = tk.Frame(root)
-frame_s.pack(pady=10, fill='x')
+frame_s.pack(pady=10, fill="x")
 
 ttk.Label(frame_s, text="Select a subject:").pack(anchor="w")
 frame_s_inner = tk.Frame(frame_s)
-frame_s_inner.pack(fill='x')
+frame_s_inner.pack(fill="x")
 
 subjects = get_unique_subjects()
-s_menu = ttk.Combobox(frame_s_inner, textvariable=selected_subject, values=subjects, state="readonly", width=40)
-s_menu.pack(side="left", padx=(0,10))
+s_menu = ttk.Combobox(
+    frame_s_inner,
+    textvariable=selected_subject,
+    values=subjects,
+    state="readonly",
+    width=40,
+)
+s_menu.pack(side="left", padx=(0, 10))
+
 
 def confirm_subject():
     global current_subject, filters
@@ -161,44 +178,56 @@ def confirm_subject():
         return
     current_subject = subj
     filters = {subj: ("", "")}
-    predicate_menu['values'] = get_predicates_for_subject(subj)
-    predicate_menu.set('')
-    object_menu.set('')
-    object_menu['values'] = []
+    predicate_menu["values"] = get_predicates_for_subject(subj)
+    predicate_menu.set("")
+    object_menu.set("")
+    object_menu["values"] = []
 
-ttk.Button(frame_s_inner, text="Confirm Subject", command=confirm_subject).pack(side="left")
+
+ttk.Button(frame_s_inner, text="Confirm Subject", command=confirm_subject).pack(
+    side="left"
+)
 
 # --- Predicate Frame ---
 frame_p = tk.Frame(root)
-frame_p.pack(pady=10, fill='x')
+frame_p.pack(pady=10, fill="x")
 
 ttk.Label(frame_p, text="Predicate:").pack(anchor="w")
 frame_p_inner = tk.Frame(frame_p)
-frame_p_inner.pack(fill='x')
+frame_p_inner.pack(fill="x")
 
-predicate_menu = ttk.Combobox(frame_p_inner, textvariable=selected_predicate, state="readonly", width=40)
-predicate_menu.pack(side="left", padx=(0,10))
+predicate_menu = ttk.Combobox(
+    frame_p_inner, textvariable=selected_predicate, state="readonly", width=40
+)
+predicate_menu.pack(side="left", padx=(0, 10))
+
 
 def confirm_predicate():
     pred = selected_predicate.get()
     if not pred or not current_subject:
         return
-    object_menu['values'] = get_objects_for_predicate(current_subject, pred)
-    object_menu.set('')
+    object_menu["values"] = get_objects_for_predicate(current_subject, pred)
+    object_menu.set("")
     filters[current_subject] = (pred, "")
 
-ttk.Button(frame_p_inner, text="Confirm Predicate", command=confirm_predicate).pack(side="left")
+
+ttk.Button(frame_p_inner, text="Confirm Predicate", command=confirm_predicate).pack(
+    side="left"
+)
 
 # --- Object Frame ---
 frame_o = tk.Frame(root)
-frame_o.pack(pady=10, fill='x')
+frame_o.pack(pady=10, fill="x")
 
 ttk.Label(frame_o, text="Object:").pack(anchor="w")
 frame_o_inner = tk.Frame(frame_o)
-frame_o_inner.pack(fill='x')
+frame_o_inner.pack(fill="x")
 
-object_menu = ttk.Combobox(frame_o_inner, textvariable=selected_object, state="readonly", width=40)
-object_menu.pack(side="left", padx=(0,10))
+object_menu = ttk.Combobox(
+    frame_o_inner, textvariable=selected_object, state="readonly", width=40
+)
+object_menu.pack(side="left", padx=(0, 10))
+
 
 def confirm_object():
     obj = selected_object.get()
@@ -207,29 +236,43 @@ def confirm_object():
     pred = selected_predicate.get()
     filters[current_subject] = (pred, obj)
 
-ttk.Button(frame_o_inner, text="Confirm Object", command=confirm_object).pack(side="left")
+
+ttk.Button(frame_o_inner, text="Confirm Object", command=confirm_object).pack(
+    side="left"
+)
 
 # --- Extra Fields Frame ---
 frame_extra = tk.Frame(root)
-frame_extra.pack(pady=10, fill='x')
-ttk.Label(frame_extra, text="Optional extra fields to display from Experiment/MetaData/Data:").pack(anchor="w")
+frame_extra.pack(pady=10, fill="x")
+ttk.Label(
+    frame_extra, text="Optional extra fields to display from Experiment/MetaData/Data:"
+).pack(anchor="w")
 
 extra_fields_inner = tk.Frame(frame_extra)
-extra_fields_inner.pack(fill='x')
+extra_fields_inner.pack(fill="x")
 
 extra_predicates = [""] + get_all_experiment_related_predicates()
 
 
 for i in range(3):
-    menu = ttk.Combobox(extra_fields_inner, textvariable=extra_field_vars[i], values=extra_predicates, state="readonly", width=25)
+    menu = ttk.Combobox(
+        extra_fields_inner,
+        textvariable=extra_field_vars[i],
+        values=extra_predicates,
+        state="readonly",
+        width=25,
+    )
     menu.pack(side="left", padx=5)
+
 
 # --- Search + Output ---
 def on_search():
     result_output.config(state="normal")
     result_output.delete(1.0, tk.END)
 
-    if not all([selected_subject.get(), selected_predicate.get(), selected_object.get()]):
+    if not all(
+        [selected_subject.get(), selected_predicate.get(), selected_object.get()]
+    ):
         result_output.insert(tk.END, " Please confirm subject, predicate, and object.")
         result_output.config(state="disabled")
         return
@@ -253,9 +296,12 @@ def on_search():
 
     result_output.config(state="disabled")
 
+
 ttk.Button(root, text="Search", command=on_search).pack(pady=10)
 
-result_output = tk.Text(root, height=12, wrap="word", state="disabled", background="#f5f5f5")
+result_output = tk.Text(
+    root, height=12, wrap="word", state="disabled", background="#f5f5f5"
+)
 result_output.pack(fill="both", expand=True, padx=10, pady=10)
 
 root.mainloop()

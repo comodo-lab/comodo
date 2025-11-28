@@ -3,6 +3,8 @@ import requests
 
 from sensor import BaseSensor
 
+from sensor import BaseSensor
+
 # Configuration Parameters
 VERBOSE = True
 SCAN_COUNT = 1
@@ -160,6 +162,7 @@ class MMSP:
         return scan_dict
 
 
+
 @BaseSensor.register_sensor("mass_spec")
 class MassSpec(BaseSensor):
 
@@ -172,7 +175,7 @@ class MassSpec(BaseSensor):
         return
 
     def get_measurement(self, state):
-        """ Get the measurement
+        """Get the measurement
 
         Returns:
             float: A random temperature value for testing purposes

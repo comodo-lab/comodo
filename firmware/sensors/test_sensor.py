@@ -20,7 +20,7 @@ class TestSensor(BaseSensor):
         return
 
     def get_measurement(self, state):
-        """ Get the measurement
+        """Get the measurement
 
         Returns:
             float: A random temperature value for testing purposes
@@ -34,19 +34,21 @@ class TestSensor(BaseSensor):
 
         # Move a little toward the setpoint
         difference = setpoint - value
-        half_diff = max(difference/2, 5)
+        half_diff = max(difference / 2, 5)
 
         measurement = half_diff + value + vary_by
 
         distance = abs(value - setpoint)
         if distance < tolerance:
-            state.client.publish(f"sensor/{state.config['SENSOR_ID']}/setpoint_reached", "true")
+            state.client.publish(
+                f"sensor/{state.config['SENSOR_ID']}/setpoint_reached", "true"
+            )
 
         state.measurement = measurement
         return measurement
 
     def go_to_setpoint(self, setpoint):
-        """ Go to the setpoint
+        """Go to the setpoint
         Args:
             setpoint: float: The setpoint
         Returns:

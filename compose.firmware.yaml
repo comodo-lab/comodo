@@ -3,13 +3,15 @@ x-templates:
     build:
       context: firmware
       dockerfile: Dockerfile-micropython
-    network_mode: host
+    networks:
+      comodo-network:
 
   python-sensor-template: &python-sensor-template
     build:
       context: firmware
       dockerfile: Dockerfile-python
-    network_mode: host
+    networks:
+      comodo-network:
 
 name: comodo-firmware
 services:
@@ -53,6 +55,28 @@ services:
     devices:
       - "/dev/ttyUSB1:/dev/ttyUSB1"
     privileged: true  # Optional but recommended for USB/serial access
+
+  setpoint-controller:
+    build:
+      context: .
+      dockerfile: setpoint_controller/Dockerfile
+    networks:
+      comodo-network:
+    environment:
+      - HEARTBEAT_INTERVAL=1000
+      - MQTT_HOST=$MQTT_HOST
+      - MQTT_USER=$MQTT_USER
+      - MQTT_PASS=$MQTT_PASS
+      - SENSOR=pressure_upstream
+      - ACTUATOR=massflow
+      - K_P=1
+      - K_I=0.1
+      - K_D=0.05
+      - K_AW=0.05
+      - K_DF=0.01
+      - OUT_MIN=0
+      - OUT_MAX=100
+      # - OUT_MAX_R=10
 
   massflow:
     <<: *python-sensor-template
@@ -101,6 +125,11 @@ services:
       - MEASUREMENT_INTERVAL=1000
     volumes:
       - massflow_read:/shared
+
+networks:
+  comodo-network:
+    name: comodo
+    external: true
 
 volumes:
   massflow_read:
