@@ -168,8 +168,15 @@ def message_bus(request):
     if hasattr(request.node, "rep_call") and request.node.rep_call.failed:
         print("Message Bus History:")
         print("-" * 60)
-        for message in message_bus.get_messages():
-            print(f"  {message.topic}: {message.payload.decode('utf-8')}")
+        messages = message_bus.get_messages()
+        first_n = 50 if len(messages) > 50 else len(messages)
+        lasst_n = 50 if len(messages) > 100 else max(0, len(messages) - first_n)
+        for i, message in enumerate(messages[:first_n]):
+            print(f" [{i}] {message.topic}: {message.payload.decode('utf-8')}")
+        if lasst_n > 0:
+            print("...  " * 10 + "\n")
+        for i, message in enumerate(messages[-lasst_n:]):
+            print(f" [{i}] {message.topic}: {message.payload.decode('utf-8')}")
         print("-" * 60 + "\n")
 
 
