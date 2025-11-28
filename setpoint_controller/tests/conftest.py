@@ -66,8 +66,9 @@ def mock_MQTTClient(message_bus):
 
             # Wrapper to adapt message bus callback to MQTT client callback signature
             def callback_wrapper(topic, msg):
-                # Original: (client, msg, obj), where client here is self (automatically passed)
-                callback(msg, obj)
+                if callback is not None:
+                    # Pass mock_instance as `client`
+                    callback(mock_instance, msg, obj)
 
             # Subscribe to topics using the message bus
             if isinstance(topics, str):
