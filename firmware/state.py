@@ -82,7 +82,7 @@ class SensorState(object):
         """The callback function for the mqtt client when the sensor is awaiting setpoint
         Can move to the adjusting state if the setpoint is set
 
-        Listens to: sensor/setpoint
+        Listens to: sensor/{SENSOR_ID}/setpoint
         Next states: adjusting
 
         Args:
@@ -93,7 +93,7 @@ class SensorState(object):
             None
         """
 
-        if topic.decode("utf-8") == f"sensor/setpoint":
+        if topic.decode("utf-8") == f"sensor/{self.config['SENSOR_ID']}/setpoint":
             params = json.loads(msg)
             self.status["setpoint"] = params[self.config["SENSOR_ID"]]
             self.sensor.go_to_setpoint(self.status["setpoint"])
@@ -104,7 +104,7 @@ class SensorState(object):
         """The callback function for the mqtt client when the sensor is adjusting
         Can move to the ready state if the sensor is ready
 
-        Listens to: sensor/setpoint
+        Listens to: sensor/{SENSOR_ID}/setpoint
                     sensor/{SENSOR_ID}/setpoint_reached
         Next states: ready, adjusting
 
@@ -116,7 +116,7 @@ class SensorState(object):
             None
         """
 
-        if topic.decode("utf-8") == f"sensor/setpoint":
+        if topic.decode("utf-8") == f"sensor/{self.config['SENSOR_ID']}/setpoint":
             params = json.loads(msg)
             self.status["setpoint"] = params[self.config["SENSOR_ID"]]
             self.sensor.go_to_setpoint(self.status["setpoint"])
@@ -146,7 +146,7 @@ class SensorState(object):
             None
         """
 
-        if topic.decode("utf-8") == "sensor/setpoint":
+        if topic.decode("utf-8") == f"sensor/{self.config['SENSOR_ID']}/setpoint":
             params = json.loads(msg)
             self.status["setpoint"] = params[self.config["SENSOR_ID"]]
             self.sensor.go_to_setpoint(self.status["setpoint"])

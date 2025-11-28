@@ -161,7 +161,7 @@ async def main():
     state.client.set_callback(state.awaiting_config_cb)
     state.client.subscribe(f"sensor/{state.config['SENSOR_ID']}/setup")
     state.client.subscribe(f"sensor/{state.config['SENSOR_ID']}/setpoint_reached")
-    state.client.subscribe(f"sensor/setpoint")
+    state.client.subscribe(f"sensor/{state.config['SENSOR_ID']}/setpoint")
     state.client.subscribe(f"controller/end")
     state.client.subscribe(f"controller/stop")
     print("Subscribed to topics")
