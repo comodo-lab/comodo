@@ -56,6 +56,28 @@ services:
       - "/dev/ttyUSB1:/dev/ttyUSB1"
     privileged: true  # Optional but recommended for USB/serial access
 
+  setpoint-controller:
+    build:
+      context: .
+      dockerfile: setpoint_controller/Dockerfile
+    networks:
+      comodo-network:
+    environment:
+      - HEARTBEAT_INTERVAL=1000
+      - MQTT_HOST=$MQTT_HOST
+      - MQTT_USER=$MQTT_USER
+      - MQTT_PASS=$MQTT_PASS
+      - SENSOR=pressure_upstream
+      - ACTUATOR=massflow
+      - K_P=1
+      - K_I=0.1
+      - K_D=0.05
+      - K_AW=0.05
+      - K_DF=0.01
+      - OUT_MIN=0
+      - OUT_MAX=100
+      # - OUT_MAX_R=10
+
   massflow:
     <<: *python-sensor-template
     environment:
