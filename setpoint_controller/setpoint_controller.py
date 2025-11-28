@@ -97,7 +97,7 @@ class SetpointController:
         # Initialize MQTT client
         self.pid_client = MQTTClient(
             id=self.pid.id,
-            callback=self.on_sensor_message,
+            callback=SetpointController.on_sensor_message,
             topics=[f"sensor/{sensor}/setpoint", f"measurement/{sensor}"],
             broker_address=mqtt_host,
             user=mqtt_user,
@@ -111,6 +111,7 @@ class SetpointController:
             json.dumps({self.pid.sensor: None}),
         )
 
+    @staticmethod  # Prevents passing 'self' as first argument, conflicting with MQTTClient callback signature
     def on_sensor_message(client, msg, pid):
         """Callback function for handling sensor messages."""
         try:
