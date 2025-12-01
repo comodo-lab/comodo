@@ -2,7 +2,7 @@ FROM python:3.11-slim
 
 # Install dependencies
 COPY /setpoint_controller/requirements.txt ./requirements.txt
-RUN pip install --no-cache -r requirements.txt
+RUN pip install --timeout=100 --no-cache -r requirements.txt
 
 # Copy setpoint_controller code
 WORKDIR /setpoint_controller
