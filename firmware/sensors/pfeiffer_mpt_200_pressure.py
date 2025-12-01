@@ -140,7 +140,7 @@ class PressureDownstream(BaseSensor):
         pass
 
     def get_measurement(self, state):
-        measurement = get_pressure("/dev/ttyUSB0")
+        measurement = get_pressure("/dev/ttyUSB1")
         state.measurement = measurement
         return measurement
 
@@ -158,6 +158,6 @@ class PressureUpstream(BaseSensor):
         pass
 
     def get_measurement(self, state):
-        measurement = get_pressure("/dev/ttyUSB1")
+        measurement = get_pressure("/dev/ttyUSB0")
         state.measurement = measurement
         return measurement
