@@ -6,6 +6,7 @@ import os
 import threading
 from threading import Event
 import time
+import random
 
 
 def print_message(client, msg, timestamped=False):
@@ -274,13 +275,16 @@ class MQTTPublisher:
 
     def __init__(
         self,
-        id: str = "publisher",
+        id: str = None,
         broker_address: str = "localhost",
         port: int = 1883,
         user: Optional[str] = None,
         password: Optional[str] = None,
         connection_timeout: int = 0,
     ):
+        if id is None:
+            id = f"publisher-{random.randint(0, 32768)}"
+
         self.client = MQTTClient(
             id=id,
             topics=None,
