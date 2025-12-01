@@ -315,6 +315,11 @@ class MassFlow(BaseSensor):
             print("Setpoint must be between 0 and 100%.")
             return None
 
+        # Maximum setpoint 10% for testing purposes
+        if setpoint > 10:
+            print("Setpoint capped to 10% for testing purposes.")
+            setpoint = 10
+
         # Convert percentage to instrument scale (0-32000)
         instrument_setpoint = (setpoint / 100) * 32000
         result = write_general(
