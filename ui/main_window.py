@@ -29,7 +29,7 @@ PARAMS = [
     "temp_left",
     "temp_main",
     "temp_right",
-    "massflow"
+    "pressure_upstream",
 ]
 
 def get_experiment_designer(data=[]):

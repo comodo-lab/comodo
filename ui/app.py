@@ -64,7 +64,7 @@ PARAM_DICT = [
     {'name': 'temp_left', 'min': 0, 'max': 1000, 'step': 1},
     {'name': 'temp_main', 'min': 0, 'max': 1000, 'step': 1},
     {'name': 'temp_right', 'min': 0, 'max': 1000, 'step': 1},
-    {'name': 'massflow', 'min': 0, 'max': 100, 'step': 0.1},
+    {'name': 'pressure_upstream', 'min': 0, 'max': 10, 'step': 0.1},
 ]
 
 INI_EXPERIMENT_CONFIG = [
@@ -81,8 +81,8 @@ INI_DATA_DICT = [
         "temp_main_profile": "linear",
         "temp_right": 0.0,
         "temp_right_profile": "linear",
-        "massflow": 0.0,
-        "massflow_profile": "linear"
+        "pressure_upstream": 0.0,
+        "pressure_upstream_profile": "linear"
     },
     {
         "time": 30,
@@ -92,8 +92,8 @@ INI_DATA_DICT = [
         "temp_main_profile": "linear",
         "temp_right": 250.0,
         "temp_right_profile": "exponential",
-        "massflow": 5.0,
-        "massflow_profile": "step"
+        "pressure_upstream": 8.0,
+        "pressure_upstream_profile": "step"
     },
     {
         "time": 60,
@@ -103,8 +103,8 @@ INI_DATA_DICT = [
         "temp_main_profile": "step",
         "temp_right": 0.0,
         "temp_right_profile": "step",
-        "massflow": 0.0,
-        "massflow_profile": "step"
+        "pressure_upstream": 0.0,
+        "pressure_upstream_profile": "step"
     },
 ]
 
