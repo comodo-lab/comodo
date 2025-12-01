@@ -304,7 +304,10 @@ class MassFlow(BaseSensor):
             print("Failed to read Flow_Rate_Measured from file.")
             return None
 
-        return flow_rate
+        converted_flow_rate = (flow_rate / 32000) * 100  # Convert to percentage
+        state.measurement = converted_flow_rate
+
+        return converted_flow_rate
 
     def go_to_setpoint(self, setpoint):
         if self.instrument is None:
