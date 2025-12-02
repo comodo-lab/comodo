@@ -127,7 +127,7 @@ class SetpointController:
 
         if msg.topic == f"sensor/{pid.sensor}/setpoint":
             setpoint = message.get(pid.sensor)
-            if setpoint:
+            if setpoint is not None:
                 pid.setpoint = setpoint
                 MQTTPublisher.get_instance().publish(
                     f"{pid.id}/setpoint",

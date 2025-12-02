@@ -232,6 +232,24 @@ class Test_on_setpoint_message:
             json.dumps({mock_pid.sensor: setpoint_value}),
         )
 
+    def test_zero_is_valid_setpoint(self, mock_pid, mock_MQTTPublisher):
+        client = Mock()
+        setpoint_value = 0.0
+        assert mock_pid.setpoint != setpoint_value
+        msg = MockMessage(
+            f"sensor/{mock_pid.sensor}/setpoint",
+            json.dumps({mock_pid.sensor: setpoint_value}),
+        )
+
+        SetpointController.on_sensor_message(client, msg, mock_pid)
+
+        assert mock_pid.setpoint == setpoint_value
+        # Should publish updated setpoint
+        mock_MQTTPublisher.publish.assert_called_once_with(
+            f"{mock_pid.id}/setpoint",
+            json.dumps({mock_pid.sensor: setpoint_value}),
+        )
+
     def test_ignores_other_setpoints(self, mock_pid, mock_MQTTPublisher):
         client = Mock()
         msg = MockMessage(
