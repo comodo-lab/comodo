@@ -167,7 +167,16 @@ def c_running(client, msg, obj):
     next_setpoint = obj.setpoints.pop(0)
     obj.current_setpoint = next_setpoint
     print(f"Next setpoint: {next_setpoint}")
-    MQTTPublisher.get_instance().publish("sensor/setpoint", json.dumps(next_setpoint))
+    duration = next_setpoint.get("duration")
+    for sensor, setpoint in next_setpoint.items():
+        if sensor == "duration":
+            continue
+        sp = {sensor: setpoint}
+        if duration is not None:
+            sp["duration"] = duration
+        MQTTPublisher.get_instance().publish(
+            f"sensor/{sensor}/setpoint", json.dumps(sp)
+        )
     MQTTPublisher.get_instance().publish(
         "timer/start/setpoint",
         json.dumps({"uid": obj.experiment_uid, "duration": next_setpoint["duration"]}),

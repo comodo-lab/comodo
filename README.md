@@ -245,6 +245,3 @@ docker compose -f compose.firmware.yaml up --build -d
 
 #### Bringing the firmware down
 If you must bring the stack down and want to start from scratch, run `docker compose -f compose.firmware.yaml down -v`.
-
-
-
