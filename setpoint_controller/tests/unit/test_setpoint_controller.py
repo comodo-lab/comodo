@@ -196,7 +196,11 @@ class Test_SetpointController_init:
         mocks["client_class"].assert_called_once_with(
             id="pid/A__B",
             callback=spc.on_sensor_message,
-            topics=["sensor/A/setpoint", "measurement/A"],
+            topics=[
+                "sensor/A/setpoint",
+                "measurement/A",
+                "sensor/A/setpoint_reached",
+            ],
             broker_address="test_host",
             user="test_user",
             password="test_pass",
@@ -315,3 +319,22 @@ class Test_on_measurement_message:
                 f"sensor/{mock_pid.actuator}/setpoint",
                 json.dumps({mock_pid.actuator: 6.7}),
             )
+
+
+class Test_on_setpoint_reached_message:
+
+    def test_resets_setpoint_on_reached(self, mock_pid, mock_MQTTPublisher):
+        client = Mock()
+        mock_pid.setpoint = 50.0
+        msg = MockMessage(
+            f"sensor/{mock_pid.sensor}/setpoint_reached",
+            json.dumps({mock_pid.sensor: True}),
+        )
+
+        SetpointController.on_sensor_message(client, msg, mock_pid)
+
+        assert mock_pid.setpoint is None
+        mock_MQTTPublisher.publish.assert_called_once_with(
+            f"{mock_pid.id}/setpoint_reached",
+            json.dumps({mock_pid.sensor: True}),
+        )

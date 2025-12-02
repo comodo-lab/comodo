@@ -99,7 +99,11 @@ class SetpointController:
         self.pid_client = MQTTClient(
             id=self.pid.id,
             callback=SetpointController.on_sensor_message,
-            topics=[f"sensor/{sensor}/setpoint", f"measurement/{sensor}"],
+            topics=[
+                f"sensor/{sensor}/setpoint",
+                f"measurement/{sensor}",
+                f"sensor/{sensor}/setpoint_reached",
+            ],
             broker_address=mqtt_host,
             user=mqtt_user,
             password=mqtt_pass,
@@ -141,6 +145,13 @@ class SetpointController:
                     f"sensor/{pid.actuator}/setpoint",
                     json.dumps({pid.actuator: setpoint}),
                 )
+            return
+        elif msg.topic == f"sensor/{pid.sensor}/setpoint_reached":
+            pid.setpoint = None
+            MQTTPublisher.get_instance().publish(
+                f"{pid.id}/setpoint_reached",
+                json.dumps({pid.sensor: True}),
+            )
             return
 
     def start_heartbeat_loop(self):
