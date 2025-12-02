@@ -6,6 +6,7 @@ import os
 import threading
 from threading import Event
 import time
+import random
 
 
 def print_message(client, msg, timestamped=False):
@@ -107,7 +108,7 @@ def on_connect(client, userdata, flags, rc, properties):
     # Check connection was ok
     if rc != 0:
         raise TimeoutError("{id} client failed to connect.")
-    elif id != "publisher":
+    elif id.startswith("publisher"):
         print(f"Client {id} successfully connected to broker.")
 
     # Selectively subscribe to topics
@@ -116,8 +117,8 @@ def on_connect(client, userdata, flags, rc, properties):
     # Convert to list if needed
     if isinstance(topics, str):
         topics = [topics]
-    elif topics == None:
-        if id != "publisher":
+    elif topics is None:
+        if not id.startswith("publisher"):
             print("No topics registered. Ready and exiting")
         userdata["ready"].set()
         return
@@ -274,13 +275,16 @@ class MQTTPublisher:
 
     def __init__(
         self,
-        id: str = "publisher",
+        id: None,
         broker_address: str = "localhost",
         port: int = 1883,
         user: Optional[str] = None,
         password: Optional[str] = None,
         connection_timeout: int = 0,
     ):
+        if id is None:
+            id = f"publisher_{random.randint(1, int(1e12))}"
+            print(f"Warning: MQTTPublisher initialized without an ID! using '{id}'")
         self.client = MQTTClient(
             id=id,
             topics=None,

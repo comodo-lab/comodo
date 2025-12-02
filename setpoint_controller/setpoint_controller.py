@@ -28,6 +28,7 @@ def main():
         broker_address=mqtt_host,
         user=mqtt_user,
         password=mqtt_pass,
+        id=f"publisher_pid_{sensor}__{actuator}",
     )
 
     k_p = os.getenv("K_P", None)
