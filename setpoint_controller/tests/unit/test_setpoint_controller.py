@@ -200,6 +200,7 @@ class Test_SetpointController_init:
                 "sensor/A/setpoint",
                 "measurement/A",
                 "sensor/A/setpoint_reached",
+                "pid/A__B/setup",
             ],
             broker_address="test_host",
             user="test_user",
@@ -337,4 +338,51 @@ class Test_on_setpoint_reached_message:
         mock_MQTTPublisher.publish.assert_called_once_with(
             f"{mock_pid.id}/setpoint_reached",
             json.dumps({mock_pid.sensor: True}),
+        )
+
+
+class Test_on_setup_message:
+
+    def test_updates_configurable_parameters(self, mock_pid, mock_MQTTPublisher):
+        client = Mock()
+        mock_pid.k_p = 1.0
+        new_k_p = 4.2
+        mock_pid.k_i = 10
+        new_k_i = 42
+        msg = MockMessage(
+            f"{mock_pid.id}/setup",
+            json.dumps({"k_p": new_k_p, "k_i": new_k_i}),
+        )
+
+        SetpointController.on_sensor_message(client, msg, mock_pid)
+
+        assert mock_pid.k_p == new_k_p
+        assert mock_pid.k_i == new_k_i
+        mock_MQTTPublisher.publish.assert_called_once_with(
+            f"heartbeat/{mock_pid.id}",
+            f"{mock_pid.get_state(1)}",
+        )
+
+    def test_rejects_non_configurable_parameters(self, mock_pid, mock_MQTTPublisher):
+        client = Mock()
+        mock_pid.k_p = 1.0
+        new_k_p = 4.2
+        mock_pid.k_i = 10
+        new_k_i = 42
+        msg = MockMessage(
+            f"{mock_pid.id}/setup",
+            json.dumps({"k_p": new_k_p, "k_i": new_k_i, "non_configurable_param": 123}),
+        )
+
+        SetpointController.on_sensor_message(client, msg, mock_pid)
+
+        assert mock_pid.k_p == 1.0
+        assert mock_pid.k_i == 10
+        mock_MQTTPublisher.publish.assert_called_once()
+        topic, message = parse_message_args(mock_MQTTPublisher.publish.call_args[0])
+        assert topic == f"error/{mock_pid.id}"
+        assert "error" in message.keys()
+        assert (
+            "Cannot configure PID parameter: non_configurable_param. Aborting setup."
+            in message["error"]
         )

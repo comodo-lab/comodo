@@ -103,6 +103,7 @@ class SetpointController:
                 f"sensor/{sensor}/setpoint",
                 f"measurement/{sensor}",
                 f"sensor/{sensor}/setpoint_reached",
+                f"{self.pid.id}/setup",
             ],
             broker_address=mqtt_host,
             user=mqtt_user,
@@ -152,6 +153,26 @@ class SetpointController:
                 f"{pid.id}/setpoint_reached",
                 json.dumps({pid.sensor: True}),
             )
+            return
+        elif msg.topic == f"{pid.id}/setup":
+            not_configurable = []
+            for k, v in message.items():
+                if k not in pid.configurable:
+                    not_configurable.append(k)
+            if not_configurable:
+                e = ", ".join(not_configurable)
+                error = f"Cannot configure PID parameter: {e}. Aborting setup."
+                MQTTPublisher.get_instance().publish(
+                    f"error/{pid.id}",
+                    json.dumps({"error": error}),
+                )
+            else:
+                for k, v in message.items():
+                    setattr(pid, k, v)
+                MQTTPublisher.get_instance().publish(
+                    f"heartbeat/{pid.id}",
+                    f"{pid.get_state(1)}",
+                )
             return
 
     def start_heartbeat_loop(self):
