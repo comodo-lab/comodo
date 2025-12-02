@@ -3,8 +3,8 @@ import time as t
 from datetime import datetime
 from controller_state import *
 from controller_helper import *
-from mqtt_clients import *
-from interpolation import split_setpoints
+from utils.mqtt_clients import *
+from utils.interpolation import split_setpoints
 from validation import validate_file, ValidationException
 
 

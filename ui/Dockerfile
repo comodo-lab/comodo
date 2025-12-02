@@ -8,9 +8,9 @@ RUN pip install --no-cache-dir -r ./requirements.txt
 
 # Copy app code
 COPY ui /app
-COPY utils /app/utils
-COPY utils/mqtt_clients.py /app/mqtt_clients.py
-COPY utils/interpolation.py /app/interpolation.py
+COPY utils/mqtt_clients.py /app/utils/mqtt_clients.py
+COPY utils/interpolation.py /app/utils/interpolation.py
+COPY utils/influx_query.py /app/utils/influx_query.py
 
 # Copy entrypoint that handles *_FILE secrets
 COPY ui/entrypoint.sh /entrypoint.sh

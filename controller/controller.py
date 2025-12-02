@@ -9,7 +9,7 @@ import textwrap
 
 from validation import validate_file_print_errors
 from controller_state import *
-from mqtt_clients import *
+from utils.mqtt_clients import *
 from on_watchdog_message import *
 from on_watchdog_timer_message import *
 from on_ui_message import *
@@ -48,6 +48,7 @@ def main():
 
     # Initialise publisher singleton
     publisher = MQTTPublisher.get_instance(
+        id="publisher_controller",
         broker_address=broker_address,
         user=user,
         password=password,

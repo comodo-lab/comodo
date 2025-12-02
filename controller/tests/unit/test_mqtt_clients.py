@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 from tests.tests_helper import *
 
-from mqtt_clients import *
+from utils.mqtt_clients import *
 
 config = validate_file_print_errors(
     "config/config.json",

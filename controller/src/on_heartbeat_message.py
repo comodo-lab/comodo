@@ -2,7 +2,7 @@ import json
 import time as t
 from controller_state import *
 from error_helper import *
-from mqtt_clients import *
+from utils.mqtt_clients import *
 from validation import validate_dict, ValidationException
 
 

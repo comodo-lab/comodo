@@ -5,7 +5,7 @@ import time as t
 from tests.tests_helper import *
 
 from controller_state import *
-from mqtt_clients import *
+from utils.mqtt_clients import *
 from on_ui_message import *
 
 

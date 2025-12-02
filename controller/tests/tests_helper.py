@@ -9,8 +9,8 @@ import time as t
 from datetime import datetime
 
 from controller_state import cstate
-from mqtt_clients import MQTTClient, MQTTPublisher
-from interpolation import split_setpoints
+from utils.mqtt_clients import MQTTClient, MQTTPublisher
+from utils.interpolation import split_setpoints
 from validation import validate_file_print_errors
 
 time_int = 0.01  # Time interval between client connection / message checks

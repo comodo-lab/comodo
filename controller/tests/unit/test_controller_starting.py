@@ -5,9 +5,9 @@ import time as t
 from tests.tests_helper import *
 
 from controller_state import *
-from mqtt_clients import *
+from utils.mqtt_clients import *
 from on_controller_message import *
-from interpolation import split_setpoints
+from utils.interpolation import split_setpoints
 from unittest.mock import patch
 
 
