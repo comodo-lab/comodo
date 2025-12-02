@@ -77,6 +77,28 @@ class Test_main:
             call("OUT_MAX_R", None),
         ]
 
+    def test_publisher_initialized_once(self, mocks_for_main, mock_MQTTPublisher):
+        mocks = mocks_for_main
+        mocks["env_values"].update(
+            {
+                "MQTT_HOST": "test_host",
+                "MQTT_USER": "test_user",
+                "MQTT_PASS": "test_pass",
+                "SENSOR": "A",
+                "ACTUATOR": "B",
+            }
+        )
+
+        with patch("setpoint_controller.MQTTPublisher") as mock_publisher_class:
+            main()
+
+            mock_publisher_class.get_instance.assert_called_once_with(
+                broker_address="test_host",
+                user="test_user",
+                password="test_pass",
+                id="publisher_pid_A__B",
+            )
+
     def test_spc_initialized_with_correct_params(self, mocks_for_main):
         mocks = mocks_for_main
 
