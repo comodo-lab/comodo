@@ -1,13 +1,14 @@
 import json
 import pytest
 import time as t
+from unittest.mock import patch
 
 from tests.tests_helper import *
 
-from controller_state import *
 from utils.mqtt_clients import *
-from on_heartbeat_message import *
-from unittest.mock import patch
+
+from src.controller_state import *
+from src.on_heartbeat_message import *
 
 
 @pytest.fixture

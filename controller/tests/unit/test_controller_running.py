@@ -1,12 +1,13 @@
 import json
 import pytest
+from unittest.mock import patch
 
 from tests.tests_helper import *
 
-from controller_state import *
 from utils.mqtt_clients import *
-from on_controller_message import *
-from unittest.mock import patch
+
+from src.controller_state import *
+from src.on_controller_message import *
 
 
 state = make_state_fixture("running")

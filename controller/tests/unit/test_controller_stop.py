@@ -6,9 +6,10 @@ from datetime import datetime, timedelta
 
 from tests.tests_helper import *
 
-from controller_state import *
 from utils.mqtt_clients import *
-from on_controller_message import *
+
+from src.controller_state import *
+from src.on_controller_message import *
 
 
 state = make_state_fixture("end")

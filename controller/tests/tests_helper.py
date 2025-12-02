@@ -1,17 +1,15 @@
 import sys
 import os
-
-sys.path.append(os.path.abspath("src"))
-
 import pytest
 import json
 import time as t
 from datetime import datetime
 
-from controller_state import cstate
 from utils.mqtt_clients import MQTTClient, MQTTPublisher
 from utils.interpolation import split_setpoints
-from validation import validate_file_print_errors
+
+from src.controller_state import cstate
+from src.validation import validate_file_print_errors
 
 time_int = 0.01  # Time interval between client connection / message checks
 timeout = 3  # Client connection / message wait timeout

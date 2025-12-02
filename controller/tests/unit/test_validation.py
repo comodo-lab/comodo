@@ -4,7 +4,7 @@ from unittest.mock import mock_open, patch
 
 from tests.tests_helper import *
 
-from validation import *
+from src.validation import *
 
 
 @pytest.fixture

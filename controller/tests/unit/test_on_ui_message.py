@@ -4,9 +4,10 @@ import time as t
 
 from tests.tests_helper import *
 
-from controller_state import *
 from utils.mqtt_clients import *
-from on_ui_message import *
+
+from src.controller_state import *
+from src.on_ui_message import *
 
 
 @pytest.fixture

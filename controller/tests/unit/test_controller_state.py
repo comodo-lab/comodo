@@ -1,8 +1,9 @@
-from tests.tests_helper import *
-
-from controller_state import *
 import pytest
 from unittest.mock import mock_open, patch
+
+from tests.tests_helper import *
+
+from src.controller_state import *
 
 
 @pytest.fixture
