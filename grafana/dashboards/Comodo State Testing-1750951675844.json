@@ -312,6 +312,18 @@
                 "value": 2
               }
             ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "/.*massflow.*/"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              }
+            ]
           }
         ]
       },
@@ -342,7 +354,7 @@
           "refId": "A"
         }
       ],
-      "title": "Pressure and Massflow",
+      "title": "Pfeiffer Pressure Gauges and Massflow",
       "type": "timeseries"
     }
   ],
@@ -361,5 +373,5 @@
   "timezone": "browser",
   "title": "Comodo State Testing",
   "uid": "dd898e71-196e-48bf-bf01-022c435e7ffa",
-  "version": 1
+  "version": 4
 }
