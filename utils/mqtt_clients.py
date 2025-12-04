@@ -275,7 +275,7 @@ class MQTTPublisher:
 
     def __init__(
         self,
-        id: None,
+        id: str = None,
         broker_address: str = "localhost",
         port: int = 1883,
         user: Optional[str] = None,

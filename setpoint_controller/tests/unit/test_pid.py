@@ -70,6 +70,26 @@ class TestPIDInitialization:
         assert pid.output_sat is None
 
 
+class TestGetConfig:
+
+    def test_returns_all_configurable(self):
+        pid = PID(id="test_pid", sensor="test_sensor", actuator="test_actuator")
+
+        config = pid.get_config()
+
+        assert list(config.keys()) == list(pid.configurable)
+        assert config == {
+            "k_p": pid.k_p,
+            "k_i": pid.k_i,
+            "k_d": pid.k_d,
+            "k_aw": pid.k_aw,
+            "k_df": pid.k_df,
+            "max": pid.max,
+            "min": pid.min,
+            "max_rate": pid.max_rate,
+        }
+
+
 class TestGetState:
 
     def test_get_state_basic(self, rand_pid):

@@ -1,9 +1,11 @@
 import json
 import time as t
-from controller_state import *
-from error_helper import *
-from mqtt_clients import *
-from validation import validate_dict, ValidationException
+
+from utils.mqtt_clients import *
+
+from src.controller_state import *
+from src.error_helper import *
+from src.validation import validate_dict, ValidationException
 
 
 def on_heartbeat_message(client, msg, obj):

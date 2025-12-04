@@ -1,6 +1,8 @@
 import json
-from mqtt_clients import *
-from error_helper import *
+
+from utils.mqtt_clients import *
+
+from src.error_helper import *
 
 
 def on_watchdog_message(client, msg, obj):
