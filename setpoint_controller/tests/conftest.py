@@ -10,9 +10,7 @@ from utils.tests.mocks.mock_mqtt_clients import (
     MockMessage,
     InMemoryMessageBus,
     message_bus,
-    mock_MQTTClient,
-    mock_MQTTPublisher,
-    mock_load_message,
+    mqtt_mocks,
     parse_message_args,
 )
 
@@ -20,7 +18,8 @@ from setpoint_controller import SetpointController
 from src.pid import PID
 
 
-def base_SPC(**kwargs):
+@pytest.fixture
+def base_SPC():
     """
     Create a SetpointController with default values for mqtt and sensor/actuator.
     Allows overriding any of these via kwargs.
@@ -30,22 +29,27 @@ def base_SPC(**kwargs):
     Returns:
         SetpointController instance
     """
-    d_kwargs = {
-        "mqtt_host": "test_host",
-        "mqtt_user": "test_user",
-        "mqtt_pass": "test_pass",
-        "sensor": "test_sensor",
-        "actuator": "test_actuator",
-        "sensor": "A",
-        "actuator": "B",
-        "heartbeat_interval": 1,
-    }
-    d_kwargs.update(kwargs)
 
-    # Create and return SetpointController instance
-    return SetpointController(**d_kwargs)
+    def _create(**kwargs):
+        d_kwargs = {
+            "mqtt_host": "test_host",
+            "mqtt_user": "test_user",
+            "mqtt_pass": "test_pass",
+            "sensor": "test_sensor",
+            "actuator": "test_actuator",
+            "sensor": "A",
+            "actuator": "B",
+            "heartbeat_interval": 1,
+        }
+        d_kwargs.update(kwargs)
+
+        # Create and return SetpointController instance
+        return SetpointController(**d_kwargs)
+
+    return _create
 
 
+@pytest.fixture
 def base_PID(**kwargs):
     """
     Create a PID controller with default values for id, sensor and actuator.
@@ -56,16 +60,24 @@ def base_PID(**kwargs):
     Returns:
         PID instance
     """
-    d_kwargs = {"id": "test_pid", "sensor": "mock_sensor", "actuator": "mock_actuator"}
 
-    d_kwargs.update(kwargs)
+    def _create(**kwargs):
+        d_kwargs = {
+            "id": "test_pid",
+            "sensor": "mock_sensor",
+            "actuator": "mock_actuator",
+        }
 
-    # Create and return PID instance
-    return PID(**d_kwargs)
+        d_kwargs.update(kwargs)
+
+        # Create and return PID instance
+        return PID(**d_kwargs)
+
+    return _create
 
 
 @pytest.fixture
-def mock_spc():
+def mock_spc(mock_pid):
     """SetpointController with default parameters."""
     spc = MagicMock(spec=SetpointController)
     spc.state = {
@@ -74,18 +86,37 @@ def mock_spc():
         "setpoint": None,
         "config": {"mock": "config"},
     }
-    spc.pid = base_PID()
+    spc.start_heartbeat_loop = MagicMock()
+    spc.pid = mock_pid
     return spc
 
 
 @pytest.fixture
 def mock_pid():
     """PID with default parameters."""
-    return base_PID()
+    pid = MagicMock(spec=PID)
+    pid.id = "pid/mock_sensor__mock_actuator"
+    pid.sensor = "mock_sensor"
+    pid.actuator = "mock_actuator"
+    pid.k_p = 1.0
+    pid.k_i = 0.5
+    pid.setpoint = None
+    pid.configurable = ["mock", "configurable", "params"]
+    pid.get_state.return_value = {"mock": "state"}
+    pid.step = MagicMock(return_value=5.0)
+
+    def get_config_impl():
+        return {
+            "k_p": pid.k_p,
+            "k_i": pid.k_i,
+        }
+
+    pid.get_config.side_effect = get_config_impl
+    return pid
 
 
 @pytest.fixture
-def rand_pid():
+def rand_pid(base_PID):
     """PID with random parameters."""
     return base_PID(
         k_p=rand(0.01, 10.0),

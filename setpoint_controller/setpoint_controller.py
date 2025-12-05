@@ -4,7 +4,8 @@ import textwrap
 
 import time as t
 
-from utils.mqtt_clients import MQTTClient, MQTTPublisher, load_message
+from utils import mqtt_clients as mqtt
+
 from src.pid import PID
 
 
@@ -24,7 +25,7 @@ def main():
         exit(1)
 
     # Initialise publisher singleton
-    publisher = MQTTPublisher.get_instance(
+    publisher = mqtt.MQTTPublisher.get_instance(
         broker_address=mqtt_host,
         user=mqtt_user,
         password=mqtt_pass,
@@ -96,7 +97,7 @@ class SetpointController:
         )
 
         # Initialize MQTT client
-        self.pid_client = MQTTClient(
+        self.pid_client = mqtt.MQTTClient(
             id=self.pid.id,
             callback=SetpointController.on_sensor_message,
             topics=[
@@ -124,7 +125,7 @@ class SetpointController:
         }
 
         # Publish initial setpoint as None
-        MQTTPublisher.get_instance().publish(
+        mqtt.MQTTPublisher.get_instance().publish(
             f"{self.pid.id}/setpoint",
             json.dumps({self.pid.sensor: None}),
         )
@@ -133,10 +134,10 @@ class SetpointController:
     def on_sensor_message(client, msg, spc):
         """Callback function for handling sensor messages."""
         try:
-            message = load_message(msg)
+            message = mqtt.load_message(msg)
         except json.JSONDecodeError as e:
             error = f"Error decoding {msg.topic} message, wrong JSON: \n{textwrap.indent(str(e), '   ')}"
-            MQTTPublisher.get_instance().publish(
+            mqtt.MQTTPublisher.get_instance().publish(
                 f"error/{spc.pid.id}",
                 json.dumps({"error": error}),
             )
@@ -149,7 +150,7 @@ class SetpointController:
             if setpoint is not None:
                 spc.state["status"] = "adjusting"
                 spc.pid.setpoint = setpoint
-                MQTTPublisher.get_instance().publish(
+                mqtt.MQTTPublisher.get_instance().publish(
                     f"{spc.pid.id}/setpoint",
                     json.dumps({spc.pid.sensor: setpoint}),
                 )
@@ -158,7 +159,7 @@ class SetpointController:
             if spc.pid.setpoint is not None:
                 spc.state["status"] = "adjusting"
                 setpoint = spc.pid.step(message["value"], spc.pid.setpoint)
-                MQTTPublisher.get_instance().publish(
+                mqtt.MQTTPublisher.get_instance().publish(
                     f"sensor/{spc.pid.actuator}/setpoint",
                     json.dumps({spc.pid.actuator: setpoint}),
                 )
@@ -166,7 +167,7 @@ class SetpointController:
         elif msg.topic == f"sensor/{spc.pid.sensor}/setpoint_reached":
             spc.state["status"] = "ready"
             spc.pid.setpoint = None
-            MQTTPublisher.get_instance().publish(
+            mqtt.MQTTPublisher.get_instance().publish(
                 f"{spc.pid.id}/setpoint_reached",
                 json.dumps({spc.pid.sensor: True}),
             )
@@ -180,7 +181,7 @@ class SetpointController:
                 spc.state["status"] = "error"
                 e = ", ".join(not_configurable)
                 error = f"Cannot configure PID parameter: {e}. Aborting setup."
-                MQTTPublisher.get_instance().publish(
+                mqtt.MQTTPublisher.get_instance().publish(
                     f"error/{spc.pid.id}",
                     json.dumps({"error": error}),
                 )
@@ -189,7 +190,7 @@ class SetpointController:
                     setattr(spc.pid, k, v)
                 spc.state["status"] = "reconfigured"
                 spc.state["config"] = spc.pid.get_config()
-                MQTTPublisher.get_instance().publish(
+                mqtt.MQTTPublisher.get_instance().publish(
                     f"heartbeat/{spc.pid.id}",
                     f"{spc.pid.get_state(1)}",
                 )
@@ -204,7 +205,7 @@ class SetpointController:
 
     def publish_heartbeat(self):
         """Publish the current state of the SPC, including controller config."""
-        MQTTPublisher.get_instance().publish(
+        mqtt.MQTTPublisher.get_instance().publish(
             f"heartbeat/{self.pid.id}",
             f"{json.dumps(self.state)}",
         )

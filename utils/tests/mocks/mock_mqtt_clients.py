@@ -113,10 +113,29 @@ def message_bus(request):
 
 
 @pytest.fixture(autouse=True)
-def mock_MQTTClient(message_bus):
-    """Mock the MQTTClient singleton."""
-    with patch("setpoint_controller.MQTTClient") as mock_client_class:
-        mock_instance = MagicMock()
+def mqtt_mocks(message_bus):
+    """
+    Unified autouse fixture that patches:
+      - utils.mqtt_clients.MQTTClient
+      - utils.mqtt_clients.MQTTPublisher
+      - utils.mqtt_clients.load_message
+
+    Exposes mocks for:
+      - client_class
+      - client_instance
+      - publisher_class
+      - publisher_instance
+      - load_message
+    """
+    with (
+        patch("utils.mqtt_clients.MQTTClient") as mock_client_class,
+        patch("utils.mqtt_clients.MQTTPublisher") as mock_publisher_class,
+        patch("utils.mqtt_clients.load_message") as mock_load,
+    ):
+        # -----------------------
+        # Mock MQTTClient
+        # -----------------------
+        mock_client_instance = MagicMock()
 
         def create_client(*args, **kwargs):
             # Extract init parameters
@@ -125,15 +144,14 @@ def mock_MQTTClient(message_bus):
             topics = kwargs.get("topics", [])
             obj = kwargs.get("obj")
             # Set properties on the mock instance
-            mock_instance.id = client_id
-            mock_instance.obj = obj
-            mock_instance.callback = callback
+            mock_client_instance.id = client_id
+            mock_client_instance.obj = obj
+            mock_client_instance.callback = callback
 
             # Wrapper to adapt message bus callback to MQTT client callback signature
             def callback_wrapper(topic, msg):
                 if callback is not None:
-                    # Pass mock_instance as `client`
-                    callback(mock_instance, msg, obj)
+                    callback(mock_client_instance, msg, obj)
 
             # Subscribe to topics using the message bus
             if isinstance(topics, str):
@@ -142,27 +160,18 @@ def mock_MQTTClient(message_bus):
                 message_bus.subscribe(topic, callback_wrapper)
 
         mock_client_class.side_effect = create_client
-        mock_client_class.return_value = mock_instance
+        mock_client_class.return_value = mock_client_instance
 
-        yield mock_client_class
+        # -----------------------
+        # Mock MQTTPublisher
+        # -----------------------
+        mock_publisher_instance = MagicMock()
+        mock_publisher_instance.publish.side_effect = message_bus.publish
+        mock_publisher_class.get_instance.return_value = mock_publisher_instance
 
-
-@pytest.fixture(autouse=True)
-def mock_MQTTPublisher(message_bus):
-    """Mock the MQTTPublisher singleton."""
-    with patch("setpoint_controller.MQTTPublisher") as mock_publisher_class:
-        mock_instance = MagicMock()
-        mock_instance.publish.side_effect = message_bus.publish
-        mock_publisher_class.get_instance.return_value = mock_instance
-        yield mock_instance
-
-
-@pytest.fixture(autouse=True)
-def mock_load_message():
-    """Mock the load_message function to handle MockMessage objects."""
-    # Patch where it's actually imported and used
-    with patch("setpoint_controller.load_message") as mock:
-
+        # -----------------------
+        # Mock load_message
+        # -----------------------
         def load_message(msg):
             payload = msg.payload if hasattr(msg, "payload") else msg
             if isinstance(payload, bytes):
@@ -170,8 +179,18 @@ def mock_load_message():
             elif isinstance(payload, str):
                 return json.loads(payload)
 
-        mock.side_effect = load_message
-        yield mock
+        mock_load.side_effect = load_message
+
+        # -----------------------
+        # Expose mocks to tests
+        # -----------------------
+        yield {
+            "client_class": mock_client_class,
+            "client_instance": mock_client_instance,
+            "publisher_class": mock_publisher_class,
+            "publisher_instance": mock_publisher_instance,
+            "load_message": mock_load,
+        }
 
 
 def parse_message_args(args):
@@ -179,7 +198,7 @@ def parse_message_args(args):
     Parses the arguments received by an mqtt client (i.e. [topic, payload]),
     and returns the topic and loaded JSON message (a dict).
     Example usage:
-        topic, message = parse_message_args(mock_mqtt_publisher.publish.call_args[0])
+        topic, message = parse_message_args(publisher.publish.call_args[0])
     """
     topic, payload = args
     return topic, json.loads(payload)
