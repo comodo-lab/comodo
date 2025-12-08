@@ -14,9 +14,7 @@
         "url": "${INFLUX_ADDR}",
         "org": "${INFLUX_ORG}",
         "buckets": [
-            "logs",
-            "measurement",
-            "heartbeat"
+            "comodo"
         ]
     }
 }

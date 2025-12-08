@@ -35,6 +35,12 @@ def main():
             f"Error decoding config file, missing: \n{textwrap.indent(str(e), '   ')}"
         )
         exit(1)
+    try:
+        INFLUX_TOKEN = os.environ.get("INFLUX_TOKEN", None)
+    except Exception as e:
+        print(
+            "INFLUX_TOKEN environment variable not set. Will not be able to dump influx database."
+        )
 
     # Initialize controller state
     state = cstate()

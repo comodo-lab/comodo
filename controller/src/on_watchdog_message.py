@@ -16,7 +16,7 @@ def on_watchdog_message(client, msg, obj):
     The watchdog can also be used to reset the controller.
     """
     try:
-        message = load_message(msg)
+        message = mqtt.load_message(msg)
     except json.JSONDecodeError as e:
         wrong_json(msg, e, source="watchdog")
         return

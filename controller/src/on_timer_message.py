@@ -1,6 +1,7 @@
 import time as t
 
 from src.controller_helper import *
+from utils import mqtt_clients as mqtt
 
 config = json.load(open("config/config.json"))
 sensor_setup_wait = config["sensor_setup_wait"]
@@ -16,7 +17,7 @@ def on_timer_message(client, msg, obj):
     and to wait for the setpoint duration before moving to the next setpoint.
     """
     try:
-        message = load_message(msg)
+        message = mqtt.load_message(msg)
         if message["uid"] != obj.experiment_uid:
             incompatible_uid(obj, msg, source="timer")
             return
@@ -34,7 +35,7 @@ def on_timer_message(client, msg, obj):
             t.sleep(0.1)
             if t.time() - t0 > sensor_setup_wait:
                 controller_timeout(message["uid"], "sensors", "Stopping")
-                MQTTPublisher.get_instance().publish(
+                mqtt.MQTTPublisher.get_instance().publish(
                     "controller/stop", json.dumps({"uid": message["uid"]})
                 )
                 return
@@ -49,7 +50,7 @@ def on_timer_message(client, msg, obj):
         while obj.status == "running":
             t.sleep(0.1)
             if t.time() - t0 > duration:
-                MQTTPublisher.get_instance().publish(
+                mqtt.MQTTPublisher.get_instance().publish(
                     "controller/run",
                     json.dumps({"uid": message["uid"]}),
                 )

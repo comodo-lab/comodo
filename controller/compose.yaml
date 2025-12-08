@@ -18,6 +18,7 @@ services:
       tests/unit/test_controller_ready.py
       tests/unit/test_controller_running.py
       tests/unit/test_controller_starting.py
+      tests/unit/test_controller_stop.py
       -vv && echo '' && coverage report && coverage html -d /memory/htmlcov"
 
 volumes:
