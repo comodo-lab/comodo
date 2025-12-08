@@ -154,8 +154,9 @@ def c_running(client, msg, obj):
         return
 
     if obj.setpoints == []:
-        obj.past_setpoints.append(obj.current_setpoint)
-        obj.current_setpoint = None
+        if obj.current_setpoint is not None:
+            obj.past_setpoints.append(obj.current_setpoint)
+            obj.current_setpoint = None
         client.callback = c_stopping
         mqtt.MQTTPublisher.get_instance().publish(
             "controller/end", json.dumps({"uid": obj.experiment_uid})

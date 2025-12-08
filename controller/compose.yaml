@@ -13,10 +13,11 @@ services:
     volumes:
       - memory:/memory  # Used to persist pytest cache between runs
     command:  bash -c "coverage run -m pytest
-      tests/unit/test_controller_idle.py
-      tests/unit/test_controller_starting.py
-      tests/unit/test_controller_ready.py
       tests/unit/test_controller_helper.py
+      tests/unit/test_controller_idle.py
+      tests/unit/test_controller_ready.py
+      tests/unit/test_controller_running.py
+      tests/unit/test_controller_starting.py
       -vv && echo '' && coverage report && coverage html -d /memory/htmlcov"
 
 volumes:
