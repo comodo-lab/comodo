@@ -12,7 +12,7 @@ services:
     container_name: setpoint-controller-test
     volumes:
       - memory:/memory  # Used to persist pytest cache between runs
-    command: bash -c "coverage run -m pytest tests/ && echo '' && coverage report && coverage html -d /memory/htmlcov"
+    command: bash -c "coverage run -m pytest tests/ -vv && echo '' && coverage report && coverage html -d /memory/htmlcov"
 
 volumes:
   memory:
