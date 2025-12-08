@@ -70,16 +70,22 @@ class InMemoryMessageBus:
                             target=callback, args=(topic, msg), daemon=True
                         ).start()
 
-    def get_messages(self, topic: str = None) -> list[MockMessage]:
+    def get_messages(self, topic: str = None, decoded=False) -> list[MockMessage]:
         """Get message history, optionally filtered by topic."""
         with self.lock:
             if not topic:
-                return self.message_history.copy()
-            if any(c in topic for c in "*?[]"):  # accept wildcard characters
-                return [
+                history = self.message_history.copy()
+            elif any(c in topic for c in "*?[]"):  # accept wildcard characters
+                history = [
                     m for m in self.message_history if fnmatch.fnmatch(m.topic, topic)
                 ]
-            return [m for m in self.message_history if m.topic == topic]
+            else:
+                history = [m for m in self.message_history if m.topic == topic]
+            if decoded:
+                for m in history:
+                    if isinstance(m.payload, bytes):
+                        m.payload = m.payload.decode("utf-8")
+            return history
 
 
 @pytest.fixture
@@ -100,15 +106,15 @@ def message_bus(request):
     if hasattr(request.node, "rep_call") and request.node.rep_call.failed:
         print("Message Bus History:")
         print("-" * 60)
-        messages = message_bus.get_messages()
+        messages = message_bus.get_messages(decoded=True)
         first_n = 50 if len(messages) > 50 else len(messages)
         lasst_n = 50 if len(messages) > 100 else max(0, len(messages) - first_n)
         for i, message in enumerate(messages[:first_n]):
-            print(f" [{i}] {message.topic}: {message.payload.decode('utf-8')}")
+            print(f" [{i}] {message.topic}: {message.payload}")
         if lasst_n > 0:
             print("...  " * 10 + "\n")
         for i, message in enumerate(messages[-lasst_n:]):
-            print(f" [{i}] {message.topic}: {message.payload.decode('utf-8')}")
+            print(f" [{i}] {message.topic}: {message.payload}")
         print("-" * 60 + "\n")
 
 
@@ -168,6 +174,7 @@ def mqtt_mocks(message_bus):
         mock_publisher_instance = MagicMock()
         mock_publisher_instance.publish.side_effect = message_bus.publish
         mock_publisher_class.get_instance.return_value = mock_publisher_instance
+        mock_publisher_class._instance = mock_publisher_instance
 
         # -----------------------
         # Mock load_message
