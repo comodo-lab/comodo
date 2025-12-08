@@ -5,3 +5,4 @@ influxdb-client
 pytest
 pytest-mqtt
 pytest-rerunfailures
+coverage

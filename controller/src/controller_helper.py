@@ -5,14 +5,12 @@ import os
 import csv
 from datetime import datetime
 
-from utils.mqtt_clients import *
-
 from src.error_helper import *
 
 
 config = json.load(open("config/config.json"))
 
-INFLUX_TOKEN = os.environ["INFLUX_TOKEN"]
+INFLUX_TOKEN = os.environ.get("INFLUX_TOKEN", None)
 
 
 class internal_stop_msg:
@@ -58,6 +56,10 @@ def dump_database_for_experiment(obj):
     """
     Dumps the influx databases for the experiment elapsed time.
     """
+    if INFLUX_TOKEN is None:
+        print("INFLUX_TOKEN environment variable not set. Cannot dump influx database.")
+        return
+
     t0 = obj.experiment_start_time
     tf = datetime.now()
     # get everything from influx database

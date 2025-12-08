@@ -5,7 +5,7 @@ import time as t
 import json
 import textwrap
 
-from utils.mqtt_clients import *
+from utils import mqtt_clients as mqtt
 
 from src.validation import validate_file_print_errors
 from src.controller_state import *
@@ -46,7 +46,7 @@ def main():
     connection_timeout = config["mqtt"]["connection_timeout"]
 
     # Initialise publisher singleton
-    publisher = MQTTPublisher.get_instance(
+    publisher = mqtt.MQTTPublisher.get_instance(
         id="publisher_controller",
         broker_address=broker_address,
         user=user,
@@ -55,7 +55,7 @@ def main():
     )
 
     # Load MQTT clients
-    watchdog = MQTTClient(
+    watchdog = mqtt.MQTTClient(
         id="watchdog",
         callback=on_watchdog_message,
         topics=["watchdog/#", "heartbeat/controller", "ERROR/exception"],
@@ -65,7 +65,7 @@ def main():
         password=password,
         connection_timeout=connection_timeout,
     )
-    wd_timer = MQTTClient(
+    wd_timer = mqtt.MQTTClient(
         id="wd_timer",
         callback=on_wd_timer_message,
         topics="wd_timer/#",
@@ -75,7 +75,7 @@ def main():
         password=password,
         connection_timeout=connection_timeout,
     )
-    ui = MQTTClient(
+    ui = mqtt.MQTTClient(
         id="ui",
         callback=on_ui_message,
         topics="ui/#",
@@ -85,7 +85,7 @@ def main():
         password=password,
         connection_timeout=connection_timeout,
     )
-    controller = MQTTClient(
+    controller = mqtt.MQTTClient(
         id="controller",
         callback=c_idle,
         topics="controller/#",
@@ -95,7 +95,7 @@ def main():
         password=password,
         connection_timeout=connection_timeout,
     )
-    timer = MQTTClient(
+    timer = mqtt.MQTTClient(
         id="timer",
         callback=on_timer_message,
         topics="timer/#",
@@ -105,7 +105,7 @@ def main():
         password=password,
         connection_timeout=connection_timeout,
     )
-    heartbeat = MQTTClient(
+    heartbeat = mqtt.MQTTClient(
         id="heartbeat",
         callback=on_heartbeat_message,
         topics="heartbeat/sensor/#",
@@ -115,7 +115,7 @@ def main():
         password=password,
         connection_timeout=connection_timeout,
     )
-    # measurement = MQTTClient("measurement", on_client_message, topics="measurement/#")
+    # measurement = mqtt.MQTTClient("measurement", on_client_message, topics="measurement/#")
 
     publisher.client.publish("wd_timer/start", json.dumps(wdog))
     t.sleep(1)

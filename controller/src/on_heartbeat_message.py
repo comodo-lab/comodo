@@ -1,7 +1,7 @@
 import json
 import time as t
 
-from utils.mqtt_clients import *
+from utils import mqtt_clients as mqtt
 
 from src.controller_state import *
 from src.error_helper import *
@@ -18,7 +18,7 @@ def on_heartbeat_message(client, msg, obj):
         return
 
     try:
-        p = load_message(msg)
+        p = mqtt.load_message(msg)
         sensor = validate_dict(p, obj.schema_sensor_heartbeat_path)
     except json.JSONDecodeError as e:
         wrong_json(msg, e, source="heartbeat")
@@ -53,7 +53,7 @@ def on_heartbeat_message(client, msg, obj):
             if s != "configured"
         ):
             obj.sensors["configured"] = True
-            MQTTPublisher.get_instance().publish(
+            mqtt.MQTTPublisher.get_instance().publish(
                 "controller/ready", json.dumps({"uid": obj.experiment_uid})
             )
     else:
