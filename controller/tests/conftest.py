@@ -1,7 +1,7 @@
 """Shared pytest fixtures and utilities for controller tests."""
 
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import PropertyMock, patch, MagicMock
 import json
 from random import uniform as rand
 import time as t
@@ -45,12 +45,25 @@ def mock_state(status):
             return None
 
         obj = MagicMock(spec=cstate)
+        obj._status_history = []
+
+        # Use PropertyMock to track status changes
+        def track_status(self, value):
+            obj._status_history.append(value)
+            obj._status_value = value
+
+        def get_status(self):
+            return obj._status_value
+
+        obj._status_value = None
+        type(obj).status = property(get_status, track_status)
 
         # ------------------------------- idle (default new cstate)
         obj.experiment_start_time = None
         obj.experiment_uid = None
         obj.exp_file = None
         obj.status = "idle"
+        obj._status_history = []
         obj.exp_config = None
         obj.setpoints = []
         obj.current_setpoint = None
@@ -65,14 +78,16 @@ def mock_state(status):
 
         # ------------------------------- starting
         obj.experiment_start_time = datetime.now()
-        obj.exp_config = mock_experiment_dict()
-        obj.experiment_uid = mock_experiment_dict()["uid"]
+        obj.exp_config = mock_experiment_dict
+        obj.experiment_uid = mock_experiment_dict["uid"]
         obj.status = "validating"
+        obj._status_history = []
         if status == "starting":
             return obj
 
         # ------------------------------- awaiting_sensors
         obj.status = "awaiting_sensors"
+        obj._status_history = []
         for sensor in obj.exp_config["config"]["sensors"]:
             obj.sensors[sensor["name"]] = {
                 "last_contact": None,
@@ -92,10 +107,12 @@ def mock_state(status):
             return obj
 
         obj.status = "ready"
+        obj._status_history = []
         if status == "running":
             return obj
 
         obj.status = "running"
+        obj._status_history = []
         if status == "end":
             return obj
 
