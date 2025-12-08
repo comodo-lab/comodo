@@ -112,6 +112,7 @@ def test_missing_file(message_bus, state, controller_client):
             "missing_file.json", state.schema_path
         )
 
+    assert state._status_history == ["validating", "idle"]
     assert state.experiment_uid == None
     assert state.status == "idle"
     assert controller_client.callback == c_idle
@@ -163,6 +164,7 @@ def test_invalid_file(message_bus, state, controller_client):
         )
         c_idle(controller_client, msg, state)
 
+    assert state._status_history == ["validating", "idle"]
     assert state.experiment_uid == None
     assert state.status == "idle"
     assert controller_client.callback == c_idle

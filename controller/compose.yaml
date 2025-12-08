@@ -12,7 +12,10 @@ services:
     container_name: controller-test
     volumes:
       - memory:/memory  # Used to persist pytest cache between runs
-    command:  bash -c "coverage run -m pytest tests/unit/test_controller_idle.py -vv && echo '' && coverage report && coverage html -d /memory/htmlcov"
+    command:  bash -c "coverage run -m pytest
+      tests/unit/test_controller_idle.py
+      tests/unit/test_controller_starting.py
+      -vv && echo '' && coverage report && coverage html -d /memory/htmlcov"
 
 volumes:
   memory:
