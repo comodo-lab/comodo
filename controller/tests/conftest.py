@@ -141,3 +141,18 @@ def mock_c_stopping():
         mock_c_stopping.return_value = None
         mock_c_stopping.__name__ = "mock_c_stopping"
         yield mock_c_stopping
+
+
+def sensor_heartbeat_msg(sensor, status, setpoint):
+    """Helper function to create a sensor heartbeat mock message."""
+    return MockMessage(
+        topic=f"heartbeat/sensor/{sensor['name']}",
+        payload=json.dumps(
+            {
+                "name": sensor["name"],
+                "status": status,
+                "setpoint": setpoint,
+                "config": {k: v for k, v in sensor.items() if k != "name"},
+            }
+        ),
+    )

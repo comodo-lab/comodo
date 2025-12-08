@@ -20,6 +20,7 @@ services:
       tests/unit/test_controller_starting.py
       tests/unit/test_controller_state.py
       tests/unit/test_controller_stop.py
+      tests/unit/test_on_heartbeat_message.py
       -vv && echo '' && coverage report && coverage html -d /memory/htmlcov"
 
 volumes:
