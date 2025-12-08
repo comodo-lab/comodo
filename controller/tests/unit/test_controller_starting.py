@@ -10,6 +10,7 @@ from tests.conftest import (
     mock_state,
     mock_experiment_dict,
     mock_setpoints,
+    mock_c_stopping,
 )
 
 from src.on_controller_message import c_starting
@@ -18,7 +19,9 @@ from src.on_controller_message import c_starting
 # =============== Fixtures ===============
 
 
-state = mock_state("starting")
+@pytest.fixture
+def state(mock_experiment_dict, mock_setpoints):
+    return mock_state("starting", mock_experiment_dict, mock_setpoints)
 
 
 @pytest.fixture
@@ -39,20 +42,12 @@ def mock_split_setpoints(mock_setpoints):
         yield mock_split_setpoints
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def mock_c_ready():
     with patch("src.on_controller_message.c_ready") as mock_c_ready:
         mock_c_ready.return_value = None
         mock_c_ready.__name__ = "mock_c_ready"
         yield mock_c_ready
-
-
-@pytest.fixture
-def mock_c_stopping():
-    with patch("src.on_controller_message.c_stopping") as mock_c_stopping:
-        mock_c_stopping.return_value = None
-        mock_c_stopping.__name__ = "mock_c_stopping"
-        yield mock_c_stopping
 
 
 # ========================================
@@ -99,7 +94,6 @@ def test_valid_start(
 
     sensors = mock_experiment_dict["config"]["sensors"]
     sensor_names = [sensor["name"] for sensor in sensors]
-    ns = len(sensors)
 
     msg = MockMessage(topic="controller/start", payload=json.dumps({"uid": "123"}))
     c_starting(controller_client, msg, state)
@@ -112,7 +106,7 @@ def test_valid_start(
     assert state.status == "awaiting_sensors"
     assert controller_client.callback == mock_c_ready
     # Sensor config list updated correctly
-    assert len(state.sensors) == ns + 1
+    assert len(state.sensors) == len(sensors) + 1
     assert state.sensors["configured"] == False
     for sensor_key in state.sensors.keys():
         if sensor_key != "configured":

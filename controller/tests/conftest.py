@@ -19,7 +19,7 @@ from utils.tests.mocks.mock_mqtt_clients import (
 )
 
 
-def mock_state(status):
+def mock_state(status, mock_experiment_dict={}, mock_setpoints=[]):
     """
     Factory to create a cstate fixture in the state it would be right before a callback is called.
     It expects a string corresponding to the callback to be tested, which should be one of:
@@ -31,94 +31,89 @@ def mock_state(status):
         - "end"
     If the provided status is not one of the allowed status values, it returns None.
     """
+    if status not in [
+        "idle",
+        "starting",
+        "awaiting_sensors",
+        "ready",
+        "running",
+        "end",
+    ]:
+        return None
 
-    @pytest.fixture
-    def state(mock_experiment_dict):
-        if status not in [
-            "idle",
-            "starting",
-            "awaiting_sensors",
-            "ready",
-            "running",
-            "end",
-        ]:
-            return None
+    state_obj = MagicMock(spec=cstate)
+    state_obj._status_history = []
 
-        obj = MagicMock(spec=cstate)
-        obj._status_history = []
+    # Use PropertyMock to track status changes
+    def track_status(self, value):
+        state_obj._status_history.append(value)
+        state_obj._status_value = value
 
-        # Use PropertyMock to track status changes
-        def track_status(self, value):
-            obj._status_history.append(value)
-            obj._status_value = value
+    def get_status(self):
+        return state_obj._status_value
 
-        def get_status(self):
-            return obj._status_value
+    state_obj._status_value = None
+    type(state_obj).status = property(get_status, track_status)
 
-        obj._status_value = None
-        type(obj).status = property(get_status, track_status)
+    # ------------------------------- idle (default new cstate)
+    state_obj.experiment_start_time = None
+    state_obj.experiment_uid = None
+    state_obj.exp_file = None
+    state_obj.status = "idle"
+    state_obj._status_history = []
+    state_obj.exp_config = None
+    state_obj.setpoints = []
+    state_obj.current_setpoint = None
+    state_obj.past_setpoints = []
+    state_obj.sensors = {"configured": False}
+    state_obj.adjusting = MagicMock(spec=AdjustingDict)
+    state_obj.schema_path = "schemas/schema_experiment.json"
+    state_obj.schema_sensor_heartbeat_path = "schemas/schema_sensor_heartbeat.json"
 
-        # ------------------------------- idle (default new cstate)
-        obj.experiment_start_time = None
-        obj.experiment_uid = None
-        obj.exp_file = None
-        obj.status = "idle"
-        obj._status_history = []
-        obj.exp_config = None
-        obj.setpoints = []
-        obj.current_setpoint = None
-        obj.past_setpoints = []
-        obj.sensors = {"configured": False}
-        obj.adjusting = MagicMock(spec=AdjustingDict)
-        obj.schema_path = "schemas/schema_experiment.json"
-        obj.schema_sensor_heartbeat_path = "schemas/schema_sensor_heartbeat.json"
+    if status == "idle":
+        return state_obj
 
-        if status == "idle":
-            return obj
+    # ------------------------------- starting
+    state_obj.experiment_start_time = datetime.now()
+    state_obj.exp_config = mock_experiment_dict
+    state_obj.experiment_uid = mock_experiment_dict["uid"]
+    state_obj.status = "validating"
+    state_obj._status_history = []
+    if status == "starting":
+        return state_obj
 
-        # ------------------------------- starting
-        obj.experiment_start_time = datetime.now()
-        obj.exp_config = mock_experiment_dict
-        obj.experiment_uid = mock_experiment_dict["uid"]
-        obj.status = "validating"
-        obj._status_history = []
-        if status == "starting":
-            return obj
+    # ------------------------------- awaiting_sensors
+    state_obj.status = "awaiting_sensors"
+    state_obj._status_history = []
+    for sensor in state_obj.exp_config["config"]["sensors"]:
+        state_obj.sensors[sensor["name"]] = {
+            "last_contact": None,
+            "config": {k: v for k, v in sensor.items() if k != "name"},
+            "status": None,
+            "setpoint": None,
+        }
+    if status == "awaiting_sensors":
+        return state_obj
 
-        # ------------------------------- awaiting_sensors
-        obj.status = "awaiting_sensors"
-        obj._status_history = []
-        for sensor in obj.exp_config["config"]["sensors"]:
-            obj.sensors[sensor["name"]] = {
-                "last_contact": None,
-                "config": {k: v for k, v in sensor.items() if k != "name"},
-                "status": None,
-                "setpoint": None,
-            }
-        if status == "awaiting_sensors":
-            return obj
+    state_obj.setpoints = mock_setpoints
+    for sensor in state_obj.exp_config["config"]["sensors"]:
+        state_obj.sensors[sensor["name"]]["last_contact"] = t.time() - 1
+        state_obj.sensors[sensor["name"]]["status"] = "no_setpoint"
+    state_obj.sensors = {"configured": True}
+    if status == "ready":
+        return state_obj
 
-        obj.setpoints = mock_setpoints
-        for sensor in obj.exp_config["config"]["sensors"]:
-            obj.sensors[sensor["name"]]["last_contact"] = t.time() - 1
-            obj.sensors[sensor["name"]]["status"] = "no_setpoint"
-        obj.sensors = {"configured": True}
-        if status == "ready":
-            return obj
+    state_obj.status = "ready"
+    state_obj._status_history = []
+    if status == "running":
+        return state_obj
 
-        obj.status = "ready"
-        obj._status_history = []
-        if status == "running":
-            return obj
+    state_obj.status = "running"
+    state_obj._status_history = []
+    if status == "end":
+        return state_obj
 
-        obj.status = "running"
-        obj._status_history = []
-        if status == "end":
-            return obj
-
-        return obj
-
-    return state
+    return state_obj
 
 
 @pytest.fixture
@@ -138,3 +133,11 @@ def mock_setpoints():
         {"duration": 7, "temperature": 50, "pressure": 500},
         {"duration": 4, "temperature": 30, "pressure": 300},
     ]
+
+
+@pytest.fixture
+def mock_c_stopping():
+    with patch("src.on_controller_message.c_stopping") as mock_c_stopping:
+        mock_c_stopping.return_value = None
+        mock_c_stopping.__name__ = "mock_c_stopping"
+        yield mock_c_stopping

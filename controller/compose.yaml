@@ -15,6 +15,8 @@ services:
     command:  bash -c "coverage run -m pytest
       tests/unit/test_controller_idle.py
       tests/unit/test_controller_starting.py
+      tests/unit/test_controller_ready.py
+      tests/unit/test_controller_helper.py
       -vv && echo '' && coverage report && coverage html -d /memory/htmlcov"
 
 volumes:
