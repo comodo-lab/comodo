@@ -104,17 +104,21 @@ def message_bus(request):
 
     # After test completes, if the test failed, print message bus history
     if hasattr(request.node, "rep_call") and request.node.rep_call.failed:
+        print_n = 30
+        half_n = int(print_n / 2)
         print("Message Bus History:")
         print("-" * 60)
         messages = message_bus.get_messages(decoded=True)
-        first_n = 50 if len(messages) > 50 else len(messages)
-        lasst_n = 50 if len(messages) > 100 else max(0, len(messages) - first_n)
+        total = len(messages)
+        first_n = half_n if total > half_n else total
+        last_n = half_n if total > print_n else max(0, total - first_n)
         for i, message in enumerate(messages[:first_n]):
             print(f" [{i}] {message.topic}: {message.payload}")
-        if lasst_n > 0:
+        if total > print_n:
             print("...  " * 10 + "\n")
-        for i, message in enumerate(messages[-lasst_n:]):
-            print(f" [{i}] {message.topic}: {message.payload}")
+        if last_n > 0:
+            for i, message in enumerate(messages[-last_n:]):
+                print(f" [{total-last_n+i}] {message.topic}: {message.payload}")
         print("-" * 60 + "\n")
 
 
