@@ -9,7 +9,6 @@ from tests.conftest import (
     mock_state,
     mock_experiment_dict,
     mock_setpoints,
-    sensor_heartbeat_msg,
 )
 
 from src.on_ui_message import on_ui_message

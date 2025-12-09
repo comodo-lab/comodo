@@ -1,120 +1,114 @@
 import json
 import pytest
 
-from tests.tests_helper import *
+from tests.conftest import (
+    MockMessage,
+    message_bus,
+    mqtt_mocks,
+)
 
-from utils.mqtt_clients import *
+from src.on_watchdog_message import on_watchdog_message
 
-from src.on_watchdog_message import *
+# =============== Fixtures ===============
 
 
 @pytest.fixture
-def state():
-    wdog = {
+def wd_state():
+    return {
         "interval": 0.2,
         "timeout": 1,
         "timer": 1,
         "healthy": True,
     }
-    return wdog
 
 
-watchdog_client = make_client_fixture(
-    client_id="watchdog",
-    callback=on_watchdog_message,
-    topics=["watchdog/#", "heartbeat/controller", "ERROR/exception"],
-    autouse=True,
-)
-
-
-def test_wrong_json(capmqtt):
-    capmqtt.publish(
-        topic="heartbeat/controller",
-        payload="not json",
+@pytest.fixture
+def watchdog_client(mqtt_mocks):
+    mqtt_mocks["client_class"](
+        id="watchdog",
+        topics=["watchdog/#", "heartbeat/controller", "ERROR/exception"],
+        callback=on_watchdog_message,
     )
-    wait_for_message(capmqtt)
+    return mqtt_mocks["client_instance"]
 
-    assert capmqtt.messages[-1].topic == "error/watchdog"
+
+# ========================================
+
+
+def test_wrong_json(message_bus, watchdog_client, wd_state):
+    msg = MockMessage(topic="heartbeat/controller", payload="not json")
+    on_watchdog_message(watchdog_client, msg, wd_state)
+
+    messages = message_bus.get_messages(decoded=True)
+    assert len(messages) == 1
+    assert messages[0].topic == "error/watchdog"
     assert (
         "Error decoding heartbeat/controller message, wrong JSON:"
-        in capmqtt.messages[-1].payload
+        in messages[0].payload
     )
 
 
-def test_incompatible_request(capmqtt):
-    capmqtt.publish(
-        topic="watchdog/run",
-        payload=json.dumps({"not": "important"}),
-    )
-    wait_for_message(capmqtt)
+def test_incompatible_request(message_bus, watchdog_client, wd_state):
+    msg = MockMessage(topic="watchdog/run", payload=json.dumps({"not": "important"}))
+    on_watchdog_message(watchdog_client, msg, wd_state)
 
-    assert capmqtt.messages[-1].topic == "error/watchdog"
-    assert (
-        "WATCHDOG: Unexpected message received: watchdog/run"
-        in capmqtt.messages[-1].payload
-    )
+    messages = message_bus.get_messages(decoded=True)
+    assert len(messages) == 1
+    assert messages[0].topic == "error/watchdog"
+    assert "WATCHDOG: Unexpected message received: watchdog/run" in messages[0].payload
 
 
-def test_updates_timer_on_heartbeat(capmqtt, watchdog_client):
-    assert watchdog_client.obj["timeout"] == 1
-    watchdog_client.obj["timer"] = 0.3
+def test_updates_timer_on_heartbeat(message_bus, watchdog_client, wd_state):
+    assert wd_state["timeout"] == 1
+    wd_state["timer"] = 0.3
+    msg = MockMessage(topic="heartbeat/controller", payload='{"some": "data"}')
+    on_watchdog_message(watchdog_client, msg, wd_state)
 
-    watchdog_client.callback = flagged(
-        on_watchdog_message,
-        flag_topic="flagged_watchdog",
-        flag_message="silent watchdog call",
-    )
-
-    capmqtt.publish(topic="heartbeat/controller", payload=f"{cstate()}")
-
-    assert capmqtt.messages[-1].topic == "flagged_watchdog"
-    assert capmqtt.messages[-1].payload == "silent watchdog call"
-    assert watchdog_client.obj["timer"] == 1
+    messages = message_bus.get_messages(decoded=True)
+    assert len(messages) == 0, "Call should be mqtt silent"
+    assert wd_state["timer"] == 1
 
 
-def test_handles_error_exception(capmqtt, capsys):
-    capmqtt.publish(
-        topic="ERROR/exception",
-        payload=json.dumps({"error": "test error"}),
-    )
+def test_handles_error_exception(message_bus, watchdog_client, wd_state, capsys):
+    msg = MockMessage(topic="ERROR/exception", payload=json.dumps({"error": "Test"}))
+    on_watchdog_message(watchdog_client, msg, wd_state)
 
     # Printed error
     captured = capsys.readouterr()
-    assert "WATCHDOG: Received ERROR: test error" in captured.out
+    assert "WATCHDOG: Received ERROR: Test" in captured.out
 
     # MQTT message
-    assert capmqtt.messages[-1].topic == "watchdog/restart"
-    assert capmqtt.messages[-1].payload == json.dumps(
-        {"message": "Restarting controller..."}
-    )
+    messages = message_bus.get_messages(decoded=True)
+    assert len(messages) == 1
+    assert messages[0].topic == "watchdog/restart"
+    assert messages[0].payload == json.dumps({"message": "Restarting controller..."})
 
 
-def test_responds_to_timeout(capmqtt, capsys):
-    capmqtt.publish(
-        topic="watchdog/timeout",
-        payload=json.dumps({"error": "test error"}),
-    )
+def test_responds_to_timeout(message_bus, watchdog_client, wd_state, capsys):
+    msg = MockMessage(topic="watchdog/timeout", payload=json.dumps({"error": "Test"}))
+    on_watchdog_message(watchdog_client, msg, wd_state)
 
     # Printed error
     captured = capsys.readouterr()
     assert "WATCHDOG: Timed out waiting for controller heartbeat." in captured.out
-    assert "test error" in captured.out
+    assert "Test" in captured.out
 
     # MQTT message
-    assert capmqtt.messages[-1].topic == "watchdog/restart"
-    assert capmqtt.messages[-1].payload == json.dumps(
-        {"message": "Restarting controller..."}
-    )
+    messages = message_bus.get_messages(decoded=True)
+    assert len(messages) == 1
+    assert messages[0].topic == "watchdog/restart"
+    assert messages[0].payload == json.dumps({"message": "Restarting controller..."})
 
 
-def test_restart(capmqtt, capsys, watchdog_client):
-    assert watchdog_client.obj["healthy"] == True
+def test_restart(message_bus, watchdog_client, wd_state, capsys):
+    assert wd_state["healthy"] == True
 
-    capmqtt.publish(
-        topic="watchdog/restart",
-        payload=json.dumps({"not": "important"}),
-    )
+    msg = MockMessage(topic="watchdog/restart", payload='{"not": "important"}')
+    on_watchdog_message(watchdog_client, msg, wd_state)
 
     captured = capsys.readouterr()
     assert "Restarting controller..." in captured.out
-    assert watchdog_client.obj["healthy"] == False
+    assert wd_state["healthy"] == False
+
+    messages = message_bus.get_messages(decoded=True)
+    assert len(messages) == 0, "Call should be mqtt silent"
