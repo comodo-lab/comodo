@@ -23,6 +23,7 @@ services:
       tests/unit/test_on_heartbeat_message.py
       tests/unit/test_on_timer_message.py
       tests/unit/test_on_ui_message.py
+      tests/unit/test_validation.py
       -vv && echo '' && coverage report && coverage html -d /memory/htmlcov"
 
 volumes:
