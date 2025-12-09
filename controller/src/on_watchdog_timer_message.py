@@ -19,6 +19,7 @@ def on_wd_timer_message(client, msg, obj):
         if msg.topic == "wd_timer/start":
             print("ERROR: Watchdog timer failed to start.")
             print(f"  Wrong json: {e}")
+            obj["healthy"] = False
         return
 
     if msg.topic == "wd_timer/start":
@@ -39,11 +40,13 @@ def on_wd_timer_message(client, msg, obj):
             )
             print("ERROR: Watchdog timer failed to start.")
             print(f"Values do not match: {e}")
+            obj["healthy"] = False
             return
         except KeyError as e:
             missing_keys(msg, e, source="wd_timer")
             print("ERROR: Watchdog timer failed to start.")
             print(f"Missing keys: {e}")
+            obj["healthy"] = False
             return
         # Start timer for watchdog
         obj["healthy"] = True
