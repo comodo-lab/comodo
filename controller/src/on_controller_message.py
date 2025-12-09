@@ -211,7 +211,7 @@ def c_stopping(client, msg, obj):
         obj.status = "stopping"
         client.callback = c_stopping
         ### Safe stop placeholder
-        t.sleep(2)
+        t.sleep(1)
         dump_database_for_experiment(obj)
         ###
         uid = obj.experiment_uid

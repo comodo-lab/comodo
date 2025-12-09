@@ -1,168 +1,258 @@
 import json
 import pytest
-import time as t
 from unittest.mock import patch
 
-from tests.tests_helper import *
-
-from utils.mqtt_clients import *
-
-from src.controller_state import *
-from src.on_timer_message import *
-
-
-state = make_state_fixture("awaiting_sensors")
-
-timer_client = make_client_fixture(
-    client_id="timer",
-    callback=on_timer_message,
-    topics="timer/#",
-    autouse=True,
+from tests.conftest import (
+    MockMessage,
+    message_bus,
+    mqtt_mocks,
+    mock_state,
+    mock_experiment_dict,
+    mock_setpoints,
 )
 
+from src.on_timer_message import on_timer_message
 
-def test_incompatible_request(capmqtt, state):
+
+# =============== Fixtures ===============
+
+
+@pytest.fixture
+def state(mock_experiment_dict, mock_setpoints):
+    return mock_state("awaiting_sensors", mock_experiment_dict, mock_setpoints)
+
+
+@pytest.fixture
+def timer_client(mqtt_mocks):
+    mqtt_mocks["client_class"](
+        id="timer",
+        topics="timer/#",
+        callback=on_timer_message,
+    )
+    return mqtt_mocks["client_instance"]
+
+
+# ========================================
+
+
+def test_incorrect_uid(timer_client, message_bus, state):
     assert state.experiment_uid == "123"
 
-    capmqtt.publish(
+    msg = MockMessage(
+        topic="timer/start/sensor_setup",
+        payload=json.dumps({"uid": "999"}),
+    )
+    on_timer_message(timer_client, msg, state)
+
+    messages = message_bus.get_messages(decoded=True)
+    assert len(messages) == 1
+    assert messages[0].topic == "error/timer"
+    assert (
+        "Current experiment is 123. Cannot act on timer/start/sensor_setup for experiment 999."
+        in messages[0].payload
+    )
+
+
+def test_incompatible_request(timer_client, message_bus, state):
+    assert state.experiment_uid == "123"
+
+    msg = MockMessage(
         topic="timer/something_else",
         payload=json.dumps({"uid": "123"}),
     )
-    wait_for_message(capmqtt)
+    on_timer_message(timer_client, msg, state)
 
-    assert capmqtt.messages[-1].topic == "error/timer"
-    assert "Timer cannot act on timer/something_else" in capmqtt.messages[-1].payload
+    messages = message_bus.get_messages(decoded=True)
+    assert len(messages) == 1
+    assert messages[0].topic == "error/timer"
+    assert "Timer cannot act on timer/something_else" in messages[0].payload
 
 
-def test_timeout(capmqtt, state):
+def test_timeout(timer_client, message_bus, state):
     assert state.experiment_uid == "123"
     assert state.status == "awaiting_sensors"
     assert state.sensors["configured"] == False
 
-    with patch("on_timer_message.sensor_setup_wait", 0.3):
-        capmqtt.publish(
+    with patch("src.on_timer_message.sensor_setup_wait", 0.1), patch(
+        "src.on_timer_message.timer_check_frequency", 0.01
+    ):
+        msg = MockMessage(
             topic="timer/start/sensor_setup",
             payload=json.dumps({"uid": "123"}),
         )
-        wait_for_message(capmqtt)
+        on_timer_message(timer_client, msg, state)
 
-    assert capmqtt.messages[-2].topic == "error/controller/timeout"
-    assert "Timed out waiting for sensors. Stopping..." in capmqtt.messages[-2].payload
-    assert capmqtt.messages[-1].topic == "controller/stop"
-    assert '{"uid": "123"' in capmqtt.messages[-1].payload
+    messages = message_bus.get_messages(decoded=True)
+    assert len(messages) == 2
+    assert messages[0].topic == "error/controller/timeout"
+    assert "Timed out waiting for sensors. Stopping..." in messages[0].payload
+    assert messages[1].topic == "controller/stop"
+    assert '{"uid": "123"' in messages[1].payload
 
 
-def test_sensors_configured(capmqtt, state, timer_client):
+def test_stops_when_configured(message_bus, state, timer_client):
     assert state.experiment_uid == "123"
     assert state.status == "awaiting_sensors"
-    assert state.sensors["configured"] == False
+    state.sensors["configured"] = True
 
-    timer_client.callback = flagged(
-        on_timer_message,
-        flag_topic="flagged_timer",
-        flag_message="timer not engaged",
+    msg = MockMessage(
+        topic="timer/start/sensor_setup",
+        payload=json.dumps({"uid": "123"}),
     )
-    with patch("on_timer_message.sensor_setup_wait", 0.3):
-        capmqtt.publish(
-            topic="timer/start/sensor_setup",
-            payload=json.dumps({"uid": "123"}),
-        )
-        t.sleep(0.1)
-        state.sensors["configured"] = True
-        wait_for_message(capmqtt)
+    on_timer_message(timer_client, msg, state)
 
-    assert capmqtt.messages[0].topic == "timer/start/sensor_setup"
-    assert len(capmqtt.messages) == 2
-    assert capmqtt.messages[-1].topic == "flagged_timer"
-    assert capmqtt.messages[-1].payload == "timer not engaged"
+    messages = message_bus.get_messages(decoded=True)
+    assert len(messages) == 1
+    assert messages[0].topic == "timer/done/sensor_setup"
+    assert json.loads(messages[0].payload) == {
+        "uid": "123",
+        "sensors_configured": True,
+        "controller_status": "awaiting_sensors",
+    }
 
 
-def test_changed_controller_state(capmqtt, state, timer_client):
+def test_stops_when_not_awaiting_sensors(message_bus, state, timer_client):
     assert state.experiment_uid == "123"
-    assert state.status == "awaiting_sensors"
     assert state.sensors["configured"] == False
+    state.status = "ready"
 
-    timer_client.callback = flagged(
-        on_timer_message,
-        flag_topic="flagged_timer",
-        flag_message="timer not engaged",
+    msg = MockMessage(
+        topic="timer/start/sensor_setup",
+        payload=json.dumps({"uid": "123"}),
     )
-    with patch("on_timer_message.sensor_setup_wait", 0.3):
-        capmqtt.publish(
+    on_timer_message(timer_client, msg, state)
+
+    messages = message_bus.get_messages(decoded=True)
+    assert len(messages) == 1
+    assert messages[0].topic == "timer/done/sensor_setup"
+    assert json.loads(messages[0].payload) == {
+        "uid": "123",
+        "sensors_configured": False,
+        "controller_status": "ready",
+    }
+
+
+def test_done_sensor_setup_uses_obj_uid(message_bus, state, timer_client):
+    assert state.experiment_uid == "123"
+    assert state.sensors["configured"] == False
+    state.status = "ready"
+
+    with patch("src.on_timer_message.t.time") as mock_time:
+        # Simulate experiment uid change when sensors get configured
+        def change_uid(*args, **kwargs):
+            state.experiment_uid = "D25-123"
+            return 12345  # arbitrary time
+
+        mock_time.side_effect = change_uid
+
+        msg = MockMessage(
             topic="timer/start/sensor_setup",
             payload=json.dumps({"uid": "123"}),
         )
-        t.sleep(0.1)
-        state.status = "idle"
-        wait_for_message(capmqtt)
+        on_timer_message(timer_client, msg, state)
 
-    assert capmqtt.messages[0].topic == "timer/start/sensor_setup"
-    assert len(capmqtt.messages) == 2
-    assert capmqtt.messages[-1].topic == "flagged_timer"
-    assert capmqtt.messages[-1].payload == "timer not engaged"
+    messages = message_bus.get_messages(decoded=True)
+    assert len(messages) == 1
+    assert messages[0].topic == "timer/done/sensor_setup"
+    assert json.loads(messages[0].payload) == {
+        "uid": "D25-123",
+        "sensors_configured": False,
+        "controller_status": "ready",
+    }
 
 
-def test_timer_setpoint(capmqtt, state, timer_client):
+def test_timer_setpoint(message_bus, state, timer_client):
     assert state.experiment_uid == "123"
     state.status = "running"
 
-    capmqtt.publish(
+    msg = MockMessage(
         topic="timer/start/setpoint",
-        payload=json.dumps({"uid": "123", "duration": 0.3}),
+        payload=json.dumps({"uid": "123", "duration": 0.1}),
     )
-    wait_for_message(capmqtt)
+    on_timer_message(timer_client, msg, state)
 
-    assert capmqtt.messages[-1].topic == "controller/run"
-    assert capmqtt.messages[-1].payload == '{"uid": "123"}'
+    messages = message_bus.get_messages(decoded=True)
+    assert len(messages) == 1
+    assert messages[0].topic == "controller/run"
+    assert messages[0].payload == '{"uid": "123"}'
 
 
-def test_timer_setpoint_missing_duration(capmqtt, state):
+def test_timer_setpoint_missing_duration(timer_client, message_bus, state):
     assert state.experiment_uid == "123"
     state.status = "running"
 
-    capmqtt.publish(
+    msg = MockMessage(
         topic="timer/start/setpoint",
         payload=json.dumps({"uid": "123"}),
     )
-    wait_for_message(capmqtt)
+    on_timer_message(timer_client, msg, state)
 
-    assert capmqtt.messages[-1].topic == "error/timer"
-    assert "Error decoding timer/start/setpoint message" in capmqtt.messages[-1].payload
-    assert "missing" in capmqtt.messages[-1].payload
-    assert "duration" in capmqtt.messages[-1].payload
+    messages = message_bus.get_messages(decoded=True)
+    assert len(messages) == 1
+    assert messages[0].topic == "error/timer"
+    assert "Error decoding timer/start/setpoint message" in messages[0].payload
+    assert "missing" in messages[0].payload
+    assert "duration" in messages[0].payload
 
 
-def test_timer_setpoint_incompatible_controller_state(capmqtt, state):
+def test_timer_setpoint_incompatible_controller_state(timer_client, message_bus, state):
     assert state.experiment_uid == "123"
     state.status = "ready"
 
-    capmqtt.publish(
+    msg = MockMessage(
         topic="timer/start/setpoint",
-        payload=json.dumps({"uid": "123", "duration": 0.3}),
+        payload=json.dumps({"uid": "123", "duration": 0.1}),
     )
-    wait_for_message(capmqtt)
+    on_timer_message(timer_client, msg, state)
 
-    assert capmqtt.messages[-1].topic == "error/controller/timer/setpoint"
-    m = json.loads(capmqtt.messages[-1].payload)
+    messages = message_bus.get_messages(decoded=True)
+    assert len(messages) == 1
+    assert messages[0].topic == "error/controller/timer/setpoint"
+    m = json.loads(messages[0].payload)
     assert m["uid"] == "123"
     assert "Timer for setpoint exited unexpectedly."
     assert "ready instead of running" in m["error"]
 
 
-def test_timer_setpoint_stopping(capmqtt, state, timer_client):
+def test_timer_setpoint_stopping(message_bus, state, timer_client):
     assert state.experiment_uid == "123"
     state.status = "stopping"
 
-    timer_client.callback = flagged(
-        on_timer_message,
-        flag_topic="flagged_timer",
-        flag_message="timer not engaged",
-    )
-    capmqtt.publish(
+    msg = MockMessage(
         topic="timer/start/setpoint",
-        payload=json.dumps({"uid": "123", "duration": 0.3}),
+        payload=json.dumps({"uid": "123", "duration": 0.1}),
     )
-    wait_for_message(capmqtt)
+    on_timer_message(timer_client, msg, state)
 
-    assert capmqtt.messages[-1].topic == "flagged_timer"
-    assert capmqtt.messages[-1].payload == "timer not engaged"
+    messages = message_bus.get_messages(decoded=True)
+    assert len(messages) == 1
+    assert messages[0].topic == "timer/done/setpoint"
+    assert json.loads(messages[0].payload) == {
+        "uid": "123",
+        "controller_status": "stopping",
+    }
+
+
+def test_timer_done_topic(message_bus, state, timer_client):
+    assert state.experiment_uid == "123"
+    state.status = "running"
+
+    msg = MockMessage(
+        topic="timer/done/setpoint",
+        payload=json.dumps({"uid": "123", "controller_status": "stopping"}),
+    )
+    on_timer_message(timer_client, msg, state)
+    msg = MockMessage(
+        topic="timer/done/setpoint",
+        payload=json.dumps(
+            {
+                "uid": "123",
+                "sensors_configured": False,
+                "controller_status": "ready",
+            }
+        ),
+    )
+    on_timer_message(timer_client, msg, state)
+
+    messages = message_bus.get_messages(decoded=True)
+    assert len(messages) == 0, "No messages should be published for timer/done topics"

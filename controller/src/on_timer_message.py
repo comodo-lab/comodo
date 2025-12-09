@@ -5,6 +5,7 @@ from utils import mqtt_clients as mqtt
 
 config = json.load(open("config/config.json"))
 sensor_setup_wait = config["sensor_setup_wait"]
+timer_check_frequency = 0.1
 
 
 def on_timer_message(client, msg, obj):
@@ -32,13 +33,24 @@ def on_timer_message(client, msg, obj):
         # Wait for sensors to be ready or timeout
         t0 = t.time()
         while (not obj.sensors["configured"]) and obj.status == "awaiting_sensors":
-            t.sleep(0.1)
+            t.sleep(timer_check_frequency)
             if t.time() - t0 > sensor_setup_wait:
                 controller_timeout(message["uid"], "sensors", "Stopping")
                 mqtt.MQTTPublisher.get_instance().publish(
                     "controller/stop", json.dumps({"uid": message["uid"]})
                 )
                 return
+        mqtt.MQTTPublisher.get_instance().publish(
+            "timer/done/sensor_setup",
+            json.dumps(
+                {
+                    # experiment uid changes when all sensors get configured, so have to use obj.experiment_uid, not message["uid"]
+                    "uid": obj.experiment_uid,
+                    "sensors_configured": obj.sensors["configured"],
+                    "controller_status": obj.status,
+                }
+            ),
+        )
     elif msg.topic == "timer/start/setpoint":
         try:
             duration = message["duration"]
@@ -48,7 +60,7 @@ def on_timer_message(client, msg, obj):
         # Start timer for setpoint
         t0 = t.time()
         while obj.status == "running":
-            t.sleep(0.1)
+            t.sleep(timer_check_frequency)
             if t.time() - t0 > duration:
                 mqtt.MQTTPublisher.get_instance().publish(
                     "controller/run",
@@ -59,5 +71,12 @@ def on_timer_message(client, msg, obj):
             controller_state_incompatible_with_timer(
                 message["uid"], "setpoint", "running", obj.status
             )
+        else:
+            mqtt.MQTTPublisher.get_instance().publish(
+                "timer/done/setpoint",
+                json.dumps({"uid": message["uid"], "controller_status": obj.status}),
+            )
+    elif msg.topic.startswith("timer/done/"):
+        return
     else:
         incompatible_request(obj, msg, source="timer")
