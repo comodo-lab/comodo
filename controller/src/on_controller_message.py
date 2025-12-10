@@ -41,6 +41,10 @@ def c_idle(client, msg, obj):
     # Validate experiment configuration
     try:
         exp_config = validate_file(obj.exp_file, obj.schema_path)
+        # Compute intermediate setpoints
+        obj.setpoints = split_setpoints(
+            exp_config["experiment"], exp_config["config"]["resolution"]
+        )
         obj.experiment_uid = exp_config["uid"]
         m = {
             "uid": obj.experiment_uid,
@@ -53,7 +57,7 @@ def c_idle(client, msg, obj):
         mqtt.MQTTPublisher.get_instance().publish(
             "controller/start", json.dumps({"uid": m["uid"]})
         )
-    except ValidationException as e:
+    except (ValidationException, ValueError) as e:
         experiment_validation_error(e, temp_uid)
         obj.experiment_uid = None
         obj.status = "idle"
@@ -80,10 +84,6 @@ def c_starting(client, msg, obj):
         return
 
     obj.status = "starting"
-    # Compute intermediate setpoints
-    obj.setpoints = split_setpoints(
-        obj.exp_config["experiment"], obj.exp_config["config"]["resolution"]
-    )
     # Create list of sensors dicts with expected config values
     obj.sensors = {"configured": False}
     for sensor in obj.exp_config["config"]["sensors"]:

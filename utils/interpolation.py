@@ -153,9 +153,9 @@ def split_setpoints(setpoint_list, resolution):
             if step != 0:
                 # Calculate the time interval since the last setpoint
                 time_interval = time - previous_time
-                if time_interval <= 0:
+                if time_interval < resolution:
                     raise ValueError(
-                        f"Invalid time interval: {time_interval} for variable {name}"
+                        f"Invalid time interval: {time_interval} in step {step}.\n It must be greater or equal to the experiment's resolution {resolution}"
                     )
 
                 # Calculate the number of steps needed for interpolation

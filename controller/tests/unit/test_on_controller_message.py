@@ -39,6 +39,12 @@ class TestIdle:
         return mqtt_mocks["client_instance"]
 
     @pytest.fixture(autouse=True)
+    def mock_split_setpoints(self, mock_setpoints):
+        with patch("src.on_controller_message.split_setpoints") as mock_split_setpoints:
+            mock_split_setpoints.return_value = mock_setpoints
+            yield mock_split_setpoints
+
+    @pytest.fixture(autouse=True)
     def mock_c_starting(self):
         with patch("src.on_controller_message.c_starting") as mock_c_starting:
             mock_c_starting.return_value = None
@@ -127,38 +133,13 @@ class TestIdle:
         assert messages[0].topic == "error/validator/failed"
         assert "File not found" in messages[0].payload
 
-    def test_valid_file(self, message_bus, state, controller_client, mock_c_starting):
-        assert state.experiment_uid == None
-        assert state.experiment_start_time == None
-        assert state.status == "idle"
-
-        with patch("src.on_controller_message.validate_file") as mock_validate_file:
-            mock_validate_file.return_value = {
-                "uid": "123",
-                "experiment": {},
-            }
-            msg = MockMessage(
-                topic="controller/validate",
-                payload=json.dumps({"uid": "123", "file": "valid_file.json"}),
-            )
-            c_idle(controller_client, msg, state)
-
-            mock_validate_file.assert_called_once_with(
-                "valid_file.json", state.schema_path
-            )
-
-        assert state.experiment_start_time != None
-        assert state.experiment_uid == "123"
-        assert state.status == "validating"
-        assert controller_client.callback == mock_c_starting
-        messages = message_bus.get_messages(decoded=True)
-        assert len(messages) == 2
-        assert messages[0].topic == "validator/passed"
-        assert '{"uid": "123", "valid": true}' in messages[0].payload
-        assert messages[1].topic == "controller/start"
-        assert '{"uid": "123"}' in messages[1].payload
-
-    def test_invalid_file(self, message_bus, state, controller_client):
+    def test_invalid_file(
+        self,
+        message_bus,
+        state,
+        controller_client,
+        mock_split_setpoints,
+    ):
         assert state.experiment_uid == None
         assert state.status == "idle"
 
@@ -172,6 +153,7 @@ class TestIdle:
             )
             c_idle(controller_client, msg, state)
 
+        mock_split_setpoints.assert_not_called()
         assert state._status_history == ["validating", "idle"]
         assert state.experiment_uid == None
         assert state.status == "idle"
@@ -181,6 +163,88 @@ class TestIdle:
         assert messages[0].topic == "error/validator/failed"
         assert "Test validation error" in messages[0].payload
         assert '"uid": "123"' in messages[0].payload
+
+    def test_invalid_setpoints(
+        self,
+        message_bus,
+        state,
+        controller_client,
+        mock_c_starting,
+        mock_split_setpoints,
+    ):
+        assert state.experiment_uid == None
+        assert state.experiment_start_time == None
+        assert state.status == "idle"
+
+        with patch("src.on_controller_message.validate_file") as mock_validate_file:
+            mock_validate_file.return_value = {
+                "uid": "123",
+                "experiment": {"some": "data"},
+                "config": {"resolution": 42},
+            }
+            mock_split_setpoints.side_effect = ValueError("Test setpoints error")
+            msg = MockMessage(
+                topic="controller/validate",
+                payload=json.dumps({"uid": "123", "file": "valid_file.json"}),
+            )
+            c_idle(controller_client, msg, state)
+
+            mock_validate_file.assert_called_once_with(
+                "valid_file.json", state.schema_path
+            )
+            # Split setpoints called
+            mock_split_setpoints.assert_called_once_with({"some": "data"}, 42)
+
+        assert state._status_history == ["validating", "idle"]
+        assert state.experiment_uid == None
+        assert state.status == "idle"
+        assert controller_client.callback == c_idle
+        messages = message_bus.get_messages(decoded=True)
+        assert len(messages) == 1
+        assert messages[0].topic == "error/validator/failed"
+        assert "Test setpoints error" in messages[0].payload
+        assert '"uid": "123"' in messages[0].payload
+
+    def test_valid_file(
+        self,
+        message_bus,
+        state,
+        controller_client,
+        mock_c_starting,
+        mock_split_setpoints,
+    ):
+        assert state.experiment_uid == None
+        assert state.experiment_start_time == None
+        assert state.status == "idle"
+
+        with patch("src.on_controller_message.validate_file") as mock_validate_file:
+            mock_validate_file.return_value = {
+                "uid": "123",
+                "experiment": {"some": "data"},
+                "config": {"resolution": 42},
+            }
+            msg = MockMessage(
+                topic="controller/validate",
+                payload=json.dumps({"uid": "123", "file": "valid_file.json"}),
+            )
+            c_idle(controller_client, msg, state)
+
+            mock_validate_file.assert_called_once_with(
+                "valid_file.json", state.schema_path
+            )
+            # Split setpoints called
+            mock_split_setpoints.assert_called_once_with({"some": "data"}, 42)
+
+        assert state.experiment_start_time != None
+        assert state.experiment_uid == "123"
+        assert state.status == "validating"
+        assert controller_client.callback == mock_c_starting
+        messages = message_bus.get_messages(decoded=True)
+        assert len(messages) == 2
+        assert messages[0].topic == "validator/passed"
+        assert '{"uid": "123", "valid": true}' in messages[0].payload
+        assert messages[1].topic == "controller/start"
+        assert '{"uid": "123"}' in messages[1].payload
 
 
 class TestStarting:
@@ -197,12 +261,6 @@ class TestStarting:
             obj=state,
         )
         return mqtt_mocks["client_instance"]
-
-    @pytest.fixture(autouse=True)
-    def mock_split_setpoints(self, mock_setpoints):
-        with patch("src.on_controller_message.split_setpoints") as mock_split_setpoints:
-            mock_split_setpoints.return_value = mock_setpoints
-            yield mock_split_setpoints
 
     @pytest.fixture(autouse=True)
     def mock_c_ready(self):
@@ -245,7 +303,6 @@ class TestStarting:
         state,
         controller_client,
         mock_experiment_dict,
-        mock_split_setpoints,
         mock_c_ready,
     ):
         assert state.experiment_uid == "123"
@@ -280,11 +337,6 @@ class TestStarting:
                 assert sensor["status"] is None
                 assert "setpoint" in sensor
                 assert sensor["setpoint"] is None
-        # Split setpoints called
-        mock_split_setpoints.assert_called_once_with(
-            mock_experiment_dict["experiment"],
-            mock_experiment_dict["config"]["resolution"],
-        )
         # Timer message sent
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 1 + len(sensors)
@@ -310,12 +362,6 @@ class TestReady:
             obj=state,
         )
         return mqtt_mocks["client_instance"]
-
-    @pytest.fixture(autouse=True)
-    def mock_split_setpoints(self, mock_setpoints):
-        with patch("src.on_controller_message.split_setpoints") as mock_split_setpoints:
-            mock_split_setpoints.return_value = mock_setpoints
-            yield mock_split_setpoints
 
     @pytest.fixture
     def mock_c_running(self, autouse=True):
