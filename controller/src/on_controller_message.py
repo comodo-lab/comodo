@@ -203,11 +203,11 @@ def c_stopping(client, msg, obj):
     ]:
         incompatible_request(obj, msg)
         return
-    if msg.topic == "controller/stopped":
-        client.callback = c_idle
-        return
     message = mqtt.load_message(msg)
     if message["uid"] == obj.experiment_uid:
+        if msg.topic == "controller/stopped":
+            client.callback = c_idle
+            return
         obj.status = "stopping"
         client.callback = c_stopping
         ### Safe stop placeholder

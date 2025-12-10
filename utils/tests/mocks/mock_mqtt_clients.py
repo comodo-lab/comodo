@@ -169,7 +169,7 @@ def mqtt_mocks(message_bus):
         # -----------------------
         # Mock MQTTClient
         # -----------------------
-        mock_client_instance = MagicMock()
+        created_clients = {}
 
         def create_client(*args, **kwargs):
             # Extract init parameters
@@ -177,15 +177,32 @@ def mqtt_mocks(message_bus):
             callback = kwargs.get("callback")
             topics = kwargs.get("topics", [])
             obj = kwargs.get("obj")
-            # Set properties on the mock instance
+
+            # Reuse existing client if already created
+            if client_id in created_clients:
+                client = created_clients[client_id]
+                client.callback = callback
+                client.obj = obj
+                return client
+
+            # Create new mock instance
+            mock_client_instance = MagicMock()
             mock_client_instance.id = client_id
             mock_client_instance.obj = obj
             mock_client_instance.callback = callback
 
             # Wrapper to adapt message bus callback to MQTT client callback signature
+            # Accesses the current callback dynamically (so it reacts to callback changes)
             def callback_wrapper(topic, msg):
-                if callback is not None:
-                    callback(mock_client_instance, msg, obj)
+                if (
+                    mock_client_instance.callback is not None
+                    and mock_client_instance.obj is not None
+                ):
+                    mock_client_instance.callback(
+                        mock_client_instance,
+                        msg,
+                        mock_client_instance.obj,
+                    )
 
             # Subscribe to topics using the message bus
             if isinstance(topics, str):
@@ -193,8 +210,20 @@ def mqtt_mocks(message_bus):
             for topic in topics:
                 message_bus.subscribe(topic, callback_wrapper)
 
+            created_clients[client_id] = mock_client_instance
+            return mock_client_instance
+
         mock_client_class.side_effect = create_client
-        mock_client_class.return_value = mock_client_instance
+
+        class ClientProxy:
+            """Proxy that returns the most recently created client"""
+
+            def __getattr__(self, name):
+                if created_clients != {}:
+                    client = next(reversed(created_clients.values()))
+                else:
+                    raise AttributeError("No MQTT clients have been created yet")
+                return getattr(client, name)
 
         # -----------------------
         # Mock MQTTPublisher
@@ -221,7 +250,7 @@ def mqtt_mocks(message_bus):
         # -----------------------
         yield {
             "client_class": mock_client_class,
-            "client_instance": mock_client_instance,
+            "client_instance": ClientProxy(),
             "publisher_class": mock_publisher_class,
             "publisher_instance": mock_publisher_instance,
             "load_message": mock_load,
