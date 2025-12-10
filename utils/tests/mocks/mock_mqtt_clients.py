@@ -150,16 +150,16 @@ def message_bus(request):
 def mqtt_mocks(message_bus):
     """
     Unified autouse fixture that patches:
-      - utils.mqtt_clients.MQTTClient
-      - utils.mqtt_clients.MQTTPublisher
-      - utils.mqtt_clients.load_message
+        - utils.mqtt_clients.MQTTClient
+        - utils.mqtt_clients.MQTTPublisher
+        - utils.mqtt_clients.load_message
 
     Exposes mocks for:
-      - client_class
-      - client_instance
-      - publisher_class
-      - publisher_instance
-      - load_message
+        - client_class
+        - client_instance
+        - publisher_class
+        - publisher_instance
+        - load_message
     """
     with (
         patch("utils.mqtt_clients.MQTTClient") as mock_client_class,
@@ -216,8 +216,19 @@ def mqtt_mocks(message_bus):
         mock_client_class.side_effect = create_client
 
         class ClientProxy:
-            """Proxy that returns the most recently created client"""
+            """Proxy that returns a specific client by ID or the most recently created client."""
 
+            # When called with a client_id, returns that client
+            def __call__(self, client_id=None):
+                if not created_clients:
+                    raise AttributeError("No MQTT clients have been created yet")
+
+                if client_id is not None:
+                    if client_id not in created_clients:
+                        raise AttributeError(f"No client with id '{client_id}' found")
+                    return created_clients[client_id]
+
+            # When not called with a client_id, returns the most recently created client
             def __getattr__(self, name):
                 if created_clients != {}:
                     client = next(reversed(created_clients.values()))
