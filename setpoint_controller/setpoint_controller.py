@@ -147,7 +147,7 @@ class SetpointController:
         while self.pid.healthy:
             MQTTPublisher.get_instance().publish(
                 f"heartbeat/{self.pid.id}",
-                json.dumps({self.pid.get_state()}),
+                json.dumps(self.pid.get_state()),
             )
             t.sleep(self.heartbeat_interval)
 
