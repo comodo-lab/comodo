@@ -53,6 +53,30 @@ class PID:
         self.output = None  # PID output (Actuator setpoint)
         self.output_sat = None  # Current saturated output
 
+        self.configurable = [
+            "k_p",
+            "k_i",
+            "k_d",
+            "k_aw",
+            "k_df",
+            "max",
+            "min",
+            "max_rate",
+        ]
+
+    def get_config(self):
+        """Return the current configuration of the PID controller."""
+        return {
+            "k_p": self.k_p,
+            "k_i": self.k_i,
+            "k_d": self.k_d,
+            "k_aw": self.k_aw,
+            "k_df": self.k_df,
+            "max": self.max,
+            "min": self.min,
+            "max_rate": self.max_rate,
+        }
+
     def get_state(self, verbosity=0):
         """
         Return the current state of the PID controller.

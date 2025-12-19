@@ -1,11 +1,13 @@
 import json
 import time as t
 from datetime import datetime
-from controller_state import *
-from controller_helper import *
-from mqtt_clients import *
-from interpolation import split_setpoints
-from validation import validate_file, ValidationException
+
+from utils.mqtt_clients import *
+from utils.interpolation import split_setpoints
+
+from src.controller_state import *
+from src.controller_helper import *
+from src.validation import validate_file, ValidationException
 
 
 def c_idle(client, msg, obj):

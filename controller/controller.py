@@ -1,21 +1,20 @@
 import sys
 import os
 
-sys.path.append(os.path.abspath("src"))
-
 import time as t
 import json
 import textwrap
 
-from validation import validate_file_print_errors
-from controller_state import *
-from mqtt_clients import *
-from on_watchdog_message import *
-from on_watchdog_timer_message import *
-from on_ui_message import *
-from on_controller_message import *
-from on_timer_message import *
-from on_heartbeat_message import *
+from utils.mqtt_clients import *
+
+from src.validation import validate_file_print_errors
+from src.controller_state import *
+from src.on_watchdog_message import *
+from src.on_watchdog_timer_message import *
+from src.on_ui_message import *
+from src.on_controller_message import *
+from src.on_timer_message import *
+from src.on_heartbeat_message import *
 
 
 def main():
@@ -48,6 +47,7 @@ def main():
 
     # Initialise publisher singleton
     publisher = MQTTPublisher.get_instance(
+        id="publisher_controller",
         broker_address=broker_address,
         user=user,
         password=password,

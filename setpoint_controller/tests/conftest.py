@@ -225,6 +225,20 @@ def base_PID(**kwargs):
 
 
 @pytest.fixture
+def mock_spc():
+    """SetpointController with default parameters."""
+    spc = MagicMock(spec=SetpointController)
+    spc.state = {
+        "name": f"pid_A__B",
+        "status": "no_setpoint",
+        "setpoint": None,
+        "config": {"mock": "config"},
+    }
+    spc.pid = base_PID()
+    return spc
+
+
+@pytest.fixture
 def mock_pid():
     """PID with default parameters."""
     return base_PID()

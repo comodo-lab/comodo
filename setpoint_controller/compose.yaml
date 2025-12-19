@@ -9,11 +9,10 @@ services:
     build:
       context: ../
       dockerfile: setpoint_controller/Dockerfile
-    container_name: setpoint-controller
+    container_name: setpoint-controller-test
     volumes:
       - memory:/memory  # Used to persist pytest cache between runs
     command: bash -c "coverage run -m pytest tests/ && echo '' && coverage report && coverage html -d /memory/htmlcov"
-    # command: ["python","-m", "pytest", "tests/", "-vv"] #, "--lf"] #, "--reruns", "3", "--reruns-delay", "1"]
 
 volumes:
   memory:

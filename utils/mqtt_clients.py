@@ -108,7 +108,7 @@ def on_connect(client, userdata, flags, rc, properties):
     # Check connection was ok
     if rc != 0:
         raise TimeoutError("{id} client failed to connect.")
-    elif id != "publisher":
+    elif id.startswith("publisher"):
         print(f"Client {id} successfully connected to broker.")
 
     # Selectively subscribe to topics
@@ -117,8 +117,8 @@ def on_connect(client, userdata, flags, rc, properties):
     # Convert to list if needed
     if isinstance(topics, str):
         topics = [topics]
-    elif topics == None:
-        if id != "publisher":
+    elif topics is None:
+        if not id.startswith("publisher"):
             print("No topics registered. Ready and exiting")
         userdata["ready"].set()
         return
@@ -283,8 +283,8 @@ class MQTTPublisher:
         connection_timeout: int = 0,
     ):
         if id is None:
-            id = f"publisher-{random.randint(0, 32768)}"
-
+            id = f"publisher_{random.randint(1, int(1e12))}"
+            print(f"Warning: MQTTPublisher initialized without an ID! using '{id}'")
         self.client = MQTTClient(
             id=id,
             topics=None,

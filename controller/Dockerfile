@@ -5,8 +5,8 @@ RUN pip install --no-cache -r requirements.txt
 
 WORKDIR /controller
 COPY controller /controller
-COPY utils/mqtt_clients.py /controller
-COPY utils/interpolation.py /controller
+COPY utils/mqtt_clients.py /controller/utils/mqtt_clients.py
+COPY utils/interpolation.py /controller/utils/interpolation.py
 
 # Install envsubst
 RUN apt-get update && apt-get install -y gettext-base

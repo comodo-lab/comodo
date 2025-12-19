@@ -3,8 +3,9 @@ import pytest
 
 from tests.tests_helper import *
 
-from mqtt_clients import *
-from on_watchdog_message import *
+from utils.mqtt_clients import *
+
+from src.on_watchdog_message import *
 
 
 @pytest.fixture

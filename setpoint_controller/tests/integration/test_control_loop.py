@@ -306,6 +306,32 @@ class TestMessagingBasics:
 
 class TestControlLoop:
 
+    def test_heartbeat_published(self, message_bus, mock_pid_time):
+        bus = message_bus
+        controller = base_SPC(sensor="temperature", actuator="heater")
+
+        controller.publish_heartbeat()
+
+        messages = bus.get_messages(f"heartbeat/{controller.pid.id}")
+        assert len(messages) == 1, "Controller should publish heartbeat message"
+        assert messages[0].payload.decode("utf-8") == json.dumps(
+            {
+                "name": "pid_temperature__heater",
+                "status": "no_setpoint",
+                "setpoint": None,
+                "config": {
+                    "k_p": 1.0,
+                    "k_i": 0.1,
+                    "k_d": 0.05,
+                    "k_aw": 0.0,
+                    "k_df": 0.0,
+                    "max": 100.0,
+                    "min": 0.0,
+                    "max_rate": None,
+                },
+            }
+        )
+
     def test_reaches_setpoint(self, message_bus, mock_pid_time):
         bus = message_bus
         sensor = MockSensor("temperature", message_bus, initial_value=20.0)

@@ -82,6 +82,12 @@ def send_measurement():
     measurement_structure = {"value": measurement}
     msg = json.dumps(measurement_structure)
     state.client.publish(f"measurement/{state.config['SENSOR_ID']}", msg)
+    if state.status["status"] == "ready":
+        ready_error = measurement - state.status["setpoint"]
+        if abs(ready_error) > state.status["config"]["tolerance"]:
+            state.sensor.go_to_setpoint(state.status["setpoint"])
+            state.client.set_callback(state.adjusting_cb)
+            state.status["status"] = "adjusting"
 
 
 ## ----------------- Timer functions ----------------- ##
