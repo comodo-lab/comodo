@@ -61,10 +61,10 @@ PARAMS = [
 ]
 
 PARAM_DICT = [
-    {"name": "temp_left", "min": 0, "max": 1000, "step": 1},
-    {"name": "temp_main", "min": 0, "max": 1000, "step": 1},
-    {"name": "temp_right", "min": 0, "max": 1000, "step": 1},
-    {"name": "massflow", "min": 0, "max": 100, "step": 0.1},
+    {'name': 'temp_left', 'min': 0, 'max': 1000, 'step': 1},
+    {'name': 'temp_main', 'min': 0, 'max': 1000, 'step': 1},
+    {'name': 'temp_right', 'min': 0, 'max': 1000, 'step': 1},
+    {'name': 'pressure_upstream', 'min': 0, 'max': 10, 'step': 0.1},
 ]
 
 INI_EXPERIMENT_CONFIG = [
