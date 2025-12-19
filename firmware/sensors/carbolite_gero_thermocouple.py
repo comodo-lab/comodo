@@ -33,7 +33,8 @@ def read_temperature(host):
             result = register_value.registers
         else:
             raise ValueError(f"Error reading register: {register_value}")
-        # print(f"Read is {result[0]}")
+        print(f"Result is {result}")
+        print(f"Read is {result[0]}")
         return float(result[0])
     except Exception as e:
         print(f"Error reading! \n\t {e}")

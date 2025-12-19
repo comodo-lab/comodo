@@ -318,6 +318,9 @@ class MassFlow(BaseSensor):
             print("Setpoint must be between 0 and 100%.")
             return None
 
+        setpoint = 0
+        print("Setting setpoint to 0% for testing purposes")
+
         # Maximum setpoint 10% for testing purposes
         if setpoint > 10:
             print("Setpoint capped to 10% for testing purposes.")

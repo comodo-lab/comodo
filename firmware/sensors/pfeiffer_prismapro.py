@@ -7,8 +7,8 @@ from sensor import BaseSensor
 
 # Configuration Parameters
 VERBOSE = True
-SCAN_COUNT = 1
-SCAN_INTERVAL = 9023   # ms between scans
+SCAN_COUNT = 5
+SCAN_INTERVAL = 1000   # ms between scans
 DEFAULT_DWELL = 32     # ms dwell time
 AMU = 50
 TARGET_IP_ADDR = "192.168.1.100"
@@ -168,6 +168,9 @@ class MassSpec(BaseSensor):
 
     def __init__(self):
         self.mmsp = MMSP(TARGET_IP_ADDR)
+        print("configuring")
+        self.mmsp.configure()
+        print("configured")
         return
 
     def set_config(self, config):
@@ -181,6 +184,7 @@ class MassSpec(BaseSensor):
             float: A random temperature value for testing purposes
         """
         scan = self.mmsp.run_and_get_scan()
-
+        print(scan)
         state.measurement = scan
+        print(f"Scan is {state.measurement}")
         return state.measurement

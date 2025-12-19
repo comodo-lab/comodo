@@ -126,6 +126,13 @@ services:
     volumes:
       - massflow_read:/shared
 
+  mass_spec:
+    <<: *python-sensor-template
+    environment:
+      - SENSOR_ID=mass_spec
+      - HEARTBEAT_INTERVAL=5000
+      - MEASUREMENT_INTERVAL=5000
+
 networks:
   comodo-network:
     name: comodo
