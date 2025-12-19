@@ -199,7 +199,7 @@ class MQTTClient:
         self.client.loop_start()
 
         # Block until ready
-        ready_success = self.ready_event.wait(timeout=5)
+        ready_success = self.ready_event.wait(timeout=10)
         if not ready_success:
             raise TimeoutError(f"Client {id} creation timed out waiting for ready")
         else:
