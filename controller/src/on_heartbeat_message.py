@@ -41,6 +41,8 @@ def on_heartbeat_message(client, msg, obj):
 
     obj_sensor["last_contact"] = t.time()
     if obj.status == "awaiting_sensors":
+        if sensor["status"] == "awaiting_config":
+            return
         if sensor["config"] != obj_sensor["config"]:
             raise RuntimeError("Sensor misconfigured")
 

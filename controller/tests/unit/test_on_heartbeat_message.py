@@ -162,6 +162,41 @@ def test_awaiting_sensors_wrong_config(
     assert len(messages) == 0, "Should only publish if ready"
 
 
+def test_awaiting_sensors_racing_heartbeat(
+    message_bus,
+    state,
+    heartbeat_client,
+    mock_experiment_dict,
+):
+    assert state.sensors["configured"] == False
+
+    sensors = mock_experiment_dict["config"]["sensors"]
+    first_sensor_name = sensors[0]["name"]
+    first_sensor_config = {k: v for k, v in sensors[0].items() if k != "name"}
+    assert state.sensors[first_sensor_name]["status"] == None
+    assert state.sensors[first_sensor_name]["setpoint"] == None
+    assert state.sensors[first_sensor_name]["config"] == first_sensor_config
+
+    # Incorrect heartbeat for first sensor
+    wrong_config = sensors[0].copy()
+    wrong_config["p"] = wrong_config["p"] + 1
+    msg = sensor_heartbeat_msg(
+        sensor=wrong_config, status="awaiting_config", setpoint=0
+    )
+
+    # Should not raise, because sensor status is still awaiting_config
+    on_heartbeat_message(heartbeat_client, msg, state)
+
+    # Should not have updated sensor
+    assert state.sensors[first_sensor_name]["status"] == None
+    assert state.sensors[first_sensor_name]["setpoint"] == None
+    assert state.sensors[first_sensor_name]["config"] == first_sensor_config
+    assert state.sensors["configured"] == False
+
+    messages = message_bus.get_messages(decoded=True)
+    assert len(messages) == 0, "Should only publish if ready"
+
+
 def test_awaiting_sensors_not_all_responded(
     message_bus,
     state,
