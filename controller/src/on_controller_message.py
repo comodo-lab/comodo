@@ -7,6 +7,13 @@ from utils.interpolation import split_setpoints
 
 from src.controller_state import *
 from src.controller_helper import assign_serial_id, dump_database_for_experiment
+from src.error_helper import (
+    incompatible_request,
+    incompatible_uid,
+    missing_keys,
+    wrong_json,
+    experiment_validation_error,
+)
 from src.validation import validate_file, ValidationException
 
 
@@ -194,19 +201,15 @@ def c_stopping(client, msg, obj):
 
     The safe stopping method needs to be implemented. Currently, it pauses for 2 seconds and then resets the cstate object.
 
-    Currently controller/stop and controller/end do the same thing.
+    Currently controller/stop and controller/end only differ in the final print.
     """
     if msg.topic not in [
         "controller/stop",
         "controller/end",
-        "controller/stopped",
     ]:
         incompatible_request(obj, msg)
         return
     message = mqtt.load_message(msg)
-    if msg.topic == "controller/stopped" and obj.experiment_uid is None:
-        client.callback = c_idle
-        return
     if message["uid"] == obj.experiment_uid:
         obj.status = "stopping"
         client.callback = c_stopping
@@ -216,8 +219,8 @@ def c_stopping(client, msg, obj):
         ###
         uid = obj.experiment_uid
         obj.reset()
-        mqtt.MQTTPublisher.get_instance().publish(
-            "controller/stopped", json.dumps({"uid": uid})
-        )
+        client.callback = c_idle
+        stop_reason = "was stopped" if msg.topic == "controller/stop" else "finished"
+        print(f"Experiment {uid} {stop_reason} and the controller has been reset.")
     else:
         incompatible_uid(obj, msg)

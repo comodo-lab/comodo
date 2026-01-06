@@ -714,37 +714,26 @@ class TestStopping:
             in messages[-1].payload
         )
 
-    def test_valid_stop(self, message_bus, state, controller_client, mock_dump):
+    def test_valid_end(self, message_bus, state, controller_client, mock_dump, capsys):
         assert state.experiment_uid == "123"
         assert state.status == "running"
         assert controller_client.callback == c_stopping
 
-        msg = MockMessage(topic="controller/stop", payload=json.dumps({"uid": "123"}))
+        msg = MockMessage(topic="controller/end", payload=json.dumps({"uid": "123"}))
         c_stopping(controller_client, msg, state)
 
-        assert state.status == "stopping"
+        assert state._status_history == ["stopping", "idle"]
+        assert state.status == "idle"
         mock_dump.assert_called_once()
         state.reset.assert_called_once()
-        messages = message_bus.get_messages(decoded=True)
-        assert len(messages) == 1
-        assert messages[0].topic == "controller/stopped"
-        assert messages[0].payload == json.dumps({"uid": "123"})
-
-    def test_controller_stopped_changes_callback_to_idle(
-        self, message_bus, state, controller_client
-    ):
-        assert controller_client.callback == c_stopping
-        state.status = "stopping"
-
-        msg = MockMessage(
-            topic="controller/stopped", payload=json.dumps({"uid": "123"})
-        )
-        c_stopping(controller_client, msg, state)
-
         assert controller_client.callback.__name__ == "mock_c_idle"
+        messages = message_bus.get_messages(decoded=True)
+        assert len(messages) == 0
+        stop_message = f"Experiment 123 finished and the controller has been reset."
+        assert stop_message in capsys.readouterr().out
 
-    def test_stop_from_any_callback(
-        self, message_bus, state, controller_client, mock_dump
+    def test_valid_stop_from_any_callback(
+        self, message_bus, state, controller_client, mock_dump, capsys
     ):
         assert state.experiment_uid == "123"
         state.status == "something"
@@ -753,10 +742,11 @@ class TestStopping:
         msg = MockMessage(topic="controller/stop", payload=json.dumps({"uid": "123"}))
         c_stopping(controller_client, msg, state)
 
-        assert state.status == "stopping"
+        assert state._status_history == ["stopping", "idle"]
+        assert state.status == "idle"
         mock_dump.assert_called_once()
         state.reset.assert_called_once()
         messages = message_bus.get_messages(decoded=True)
-        assert len(messages) == 1
-        assert messages[0].topic == "controller/stopped"
-        assert messages[0].payload == json.dumps({"uid": "123"})
+        assert len(messages) == 0
+        stop_message = f"Experiment 123 was stopped and the controller has been reset."
+        assert stop_message in capsys.readouterr().out

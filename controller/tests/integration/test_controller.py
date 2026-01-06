@@ -96,6 +96,7 @@ def test_control_loop(
     mock_validate_dict,
     mock_serial_id,
     mock_dump,
+    capsys,
 ):
     assert state.status == "idle"
     checked_messages = 0
@@ -211,12 +212,12 @@ def test_control_loop(
 
     # Final timer tick to end experiment
     message_bus.publish("controller/run", json.dumps({"uid": "D123-456"}))
-    t.sleep(0.1)
+    t.sleep(2)
 
     # Should go from c_running to c_stopping
-    assert controller_client.callback.__name__ == "c_stopping"
-    assert state._status_history[4:] == ["running", "stopping"]
-    assert state.status == "stopping"
+    assert controller_client.callback.__name__ == "c_idle"
+    assert state._status_history[4:] == ["running", "stopping", "idle"]
+    assert state.status == "idle"
     messages = message_bus.get_messages()[checked_messages:]
     # expected_messages = run + end
     expected_messages = 2
@@ -224,20 +225,8 @@ def test_control_loop(
     assert messages[0].topic == "controller/run"
     assert messages[1].topic == "controller/end"
     checked_messages += expected_messages
-
-    # Wait for simulated safe experiment to finish
-    t.sleep(2)
-
-    # Should go from c_stopping to c_idle
-    assert controller_client.callback.__name__ == "c_idle"
-    assert state.status == "idle"
-    messages = message_bus.get_messages()[checked_messages:]
-    assert len(messages) == 1
-    assert messages[0].topic == "controller/stopped"
-    # Should have reset the state object
-    assert state.experiment_uid is None
-    assert state.exp_file is None
-    assert state.sensors == {"configured": False}
-    assert state.setpoints == []
-    assert state.current_setpoint is None
-    assert state.past_setpoints == []
+    mock_dump.assert_called_once()
+    state.reset.assert_called_once()
+    stop_message = f"Experiment D123-456 finished and the controller has been reset."
+    assert stop_message in capsys.readouterr().out
+    assert "error" not in capsys.readouterr().out.lower()

@@ -66,7 +66,7 @@ def mock_state(status, mock_experiment_dict={}, mock_setpoints=[]):
         state_obj.past_setpoints = []
         state_obj.sensors = {"configured": False}
 
-    state_obj.reset = reset
+    state_obj.reset = MagicMock(side_effect=reset)
 
     # ------------------------------- idle (default new cstate)
     state_obj.experiment_start_time = None
