@@ -6,7 +6,7 @@ from utils import mqtt_clients as mqtt
 from utils.interpolation import split_setpoints
 
 from src.controller_state import *
-from src.controller_helper import *
+from src.controller_helper import assign_serial_id, dump_database_for_experiment
 from src.validation import validate_file, ValidationException
 
 
@@ -204,10 +204,10 @@ def c_stopping(client, msg, obj):
         incompatible_request(obj, msg)
         return
     message = mqtt.load_message(msg)
+    if msg.topic == "controller/stopped" and obj.experiment_uid is None:
+        client.callback = c_idle
+        return
     if message["uid"] == obj.experiment_uid:
-        if msg.topic == "controller/stopped":
-            client.callback = c_idle
-            return
         obj.status = "stopping"
         client.callback = c_stopping
         ### Safe stop placeholder

@@ -55,6 +55,19 @@ def mock_state(status, mock_experiment_dict={}, mock_setpoints=[]):
     state_obj._status_value = None
     type(state_obj).status = property(get_status, track_status)
 
+    def reset():
+        state_obj.experiment_start_time = None
+        state_obj.experiment_uid = None
+        state_obj.exp_file = None
+        state_obj.status = "idle"
+        state_obj.exp_config = None
+        state_obj.setpoints = []
+        state_obj.current_setpoint = None
+        state_obj.past_setpoints = []
+        state_obj.sensors = {"configured": False}
+
+    state_obj.reset = reset
+
     # ------------------------------- idle (default new cstate)
     state_obj.experiment_start_time = None
     state_obj.experiment_uid = None
