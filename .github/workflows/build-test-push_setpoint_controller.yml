@@ -68,18 +68,18 @@ jobs:
       - name: Set tag variables
         id: vars
         run: |
-          VERSIONNED_TAG=${{ github.event.inputs.versioned_tag }}
-          if [ "${VERSIONNED_TAG}" == "auto" ] || [ -z "${VERSIONNED_TAG}" ]; then
-            echo "VERSIONNED_TAG=${{ steps.version.outputs.version }}" >> $GITHUB_ENV
+          VERSIONED_TAG=${{ github.event.inputs.versioned_tag }}
+          if [ "${VERSIONED_TAG}" == "auto" ] || [ -z "${VERSIONED_TAG}" ]; then
+            echo "VERSIONED_TAG=${{ steps.version.outputs.version }}" >> $GITHUB_ENV
           else
-            echo "VERSIONNED_TAG=${VERSIONNED_TAG}" >> $GITHUB_ENV
+            echo "VERSIONED_TAG=${VERSIONED_TAG}" >> $GITHUB_ENV
           fi
           LATEST_TAG=${{ github.event.inputs.latest_tag }}
           if [ -z "${LATEST_TAG}" ]; then
             LATEST_TAG="latest"
           fi
           echo "LATEST_TAG=${LATEST_TAG}" >> $GITHUB_ENV
-          echo "Versioned Tag: ${VERSIONNED_TAG}"
+          echo "Versioned Tag: ${VERSIONED_TAG}"
           echo "Latest Tag: ${LATEST_TAG}"
 
       - name: Log in to Docker Hub
@@ -89,10 +89,10 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Push versioned
-        if: ${{ env.VERSIONNED_TAG != 'skip' }}
+        if: ${{ env.VERSIONED_TAG != 'skip' }}
         run: |
-          docker image tag ${{ env.CONTAINER_NAME }}:testing ${{ env.ORG_NAME }}/${{ env.CONTAINER_NAME }}:${{ env.VERSIONNED_TAG }}
-          docker push ${{ env.ORG_NAME }}/${{ env.CONTAINER_NAME }}:${{ env.VERSIONNED_TAG }}
+          docker image tag ${{ env.CONTAINER_NAME }}:testing ${{ env.ORG_NAME }}/${{ env.CONTAINER_NAME }}:${{ env.VERSIONED_TAG }}
+          docker push ${{ env.ORG_NAME }}/${{ env.CONTAINER_NAME }}:${{ env.VERSIONED_TAG }}
 
       - name: Push latest
         if: ${{ env.LATEST_TAG != 'skip' }}
