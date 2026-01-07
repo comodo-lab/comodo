@@ -6,13 +6,14 @@
 name: controller-tests
 services:
   controller:
+    image: comodo-controller:testing
     build:
       context: ../
       dockerfile: controller/Dockerfile
     container_name: controller-test
     volumes:
       - memory:/memory  # Used to persist pytest cache between runs
-    command:  bash -c "coverage run -m pytest
+    command: bash -c "coverage run -m pytest
       tests/ -vv &&
       echo '' && coverage report && coverage html -d /memory/htmlcov"
 
