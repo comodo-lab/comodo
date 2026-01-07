@@ -79,8 +79,8 @@ jobs:
             LATEST_TAG="latest"
           fi
           echo "LATEST_TAG=${LATEST_TAG}" >> $GITHUB_ENV
-          echo "Versioned Tag: ${{ env.VERSIONNED_TAG }}"
-          echo "Latest Tag: ${{ env.LATEST_TAG }}"
+          echo "Versioned Tag: ${VERSIONNED_TAG}"
+          echo "Latest Tag: ${LATEST_TAG}"
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
