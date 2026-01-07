@@ -3,16 +3,19 @@
 # To run the tests, cd into setpoint_controller/ and execute:
 #   docker compose up --build
 
-name: setpoint-controller-tests
+name: setpoint_controller-tests
 services:
-  setpoint-controller:
+  setpoint_controller:
+    image: comodo-setpoint_controller:testing
     build:
       context: ../
       dockerfile: setpoint_controller/Dockerfile
-    container_name: setpoint-controller-test
+    container_name: setpoint_controller-test
     volumes:
       - memory:/memory  # Used to persist pytest cache between runs
-    command: bash -c "coverage run -m pytest tests/ -vv && echo '' && coverage report && coverage html -d /memory/htmlcov"
+    command: bash -c "coverage run -m pytest
+      tests/ -vv &&
+      echo '' && coverage report && coverage html -d /memory/htmlcov"
 
 volumes:
   memory:
