@@ -1,0 +1,20 @@
+
+# This compose file runs the tests for the controller and exits when done.
+# To run the tests, cd into controller/ and execute:
+#   docker compose up --build
+
+name: controller-tests
+services:
+  controller:
+    build:
+      context: ../
+      dockerfile: controller/Dockerfile
+    container_name: controller-test
+    volumes:
+      - memory:/memory  # Used to persist pytest cache between runs
+    command:  bash -c "coverage run -m pytest
+      tests/ -vv &&
+      echo '' && coverage report && coverage html -d /memory/htmlcov"
+
+volumes:
+  memory:

@@ -5,14 +5,10 @@ import os
 import csv
 from datetime import datetime
 
-from utils.mqtt_clients import *
-
 from src.error_helper import *
 
 
 config = json.load(open("config/config.json"))
-
-INFLUX_TOKEN = os.environ["INFLUX_TOKEN"]
 
 
 class internal_stop_msg:
@@ -58,23 +54,36 @@ def dump_database_for_experiment(obj):
     """
     Dumps the influx databases for the experiment elapsed time.
     """
+    influx_token = os.getenv("INFLUX_TOKEN", None)
+    if influx_token is None:
+        print("INFLUX_TOKEN environment variable not set. Cannot dump influx database.")
+        error = f"Error dumping database. INFLUX_TOKEN not set."
+        mqtt.MQTTPublisher.get_instance().publish(
+            f"error/controller",
+            json.dumps({"error": error}),
+        )
+        return
+
     t0 = obj.experiment_start_time
     tf = datetime.now()
     # get everything from influx database
     buckets = config["influxdb"]["buckets"]
     client = influxdb_client.InfluxDBClient(
-        url="http://comodo-influx:8086",
-        token=INFLUX_TOKEN,
+        url=config["influxdb"]["url"],
+        token=influx_token,
         org=config["influxdb"]["org"],
     )
     query_api = client.query_api()
     exp_dir_path = obj.exp_file.replace(".json", "")
     if not os.path.exists(exp_dir_path):
         os.makedirs(exp_dir_path)
-    # for bucket in buckets:
-    #     query = f'from(bucket: "{bucket}") |> range(start: {t0.isoformat()}Z, stop: {tf.isoformat()}Z)'
-    #     data = query_api.query_csv(org=config["influxdb"]["org"], query=query)
-    #     values = data.to_values()
-    #     with open(f"{exp_dir_path}/{bucket}.csv", "w", newline="") as myfile:
-    #         wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
-    #         wr.writerows(values)
+    for bucket in buckets:
+        query = f'from(bucket: "{bucket}") |> range(start: {t0.isoformat()}Z, stop: {tf.isoformat()}Z)'
+        data = query_api.query_csv(org=config["influxdb"]["org"], query=query)
+        values = data.to_values()
+        with open(f"{exp_dir_path}/{bucket}.csv", "w", newline="") as myfile:
+            wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
+            wr.writerows(values)
+    print(
+        f"  Influx database for experiment {obj.experiment_uid} saved at {exp_dir_path}."
+    )

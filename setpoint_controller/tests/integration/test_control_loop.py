@@ -17,14 +17,13 @@ import json
 import fnmatch
 
 from src.pid import PID
-from setpoint_controller import SetpointController, load_message
+from setpoint_controller import SetpointController
+from utils.mqtt_clients import load_message
 from tests.conftest import (
     MockMessage,
     InMemoryMessageBus,
     message_bus,
-    mock_MQTTClient,
-    mock_MQTTPublisher,
-    mock_load_message,
+    mqtt_mocks,
     base_SPC,
     mock_pid_time,
 )
@@ -228,11 +227,13 @@ class TestMessagingBasics:
         # check it called set value
         assert sensor.value != 20.0, "Sensor value should be affected by actuator"
 
-    def test_controller_receives_sensor_setpoint(self, message_bus, mock_MQTTClient):
+    def test_controller_receives_sensor_setpoint(
+        self, message_bus, mqtt_mocks, base_SPC
+    ):
         bus = message_bus
         controller = base_SPC(sensor="temperature", actuator="heater")
 
-        mock_MQTTClient.assert_called_once()
+        mqtt_mocks["client_class"].assert_called_once()
 
         # Publish a setpoint
         setpoint_payload = json.dumps({"temperature": 50.0})
@@ -243,7 +244,7 @@ class TestMessagingBasics:
 
         assert controller.pid.setpoint == 50.0, "Controller should update setpoint"
 
-    def test_controller_receives_sensor_measurement(self, message_bus):
+    def test_controller_receives_sensor_measurement(self, message_bus, base_SPC):
         bus = message_bus
         controller = base_SPC(sensor="temperature", actuator="heater")
         controller.pid.setpoint = 50.0
@@ -256,7 +257,7 @@ class TestMessagingBasics:
 
             mock_step.assert_called_once_with(20.0, 50.0)
 
-    def test_controller_publishes_when_ready(self, message_bus):
+    def test_controller_publishes_when_ready(self, message_bus, base_SPC):
         bus = message_bus
         controller = base_SPC(sensor="temperature", actuator="heater")
 
@@ -267,7 +268,7 @@ class TestMessagingBasics:
         assert topic == f"{controller.pid.id}/setpoint"
         assert message == {"temperature": None}
 
-    def test_controller_publishes_when_setpoint_set(self, message_bus):
+    def test_controller_publishes_when_setpoint_set(self, message_bus, base_SPC):
         bus = message_bus
         controller = base_SPC(sensor="temperature", actuator="heater")
 
@@ -285,7 +286,7 @@ class TestMessagingBasics:
         assert topic == f"{controller.pid.id}/setpoint"
         assert message == {"temperature": 50.0}
 
-    def test_controller_publishes_actuator_setpoint(self, message_bus):
+    def test_controller_publishes_actuator_setpoint(self, message_bus, base_SPC):
         bus = message_bus
         controller = base_SPC(sensor="temperature", actuator="heater")
 
@@ -306,7 +307,7 @@ class TestMessagingBasics:
 
 class TestControlLoop:
 
-    def test_heartbeat_published(self, message_bus, mock_pid_time):
+    def test_heartbeat_published(self, message_bus, mock_pid_time, base_SPC):
         bus = message_bus
         controller = base_SPC(sensor="temperature", actuator="heater")
 
@@ -331,8 +332,9 @@ class TestControlLoop:
                 },
             }
         )
+        # assert False
 
-    def test_reaches_setpoint(self, message_bus, mock_pid_time):
+    def test_reaches_setpoint(self, message_bus, mock_pid_time, base_SPC):
         bus = message_bus
         sensor = MockSensor("temperature", message_bus, initial_value=20.0)
         actuator = MockActuator("heater", message_bus, sensor)
@@ -350,7 +352,7 @@ class TestControlLoop:
 
         assert reached, "Control loop timed out trying to reach equilibrium"
 
-    def test_responds_to_setpoint_changes(self, message_bus, mock_pid_time):
+    def test_responds_to_setpoint_changes(self, message_bus, mock_pid_time, base_SPC):
         sensor = MockSensor("temperature", message_bus, initial_value=20.0)
         actuator = MockActuator("heater", message_bus, sensor)
         controller = base_SPC(sensor="temperature", actuator="heater")
@@ -383,7 +385,9 @@ class TestControlLoop:
 
         assert reached_t1 and reached_t2 and reached_t3
 
-    def test_multiple_pid_controllers_can_coexist(self, message_bus, mock_pid_time):
+    def test_multiple_pid_controllers_can_coexist(
+        self, message_bus, mock_pid_time, base_SPC
+    ):
         sensor1 = MockSensor("temp1", message_bus, initial_value=20.0)
         actuator1 = MockActuator("heater1", message_bus, sensor1)
         controller1 = base_SPC(sensor="temp1", actuator="heater1")
@@ -409,7 +413,7 @@ class TestControlLoop:
             reached[0] and reached[1]
         ), "Both control loops should reach their setpoints"
 
-    def test_pid_parameters_affect_response(self, message_bus, mock_pid_time):
+    def test_pid_parameters_affect_response(self, message_bus, mock_pid_time, base_SPC):
         # Create two systems with different gains
         sensor1 = MockSensor("temp1", message_bus, initial_value=20.0)
         actuator1 = MockActuator("heater1", message_bus, sensor1)

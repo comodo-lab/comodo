@@ -1,6 +1,6 @@
 import json
 
-from utils.mqtt_clients import *
+from utils import mqtt_clients as mqtt
 
 from src.error_helper import *
 
@@ -16,7 +16,7 @@ def on_watchdog_message(client, msg, obj):
     The watchdog can also be used to reset the controller.
     """
     try:
-        message = load_message(msg)
+        message = mqtt.load_message(msg)
     except json.JSONDecodeError as e:
         wrong_json(msg, e, source="watchdog")
         return
@@ -26,16 +26,16 @@ def on_watchdog_message(client, msg, obj):
         return
     elif msg.topic == "ERROR/exception":
         # {"error": f"Unhandled exception in {name}: {str(e)}"}
-        error = load_message(msg)["error"]
+        error = mqtt.load_message(msg)["error"]
         print(f"WATCHDOG: Received ERROR: {error}")
-        MQTTPublisher.get_instance().publish(
+        mqtt.MQTTPublisher.get_instance().publish(
             "watchdog/restart", json.dumps({"message": "Restarting controller..."})
         )
         return
     elif msg.topic == "watchdog/timeout":
-        error = load_message(msg)["error"]
+        error = mqtt.load_message(msg)["error"]
         print(f"WATCHDOG: Timed out waiting for controller heartbeat. {error}")
-        MQTTPublisher.get_instance().publish(
+        mqtt.MQTTPublisher.get_instance().publish(
             "watchdog/restart", json.dumps({"message": "Restarting controller..."})
         )
         return
@@ -45,7 +45,7 @@ def on_watchdog_message(client, msg, obj):
         return
     else:
         error = f"WATCHDOG: Unexpected message received: {msg.topic}"
-        MQTTPublisher.get_instance().publish(
+        mqtt.MQTTPublisher.get_instance().publish(
             "error/watchdog",
             json.dumps({"error": error}),
         )

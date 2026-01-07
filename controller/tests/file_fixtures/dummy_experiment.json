@@ -7,7 +7,7 @@
             {"name":"displacement 1", "p":1, "i":2, "d":3, "tolerance":0.23},
             {"name":"displacement 2", "p":1, "i":2, "d":3, "tolerance":0.24}
         ],
-        "resolution":1
+        "resolution":0.1
     },
     "experiment":[
         { "time":0,     "pressure":0,    "temperature":0,    "displacement 1":0,   "displacement 2":0   },

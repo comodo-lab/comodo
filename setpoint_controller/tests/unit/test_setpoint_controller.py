@@ -6,7 +6,8 @@ from setpoint_controller import main, SetpointController
 from tests.conftest import (
     MockMessage,
     parse_message_args,
-    mock_MQTTPublisher,
+    message_bus,
+    mqtt_mocks,
     mock_pid,
     base_SPC,
 )
@@ -77,7 +78,7 @@ class Test_main:
             call("OUT_MAX_R", None),
         ]
 
-    def test_publisher_initialized_once(self, mocks_for_main, mock_MQTTPublisher):
+    def test_publisher_initialized_once(self, mocks_for_main, mqtt_mocks):
         mocks = mocks_for_main
         mocks["env_values"].update(
             {
@@ -89,15 +90,14 @@ class Test_main:
             }
         )
 
-        with patch("setpoint_controller.MQTTPublisher") as mock_publisher_class:
-            main()
+        main()
 
-            mock_publisher_class.get_instance.assert_called_once_with(
-                broker_address="test_host",
-                user="test_user",
-                password="test_pass",
-                id="publisher_pid_A__B",
-            )
+        mqtt_mocks["publisher_class"].get_instance.assert_called_once_with(
+            broker_address="test_host",
+            user="test_user",
+            password="test_pass",
+            id="publisher_pid_A__B",
+        )
 
     def test_spc_initialized_with_correct_params(self, mocks_for_main):
         mocks = mocks_for_main
@@ -138,16 +138,13 @@ class Test_main:
 class Test_SetpointController_init:
 
     @pytest.fixture(autouse=True)
-    def mocks_for_spc_init(self):
-        with patch("setpoint_controller.MQTTClient") as mock_mqtt_client_class, patch(
-            "setpoint_controller.PID"
-        ) as mock_pid_class, patch("setpoint_controller.t.sleep") as mock_sleep, patch(
+    def mocks_for_spc_init(self, mqtt_mocks):
+        with patch("setpoint_controller.PID") as mock_pid_class, patch(
+            "setpoint_controller.t.sleep"
+        ) as mock_sleep, patch(
             "setpoint_controller.SetpointController.publish_heartbeat"
         ) as mock_publish_heartbeat:
             # Configure the mocks
-            mock_client_instance = MagicMock()
-            mock_mqtt_client_class.return_value = mock_client_instance
-
             mock_pid_instance = MagicMock()
             mock_pid_instance.healthy = True
             mock_pid_instance.sensor = "test_sensor"
@@ -161,15 +158,15 @@ class Test_SetpointController_init:
 
             # Yield mocks for use in tests
             yield {
-                "client_class": mock_mqtt_client_class,
-                "client": mock_client_instance,
+                "client_class": mqtt_mocks["client_class"],
+                "client": mqtt_mocks["client_instance"],
                 "pid_class": mock_pid_class,
                 "pid": mock_pid_instance,
                 "sleep": mock_sleep,
                 "publish_heartbeat": mock_publish_heartbeat,
             }
 
-    def test_pid_initialized_with_correct_params(self, mocks_for_spc_init):
+    def test_pid_initialized_with_correct_params(self, mocks_for_spc_init, base_SPC):
         mocks = mocks_for_spc_init
 
         spc = base_SPC(
@@ -191,7 +188,9 @@ class Test_SetpointController_init:
             k_df=0.2,
         )
 
-    def test_mqtt_client_initialized_with_correct_params(self, mocks_for_spc_init):
+    def test_mqtt_client_initialized_with_correct_params(
+        self, mocks_for_spc_init, base_SPC
+    ):
         mocks = mocks_for_spc_init
 
         spc = base_SPC()
@@ -211,13 +210,13 @@ class Test_SetpointController_init:
             obj=spc,
         )
 
-    def test_heartbeat_loop_is_entered(self, mocks_for_spc_init, mock_MQTTPublisher):
+    def test_heartbeat_loop_is_entered(self, mocks_for_spc_init, mqtt_mocks, base_SPC):
         mocks = mocks_for_spc_init
 
         spc = base_SPC()
         spc.start_heartbeat_loop()
 
-        assert mock_MQTTPublisher.publish.call_args_list == [
+        assert mqtt_mocks["publisher_instance"].publish.call_args_list == [
             # Should publish initial setpoint as None upon creation
             call(f"{mocks['pid'].id}/setpoint", json.dumps({spc.pid.sensor: None})),
             # Then publish heartbeat
@@ -227,7 +226,7 @@ class Test_SetpointController_init:
 
 
 class Test_on_sensor_message:
-    def test_invalid_json_publishes_error(self, mock_spc, mock_MQTTPublisher):
+    def test_invalid_json_publishes_error(self, mock_spc, mqtt_mocks):
         client = Mock()
         msg = MockMessage(
             f"sensor/{mock_spc.pid.sensor}/setpoint",
@@ -237,15 +236,17 @@ class Test_on_sensor_message:
         SetpointController.on_sensor_message(client, msg, mock_spc)
 
         assert mock_spc.state["status"] == "error"
-        mock_MQTTPublisher.publish.assert_called_once()
-        topic, message = parse_message_args(mock_MQTTPublisher.publish.call_args[0])
+        mqtt_mocks["publisher_instance"].publish.assert_called_once()
+        topic, message = parse_message_args(
+            mqtt_mocks["publisher_instance"].publish.call_args[0]
+        )
         assert topic == f"error/{mock_spc.pid.id}"
         assert "error" in message.keys()
         assert "sensor/mock_sensor/setpoint message, wrong JSON:" in message["error"]
 
 
 class Test_on_setpoint_message:
-    def test_updates_pid_setpoint(self, mock_spc, mock_MQTTPublisher):
+    def test_updates_pid_setpoint(self, mock_spc, mqtt_mocks):
         client = Mock()
         setpoint_value = 50.0
         assert mock_spc.pid.setpoint != setpoint_value
@@ -259,12 +260,12 @@ class Test_on_setpoint_message:
         assert mock_spc.state["status"] == "adjusting"
         assert mock_spc.pid.setpoint == setpoint_value
         # Should publish updated setpoint
-        mock_MQTTPublisher.publish.assert_called_once_with(
+        mqtt_mocks["publisher_instance"].publish.assert_called_once_with(
             f"{mock_spc.pid.id}/setpoint",
             json.dumps({mock_spc.pid.sensor: setpoint_value}),
         )
 
-    def test_zero_is_valid_setpoint(self, mock_spc, mock_MQTTPublisher):
+    def test_zero_is_valid_setpoint(self, mock_spc, mqtt_mocks):
         client = Mock()
         setpoint_value = 0.0
         assert mock_spc.pid.setpoint != setpoint_value
@@ -278,12 +279,12 @@ class Test_on_setpoint_message:
         assert mock_spc.state["status"] == "adjusting"
         assert mock_spc.pid.setpoint == setpoint_value
         # Should publish updated setpoint
-        mock_MQTTPublisher.publish.assert_called_once_with(
+        mqtt_mocks["publisher_instance"].publish.assert_called_once_with(
             f"{mock_spc.pid.id}/setpoint",
             json.dumps({mock_spc.pid.sensor: setpoint_value}),
         )
 
-    def test_ignores_other_setpoints(self, mock_spc, mock_MQTTPublisher):
+    def test_ignores_other_setpoints(self, mock_spc, mqtt_mocks):
         client = Mock()
         msg = MockMessage(
             f"sensor/{mock_spc.pid.sensor}/setpoint",
@@ -294,26 +295,25 @@ class Test_on_setpoint_message:
 
         assert mock_spc.state["status"] == "no_setpoint"
         assert mock_spc.pid.setpoint == None
-        assert mock_MQTTPublisher.publish.call_count == 0
+        assert mqtt_mocks["publisher_instance"].publish.call_count == 0
 
 
 class Test_on_measurement_message:
 
-    def test_skips_if_setpoint_undefined(self, mock_spc, mock_MQTTPublisher):
+    def test_skips_if_setpoint_undefined(self, mock_spc, mqtt_mocks):
         client = Mock()
         mock_spc.pid.setpoint = None
         msg = MockMessage(
             f"measurement/{mock_spc.pid.sensor}", json.dumps({"value": 45.0})
         )
 
-        with patch("src.pid.PID.step") as mock_spc.pid_step:
-            SetpointController.on_sensor_message(client, msg, mock_spc)
+        SetpointController.on_sensor_message(client, msg, mock_spc)
 
-            assert mock_spc.state["status"] == "no_setpoint"
-            mock_spc.pid_step.assert_not_called()
-            mock_MQTTPublisher.publish.assert_not_called()
+        assert mock_spc.state["status"] == "no_setpoint"
+        mock_spc.pid.step.assert_not_called()
+        mqtt_mocks["publisher_instance"].publish.assert_not_called()
 
-    def test_measurement_publishes_to_actuator(self, mock_spc, mock_MQTTPublisher):
+    def test_measurement_publishes_to_actuator(self, mock_spc, mqtt_mocks):
         client = Mock()
         mock_spc.pid.setpoint = 50.0
         measurement_value = 45.0
@@ -321,23 +321,22 @@ class Test_on_measurement_message:
             f"measurement/{mock_spc.pid.sensor}",
             json.dumps({"value": measurement_value}),
         )
+        mock_spc.pid.step = MagicMock(return_value=6.7)
+        SetpointController.on_sensor_message(client, msg, mock_spc)
 
-        with patch("src.pid.PID.step", return_value=6.7) as mock_spc.pid_step:
-            SetpointController.on_sensor_message(client, msg, mock_spc)
-
-            assert mock_spc.state["status"] == "adjusting"
-            mock_spc.pid_step.assert_called_once_with(
-                measurement_value, mock_spc.pid.setpoint
-            )
-            mock_MQTTPublisher.publish.assert_called_once_with(
-                f"sensor/{mock_spc.pid.actuator}/setpoint",
-                json.dumps({mock_spc.pid.actuator: 6.7}),
-            )
+        assert mock_spc.state["status"] == "adjusting"
+        mock_spc.pid.step.assert_called_once_with(
+            measurement_value, mock_spc.pid.setpoint
+        )
+        mqtt_mocks["publisher_instance"].publish.assert_called_once_with(
+            f"sensor/{mock_spc.pid.actuator}/setpoint",
+            json.dumps({mock_spc.pid.actuator: 6.7}),
+        )
 
 
 class Test_on_setpoint_reached_message:
 
-    def test_resets_setpoint_on_reached(self, mock_spc, mock_MQTTPublisher):
+    def test_resets_setpoint_on_reached(self, mock_spc, mqtt_mocks):
         client = Mock()
         mock_spc.pid.setpoint = 50.0
         msg = MockMessage(
@@ -349,7 +348,7 @@ class Test_on_setpoint_reached_message:
 
         assert mock_spc.state["status"] == "ready"
         assert mock_spc.pid.setpoint is None
-        mock_MQTTPublisher.publish.assert_called_once_with(
+        mqtt_mocks["publisher_instance"].publish.assert_called_once_with(
             f"{mock_spc.pid.id}/setpoint_reached",
             json.dumps({mock_spc.pid.sensor: True}),
         )
@@ -357,12 +356,13 @@ class Test_on_setpoint_reached_message:
 
 class Test_on_setup_message:
 
-    def test_updates_configurable_parameters(self, mock_spc, mock_MQTTPublisher):
+    def test_updates_configurable_parameters(self, mock_spc, mqtt_mocks):
         client = Mock()
         mock_spc.pid.k_p = 1.0
         new_k_p = 4.2
         mock_spc.pid.k_i = 10
         new_k_i = 42
+        mock_spc.pid.configurable = ["k_p", "k_i"]
         msg = MockMessage(
             f"{mock_spc.pid.id}/setup",
             json.dumps({"k_p": new_k_p, "k_i": new_k_i}),
@@ -375,17 +375,18 @@ class Test_on_setup_message:
         assert mock_spc.state["config"]["k_i"] == new_k_i
         assert mock_spc.pid.k_p == new_k_p
         assert mock_spc.pid.k_i == new_k_i
-        mock_MQTTPublisher.publish.assert_called_once_with(
+        mqtt_mocks["publisher_instance"].publish.assert_called_once_with(
             f"heartbeat/{mock_spc.pid.id}",
             f"{mock_spc.pid.get_state(1)}",
         )
 
-    def test_rejects_non_configurable_parameters(self, mock_spc, mock_MQTTPublisher):
+    def test_rejects_non_configurable_parameters(self, mock_spc, mqtt_mocks):
         client = Mock()
         mock_spc.pid.k_p = 1.0
         new_k_p = 4.2
         mock_spc.pid.k_i = 10
         new_k_i = 42
+        mock_spc.pid.configurable = ["k_p", "k_i"]
         msg = MockMessage(
             f"{mock_spc.pid.id}/setup",
             json.dumps({"k_p": new_k_p, "k_i": new_k_i, "non_configurable_param": 123}),
@@ -396,8 +397,10 @@ class Test_on_setup_message:
         assert mock_spc.state["status"] == "error"
         assert mock_spc.pid.k_p == 1.0
         assert mock_spc.pid.k_i == 10
-        mock_MQTTPublisher.publish.assert_called_once()
-        topic, message = parse_message_args(mock_MQTTPublisher.publish.call_args[0])
+        mqtt_mocks["publisher_instance"].publish.assert_called_once()
+        topic, message = parse_message_args(
+            mqtt_mocks["publisher_instance"].publish.call_args[0]
+        )
         assert topic == f"error/{mock_spc.pid.id}"
         assert "error" in message.keys()
         assert (
@@ -407,18 +410,18 @@ class Test_on_setup_message:
 
 
 class TestPublishHeartbeat:
-    def test_uses_status(self, mock_MQTTPublisher):
+    def test_uses_status(self, mqtt_mocks, base_SPC):
         spc = base_SPC()
         spc.state = {"status": "testing_status"}
 
         spc.publish_heartbeat()
 
-        assert mock_MQTTPublisher.publish.call_args_list == [
+        assert mqtt_mocks["publisher_instance"].publish.call_args_list == [
             call("pid/A__B/setpoint", '{"A": null}'),
             call(f"heartbeat/{spc.pid.id}", json.dumps({"status": "testing_status"})),
         ]
 
-    def test_fields_included(self, mock_MQTTPublisher):
+    def test_fields_included(self, mqtt_mocks, base_SPC):
         spc = base_SPC()
 
         spc.publish_heartbeat()
@@ -438,7 +441,7 @@ class TestPublishHeartbeat:
                 "max_rate": None,
             },
         }
-        assert mock_MQTTPublisher.publish.call_args_list == [
+        assert mqtt_mocks["publisher_instance"].publish.call_args_list == [
             call("pid/A__B/setpoint", '{"A": null}'),
             call(f"heartbeat/{spc.pid.id}", json.dumps(expected)),
         ]

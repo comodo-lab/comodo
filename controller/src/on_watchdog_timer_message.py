@@ -3,6 +3,8 @@ import time as t
 from src.controller_helper import *
 from src.error_helper import *
 
+from utils import mqtt_clients as mqtt
+
 
 def on_wd_timer_message(client, msg, obj):
     """
@@ -11,12 +13,13 @@ def on_wd_timer_message(client, msg, obj):
     It is kept alive by the watchdog, which resets the value of the timer every time a heartbeat is received.
     """
     try:
-        message = load_message(msg)
+        message = mqtt.load_message(msg)
     except json.JSONDecodeError as e:
         wrong_json(msg, e, source="wd_timer")
         if msg.topic == "wd_timer/start":
             print("ERROR: Watchdog timer failed to start.")
             print(f"  Wrong json: {e}")
+            obj["healthy"] = False
         return
 
     if msg.topic == "wd_timer/start":
@@ -31,17 +34,19 @@ def on_wd_timer_message(client, msg, obj):
             timer_interval = 0.6 * obj["interval"]
         except AssertionError as e:
             error = f"WATCHDOG_TIMER incompatible values: {e}"
-            MQTTPublisher.get_instance().publish(
+            mqtt.MQTTPublisher.get_instance().publish(
                 "error/wd_timer",
                 json.dumps({"error": error}),
             )
             print("ERROR: Watchdog timer failed to start.")
             print(f"Values do not match: {e}")
+            obj["healthy"] = False
             return
         except KeyError as e:
             missing_keys(msg, e, source="wd_timer")
             print("ERROR: Watchdog timer failed to start.")
             print(f"Missing keys: {e}")
+            obj["healthy"] = False
             return
         # Start timer for watchdog
         obj["healthy"] = True
@@ -50,7 +55,7 @@ def on_wd_timer_message(client, msg, obj):
             t.sleep(timer_interval)
             obj["timer"] = obj["timer"] - timer_interval
             if obj["timer"] <= 0:
-                MQTTPublisher.get_instance().publish(
+                mqtt.MQTTPublisher.get_instance().publish(
                     "watchdog/timeout",
                     json.dumps(
                         {
@@ -61,7 +66,7 @@ def on_wd_timer_message(client, msg, obj):
                 return
     else:
         error = f"WATCHDOG_TIMER: Unexpected message received: {msg.topic}"
-        MQTTPublisher.get_instance().publish(
+        mqtt.MQTTPublisher.get_instance().publish(
             "error/wd_timer",
             json.dumps({"error": error}),
         )

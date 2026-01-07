@@ -2,11 +2,18 @@ import json
 import time as t
 from datetime import datetime
 
-from utils.mqtt_clients import *
+from utils import mqtt_clients as mqtt
 from utils.interpolation import split_setpoints
 
 from src.controller_state import *
-from src.controller_helper import *
+from src.controller_helper import assign_serial_id, dump_database_for_experiment
+from src.error_helper import (
+    incompatible_request,
+    incompatible_uid,
+    missing_keys,
+    wrong_json,
+    experiment_validation_error,
+)
 from src.validation import validate_file, ValidationException
 
 
@@ -27,7 +34,7 @@ def c_idle(client, msg, obj):
 
     # Load and decode experiment file
     try:
-        payload = load_message(msg)
+        payload = mqtt.load_message(msg)
         obj.exp_file = payload["file"]
         temp_uid = payload["uid"]
     except json.JSONDecodeError as e:
@@ -41,19 +48,23 @@ def c_idle(client, msg, obj):
     # Validate experiment configuration
     try:
         exp_config = validate_file(obj.exp_file, obj.schema_path)
+        # Compute intermediate setpoints
+        obj.setpoints = split_setpoints(
+            exp_config["experiment"], exp_config["config"]["resolution"]
+        )
         obj.experiment_uid = exp_config["uid"]
         m = {
             "uid": obj.experiment_uid,
             "valid": True,
         }
-        MQTTPublisher.get_instance().publish("validator/passed", json.dumps(m))
+        mqtt.MQTTPublisher.get_instance().publish("validator/passed", json.dumps(m))
         obj.exp_config = exp_config
         # Update state and callback of controller
         client.callback = c_starting
-        MQTTPublisher.get_instance().publish(
+        mqtt.MQTTPublisher.get_instance().publish(
             "controller/start", json.dumps({"uid": m["uid"]})
         )
-    except ValidationException as e:
+    except (ValidationException, ValueError) as e:
         experiment_validation_error(e, temp_uid)
         obj.experiment_uid = None
         obj.status = "idle"
@@ -80,10 +91,6 @@ def c_starting(client, msg, obj):
         return
 
     obj.status = "starting"
-    # Compute intermediate setpoints
-    obj.setpoints = split_setpoints(
-        obj.exp_config["experiment"], obj.exp_config["config"]["resolution"]
-    )
     # Create list of sensors dicts with expected config values
     obj.sensors = {"configured": False}
     for sensor in obj.exp_config["config"]["sensors"]:
@@ -96,12 +103,12 @@ def c_starting(client, msg, obj):
     # Update state and callback of controller
     obj.status = "awaiting_sensors"
     client.callback = c_ready
-    MQTTPublisher.get_instance().publish(
+    mqtt.MQTTPublisher.get_instance().publish(
         "timer/start/sensor_setup", json.dumps({"uid": obj.experiment_uid})
     )
     # Send sensor config
     for sensor in obj.exp_config["config"]["sensors"]:
-        MQTTPublisher.get_instance().publish(
+        mqtt.MQTTPublisher.get_instance().publish(
             f"sensor/{sensor['name']}/setup", json.dumps(sensor)
         )
 
@@ -129,7 +136,7 @@ def c_ready(client, msg, obj):
     assign_serial_id(obj)
     # Update state and callback of controller
     client.callback = c_running
-    MQTTPublisher.get_instance().publish(
+    mqtt.MQTTPublisher.get_instance().publish(
         "controller/run", json.dumps({"uid": obj.experiment_uid})
     )
 
@@ -154,10 +161,11 @@ def c_running(client, msg, obj):
         return
 
     if obj.setpoints == []:
-        obj.past_setpoints.append(obj.current_setpoint)
-        obj.current_setpoint = None
+        if obj.current_setpoint is not None:
+            obj.past_setpoints.append(obj.current_setpoint)
+            obj.current_setpoint = None
         client.callback = c_stopping
-        MQTTPublisher.get_instance().publish(
+        mqtt.MQTTPublisher.get_instance().publish(
             "controller/end", json.dumps({"uid": obj.experiment_uid})
         )
         return
@@ -176,10 +184,10 @@ def c_running(client, msg, obj):
         sp = {sensor: setpoint}
         if duration is not None:
             sp["duration"] = duration
-        MQTTPublisher.get_instance().publish(
+        mqtt.MQTTPublisher.get_instance().publish(
             f"sensor/{sensor}/setpoint", json.dumps(sp)
         )
-    MQTTPublisher.get_instance().publish(
+    mqtt.MQTTPublisher.get_instance().publish(
         "timer/start/setpoint",
         json.dumps({"uid": obj.experiment_uid, "duration": next_setpoint["duration"]}),
     )
@@ -193,30 +201,26 @@ def c_stopping(client, msg, obj):
 
     The safe stopping method needs to be implemented. Currently, it pauses for 2 seconds and then resets the cstate object.
 
-    Currently controller/stop and controller/end do the same thing.
+    Currently controller/stop and controller/end only differ in the final print.
     """
     if msg.topic not in [
         "controller/stop",
         "controller/end",
-        "controller/stopped",
     ]:
         incompatible_request(obj, msg)
         return
-    if msg.topic == "controller/stopped":
-        client.callback = c_idle
-        return
-    message = load_message(msg)
+    message = mqtt.load_message(msg)
     if message["uid"] == obj.experiment_uid:
         obj.status = "stopping"
         client.callback = c_stopping
         ### Safe stop placeholder
-        t.sleep(2)
+        t.sleep(1)
         dump_database_for_experiment(obj)
         ###
         uid = obj.experiment_uid
         obj.reset()
-        MQTTPublisher.get_instance().publish(
-            "controller/stopped", json.dumps({"uid": uid})
-        )
+        client.callback = c_idle
+        stop_reason = "was stopped" if msg.topic == "controller/stop" else "finished"
+        print(f"Experiment {uid} {stop_reason} and the controller has been reset.")
     else:
         incompatible_uid(obj, msg)

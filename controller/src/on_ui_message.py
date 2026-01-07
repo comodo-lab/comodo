@@ -1,7 +1,7 @@
 import json
 import os
 
-from utils.mqtt_clients import *
+from utils import mqtt_clients as mqtt
 
 from src.error_helper import *
 from src.controller_helper import data_path
@@ -28,7 +28,7 @@ def on_ui_message(client, msg, obj):
     """
 
     try:
-        experiment = load_message(msg)
+        experiment = mqtt.load_message(msg)
         uid = experiment["uid"]
     except json.JSONDecodeError as e:
         wrong_json(msg, e)
@@ -46,7 +46,7 @@ def on_ui_message(client, msg, obj):
             with open(exp_file, "w") as f:
                 json.dump(experiment, f)
 
-            MQTTPublisher.get_instance().publish(
+            mqtt.MQTTPublisher.get_instance().publish(
                 "controller/validate",
                 json.dumps({"uid": uid, "file": exp_file}),
             )
@@ -55,7 +55,7 @@ def on_ui_message(client, msg, obj):
     else:
         if msg.topic == "ui/stop":
             if uid == obj.experiment_uid:
-                MQTTPublisher.get_instance().publish(
+                mqtt.MQTTPublisher.get_instance().publish(
                     "controller/stop",
                     json.dumps({"uid": uid}),
                 )
