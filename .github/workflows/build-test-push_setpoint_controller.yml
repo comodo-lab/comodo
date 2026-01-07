@@ -62,7 +62,8 @@ jobs:
         id: version
         uses: paulhatch/semantic-version@v5.4.0
         with:
-          search_commit_body: true
+          version_format: v${major}.${minor}.${patch}
+          bump_each_commit: true
           namespace: ${{ env.CONTAINER_NAME }}
 
       - name: Set tag variables
