@@ -23,7 +23,7 @@ on:
 
 jobs:
   build-test-push:
-    uses: ./.github/workflows/build-test-push_template.yml
+    uses: ./.github/workflows/build-test-push.yml
     with:
       container_name: comodo-setpoint_controller
       org_name: comodolab
