@@ -22,6 +22,7 @@ class TestPIDInitialization:
         assert pid.max == 100.0
         assert pid.min == 0.0
         assert pid.max_rate == None
+        assert False
 
     def test_initialization_sets_parameters(self):
         pid = PID(
