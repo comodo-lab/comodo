@@ -93,10 +93,10 @@ jobs:
         if: ${{ github.event.inputs.push == 'true' }}
         run: |
           if [ "${{ github.ref_name }}" != "main" ] && [ "${{ github.ref_name }}" != "dev" ]; then
-            BRANCH=$(echo "${{ github.ref_name }}" | tr '/ ' '--')
+            BRANCH=-$(echo "${{ github.ref_name }}" | tr '/ ' '--')
           fi
-          docker image tag ${{ env.CONTAINER_NAME }}:testing ${{ env.ORG_NAME }}/${{ env.CONTAINER_NAME }}:${{ steps.version.outputs.version }}-${BRANCH}
-          docker push ${{ env.ORG_NAME }}/${{ env.CONTAINER_NAME }}:${{ steps.version.outputs.version }}-${BRANCH}
+          docker image tag ${{ env.CONTAINER_NAME }}:testing ${{ env.ORG_NAME }}/${{ env.CONTAINER_NAME }}:${{ steps.version.outputs.version }}${BRANCH}
+          docker push ${{ env.ORG_NAME }}/${{ env.CONTAINER_NAME }}:${{ steps.version.outputs.version }}${BRANCH}
 
       - name: Push custom tag
         if: ${{ github.event.inputs.custom_tag != '' }}
