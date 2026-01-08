@@ -1,0 +1,120 @@
+name: build-test-push
+
+on:
+  workflow_call:
+    inputs:
+      container_name:
+        required: true
+        type: string
+      org_name:
+        required: true
+        type: string
+      build_context:
+        required: true
+        type: string
+        default: "."
+      dockerfile:
+        required: true
+        type: string
+        default: "./Dockerfile"
+
+      test_script:
+        required: true
+        type: string
+
+      push_version_branch:
+        required: false
+        type: boolean
+        default: false
+      custom_tag:
+        required: false
+        type: string
+        default: ""
+
+    secrets:
+      docker_username:
+        required: true
+      docker_password:
+        required: true
+
+# --------------------------------------------------------------------------------- #
+
+jobs:
+  build-test-push:
+    runs-on: ubuntu-latest
+    env:
+      CONTAINER_NAME: ${{ inputs.container_name }}
+      ORG_NAME: ${{ inputs.org_name }}
+      CONTEXT: . ${{ inputs.build_context }}
+      DOCKERFILE: ${{ inputs.dockerfile }}
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ env.CONTEXT }}
+          file: ${{ env.DOCKERFILE }}
+          load: true
+          tags: ${{ env.CONTAINER_NAME }}:testing
+          cache-from: type=gha,scope=${{ env.CONTAINER_NAME }}
+          cache-to: type=gha,scope=${{ env.CONTAINER_NAME }},mode=max
+
+      - name: Test
+        run: ${{ inputs.test_script }}
+
+      - name: Version
+        id: version
+        uses: paulhatch/semantic-version@v5.4.0
+        with:
+          namespace: ${{ env.CONTAINER_NAME }}
+          tag_prefix: "v"
+          version_format: v${major}.${minor}.${patch}
+          bump_each_commit: true
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      # Push actions for push event
+
+      - name: Push versioned
+        if: ${{ github.event_name == 'push' }}
+        run: |
+          docker image tag ${{ env.CONTAINER_NAME }}:testing ${{ env.ORG_NAME }}/${{ env.CONTAINER_NAME }}:${{ steps.version.outputs.version }}
+          docker push ${{ env.ORG_NAME }}/${{ env.CONTAINER_NAME }}:${{ steps.version.outputs.version }}
+
+      - name: Push latest tag
+        if: ${{ github.event_name == 'push' }}
+        run: |
+          docker image tag ${{ env.CONTAINER_NAME }}:testing ${{ env.ORG_NAME }}/${{ env.CONTAINER_NAME }}:latest
+          docker push ${{ env.ORG_NAME }}/${{ env.CONTAINER_NAME }}:latest
+
+      # Push actions for workflow_dispatch event
+
+      - name: Push version-branch
+        if: ${{ github.event.inputs.push == 'true' }}
+        run: |
+          if [ "${{ github.ref_name }}" != "main" ] && [ "${{ github.ref_name }}" != "dev" ]; then
+            BRANCH=-$(echo "${{ github.ref_name }}" | tr '/ ' '--')
+          fi
+          docker image tag ${{ env.CONTAINER_NAME }}:testing ${{ env.ORG_NAME }}/${{ env.CONTAINER_NAME }}:${{ steps.version.outputs.version }}${BRANCH}
+          docker push ${{ env.ORG_NAME }}/${{ env.CONTAINER_NAME }}:${{ steps.version.outputs.version }}${BRANCH}
+
+      - name: Push custom tag
+        if: ${{ github.event.inputs.custom_tag != '' }}
+        run: |
+          docker image tag ${{ env.CONTAINER_NAME }}:testing ${{ env.ORG_NAME }}/${{ env.CONTAINER_NAME }}:${{ github.event.inputs.custom_tag }}
+          docker push ${{ env.ORG_NAME }}/${{ env.CONTAINER_NAME }}:${{ github.event.inputs.custom_tag }}
