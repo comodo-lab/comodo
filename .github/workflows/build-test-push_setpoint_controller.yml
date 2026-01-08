@@ -1,4 +1,4 @@
-name: build-test-push setpoint_controller
+name: b-t-p setpoint_controller
 
 on:
   workflow_dispatch:
@@ -38,3 +38,6 @@ jobs:
     secrets:
       docker_username: ${{ secrets.DOCKER_USERNAME }}
       docker_password: ${{ secrets.DOCKER_PASSWORD }}
+    permissions:
+      contents: read
+      packages: write
