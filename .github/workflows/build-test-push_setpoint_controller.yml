@@ -33,7 +33,7 @@ jobs:
         set -eo pipefail
         cd ./setpoint_controller
         docker compose up --abort-on-container-exit --exit-code-from setpoint_controller
-      push_version_branch: ${{ github.event.inputs.push_vb == 'true' }}
+      push_vb: ${{ github.event.inputs.push_vb == 'true' }}
       custom_tag: ${{ github.event.inputs.custom_tag }}
     secrets:
       docker_username: ${{ secrets.DOCKER_USERNAME }}
