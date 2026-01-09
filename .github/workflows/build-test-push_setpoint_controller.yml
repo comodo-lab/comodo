@@ -1,4 +1,4 @@
-name: b-t-p setpoint_controller
+name: build-test-push setpoint_controller
 
 on:
   workflow_dispatch:

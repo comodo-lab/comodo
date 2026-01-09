@@ -1,0 +1,21 @@
+
+# This compose file runs the tests for the ui and exits when done.
+# To run the tests, cd into ui/ and execute:
+#   docker compose up --build
+
+name: ui-tests
+services:
+  ui:
+    image: comodo-ui:testing
+    build:
+      context: ../
+      dockerfile: ui/Dockerfile
+    container_name: ui-test
+    volumes:
+      - memory:/memory  # Used to persist pytest cache between runs
+    command: bash -c "coverage run -m pytest
+      tests/ -vv &&
+      echo '' && coverage report && coverage html -d /memory/htmlcov"
+
+volumes:
+  memory:

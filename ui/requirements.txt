@@ -12,3 +12,7 @@ numpy
 influxdb-client
 
 pytz
+
+pytest
+pytest-rerunfailures
+coverage
