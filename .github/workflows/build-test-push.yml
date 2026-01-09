@@ -22,7 +22,7 @@ on:
         required: true
         type: string
 
-      push_version_branch:
+      push_vb:
         required: false
         type: boolean
         default: false
@@ -105,7 +105,7 @@ jobs:
       # Push actions for workflow_dispatch event
 
       - name: Push version-branch
-        if: ${{ github.event.inputs.push == 'true' }}
+        if: ${{ github.event.inputs.push_vb == 'true' }}
         run: |
           if [ "${{ github.ref_name }}" != "main" ] && [ "${{ github.ref_name }}" != "dev" ]; then
             BRANCH=-$(echo "${{ github.ref_name }}" | tr '/ ' '--')
