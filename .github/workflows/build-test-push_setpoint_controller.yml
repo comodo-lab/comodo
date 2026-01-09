@@ -23,7 +23,7 @@ on:
 
 jobs:
   build-test-push:
-    uses: ./.github/workflows/build-test-push_template.yml
+    uses: ./.github/workflows/build-test-push.yml
     with:
       container_name: comodo-setpoint_controller
       org_name: comodolab
@@ -33,8 +33,11 @@ jobs:
         set -eo pipefail
         cd ./setpoint_controller
         docker compose up --abort-on-container-exit --exit-code-from setpoint_controller
-      push_version_branch: ${{ github.event.inputs.push_vb }}
+      push_vb: ${{ github.event.inputs.push_vb == 'true' }}
       custom_tag: ${{ github.event.inputs.custom_tag }}
     secrets:
       docker_username: ${{ secrets.DOCKER_USERNAME }}
       docker_password: ${{ secrets.DOCKER_PASSWORD }}
+    permissions:
+      contents: read
+      packages: write

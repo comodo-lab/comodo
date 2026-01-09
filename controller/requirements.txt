@@ -2,7 +2,7 @@ jsonschema
 paho-mqtt
 numpy
 influxdb-client
+
 pytest
-pytest-mqtt
 pytest-rerunfailures
 coverage
