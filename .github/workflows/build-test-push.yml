@@ -45,7 +45,7 @@ jobs:
     env:
       CONTAINER_NAME: ${{ inputs.container_name }}
       ORG_NAME: ${{ inputs.org_name }}
-      CONTEXT: . ${{ inputs.build_context }}
+      CONTEXT: ${{ inputs.build_context }}
       DOCKERFILE: ${{ inputs.dockerfile }}
     permissions:
       contents: read
