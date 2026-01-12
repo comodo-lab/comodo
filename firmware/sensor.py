@@ -57,33 +57,37 @@ class BaseSensor:
         else:
             raise ValueError(f"Invalid sensor name: {input_name}")
 
+    # Base behaviour, not to be overriden
+    def _get_measurement(self, state):
+        if not state.config["SIMULATE"] == "True":
+            return self.get_measurement(self, state)
+        else:
+            if state.status['setpoint'] is None:
+                return 0
+
+            setpoint = state.status['setpoint']
+            value = state.measurement
+            
+            difference = setpoint - value
+            half_diff = difference / 2
+            
+            measurement = half_diff + value
+            
+            distance = abs(measurement - state.status["setpoint"])
+            if distance < state.status["config"]["tolerance"]:
+                state.client.publish(f"sensor/{state.config['SENSOR_ID']}/setpoint_reached", "true")
+                
+            state.measurement = measurement
+            return measurement
+        
+    # Actual behaviour, to be overriden
     def get_measurement(self, state):
         """
         Get measurement from the sensor.
-
-        The default implementation is a dummy sensor, that moves toward the setpoint
-        in steps of half the distance to the setpoint.
-        If the measurement is within tolerance of the setpoint, it publishes a setpoint_reached message.
-
-        Returns:
-            float: The measurement
         """
-        # Only move toward the setpoint if it is set
-        if state.status["setpoint"] is not None:
-            half_diff = (state.status["setpoint"] - state.measurement) / 2
-
-            state.measurement = half_diff + state.measurement
-
-            # If within tolerance to setpoint, publish setpoint_reached
-            distance = abs(state.measurement - state.status["setpoint"])
-            if distance < state.status["config"]["tolerance"]:
-                state.client.publish(
-                    f"sensor/{state.config['SENSOR_ID']}/setpoint_reached", "true"
-                )
-
-        return state.measurement
-
-    def go_to_setpoint(self, setpoint):
+        pass
+    
+    def _go_to_setpoint(self, setpoint):
         """
         Go to the setpoint
 
@@ -94,4 +98,14 @@ class BaseSensor:
         Returns:
             None
         """
-        self.setpoint = setpoint
+        if not state.config["SIMULATE"] == "True":
+            return self.go_to_stepoint(self, setpoint)
+        else:
+            self.setpoint = setpoint
+
+    # Actual behaviour to be overriden
+    def go_to_setpoint(self, setpoint):
+        """
+        Go to the setpoint
+        """
+        pass

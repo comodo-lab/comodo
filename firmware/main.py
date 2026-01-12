@@ -78,7 +78,7 @@ def send_measurement():
     if (state.client is None) or (state.sensor is None):
         return
 
-    measurement = state.sensor.get_measurement(state)
+    measurement = state.sensor._get_measurement(state)
     measurement_structure = {"value": measurement}
     msg = json.dumps(measurement_structure)
     state.client.publish(f"measurement/{state.config['SENSOR_ID']}", msg)
