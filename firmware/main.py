@@ -21,9 +21,6 @@ import config as cfg
 import connect as con
 import state
 
-# Test sensor import
-from sensors.test_sensor import TestSensor
-
 # Sensor imports (trigger sensor registration)
 from sensors.carbolite_gero_thermocouple import TempLeft, TempMain, TempRight
 from sensors.pfeiffer_mpt_200_pressure import PressureDownstream, PressureUpstream
