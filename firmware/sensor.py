@@ -29,13 +29,12 @@ class BaseSensor:
         return decorator
 
     @classmethod
-    def create_sensor(cls, input_name, dummy=False):
+    def create_sensor(cls, input_name):
         """
         Create the sensor based on the input name
 
         Args:
             input_name: str: The name of the sensor
-            dummy: bool: Whether to create a dummy sensor
 
         Returns:
             BaseSensor: The sensor object
@@ -44,12 +43,6 @@ class BaseSensor:
             ValueError: If the input name is invalid
         """
 
-        # If dummy is specified, return the base class
-        if dummy:
-            return cls()
-
-        # Otherwise, get the sensor from the map
-        print(f"Creating sensor: {input_name}")
         sensor = cls.sensor_map.get(input_name)
         if sensor:
             return sensor()
