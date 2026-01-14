@@ -49,55 +49,37 @@ class BaseSensor:
         else:
             raise ValueError(f"Invalid sensor name: {input_name}")
 
-    # Base behaviour, not to be overriden
-    def _get_measurement(self, state):
-        if not state.config["SIMULATE"] == "True":
-            return self.get_measurement(self, state)
-        else:
-            if state.status['setpoint'] is None:
-                return 0
-
-            setpoint = state.status['setpoint']
-            value = state.measurement
-            
-            difference = setpoint - value
-            half_diff = difference / 2
-            
-            measurement = half_diff + value
-            
-            distance = abs(measurement - state.status["setpoint"])
-            if distance < state.status["config"]["tolerance"]:
-                state.client.publish(f"sensor/{state.config['SENSOR_ID']}/setpoint_reached", "true")
-                
-            state.measurement = measurement
-            return measurement
-        
-    # Actual behaviour, to be overriden
     def get_measurement(self, state):
-        """
-        Get measurement from the sensor.
-        """
-        pass
-    
-    def _go_to_setpoint(self, setpoint):
-        """
-        Go to the setpoint
+        raise NotImplemented
 
-        The default implementation just sets the setpoint.
-
-        Args:
-            setpoint: float: The setpoint
-        Returns:
-            None
+    def simulate_get_measurement(self, state):
         """
-        if not state.config["SIMULATE"] == "True":
-            return self.go_to_stepoint(self, setpoint)
-        else:
-            self.setpoint = setpoint
+        Get a simulated measurement, default implementation
+        """
 
-    # Actual behaviour to be overriden
+        setpoint = state.status['setpoint']
+        value = state.measurement
+        
+        if setpoint is None:
+            return 0
+        
+        difference = setpoint - value
+        half_diff = difference / 2
+            
+        measurement = half_diff + value
+        
+        distance = abs(measurement  state.status["setpoint"])
+        if distance < state.status["config"]["tolerance"]:
+            state.client.publish(f"sensor/{state.config['SENSOR_ID']}/setpoint_reached", "true")
+            
+        state.measurement = measurement
+        return measurement
+
     def go_to_setpoint(self, setpoint):
+        raise NotImplemented
+    
+    def simulate_go_to_setpoint(self, setpoint):
         """
-        Go to the setpoint
+        Go to the setpoint 
         """
-        pass
+        state.status['setpoint'] = setpoint
