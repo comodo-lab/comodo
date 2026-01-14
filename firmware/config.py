@@ -23,5 +23,4 @@ def load_config():
             new_value = os.getenv(key, value)
             config[key] = new_value.strip('"').strip("'")
 
-    print(config)
     return config

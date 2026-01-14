@@ -62,7 +62,6 @@ def send_heartbeat():
     """
     if state.client is not None and "ready" in state.config:
         heartbeat_structure = state.get_status()
-        # print(heartbeat_structure)
         state.client.publish(
             f"heartbeat/sensor/{state.config['SENSOR_ID']}", heartbeat_structure
         )
@@ -151,7 +150,6 @@ async def main():
     if board == "rp2":
         con.connect_wifi(state.config["WIFI_SSID"], state.config["WIFI_PASS"])
         watchdog.feed()
-        print("Connected to wifi")
 
     ## Connect to the mqtt broker
     state.client = con.connect_mqtt(
@@ -161,7 +159,6 @@ async def main():
         user=state.config["MQTT_USER"],
         password=state.config["MQTT_PASS"],
     )
-    print("Connected to broker")
 
     ## Subscribe to the controller's instructions
     state.client.set_callback(state.awaiting_config_cb)
@@ -170,11 +167,10 @@ async def main():
     state.client.subscribe(f"sensor/{state.config['SENSOR_ID']}/setpoint")
     state.client.subscribe(f"controller/end")
     state.client.subscribe(f"controller/stop")
-    print("Subscribed to topics")
 
     ## Set the ready flag
     state.config["ready"] = True
-    print("Ready")
+    print(f"Sensor {state.config['SENSOR_ID']} is ready")
 
     ## Setup heartbeat timer if on a pico or async timer if on linux
     if board == "rp2":
@@ -188,11 +184,9 @@ async def main():
             mode=Timer.PERIODIC,
             callback=measurement_tick,
         )
-        print("Timers set up")
     elif board == "linux":
         asyncio.create_task(heartbeat_tick(None))
         asyncio.create_task(measurement_tick(None))
-        print("Async timers set up")
 
     ## Main loop
     while True:
