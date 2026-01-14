@@ -1,6 +1,7 @@
 # System imports
 import time as t
 import sys
+import traceback
 
 # Determine the board and set the watchdog timer
 board = sys.platform
@@ -210,5 +211,6 @@ if __name__ == "__main__":
                 state.client.publish(
                     f"error/sensor/{state.config['SENSOR_ID']}", str(e)
                 )
+                traceback.print_exc()
             except:
                 print(f"Error: {e}")
