@@ -39,7 +39,6 @@ from sensors.pfeiffer_prismapro import MassSpec
 # Initialize the state
 state = state.SensorState()
 
-
 if board == "rp2":
     from machine import Timer
 
