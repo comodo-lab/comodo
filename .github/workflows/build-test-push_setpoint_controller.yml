@@ -18,6 +18,8 @@ on:
     paths:
       - "setpoint_controller/**"
       - "utils/**"
+  pull_request:
+    branches: ["main", "dev"]
 
 # --------------------------------------------------------------------------------- #
 
