@@ -88,4 +88,4 @@ class BaseSensor:
         """
         Go to the setpoint 
         """
-        state.status['setpoint'] = setpoint
+        pass
