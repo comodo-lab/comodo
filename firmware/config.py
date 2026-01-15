@@ -20,7 +20,6 @@ def load_config():
         config = json.loads(f.read())
 
         for key, value in config.items():
-            new_value = os.getenv(key, value)
-            config[key] = new_value.strip('"').strip("'")
+            config[key] = os.getenv(key, value)
 
     return config
