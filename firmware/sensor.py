@@ -23,20 +23,18 @@ class BaseSensor:
         """
 
         def decorator(sensor):
-            print(f"Registering sensor: {sensor_name}")
             cls.sensor_map[sensor_name] = sensor
             return sensor
 
         return decorator
 
     @classmethod
-    def create_sensor(cls, input_name, dummy=False):
+    def create_sensor(cls, input_name):
         """
         Create the sensor based on the input name
 
         Args:
             input_name: str: The name of the sensor
-            dummy: bool: Whether to create a dummy sensor
 
         Returns:
             BaseSensor: The sensor object
@@ -45,53 +43,64 @@ class BaseSensor:
             ValueError: If the input name is invalid
         """
 
-        # If dummy is specified, return the base class
-        if dummy:
-            return cls()
-
-        # Otherwise, get the sensor from the map
-        print(f"Creating sensor: {input_name}")
         sensor = cls.sensor_map.get(input_name)
         if sensor:
             return sensor()
         else:
             raise ValueError(f"Invalid sensor name: {input_name}")
 
+    def __init__(self):
+        """
+        Initialisations that are safe when either hardware or simulation is used
+
+        To be extended by subclasses, if needed.
+        """
+        
+        pass
+
+    def initialise(self):
+        """
+        Initialisations that are only safe when hardware is used
+        """
+        pass
+
     def get_measurement(self, state):
         """
-        Get measurement from the sensor.
-
-        The default implementation is a dummy sensor, that moves toward the setpoint
-        in steps of half the distance to the setpoint.
-        If the measurement is within tolerance of the setpoint, it publishes a setpoint_reached message.
-
-        Returns:
-            float: The measurement
+        Get a measurement from the sensor
         """
-        # Only move toward the setpoint if it is set
-        if state.status["setpoint"] is not None:
-            half_diff = (state.status["setpoint"] - state.measurement) / 2
+        raise NotImplemented
 
-            state.measurement = half_diff + state.measurement
+    def simulate_get_measurement(self, state):
+        """
+        Get a simulated measurement, default implementation
+        """
 
-            # If within tolerance to setpoint, publish setpoint_reached
-            distance = abs(state.measurement - state.status["setpoint"])
-            if distance < state.status["config"]["tolerance"]:
-                state.client.publish(
-                    f"sensor/{state.config['SENSOR_ID']}/setpoint_reached", "true"
-                )
-
-        return state.measurement
+        setpoint = state.status['setpoint']
+        value = state.measurement
+        
+        if setpoint is None:
+            return 0
+        
+        difference = setpoint - value
+        half_diff = difference / 2
+            
+        measurement = half_diff + value
+        
+        distance = abs(measurement - state.status["setpoint"])
+        if distance < state.status["config"]["tolerance"]:
+            state.client.publish(f"sensor/{state.config['SENSOR_ID']}/setpoint_reached", "true")
+            
+        state.measurement = measurement
+        return measurement
 
     def go_to_setpoint(self, setpoint):
         """
         Go to the setpoint
-
-        The default implementation just sets the setpoint.
-
-        Args:
-            setpoint: float: The setpoint
-        Returns:
-            None
         """
-        self.setpoint = setpoint
+        raise NotImplemented
+    
+    def simulate_go_to_setpoint(self, setpoint):
+        """
+        Go to the setpoint 
+        """
+        pass

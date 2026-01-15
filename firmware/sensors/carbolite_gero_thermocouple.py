@@ -53,8 +53,10 @@ def write_temperature(host, setpoint):
 
 @BaseSensor.register_sensor("temp_left")
 class TempLeft(BaseSensor):
-
     def __init__(self):
+        self.host = None
+
+    def intialise(self):
         try:
             print(MODBUS_PORT)
             print(IP_ADDRS["left"])
@@ -79,8 +81,10 @@ class TempLeft(BaseSensor):
 
 @BaseSensor.register_sensor("temp_main")
 class TempMain(BaseSensor):
-
     def __init__(self):
+        self.host = None
+
+    def initialise(self):
         try:
             self.host = ModbusTcpClient(host=IP_ADDRS["main"], port=MODBUS_PORT)
         except Exception as e:
@@ -99,11 +103,17 @@ class TempMain(BaseSensor):
         state.measurement = measurement
         return measurement
 
+    def simulate_get_measurement(self, state):
+        measurement =  state.status['setpoint'] * 0.9
+        state.measurement = measurement
+        return measurement
 
 @BaseSensor.register_sensor("temp_right")
 class TempRight(BaseSensor):
-
     def __init__(self):
+        self.host = None
+    
+    def initialise(self):
         try:
             self.host = ModbusTcpClient(host=IP_ADDRS["right"], port=MODBUS_PORT)
         except Exception as e:

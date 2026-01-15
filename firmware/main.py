@@ -1,6 +1,7 @@
 # System imports
 import time as t
 import sys
+import traceback
 
 # Determine the board and set the watchdog timer
 board = sys.platform
@@ -20,9 +21,6 @@ import config as cfg
 import connect as con
 import state
 
-# Test sensor import
-from sensors.test_sensor import TestSensor
-
 # Sensor imports (trigger sensor registration)
 from sensors.carbolite_gero_thermocouple import TempLeft, TempMain, TempRight
 from sensors.pfeiffer_mpt_200_pressure import PressureDownstream, PressureUpstream
@@ -38,16 +36,12 @@ from sensors.pfeiffer_prismapro import MassSpec
 # Initialize the state
 state = state.SensorState()
 
-
 if board == "rp2":
     from machine import Timer
-
     from machine import Pin
-
-    led = machine.Pin("LED", machine.Pin.OUT)
-
     from machine import WDT
 
+    led = machine.Pin("LED", machine.Pin.OUT)
     watchdog = WDT(timeout=8000)
 
 ## ----------------- Timer helper functions ----------------- ##
@@ -62,7 +56,6 @@ def send_heartbeat():
     """
     if state.client is not None and "ready" in state.config:
         heartbeat_structure = state.get_status()
-        # print(heartbeat_structure)
         state.client.publish(
             f"heartbeat/sensor/{state.config['SENSOR_ID']}", heartbeat_structure
         )
@@ -75,21 +68,39 @@ def send_measurement():
     Returns:
         None
     """
+
+    # Return if the client or sensor is not ready
     if (state.client is None) or (state.sensor is None):
         return
 
-    measurement = state.sensor.get_measurement(state)
+    # Retrieve the measurement 
+    if state.config['SIMULATE']:
+        measurement = state.sensor.simulate_get_measurement(state)
+    else:
+        measurement = state.sensor.get_measurement(state)
+
+    # Publish the measurement
     measurement_structure = {"value": measurement}
     msg = json.dumps(measurement_structure)
     state.client.publish(f"measurement/{state.config['SENSOR_ID']}", msg)
-    if state.status["status"] == "ready":
-        ready_error = measurement - state.status["setpoint"]
-        if abs(ready_error) > state.status["config"]["tolerance"]:
-            state.sensor.go_to_setpoint(state.status["setpoint"])
-            state.client.set_callback(state.adjusting_cb)
-            state.status["status"] = "adjusting"
 
+    # If ready and setpoint is recieved that is beyond tolerance way, move to it
+    if state.status["status"] != "ready":
+        return
 
+    position = measurement - state.status["setpoint"]
+    if abs(position) > state.status["config"]["tolerance"]:
+        # Change state
+        state.client.set_callback(state.adjusting_cb)
+        state.status["status"] = "adjusting"
+
+        # Move to setpoint
+        if state.config['SIMULATE']:
+            state.sensor.simulate_go_to_setpoint(state.status["setpoint"])
+        else:
+            state.sensor.go_to_setpoint(state.status["setpoint"])            
+
+        
 ## ----------------- Timer functions ----------------- ##
 
 
@@ -151,7 +162,6 @@ async def main():
     if board == "rp2":
         con.connect_wifi(state.config["WIFI_SSID"], state.config["WIFI_PASS"])
         watchdog.feed()
-        print("Connected to wifi")
 
     ## Connect to the mqtt broker
     state.client = con.connect_mqtt(
@@ -161,7 +171,6 @@ async def main():
         user=state.config["MQTT_USER"],
         password=state.config["MQTT_PASS"],
     )
-    print("Connected to broker")
 
     ## Subscribe to the controller's instructions
     state.client.set_callback(state.awaiting_config_cb)
@@ -170,11 +179,16 @@ async def main():
     state.client.subscribe(f"sensor/{state.config['SENSOR_ID']}/setpoint")
     state.client.subscribe(f"controller/end")
     state.client.subscribe(f"controller/stop")
-    print("Subscribed to topics")
 
+    # Initialise the sensor
+    if not state.config['SIMULATE']:
+        state.sensor.initialise()
+    else:
+        print(f" ### Simulating {state.config['SENSOR_ID']} ### ")
+    
     ## Set the ready flag
     state.config["ready"] = True
-    print("Ready")
+    print(f"Sensor {state.config['SENSOR_ID']} is ready")
 
     ## Setup heartbeat timer if on a pico or async timer if on linux
     if board == "rp2":
@@ -188,11 +202,9 @@ async def main():
             mode=Timer.PERIODIC,
             callback=measurement_tick,
         )
-        print("Timers set up")
     elif board == "linux":
         asyncio.create_task(heartbeat_tick(None))
         asyncio.create_task(measurement_tick(None))
-        print("Async timers set up")
 
     ## Main loop
     while True:
@@ -212,6 +224,7 @@ if __name__ == "__main__":
         try:
             asyncio.run(main())
         except Exception as e:
+            traceback.print_exc()
             try:
                 state.client.publish(
                     f"error/sensor/{state.config['SENSOR_ID']}", str(e)
