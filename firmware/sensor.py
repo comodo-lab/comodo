@@ -49,6 +49,21 @@ class BaseSensor:
         else:
             raise ValueError(f"Invalid sensor name: {input_name}")
 
+    def __init__(self):
+        """
+        Initialisations that are safe when either hardware or simulation is used
+
+        To be extended by subclasses, if needed.
+        """
+        
+        pass
+
+    def initialise(self):
+        """
+        Initialisations that are only safe when hardware is used
+        """
+        pass
+
     def get_measurement(self, state):
         """
         Get a measurement from the sensor
