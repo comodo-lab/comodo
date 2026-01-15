@@ -1,0 +1,38 @@
+[
+  {
+    "id": "Galaxy_WF_1",
+    "type": "Online",
+    "name": "Leak Detection",
+    "url": "https://usegalaxy.org/workflow/12345"
+  },
+  {
+    "id": "Galaxy_WF_2",
+    "type": "Post-processing",
+    "name": "GDPS Post Analysis",
+    "url": "https://usegalaxy.org/workflow/67890"
+  },
+  {
+    "id": "Galaxy_WF_3",
+    "type": "Online",
+    "name": "Real-time Temperature Monitoring",
+    "url": "https://usegalaxy.org/workflow/11111"
+  },
+  {
+    "id": "Galaxy_WF_4",
+    "type": "Online",
+    "name": "Pressure Analysis",
+    "url": "https://usegalaxy.org/workflow/22222"
+  },
+  {
+    "id": "Galaxy_WF_5",
+    "type": "Post-processing",
+    "name": "Produce Output Graphs",
+    "url": "https://usegalaxy.org/workflow/33333"
+  },
+  {
+    "id": "Galaxy_WF_6",
+    "type": "Post-processing",
+    "name": "Data Suite",
+    "url": "https://usegalaxy.org/workflow/44444"
+  }
+]
