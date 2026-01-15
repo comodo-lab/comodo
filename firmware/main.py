@@ -90,17 +90,15 @@ def send_measurement():
 
     position = measurement - state.status["setpoint"]
     if abs(position) > state.status["config"]["tolerance"]:
-        # Move to setpoint
-        if state.config['SIMULATE']:
-            print("Simulating move to setpoint")
-            state.sensor.simulate_go_to_setpoint(state.status["setpoint"])
-        else:
-            print("Hardware move to setpoint")
-            state.sensor.go_to_setpoint(state.status["setpoint"])
-            
         # Change state
         state.client.set_callback(state.adjusting_cb)
         state.status["status"] = "adjusting"
+
+        # Move to setpoint
+        if state.config['SIMULATE']:
+            state.sensor.simulate_go_to_setpoint(state.status["setpoint"])
+        else:
+            state.sensor.go_to_setpoint(state.status["setpoint"])            
 
         
 ## ----------------- Timer functions ----------------- ##
