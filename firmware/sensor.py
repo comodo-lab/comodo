@@ -50,6 +50,9 @@ class BaseSensor:
             raise ValueError(f"Invalid sensor name: {input_name}")
 
     def get_measurement(self, state):
+        """
+        Get a measurement from the sensor
+        """
         raise NotImplemented
 
     def simulate_get_measurement(self, state):
@@ -76,6 +79,9 @@ class BaseSensor:
         return measurement
 
     def go_to_setpoint(self, setpoint):
+        """
+        Go to the setpoint
+        """
         raise NotImplemented
     
     def simulate_go_to_setpoint(self, setpoint):
