@@ -53,7 +53,6 @@ def write_temperature(host, setpoint):
 
 @BaseSensor.register_sensor("temp_left")
 class TempLeft(BaseSensor):
-
     def __init__(self):
         self.host = None
 
@@ -82,7 +81,6 @@ class TempLeft(BaseSensor):
 
 @BaseSensor.register_sensor("temp_main")
 class TempMain(BaseSensor):
-
     def __init__(self):
         self.host = None
 
@@ -112,7 +110,6 @@ class TempMain(BaseSensor):
 
 @BaseSensor.register_sensor("temp_right")
 class TempRight(BaseSensor):
-
     def __init__(self):
         self.host = None
     
