@@ -333,7 +333,7 @@ class MassFlow(BaseSensor):
 @BaseSensor.register_sensor("massflow_temp")
 class MassFlowTemp(BaseSensor):
 
-    def __init__(self):
+    def initialise(self):
         return
 
     def set_config(self, config):
@@ -357,7 +357,7 @@ class MassFlowTemp(BaseSensor):
 @BaseSensor.register_sensor("massflow_pressure_upstream")
 class MassFlowPressureUpstream(BaseSensor):
 
-    def __init__(self):
+    def initialise(self):
         return
 
     def set_config(self, config):
@@ -381,7 +381,7 @@ class MassFlowPressureUpstream(BaseSensor):
 @BaseSensor.register_sensor("massflow_pressure_downstream")
 class MassFlowPressureDownstream(BaseSensor):
 
-    def __init__(self):
+    def initialise(self):
         return
 
     def set_config(self, config):
@@ -405,7 +405,7 @@ class MassFlowPressureDownstream(BaseSensor):
 @BaseSensor.register_sensor("massflow_fluid_temp")
 class MassFlowFluidTemp(BaseSensor):
 
-    def __init__(self):
+    def initialise(self):
         return
 
     def set_config(self, config):
