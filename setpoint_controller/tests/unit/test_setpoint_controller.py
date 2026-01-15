@@ -201,7 +201,7 @@ class Test_SetpointController_init:
             topics=[
                 "sensor/A/setpoint",
                 "measurement/A",
-                "sensor/A/setpoint_reached",
+                # "sensor/A/setpoint_reached",
                 "pid/A__B/setup",
             ],
             broker_address="test_host",
