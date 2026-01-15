@@ -38,13 +38,10 @@ state = state.SensorState()
 
 if board == "rp2":
     from machine import Timer
-
     from machine import Pin
-
-    led = machine.Pin("LED", machine.Pin.OUT)
-
     from machine import WDT
 
+    led = machine.Pin("LED", machine.Pin.OUT)
     watchdog = WDT(timeout=8000)
 
 ## ----------------- Timer helper functions ----------------- ##
