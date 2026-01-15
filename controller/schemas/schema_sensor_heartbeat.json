@@ -15,20 +15,11 @@
         "config": {
             "type": "object",
             "properties": {
-                "p": {
-                    "type": ["number", "null"]
-                },
-                "i": {
-                    "type": ["number", "null"]
-                },
-                "d": {
-                    "type": ["number", "null"]
-                },
                 "tolerance": {
                     "type": ["number", "null"]
                 }
             },
-            "required": ["p", "i", "d", "tolerance"]
+            "required": ["tolerance"]
         }
     },
     "required": ["name", "status", "setpoint", "config"]
