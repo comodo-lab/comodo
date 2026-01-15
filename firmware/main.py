@@ -226,10 +226,10 @@ if __name__ == "__main__":
         try:
             asyncio.run(main())
         except Exception as e:
+            traceback.print_exc()
             try:
                 state.client.publish(
                     f"error/sensor/{state.config['SENSOR_ID']}", str(e)
                 )
-                traceback.print_exc()
             except:
                 print(f"Error: {e}")
