@@ -104,10 +104,11 @@ class TempMain(BaseSensor):
         return measurement
 
     def simulate_get_measurement(self, state):
+        setpoint = state.status['setpoint']
         if setpoint is None:
             return 0
         
-        measurement =  state.status['setpoint'] * 0.9
+        measurement = setpoint * 0.9
         state.measurement = measurement
         return measurement
 
