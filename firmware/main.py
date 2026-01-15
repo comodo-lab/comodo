@@ -71,21 +71,41 @@ def send_measurement():
     Returns:
         None
     """
+
+    # Return if the client or sensor is not ready
     if (state.client is None) or (state.sensor is None):
         return
 
-    measurement = state.sensor._get_measurement(state)
+    # Retrieve the measurement 
+    if state.config['SIMULATE']:
+        measurement = state.sensor.simulate_get_measurement(state)
+    else:
+        measurement = state.sensor.get_measurement(state)
+
+    # Publish the measurement
     measurement_structure = {"value": measurement}
     msg = json.dumps(measurement_structure)
     state.client.publish(f"measurement/{state.config['SENSOR_ID']}", msg)
-    if state.status["status"] == "ready":
-        ready_error = measurement - state.status["setpoint"]
-        if abs(ready_error) > state.status["config"]["tolerance"]:
+
+    # If ready and setpoint is recieved that is beyond tolerance way, move to it
+    if state.status["status"] != "ready":
+        return
+
+    position = measurement - state.status["setpoint"]
+    if abs(position) > state.status["config"]["tolerance"]:
+        # Move to setpoint
+        if state.config['SIMULATE']:
+            print("Simulating move to setpoint")
+            state.sensor.simulate_go_to_setpoint(state.status["setpoint"])
+        else:
+            print("Hardware move to setpoint")
             state.sensor.go_to_setpoint(state.status["setpoint"])
-            state.client.set_callback(state.adjusting_cb)
-            state.status["status"] = "adjusting"
+            
+        # Change state
+        state.client.set_callback(state.adjusting_cb)
+        state.status["status"] = "adjusting"
 
-
+        
 ## ----------------- Timer functions ----------------- ##
 
 
@@ -165,6 +185,12 @@ async def main():
     state.client.subscribe(f"controller/end")
     state.client.subscribe(f"controller/stop")
 
+    # Initialise the sensor
+    if not state.config['SIMULATE']:
+        state.sensor.initialise()
+    else:
+        print(f" ### Simulating {state.config['SENSOR_ID']} ### ")
+    
     ## Set the ready flag
     state.config["ready"] = True
     print(f"Sensor {state.config['SENSOR_ID']} is ready")
