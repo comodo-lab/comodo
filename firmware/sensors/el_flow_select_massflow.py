@@ -280,7 +280,7 @@ def read_from_file(name):
 @BaseSensor.register_sensor("massflow")
 class MassFlow(BaseSensor):
 
-    def __init__(self):
+    def initialise(self):
         try:
             # Map all docker containers to /dev/ttyUSB2)
             self.instrument = propar.instrument("/dev/ttyUSB2")
