@@ -94,9 +94,17 @@ class SensorState(object):
         """
 
         if topic.decode("utf-8") == f"sensor/{self.config['SENSOR_ID']}/setpoint":
+            # Parse incoming setpoint
             params = json.loads(msg)
             self.status["setpoint"] = params[self.config["SENSOR_ID"]]
-            self.sensor.go_to_setpoint(self.status["setpoint"])
+
+            # Trigger go to setpoint
+            if self.config['SIMULATE']:
+                self.sensor.simulate_go_to_setpoint(self.status["setpoint"])
+            else:
+                self.sensor.go_to_setpoint(self.status["setpoint"])
+
+            # Set state
             self.client.set_callback(self.adjusting_cb)
             self.status["status"] = "adjusting"
 
@@ -117,9 +125,17 @@ class SensorState(object):
         """
 
         if topic.decode("utf-8") == f"sensor/{self.config['SENSOR_ID']}/setpoint":
+            # Parse incoming setpoint
             params = json.loads(msg)
             self.status["setpoint"] = params[self.config["SENSOR_ID"]]
-            self.sensor.go_to_setpoint(self.status["setpoint"])
+
+            # Trigger go to setpoint
+            if self.config['SIMULATE']:
+                self.sensor.simulate_go_to_setpoint(self.status["setpoint"])
+            else:
+                self.sensor.go_to_setpoint(self.status["setpoint"])
+
+            # Set state
             self.client.set_callback(self.adjusting_cb)
             self.status["status"] = "adjusting"
         if (
@@ -147,9 +163,17 @@ class SensorState(object):
         """
 
         if topic.decode("utf-8") == f"sensor/{self.config['SENSOR_ID']}/setpoint":
+            # Parse incoming setpoint
             params = json.loads(msg)
             self.status["setpoint"] = params[self.config["SENSOR_ID"]]
-            self.sensor.go_to_setpoint(self.status["setpoint"])
+
+            # Trigger go to setpoint
+            if self.config['SIMULATE']:
+                self.sensor.simulate_go_to_setpoint(self.status["setpoint"])
+            else:
+                self.sensor.go_to_setpoint(self.status["setpoint"])
+
+            # Set state
             self.client.set_callback(self.adjusting_cb)
             self.status["status"] = "adjusting"
         # if controller/end is received, move to the awaiting_config state
