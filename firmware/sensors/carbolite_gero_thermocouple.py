@@ -105,6 +105,10 @@ class TempMain(BaseSensor):
         state.measurement = measurement
         return measurement
 
+    def simulate_get_measurement(self, state):
+        measurement =  state.status['setpoint'] * 0.9
+        state.measurement = measurement
+        return measurement
 
 @BaseSensor.register_sensor("temp_right")
 class TempRight(BaseSensor):
