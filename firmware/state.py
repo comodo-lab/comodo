@@ -144,6 +144,9 @@ class SensorState(object):
         ):
             self.client.set_callback(self.ready_cb)
             self.status["status"] = "ready"
+
+        # if controller/end is received, move to the awaiting_config state
+        self._end_experiment(topic)
         if topic.decode("utf-8") == f"controller/end":
             self.client.set_callback(self.awaiting_config_cb)
             self.status["status"] = "awaiting_config"
@@ -177,12 +180,7 @@ class SensorState(object):
             self.client.set_callback(self.adjusting_cb)
             self.status["status"] = "adjusting"
         # if controller/end is received, move to the awaiting_config state
-        if topic.decode("utf-8") == "controller/end":
-            self.client.set_callback(self.awaiting_config_cb)
-            self.status["status"] = "awaiting_config"
-        if topic.decode("utf-8") == f"controller/stop":
-            self.client.set_callback(self.awaiting_config_cb)
-            self.status["status"] = "awaiting_config"
+        self._end_experiment(topic)
 
     def _apply_config(self, msg):
         """Apply the configuration
@@ -199,3 +197,13 @@ class SensorState(object):
 
         self.status["name"] = params["name"]
         self.sensor = sensor.BaseSensor.create_sensor(params["name"])
+
+    def _end_experiment(self, topic):
+        if topic.decode("utf-8") == "controller/end":
+            self.client.set_callback(self.awaiting_config_cb)
+            self.status["status"] = "awaiting_config"
+        if topic.decode("utf-8") == f"controller/stop":
+            self.client.set_callback(self.awaiting_config_cb)
+            self.status["status"] = "awaiting_config"
+
+        return
