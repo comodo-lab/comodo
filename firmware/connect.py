@@ -56,7 +56,7 @@ def connect_mqtt(client_name, ip_address, port=1883, user=None, password=None):
     )
 
     if board == "rp2":
-        timeout_timer = Timer(period=5000, mode=Timer.ONE_SHOT, callback=timeout_mqt)
+        timeout_timer = Timer(period=5000, mode=Timer.ONE_SHOT, callback=timeout_mqtt)
     c.connect()
     if board == "rp2":
         timeout_timer.deinit()
