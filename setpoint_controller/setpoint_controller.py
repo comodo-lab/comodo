@@ -103,7 +103,7 @@ class SetpointController:
             topics=[
                 f"sensor/{sensor}/setpoint",
                 f"measurement/{sensor}",
-                f"sensor/{sensor}/setpoint_reached",
+                # f"sensor/{sensor}/setpoint_reached",
                 f"{self.pid.id}/setup",
             ],
             broker_address=mqtt_host,
