@@ -27,7 +27,7 @@ class SensorState(object):
             "name": None,
             "status": "awaiting_config",
             "setpoint": None,
-            "config": {"p": None, "i": None, "d": None, "tolerance": None},
+            "config": {"tolerance": None},
         }
 
         self.client = None
@@ -195,9 +195,6 @@ class SensorState(object):
         """
 
         params = json.loads(msg)
-        self.status["config"]["p"] = params["p"]
-        self.status["config"]["i"] = params["i"]
-        self.status["config"]["d"] = params["d"]
         self.status["config"]["tolerance"] = params["tolerance"]
 
         self.status["name"] = params["name"]
