@@ -71,7 +71,7 @@ class BaseSensor:
             
         measurement = half_diff + value
         
-        distance = abs(measurement  state.status["setpoint"])
+        distance = abs(measurement - state.status["setpoint"])
         if distance < state.status["config"]["tolerance"]:
             state.client.publish(f"sensor/{state.config['SENSOR_ID']}/setpoint_reached", "true")
             
