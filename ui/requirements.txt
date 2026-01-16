@@ -7,10 +7,10 @@ dash-bootstrap-components
 # pyyaml
 dash-ag-grid
 dash-daq
-
+dash-cytoscape
 numpy
 influxdb-client
-
+rdflib>=6.0
 pytz
 
 pytest

@@ -10,6 +10,8 @@ import control_window as cw
 import sensor_setup as ss
 import graph_view as gv
 import experiment_config as ec
+import workflow_ui as wf
+import meta_data_ui as md
 
 from utils.mqtt_clients import MQTTPublisher
 import os
@@ -220,7 +222,11 @@ def initialize_experiment_store(pathname, current_data):
 
 control_window = cw.get_control_panel(PARAM_DICT)
 graph_layout = gv.get_experiment_graph()
+metadata_workflow = wf.get_workflow_layout()
 
+metadata_layout = md.get_metadata_layout()
+# Register metadata callbacks 
+wf.register_workflow_callbacks(app)
 
 @app.callback(Output("page-content", "children"), Input("url", "pathname"))
 def render_page(pathname):
@@ -231,13 +237,15 @@ def render_page(pathname):
     elif pathname == "/designer":
         return dcc.Loading(html.Div(id="designer-wrapper"))
     elif pathname == "/metadata":
-        return "hello"
+        return metadata_layout
     elif pathname == "/control":
         return control_window
     elif pathname == "/graph":
         return graph_layout
     elif pathname == "/experiment-config":
         return dcc.Loading(html.Div(id="experiment-config-wrapper"))
+    elif pathname == "/workflow":
+        return metadata_workflow
     else:
         return html.Div("404 - Page not found")
 
@@ -284,6 +292,9 @@ app.layout = dbc.Container(
                     dbc.NavLink("Graph View", href="/graph", active="exact"),
                     className="me-0",
                 ),
+                dbc.NavItem(
+                    dbc.NavLink("Workflow", href="/workflow", active="exact"), 
+                    className="me-0"),
             ],
             pills=True,
             justified=True,

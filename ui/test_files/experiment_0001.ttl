@@ -1,0 +1,149 @@
+@prefix ex: <https://example.org/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<https://example.org/experiment/0001> a ex:Experiment ;
+    ex:global_set <file:///work/> ;
+    ex:instruments [ ex:downstream_vacuum_pressure <file:///work/downstream_vacuum_pressure> ;
+            ex:furnace <file:///work/furnace> ;
+            ex:mass_flow_controller <file:///work/mass_flow_controller> ;
+            ex:mass_spectrometer <file:///work/mass_spectrometer> ;
+            ex:upstream_vacuum_pressure <file:///work/upstream_vacuum_pressure> ] ;
+    ex:visualisations [ ex:gauge <file:///work/gauge> ;
+            ex:temperature_graph <file:///work/temperature_graph> ] ;
+    ex:workflow <https://example.org/workflow/Galaxy_WF_1>,
+        <https://example.org/workflow/Galaxy_WF_2>,
+        <https://example.org/workflow/Galaxy_WF_4> .
+
+<file:///work/downstream_vacuum_pressure> ex:sensors [ ex:pressure_downstream <file:///work/pressure_downstream> ] .
+
+<file:///work/furnace> ex:sensors [ ex:temperature_centre <file:///work/temperature_centre> ;
+            ex:temperature_left <file:///work/temperature_left> ;
+            ex:temperature_right <file:///work/temperature_right> ] .
+
+<file:///work/gauge> ex:title "gauge_1" ;
+    ex:value "temperature_centre" ;
+    ex:vis_type "Gauge" .
+
+<file:///work/mass_flow> ex:actuator [ ex:max "100.0"^^xsd:float ;
+            ex:min "0.0"^^xsd:float ;
+            ex:type "float" ;
+            ex:unit "\\%" ] ;
+    ex:address "/dev/ttyUSB2" ;
+    ex:measurement_interval "1s" ;
+    ex:sensor [ ex:max "100.0"^^xsd:float ;
+            ex:min "0.0"^^xsd:float ;
+            ex:type "float" ;
+            ex:unit "\\%" ] .
+
+<file:///work/mass_flow_controller> ex:sensors [ ex:mass_flow <file:///work/mass_flow> ;
+            ex:mass_flow_pressure_downstream <file:///work/mass_flow_pressure_downstream> ;
+            ex:mass_flow_pressure_upstream <file:///work/mass_flow_pressure_upstream> ;
+            ex:mass_flow_temp <file:///work/mass_flow_temp> ] .
+
+<file:///work/mass_flow_pressure_downstream> ex:address "/dev/ttyUSB2" ;
+    ex:measurement_interval "1s" ;
+    ex:sensor [ ex:max "10.0"^^xsd:float ;
+            ex:min "0.0"^^xsd:float ;
+            ex:type "float" ;
+            ex:unit "bar" ] .
+
+<file:///work/mass_flow_pressure_upstream> ex:address "/dev/ttyUSB2" ;
+    ex:measurement_interval "1s" ;
+    ex:sensor [ ex:max "10.0"^^xsd:float ;
+            ex:min "0.0"^^xsd:float ;
+            ex:type "float" ;
+            ex:unit "bar" ] .
+
+<file:///work/mass_flow_temp> ex:address "/dev/ttyUSB2" ;
+    ex:measurement_interval "1s" ;
+    ex:sensor [ ex:max "100.0"^^xsd:float ;
+            ex:min "0.0"^^xsd:float ;
+            ex:type "float" ;
+            ex:unit "°C" ] .
+
+<file:///work/mass_spec> ex:address "192.168.1.100" ;
+    ex:sensor [ ex:type "array" ] .
+
+<file:///work/mass_spectrometer> ex:sensors [ ex:mass_spec <file:///work/mass_spec> ] .
+
+<file:///work/pressure_downstream> ex:address "/dev/ttyUSB0" ;
+    ex:measurement_interval "1s" ;
+    ex:sensor [ ex:max "10.0"^^xsd:float ;
+            ex:min "0.0"^^xsd:float ;
+            ex:type "float" ;
+            ex:unit "bar" ] .
+
+<file:///work/pressure_upstream> ex:address "/dev/ttyUSB1" ;
+    ex:measurement_interval "1s" ;
+    ex:sensor [ ex:max "10.0"^^xsd:float ;
+            ex:min "0.0"^^xsd:float ;
+            ex:type "float" ;
+            ex:unit "bar" ] .
+
+<file:///work/temperature_centre> ex:actuator [ ex:correction_multiplier "0.1"^^xsd:float ;
+            ex:max "1000.0"^^xsd:float ;
+            ex:min "0.0"^^xsd:float ;
+            ex:type "float" ;
+            ex:unit "C" ] ;
+    ex:address "192.168.111.222" ;
+    ex:measurement_interval "1s" ;
+    ex:sensor [ ex:correction_multiplier "10.0"^^xsd:float ;
+            ex:max "1000.0"^^xsd:float ;
+            ex:min "0.0"^^xsd:float ;
+            ex:type "float" ;
+            ex:unit "C" ] .
+
+<file:///work/temperature_graph> ex:title "Temperature Control" ;
+    ex:vis_type "Graph" ;
+    ex:y_values "temperature_centre",
+        "temperature_left",
+        "temperature_right" .
+
+<file:///work/temperature_left> ex:actuator [ ex:max "1000.0"^^xsd:float ;
+            ex:min "0.0"^^xsd:float ;
+            ex:type "float" ;
+            ex:unit "°C" ] ;
+    ex:address "192.168.111.224" ;
+    ex:measurement_interval "1s" ;
+    ex:sensor [ ex:max "1000.0"^^xsd:float ;
+            ex:min "0.0"^^xsd:float ;
+            ex:type "float" ;
+            ex:unit "C" ] .
+
+<file:///work/temperature_right> ex:actuator [ ex:max "1000.0"^^xsd:float ;
+            ex:min "0.0"^^xsd:float ;
+            ex:type "float" ;
+            ex:unit "C" ] ;
+    ex:address "192.168.111.225" ;
+    ex:measurement_interval "1s" ;
+    ex:sensor [ ex:max "1000.0"^^xsd:float ;
+            ex:min "0.0"^^xsd:float ;
+            ex:type "float" ;
+            ex:unit "C" ] .
+
+<file:///work/upstream_vacuum_pressure> ex:sensors [ ex:pressure_upstream <file:///work/pressure_upstream> ] .
+
+<https://example.org/workflow/Galaxy_WF_1> a ex:Workflow ;
+    ex:name "Leak Detection" ;
+    ex:status <https://example.org/workflow/Galaxy_WF_1/status> ;
+    ex:type "Online" ;
+    ex:url <https://usegalaxy.org/workflow/12345> .
+
+<https://example.org/workflow/Galaxy_WF_1/status> ex:status "" .
+
+<https://example.org/workflow/Galaxy_WF_2> a ex:Workflow ;
+    ex:name "GDPS Post Analysis" ;
+    ex:status <https://example.org/workflow/Galaxy_WF_2/status> ;
+    ex:type "Post-processing" ;
+    ex:url <https://usegalaxy.org/workflow/67890> .
+
+<https://example.org/workflow/Galaxy_WF_2/status> ex:status "" .
+
+<https://example.org/workflow/Galaxy_WF_4> a ex:Workflow ;
+    ex:name "Pressure Analysis" ;
+    ex:status <https://example.org/workflow/Galaxy_WF_4/status> ;
+    ex:type "Online" ;
+    ex:url <https://usegalaxy.org/workflow/22222> .
+
+<https://example.org/workflow/Galaxy_WF_4/status> ex:status "" .
+
