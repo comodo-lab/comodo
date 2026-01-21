@@ -3,8 +3,13 @@ import os
 
 from utils import mqtt_clients as mqtt
 
-from src.error_helper import *
 from src.controller_helper import data_path
+from src.error_helper import (
+    wrong_json,
+    missing_keys,
+    incompatible_request,
+    incompatible_uid,
+)
 
 
 def on_ui_message(client, msg, obj):

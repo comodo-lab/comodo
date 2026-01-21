@@ -8,13 +8,13 @@ import textwrap
 from utils import mqtt_clients as mqtt
 
 from src.validation import validate_file_print_errors
-from src.controller_state import *
-from src.on_watchdog_message import *
-from src.on_watchdog_timer_message import *
-from src.on_ui_message import *
-from src.on_controller_message import *
-from src.on_timer_message import *
-from src.on_heartbeat_message import *
+from src.controller_state import cstate
+from src.on_watchdog_message import on_watchdog_message
+from src.on_watchdog_timer_message import on_wd_timer_message
+from src.on_ui_message import on_ui_message
+from src.on_controller_message import c_idle
+from src.on_timer_message import on_timer_message
+from src.on_heartbeat_message import on_heartbeat_message
 
 
 def main():
