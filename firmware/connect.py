@@ -1,32 +1,6 @@
 import sys
-import random
 
-
-
-def connect_wifi(ssid, password):
-    """Connect to the wifi network
-
-    Returns:
-        None
-
-    Raises:
-
-    """
-    wlan = network.WLAN(network.STA_IF)
-    if wlan.isconnected():
-        wlan.active(False)
-        wlan.disconnect()
-
-    wlan.active(True)
-    wlan.connect(ssid, password)
-    while not wlan.isconnected():
-        pass
-
-
-def timeout_mqtt(timer):
-    print("Timeout")
-    raise Exception("Timeout connecting to the mqtt broker")
-
+from utils import mqtt_clients as mqtt
 
 def connect_mqtt(state=None):
     """Connect to the mqtt broker
@@ -59,12 +33,5 @@ def connect_mqtt(state=None):
             user=state.config["MQTT_USER"],
             password=state.config["MQTT_PASS"]
     )
-
-    if board == "rp2":
-        timeout_timer = Timer(period=5000, mode=Timer.ONE_SHOT, callback=timeout_mqtt)
-    c.connect()
-    if board == "rp2":
-        timeout_timer.deinit()
-    print(f"Connected to the mqtt broker at {ip_address}:{port}")
 
     return c
