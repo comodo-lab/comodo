@@ -1,3 +1,6 @@
+# General
+paho-mqtt
+
 
 pymodbus # Furnace
 
