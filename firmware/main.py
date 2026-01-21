@@ -25,9 +25,7 @@ from sensors.pfeiffer_prismapro import MassSpec
 # Initialize the state
 state = state.SensorState()
 
-
 ## ----------------- Timer helper functions ----------------- ##
-
 
 def send_heartbeat():
     """
@@ -98,7 +96,6 @@ async def measurement_tick(timer):
 
 # ----------------- Main function ----------------- ##
 
-
 # The main function
 async def main():
     """
@@ -111,11 +108,6 @@ async def main():
     ## Load the configuration file
     state.config = cfg.load_config()
     state.status["name"] = state.config["SENSOR_ID"]
-
-    ## Determine the board and connect to the wifi if it is a raspberry pi
-    if board == "rp2":
-        con.connect_wifi(state.config["WIFI_SSID"], state.config["WIFI_PASS"])
-        watchdog.feed()
 
     ## Connect to the mqtt broker
     state.client = con.connect_mqtt(
