@@ -8,19 +8,23 @@ from datetime import datetime
 from utils import mqtt_clients as mqtt
 
 
-config = json.load(open("config/config.json"))
-
-
-class internal_stop_msg:
+def get_env_or_secret(env_var, secret=None, default=None):
     """
-    Internal message to be passed to c_stopping, and stop the controller.
-    It emulates the message components of a stop message from the UI.
+    Get the value of an environment variable or from a secret file.
+    If both are set, the environment variable takes precedence.
+    If neither is set, return the default value.
     """
-
-    def __init__(self, uid):
-        self.topic = "controller/stop"
-        p = {"uid": uid}
-        self.payload = json.dumps(p).encode("utf-8")
+    value = os.getenv(env_var, None)
+    if value is not None:
+        return value
+    secret_path = os.getenv(secret, None)
+    if secret_path is None:
+        return default
+    try:
+        with open(secret_path, "r") as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        return default
 
 
 data_path = "data"
@@ -54,7 +58,10 @@ def dump_database_for_experiment(obj):
     """
     Dumps the influx databases for the experiment elapsed time.
     """
-    influx_token = os.getenv("INFLUX_TOKEN", None)
+    influx_buckets = os.getenv("INFLUX_BUCKET", "comodo").split(",")
+    influx_url = os.getenv("INFLUX_ADDR", "http://influxdb:8086")
+    influx_org = os.getenv("INFLUX_ORG", "comodo")
+    influx_token = get_env_or_secret("INFLUX_TOKEN", "INFLUX_TOKEN_FILE", None)
     if influx_token is None:
         print("INFLUX_TOKEN environment variable not set. Cannot dump influx database.")
         error = f"Error dumping database. INFLUX_TOKEN not set."
@@ -67,19 +74,18 @@ def dump_database_for_experiment(obj):
     t0 = obj.experiment_start_time
     tf = datetime.now()
     # get everything from influx database
-    buckets = config["influxdb"]["buckets"]
     client = influxdb_client.InfluxDBClient(
-        url=config["influxdb"]["url"],
+        url=influx_url,
         token=influx_token,
-        org=config["influxdb"]["org"],
+        org=influx_org,
     )
     query_api = client.query_api()
     exp_dir_path = obj.exp_file.replace(".json", "")
     if not os.path.exists(exp_dir_path):
         os.makedirs(exp_dir_path)
-    for bucket in buckets:
+    for bucket in influx_buckets:
         query = f'from(bucket: "{bucket}") |> range(start: {t0.isoformat()}Z, stop: {tf.isoformat()}Z)'
-        data = query_api.query_csv(org=config["influxdb"]["org"], query=query)
+        data = query_api.query_csv(org=influx_org, query=query)
         values = data.to_values()
         with open(f"{exp_dir_path}/{bucket}.csv", "w", newline="") as myfile:
             wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)

@@ -73,7 +73,7 @@ def test_timeout(timer_client, message_bus, state):
     assert state.status == "awaiting_sensors"
     assert state.sensors["configured"] == False
 
-    with patch("src.on_timer_message.sensor_setup_wait", 0.1), patch(
+    with patch("os.getenv", return_value="0.1") as mock_getenv, patch(
         "src.on_timer_message.timer_check_frequency", 0.01
     ):
         msg = MockMessage(
@@ -82,6 +82,7 @@ def test_timeout(timer_client, message_bus, state):
         )
         on_timer_message(timer_client, msg, state)
 
+    mock_getenv.assert_called_once_with("SENSOR_SETUP_WAIT", 10)
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 2
     assert messages[0].topic == "error/controller/timeout"

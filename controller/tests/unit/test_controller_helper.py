@@ -1,5 +1,6 @@
 import os
 from datetime import datetime
+import time as t
 from pyexpat.errors import messages
 import pytest
 from unittest.mock import MagicMock, patch, call
@@ -11,13 +12,100 @@ from tests.conftest import (
     message_bus,
 )
 
-from src.controller_helper import assign_serial_id, dump_database_for_experiment
+from src.controller_helper import (
+    get_env_or_secret,
+    assign_serial_id,
+    dump_database_for_experiment,
+)
 
 
 @pytest.fixture
 def data_path():
     with patch("src.controller_helper.data_path", new="test_data") as mock_data_path:
         yield "test_data"
+
+
+class TestGetEnvOrSecret:
+    @pytest.fixture
+    def env_or_secret_mocks(self):
+        with patch("os.getenv") as mock_getenv, patch("builtins.open") as mock_open:
+            env_values = {}
+            mock_getenv.side_effect = lambda var, default=None: env_values.get(
+                var, default
+            )
+            mock_file = MagicMock()
+            mock_file.read.return_value = "secret_value\n"
+            mock_open.return_value.__enter__.return_value = mock_file
+            yield {
+                "env_values": env_values,
+                "getenv": mock_getenv,
+                "open": mock_open,
+            }
+
+    def test_env_var_set(self, env_or_secret_mocks):
+        mocks = env_or_secret_mocks
+        mocks["env_values"].update({"MY_ENV_VAR": "env_value"})
+
+        value = get_env_or_secret("MY_ENV_VAR")
+        assert value == "env_value"
+        env_or_secret_mocks["getenv"].assert_called_once_with("MY_ENV_VAR", None)
+        env_or_secret_mocks["open"].assert_not_called()
+
+    def test_secret_file_set(self, env_or_secret_mocks):
+        mocks = env_or_secret_mocks
+        mocks["env_values"].update({"MY_SECRET_FILE": "/path/to/secret"})
+
+        value = get_env_or_secret("MY_ENV_VAR", "MY_SECRET_FILE")
+
+        env_or_secret_mocks["getenv"].call_args_list == [
+            call("MY_ENV_VAR", None),
+            call("MY_SECRET_FILE", None),
+        ]
+        env_or_secret_mocks["open"].assert_called_once_with("/path/to/secret", "r")
+        assert value == "secret_value"
+
+    def test_env_takes_precedence(self, env_or_secret_mocks):
+        mocks = env_or_secret_mocks
+        mocks["env_values"].update(
+            {
+                "MY_ENV_VAR": "env_value",
+                "MY_SECRET_FILE": "/path/to/secret",
+            }
+        )
+
+        value = get_env_or_secret("MY_ENV_VAR", "MY_SECRET_FILE", "default_val")
+
+        env_or_secret_mocks["getenv"].assert_any_call("MY_ENV_VAR", None)
+        env_or_secret_mocks["open"].assert_not_called()
+        assert value == "env_value"
+
+    def test_neither_set_returns_default(self, env_or_secret_mocks):
+        mocks = env_or_secret_mocks
+
+        value = get_env_or_secret("MY_ENV_VAR", "MY_SECRET_FILE", "default_val")
+
+        env_or_secret_mocks["getenv"].call_args_list == [
+            call("MY_ENV_VAR", None),
+            call("MY_SECRET_FILE", None),
+        ]
+        env_or_secret_mocks["open"].assert_not_called()
+        assert value == "default_val"
+
+    def test_secret_file_not_found_returns_default(self, env_or_secret_mocks):
+        mocks = env_or_secret_mocks
+        mocks["env_values"].update({"MY_SECRET_FILE": "/path/to/missing_secret"})
+        mocks["open"].side_effect = FileNotFoundError
+
+        value = get_env_or_secret("MY_ENV_VAR", "MY_SECRET_FILE", "default_val")
+
+        env_or_secret_mocks["getenv"].call_args_list == [
+            call("MY_ENV_VAR", None),
+            call("MY_SECRET_FILE", None),
+        ]
+        env_or_secret_mocks["open"].assert_called_once_with(
+            "/path/to/missing_secret", "r"
+        )
+        assert value == "default_val"
 
 
 class TestAssignSerialID:
@@ -113,23 +201,20 @@ class TestDatabaseDump:
 
     @pytest.fixture(autouse=True)
     def dump_mocks(self):
-        with patch("src.controller_helper.config") as mock_config, patch(
-            "os.getenv"
-        ) as mock_getenv, patch(
+        with patch("os.getenv") as mock_getenv, patch(
+            "src.controller_helper.get_env_or_secret", return_value=None
+        ) as mock_get_secret, patch(
             "src.controller_helper.influxdb_client"
         ) as mock_influx, patch(
             "os.path.exists"
         ) as mock_path_exists, patch(
             "os.makedirs"
         ) as mock_makedirs:
-            mock_config.__getitem__.side_effect = lambda key: {
-                "influxdb": {
-                    "url": "http://localhost:8086",
-                    "org": "my_org",
-                    "buckets": ["bucket1", "bucket2", "bucket3"],
-                }
-            }[key]
-            env_values = {}
+            env_values = {
+                "INFLUX_BUCKET": "bucket1,bucket2,bucket3",
+                "INFLUX_ADDR": "http://localhost:8086",
+                "INFLUX_ORG": "my_org",
+            }
             mock_getenv.side_effect = lambda var, default=None: env_values.get(
                 var, default
             )
@@ -149,6 +234,7 @@ class TestDatabaseDump:
             yield {
                 "env_values": env_values,
                 "getenv": mock_getenv,
+                "get_secret": mock_get_secret,
                 "mock_influx": mock_influx,
                 "influx_client": mock_influx_client,
                 "mock_query_csv": mock_query_csv,
@@ -158,10 +244,19 @@ class TestDatabaseDump:
             }
 
     def test_warns_on_missing_token(self, state, dump_mocks, message_bus):
-        assert dump_mocks["getenv"]("INFLUX_TOKEN") is None
+        assert dump_mocks["getenv"]("INFLUX_TOKEN") is None  # Adds a call to getenv
         with patch("builtins.print") as mock_print:
             dump_database_for_experiment(state)
 
+            assert dump_mocks["getenv"].call_args_list == [
+                call("INFLUX_TOKEN"),  # Call added by first line of this test
+                call("INFLUX_BUCKET", "comodo"),
+                call("INFLUX_ADDR", "http://influxdb:8086"),
+                call("INFLUX_ORG", "comodo"),
+            ]
+            dump_mocks["get_secret"].assert_called_once_with(
+                "INFLUX_TOKEN", "INFLUX_TOKEN_FILE", None
+            )
             mock_print.assert_called_once_with(
                 "INFLUX_TOKEN environment variable not set. Cannot dump influx database."
             )
@@ -173,7 +268,7 @@ class TestDatabaseDump:
             )
 
     def test_database_dump(self, state, dump_mocks, data_path):
-        dump_mocks["env_values"].update({"INFLUX_TOKEN": "dummy_token"})
+        dump_mocks["get_secret"].return_value = "dummy_token"
         t0 = datetime(2024, 1, 2, 3, 45, 6)
         t0_s = t0.isoformat()
         tf = datetime(2025, 2, 3, 4, 56, 7)

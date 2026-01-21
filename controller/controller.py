@@ -7,6 +7,7 @@ import textwrap
 
 from utils import mqtt_clients as mqtt
 
+from src.controller_helper import get_env_or_secret
 from src.validation import validate_file_print_errors
 from src.controller_state import cstate
 from src.on_watchdog_message import on_watchdog_message
@@ -20,43 +21,54 @@ from src.on_heartbeat_message import on_heartbeat_message
 def main():
     print(f"Starting...")
     # Load configuration
-    try:
-        config = validate_file_print_errors(
-            "config/config.json",
-            "schemas/schema_config.json",
-        )
-        wdog = config["watchdog"]
-        assert wdog["interval"] > 0
-        assert wdog["timeout"] > 2 * wdog["interval"]
-        wdog["timer"] = wdog["timeout"]
-        wdog["healthy"] = False
-    except KeyError as e:
-        print(
-            f"Error decoding config file, missing: \n{textwrap.indent(str(e), '   ')}"
-        )
-        exit(1)
-    try:
-        INFLUX_TOKEN = os.environ.get("INFLUX_TOKEN", None)
-    except Exception as e:
-        print(
-            "INFLUX_TOKEN environment variable not set. Will not be able to dump influx database."
-        )
+    expected_env_vars = [
+        ["MQTT_HOST"],
+        ["MQTT_USER"],
+        ["MQTT_PASS", "MQTT_PASS_FILE"],
+        ["MQTT_CONNECTION_TIMEOUT"],
+        ["WATCHDOG_INTERVAL"],
+        ["WATCHDOG_TIMEOUT"],
+        ["INFLUX_BUCKET"],
+        ["INFLUX_ADDR"],
+        ["INFLUX_ORG"],
+        ["INFLUX_TOKEN", "INFLUX_TOKEN_FILE"],
+        ["SENSOR_SETUP_WAIT"],
+    ]
+    env_vars = list(os.environ.keys())
+
+    for var_group in expected_env_vars:
+        if not any(var in env_vars for var in var_group):
+            print(
+                f"WARNING: environment variables not set for: {', '.join(var_group)}."
+            )
+
+    mqtt_host = os.getenv("MQTT_HOST", "rabbitmq")
+    mqtt_user = os.getenv("MQTT_USER", None)
+    mqtt_pass = get_env_or_secret("MQTT_PASS", "MQTT_PASS_FILE", None)
+    connection_timeout = os.getenv("MQTT_CONNECTION_TIMEOUT", 10)
+    wdog_interval = os.getenv("WATCHDOG_INTERVAL", 1)
+    wdog_timeout = os.getenv("WATCHDOG_TIMEOUT", 5)
+
+    assert wdog_interval > 0
+    assert wdog_timeout > 2 * wdog_interval
+    wdog = {
+        "interval": wdog_interval,
+        "timeout": wdog_timeout,
+        "timer": wdog_timeout,
+        "healthy": False,
+    }
 
     # Initialize controller state
     state = cstate()
 
     print(f"  Creating clients...")
-    broker_address = config["mqtt"]["broker_address"]
-    user = config["mqtt"]["user"]
-    password = config["mqtt"]["password"]
-    connection_timeout = config["mqtt"]["connection_timeout"]
 
     # Initialise publisher singleton
     publisher = mqtt.MQTTPublisher.get_instance(
         id="publisher_controller",
-        broker_address=broker_address,
-        user=user,
-        password=password,
+        broker_address=mqtt_host,
+        user=mqtt_user,
+        password=mqtt_pass,
         connection_timeout=connection_timeout,
     )
 
@@ -66,9 +78,9 @@ def main():
         callback=on_watchdog_message,
         topics=["watchdog/#", "heartbeat/controller", "ERROR/exception"],
         obj=wdog,
-        broker_address=broker_address,
-        user=user,
-        password=password,
+        broker_address=mqtt_host,
+        user=mqtt_user,
+        password=mqtt_pass,
         connection_timeout=connection_timeout,
     )
     wd_timer = mqtt.MQTTClient(
@@ -76,9 +88,9 @@ def main():
         callback=on_wd_timer_message,
         topics="wd_timer/#",
         obj=wdog,
-        broker_address=broker_address,
-        user=user,
-        password=password,
+        broker_address=mqtt_host,
+        user=mqtt_user,
+        password=mqtt_pass,
         connection_timeout=connection_timeout,
     )
     ui = mqtt.MQTTClient(
@@ -86,9 +98,9 @@ def main():
         callback=on_ui_message,
         topics="ui/#",
         obj=state,
-        broker_address=broker_address,
-        user=user,
-        password=password,
+        broker_address=mqtt_host,
+        user=mqtt_user,
+        password=mqtt_pass,
         connection_timeout=connection_timeout,
     )
     controller = mqtt.MQTTClient(
@@ -96,9 +108,9 @@ def main():
         callback=c_idle,
         topics="controller/#",
         obj=state,
-        broker_address=broker_address,
-        user=user,
-        password=password,
+        broker_address=mqtt_host,
+        user=mqtt_user,
+        password=mqtt_pass,
         connection_timeout=connection_timeout,
     )
     timer = mqtt.MQTTClient(
@@ -106,9 +118,9 @@ def main():
         callback=on_timer_message,
         topics="timer/#",
         obj=state,
-        broker_address=broker_address,
-        user=user,
-        password=password,
+        broker_address=mqtt_host,
+        user=mqtt_user,
+        password=mqtt_pass,
         connection_timeout=connection_timeout,
     )
     heartbeat = mqtt.MQTTClient(
@@ -116,9 +128,9 @@ def main():
         callback=on_heartbeat_message,
         topics="heartbeat/sensor/#",
         obj=state,
-        broker_address=broker_address,
-        user=user,
-        password=password,
+        broker_address=mqtt_host,
+        user=mqtt_user,
+        password=mqtt_pass,
         connection_timeout=connection_timeout,
     )
     # measurement = mqtt.MQTTClient("measurement", on_client_message, topics="measurement/#")
