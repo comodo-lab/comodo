@@ -1,15 +1,8 @@
 x-templates:
-  micropython-sensor-template: &micropython-sensor-template
-    build:
-      context: firmware
-      dockerfile: Dockerfile-micropython
-    networks:
-      comodo-network:
-
   python-sensor-template: &python-sensor-template
     build:
-      context: firmware
-      dockerfile: Dockerfile-python
+      context: .
+      dockerfile: firmware/Dockerfile
     networks:
       comodo-network:
 
