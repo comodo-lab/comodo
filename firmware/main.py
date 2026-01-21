@@ -155,14 +155,13 @@ async def main():
 
 
 if __name__ == "__main__":
-    while True:
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        traceback.print_exc()
         try:
-            asyncio.run(main())
-        except Exception as e:
-            traceback.print_exc()
-            try:
-                state.client.publish(
-                    f"error/sensor/{state.config['SENSOR_ID']}", str(e)
-                )
-            except:
-                print(f"Error: {e}")
+            state.client.publish(
+                f"error/sensor/{state.config['SENSOR_ID']}", str(e)
+            )
+        except:
+            print(f"Error: {e}")
