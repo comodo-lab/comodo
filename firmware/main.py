@@ -110,21 +110,7 @@ async def main():
     state.status["name"] = state.config["SENSOR_ID"]
 
     ## Connect to the mqtt broker
-    state.client = con.connect_mqtt(
-        state.status["name"],
-        state.config["MQTT_HOST"],
-        port=1883,
-        user=state.config["MQTT_USER"],
-        password=state.config["MQTT_PASS"],
-    )
-
-    ## Subscribe to the controller's instructions
-    state.client.set_callback(state.awaiting_config_cb)
-    state.client.subscribe(f"sensor/{state.config['SENSOR_ID']}/setup")
-    state.client.subscribe(f"sensor/{state.config['SENSOR_ID']}/setpoint_reached")
-    state.client.subscribe(f"sensor/{state.config['SENSOR_ID']}/setpoint")
-    state.client.subscribe(f"controller/end")
-    state.client.subscribe(f"controller/stop")
+    state.client = con.connect_mqtt(state=state)
 
     # Initialise the sensor
     if not state.config['SIMULATE']:
