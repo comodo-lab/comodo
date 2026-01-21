@@ -35,6 +35,37 @@ def timer_client(mqtt_mocks):
 # ========================================
 
 
+def test_wrong_json(message_bus, state):
+    msg = MockMessage(
+        topic="timer/start/sensor_setup",
+        payload="not a json",
+    )
+    on_timer_message(timer_client, msg, state)
+
+    messages = message_bus.get_messages(decoded=True)
+    assert len(messages) == 1
+    assert messages[0].topic == "error/controller"
+    assert (
+        "Error decoding timer/start/sensor_setup message, wrong JSON"
+        in messages[0].payload
+    )
+
+
+def test_missing_uid(timer_client, message_bus, state):
+    msg = MockMessage(
+        topic="timer/start/sensor_setup",
+        payload=json.dumps({"some": "json"}),
+    )
+    on_timer_message(timer_client, msg, state)
+
+    messages = message_bus.get_messages(decoded=True)
+    assert len(messages) == 1
+    assert messages[0].topic == "error/timer"
+    assert "Error decoding timer/start/sensor_setup message" in messages[0].payload
+    assert "missing" in messages[0].payload
+    assert "uid" in messages[0].payload
+
+
 def test_incorrect_uid(timer_client, message_bus, state):
     assert state.experiment_uid == "123"
 

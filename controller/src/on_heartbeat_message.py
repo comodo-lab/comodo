@@ -28,9 +28,6 @@ def on_heartbeat_message(client, msg, obj):
     except json.JSONDecodeError as e:
         wrong_json(msg, e, source="heartbeat")
         return
-    except KeyError as e:
-        missing_keys(msg, e, source="heartbeat")
-        return
     except ValidationException as e:
         heartbeat_validation_error(msg, e)
         return

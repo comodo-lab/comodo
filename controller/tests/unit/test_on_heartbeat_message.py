@@ -65,7 +65,7 @@ def test_wrong_json(message_bus, state):
     )
 
 
-def test_missing_keys(message_bus, state):
+def test_validation_exception(message_bus, state):
     msg = MockMessage(
         topic="heartbeat/sensor/sensor_1",
         payload=json.dumps({"hello": "world"}),
@@ -250,3 +250,23 @@ def test_awaiting_sensors_all_responded(
     assert len(messages) == 1
     assert messages[0].topic == "controller/ready"
     assert json.loads(messages[0].payload)["uid"] == "123"
+
+
+def test_running_heartbeat_updates_sensor(
+    message_bus,
+    state,
+    heartbeat_client,
+    mock_experiment_dict,
+):
+    state.status = "running"
+    sensors = mock_experiment_dict["config"]["sensors"]
+
+    msg = sensor_heartbeat_msg(sensor=sensors[0], status="adjusting", setpoint=42)
+    on_heartbeat_message(heartbeat_client, msg, state)
+
+    assert state.sensors[sensors[0]["name"]]["status"] == "adjusting"
+    assert state.sensors[sensors[0]["name"]]["setpoint"] == 42
+
+    messages = message_bus.get_messages(decoded=True)
+    # No new messages should be published during running heartbeats
+    assert len(messages) == 0

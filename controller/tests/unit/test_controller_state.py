@@ -51,6 +51,25 @@ def test_str(state):
     )
 
 
+def test_reset(state):
+    state.experiment_start_time = datetime.now()
+    state.experiment_uid = "123"
+    state.exp_file = "path/to/file.json"
+    state.status = "running"
+    state.exp_config = {"uid": 123, "config": {"resolution": 1}}
+    state.setpoints = [{"time": 0, "pressure": 0, "temperature": 0}]
+    state.current_setpoint = {"time": 0, "pressure": 0, "temperature": 0}
+    state.past_setpoints = [{"time": 0, "pressure": 0, "temperature": 0}]
+    state.sensors = {"configured": True}
+    state.adjusting = {"T": 1, "P": 0, "D1": 1, "D2": 0}
+
+    state.reset()
+
+    clean_state = cstate()
+    for attr in state.__slots__:
+        assert getattr(state, attr) == getattr(clean_state, attr)
+
+
 def test_can_set_experiment_start_time(state):
     t = datetime.now()
     state.experiment_start_time = t

@@ -158,7 +158,7 @@ class TestValidateFile:
         )
 
 
-class SecondaryValidators:
+class TestSecondaryValidators:
     @pytest.fixture
     def sv_mocks(self):
         with patch("src.validation.validate_file") as mock_validate, patch(
