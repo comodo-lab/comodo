@@ -2,18 +2,7 @@
 import time as t
 import sys
 import traceback
-
-# Determine the board and set the watchdog timer
-board = sys.platform
-python_flavour = sys.executable
-
-if board == "rp2":
-    # Micropython imports
-    import ujson as json
-elif board == "linux":
-    # Python imports
-    import json
-
+import json
 import asyncio
 
 # Local imports

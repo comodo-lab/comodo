@@ -1,13 +1,6 @@
 import sys
 import random
 
-board = sys.platform
-if board == "rp2":
-    import network
-    from machine import Timer
-    from lib.umqtt import MQTTClient
-elif board == "linux":
-    from lib.mqtt import MQTTClient
 
 
 def connect_wifi(ssid, password):
