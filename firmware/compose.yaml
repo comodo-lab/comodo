@@ -1,0 +1,20 @@
+# This compose file runs the tests for the firmware and exits when done.
+# To run the tests, cd into firmware/ and execute:
+#   docker compose up --build
+
+name: firmware-tests
+services:
+  firmware:
+    image: comodo-firmware:testing
+    build:
+      context: ../
+      dockerfile: firmware/Dockerfile
+    container_name: firmware-test
+    volumes:
+      - memory:/memory  # Used to persist pytest cache between runs
+    command: bash -c "coverage run --source=. --omit='tests/*,*/__*,utils/*' -m pytest
+      tests/ &&
+      echo '' && coverage report && coverage html -d /memory/htmlcov"
+
+volumes:
+  memory:
