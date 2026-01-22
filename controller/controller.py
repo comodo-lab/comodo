@@ -8,7 +8,6 @@ import textwrap
 from utils import mqtt_clients as mqtt
 
 from src.controller_helper import get_env_or_secret
-from src.validation import validate_file_print_errors
 from src.controller_state import cstate
 from src.on_watchdog_message import on_watchdog_message
 from src.on_watchdog_timer_message import on_wd_timer_message
@@ -139,6 +138,8 @@ def main():
     t.sleep(1)
     if wdog["healthy"]:
         print(f"Controller started successfully.")
+    else:
+        print(f"Controller failed to start. watchdog unhealthy.")
     while wdog["healthy"]:
         controller.publish("heartbeat/controller", f"{state}")
         t.sleep(wdog["interval"])
@@ -147,4 +148,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main()  # pragma: no cover
