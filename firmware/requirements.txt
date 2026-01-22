@@ -1,4 +1,12 @@
+# General
+paho-mqtt
 
+# Testing
+pytest
+pytest-rerunfailures
+coverage
+
+#Sensors
 pymodbus # Furnace
 
 pyserial # Pressure Gauge

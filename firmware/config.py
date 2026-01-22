@@ -1,25 +1,24 @@
 import sys
 
-board = sys.platform
-if board == "rp2":
-    # Micropython imports
-    import ujson as json
-elif board == "linux":
-    # Python imports
-    import json
+import json
 import os
 
+config = {
+    "SENSOR_ID": "No name",
+    "MQTT_USER": "comodo",
+    "MQTT_PASS": "comodo",
+    "MQTT_HOST": "rabbitmq",
+    "HEARTBEAT_INTERVAL": 1000,
+    "MEASUREMENT_INTERVAL": 1000,
+    "SIMULATE": True
+}
 
 def load_config():
-    """Load the configuration file from env.json
+    """Load the default configuration and override using the environmentn
 
     Returns:
-        dict: The configuration file
+        dict: The configuration object
     """
-    with open("env.json", "r") as f:
-        config = json.loads(f.read())
-
-        for key, value in config.items():
-            config[key] = os.getenv(key, value)
-
+    for key, value in config.items():
+        config[key] = os.getenv(key, value)
     return config

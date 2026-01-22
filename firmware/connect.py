@@ -1,41 +1,8 @@
 import sys
-import random
 
-board = sys.platform
-if board == "rp2":
-    import network
-    from machine import Timer
-    from lib.umqtt import MQTTClient
-elif board == "linux":
-    from lib.mqtt import MQTTClient
+from utils import mqtt_clients as mqtt
 
-
-def connect_wifi(ssid, password):
-    """Connect to the wifi network
-
-    Returns:
-        None
-
-    Raises:
-
-    """
-    wlan = network.WLAN(network.STA_IF)
-    if wlan.isconnected():
-        wlan.active(False)
-        wlan.disconnect()
-
-    wlan.active(True)
-    wlan.connect(ssid, password)
-    while not wlan.isconnected():
-        pass
-
-
-def timeout_mqtt(timer):
-    print("Timeout")
-    raise Exception("Timeout connecting to the mqtt broker")
-
-
-def connect_mqtt(client_name, ip_address, port=1883, user=None, password=None):
+def connect_mqtt(state=None):
     """Connect to the mqtt broker
     Args:
         client_name: str: The name of the client
@@ -47,19 +14,24 @@ def connect_mqtt(client_name, ip_address, port=1883, user=None, password=None):
     Returns:
         MQTTClient: The mqtt client object
     """
-    c = MQTTClient(
-        f"{client_name}-{random.randint(0, 10000)}",
-        ip_address,
-        port=port,
-        user=user,
-        password=password,
-    )
+    
+    ## Subscribe to the controller's instructions
+    topics = [
+        f"sensor/{state.config['SENSOR_ID']}/setup",
+        f"sensor/{state.config['SENSOR_ID']}/setpoint_reached",
+        f"sensor/{state.config['SENSOR_ID']}/setpoint",
+        f"controller/end",
+        f"controller/stop"
+    ]
 
-    if board == "rp2":
-        timeout_timer = Timer(period=5000, mode=Timer.ONE_SHOT, callback=timeout_mqtt)
-    c.connect()
-    if board == "rp2":
-        timeout_timer.deinit()
-    print(f"Connected to the mqtt broker at {ip_address}:{port}")
+    ## Create client
+    c = mqtt.MQTTClient(
+            id=state.status["name"],
+            callback=state.awaiting_config_cb,
+            topics=topics,
+            broker_address=state.config["MQTT_HOST"],
+            user=state.config["MQTT_USER"],
+            password=state.config["MQTT_PASS"]
+    )
 
     return c

@@ -1,14 +1,5 @@
 import sys
-
-board = sys.platform
-
-if board == "rp2":
-    # Micropython imports
-    import ujson as json
-elif board == "linux":
-    # Python imports
-    import json
-
+import json
 import sensor
 
 
