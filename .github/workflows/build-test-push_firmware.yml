@@ -33,8 +33,8 @@ jobs:
       dockerfile: "./firmware/Dockerfile"
       test_script: |
         set -eo pipefail
-        cd ./ui
-        docker compose up --abort-on-container-exit --exit-code-from ui
+        cd ./firmware
+        docker compose up --abort-on-container-exit --exit-code-from firmware
       push_vb: ${{ github.event.inputs.push_vb == 'true' }}
       custom_tag: ${{ github.event.inputs.custom_tag }}
     secrets:

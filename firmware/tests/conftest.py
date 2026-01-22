@@ -1,3 +1,3 @@
-"""Shared pytest fixtures and utilities for ui tests."""
+"""Shared pytest fixtures and utilities for firmware tests."""
 
 import pytest
