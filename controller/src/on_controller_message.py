@@ -5,7 +5,6 @@ from datetime import datetime
 from utils import mqtt_clients as mqtt
 from utils.interpolation import split_setpoints
 
-from src.controller_state import *
 from src.controller_helper import assign_serial_id, dump_database_for_experiment
 from src.error_helper import (
     incompatible_request,

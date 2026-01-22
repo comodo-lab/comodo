@@ -190,6 +190,7 @@ def mqtt_mocks(message_bus):
             mock_client_instance.id = client_id
             mock_client_instance.obj = obj
             mock_client_instance.callback = callback
+            mock_client_instance.publish.side_effect = message_bus.publish
 
             # Wrapper to adapt message bus callback to MQTT client callback signature
             # Accesses the current callback dynamically (so it reacts to callback changes)
@@ -241,6 +242,7 @@ def mqtt_mocks(message_bus):
         # -----------------------
         mock_publisher_instance = MagicMock()
         mock_publisher_instance.publish.side_effect = message_bus.publish
+        mock_publisher_instance.client.publish.side_effect = message_bus.publish
         mock_publisher_class.get_instance.return_value = mock_publisher_instance
         mock_publisher_class._instance = mock_publisher_instance
 

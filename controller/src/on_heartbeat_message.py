@@ -3,8 +3,13 @@ import time as t
 
 from utils import mqtt_clients as mqtt
 
-from src.controller_state import *
-from src.error_helper import *
+from src.error_helper import (
+    incompatible_request,
+    wrong_json,
+    missing_keys,
+    heartbeat_validation_error,
+    unconfigured_sensor,
+)
 from src.validation import validate_dict, ValidationException
 
 
@@ -22,9 +27,6 @@ def on_heartbeat_message(client, msg, obj):
         sensor = validate_dict(p, obj.schema_sensor_heartbeat_path)
     except json.JSONDecodeError as e:
         wrong_json(msg, e, source="heartbeat")
-        return
-    except KeyError as e:
-        missing_keys(msg, e, source="heartbeat")
         return
     except ValidationException as e:
         heartbeat_validation_error(msg, e)

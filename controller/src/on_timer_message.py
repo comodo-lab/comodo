@@ -1,10 +1,18 @@
+import os
 import time as t
+import json
 
-from src.controller_helper import *
 from utils import mqtt_clients as mqtt
 
-config = json.load(open("config/config.json"))
-sensor_setup_wait = config["sensor_setup_wait"]
+from src.error_helper import (
+    incompatible_uid,
+    wrong_json,
+    missing_keys,
+    controller_timeout,
+    controller_state_incompatible_with_timer,
+    incompatible_request,
+)
+
 timer_check_frequency = 0.1
 
 
@@ -31,6 +39,7 @@ def on_timer_message(client, msg, obj):
 
     if msg.topic == "timer/start/sensor_setup":
         # Wait for sensors to be ready or timeout
+        sensor_setup_wait = float(os.getenv("SENSOR_SETUP_WAIT", 10))
         t0 = t.time()
         while (not obj.sensors["configured"]) and obj.status == "awaiting_sensors":
             t.sleep(timer_check_frequency)
