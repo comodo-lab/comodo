@@ -27,6 +27,7 @@ state = state.SensorState()
 
 ## ----------------- Timer helper functions ----------------- ##
 
+
 def send_heartbeat():
     """
     Send the heartbeat
@@ -53,8 +54,8 @@ def send_measurement():
     if (state.client is None) or (state.sensor is None):
         return
 
-    # Retrieve the measurement 
-    if state.config['SIMULATE']:
+    # Retrieve the measurement
+    if state.config["SIMULATE"]:
         measurement = state.sensor.simulate_get_measurement(state)
     else:
         measurement = state.sensor.get_measurement(state)
@@ -75,12 +76,12 @@ def send_measurement():
         state.status["status"] = "adjusting"
 
         # Move to setpoint
-        if state.config['SIMULATE']:
+        if state.config["SIMULATE"]:
             state.sensor.simulate_go_to_setpoint(state.status["setpoint"])
         else:
-            state.sensor.go_to_setpoint(state.status["setpoint"])            
+            state.sensor.go_to_setpoint(state.status["setpoint"])
 
-        
+
 ## ----------------- Timer functions ----------------- ##
 
 
@@ -89,12 +90,15 @@ async def heartbeat_tick(timer):
         send_heartbeat()
         await asyncio.sleep(int(state.config["HEARTBEAT_INTERVAL"]) / 1000)
 
+
 async def measurement_tick(timer):
     while True:
         send_measurement()
         await asyncio.sleep(int(state.config["MEASUREMENT_INTERVAL"]) / 1000)
 
+
 # ----------------- Main function ----------------- ##
+
 
 # The main function
 async def main():
@@ -113,11 +117,11 @@ async def main():
     state.client = con.connect_mqtt(state=state)
 
     # Initialise the sensor
-    if not state.config['SIMULATE']:
+    if not state.config["SIMULATE"]:
         state.sensor.initialise()
     else:
         print(f" ### Simulating {state.config['SENSOR_ID']} ### ")
-    
+
     ## Set the ready flag
     state.config["ready"] = True
     print(f"Sensor {state.config['SENSOR_ID']} is ready")
@@ -138,8 +142,6 @@ if __name__ == "__main__":
     except Exception as e:
         traceback.print_exc()
         try:
-            state.client.publish(
-                f"error/sensor/{state.config['SENSOR_ID']}", str(e)
-            )
+            state.client.publish(f"error/sensor/{state.config['SENSOR_ID']}", str(e))
         except:
             print(f"Error: {e}")
