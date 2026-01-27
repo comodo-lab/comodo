@@ -1,13 +1,12 @@
 # System imports
-import time as t
-import sys
 import traceback
 import json
 import asyncio
 
+from utils import mqtt_clients as mqtt
+
 # Local imports
 import config as cfg
-import connect as con
 import state
 
 # Sensor imports (trigger sensor registration)
@@ -113,8 +112,22 @@ async def main():
     state.config = cfg.load_config()
     state.status["name"] = state.config["SENSOR_ID"]
 
-    ## Connect to the mqtt broker
-    state.client = con.connect_mqtt(state=state)
+    ## Create client
+    topics = [
+        f"sensor/{state.config['SENSOR_ID']}/setup",
+        f"sensor/{state.config['SENSOR_ID']}/setpoint_reached",
+        f"sensor/{state.config['SENSOR_ID']}/setpoint",
+        f"controller/end",
+        f"controller/stop",
+    ]
+    state.client = mqtt.MQTTClient(
+        id=state.status["name"],
+        callback=state.awaiting_config_cb,
+        topics=topics,
+        broker_address=state.config["MQTT_HOST"],
+        user=state.config["MQTT_USER"],
+        password=state.config["MQTT_PASS"],
+    )
 
     # Initialise the sensor
     if not state.config["SIMULATE"]:
