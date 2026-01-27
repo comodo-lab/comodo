@@ -1,6 +1,7 @@
 import sys
 import json
 import sensor
+import utils.mqtt_clients as mqtt
 
 
 class SensorState(object):
@@ -49,7 +50,7 @@ class SensorState(object):
 
         self.config = config
 
-    def awaiting_config_cb(self, topic, msg):
+    def awaiting_config_cb(self, _client, msg, _obj=None):
         """The callback function for the mqtt client when the sensor is awaiting config
         Can move to the ready state if the setpoint is set
 
@@ -63,13 +64,12 @@ class SensorState(object):
         Returns:
             None
         """
-            
-        if topic.decode("utf-8") == f"sensor/{self.config['SENSOR_ID']}/setup":
-            self._apply_config(msg)
-            self.client.set_callback(self.no_setpoint_cb)
+        if msg.topic == f"sensor/{self.config['SENSOR_ID']}/setup":
+            self._apply_config(mqtt.load_message(msg))
+            self.client.callback = self.no_setpoint_cb
             self.status["status"] = "no_setpoint"
 
-    def no_setpoint_cb(self, topic, msg):
+    def no_setpoint_cb(self, _client, msg, _obj=None):
         """The callback function for the mqtt client when the sensor is awaiting setpoint
         Can move to the adjusting state if the setpoint is set
 
@@ -85,9 +85,9 @@ class SensorState(object):
         """
 
         # If setpoint is recieved and valid, go to it
-        self._parse_and_go_to_setpoint(topic, msg)
+        self._parse_and_go_to_setpoint(msg)
 
-    def adjusting_cb(self, topic, msg):
+    def adjusting_cb(self, _client, msg, _obj=None):
         """The callback function for the mqtt client when the sensor is adjusting
         Can move to the ready state if the sensor is ready
 
@@ -104,16 +104,16 @@ class SensorState(object):
         """
 
         # If setpoint is recieved and valid, go to it
-        self._parse_and_go_to_setpoint(topic, msg)
+        self._parse_and_go_to_setpoint(msg)
 
-        if (topic.decode("utf-8") == f"sensor/{self.config['SENSOR_ID']}/setpoint_reached"):
-            self.client.set_callback(self.ready_cb)
+        if msg.topic == f"sensor/{self.config['SENSOR_ID']}/setpoint_reached":
+            self.client.callback = self.ready_cb
             self.status["status"] = "ready"
 
         # if controller/end is received, move to the awaiting_config state
-        self._end_experiment(topic)
+        self._end_experiment(msg.topic)
 
-    def ready_cb(self, topic, msg):
+    def ready_cb(self, _client, msg, _obj=None):
         """The callback function for the mqtt client when the sensor is ready
 
         Args:
@@ -125,22 +125,21 @@ class SensorState(object):
         """
 
         # If setpoint is recieved and valid, go to it
-        self._parse_and_go_to_setpoint(topic, msg)
+        self._parse_and_go_to_setpoint(msg)
 
         # if controller/end is received, move to the awaiting_config state
-        self._end_experiment(topic)
+        self._end_experiment(msg.topic)
 
-    def _apply_config(self, msg):
+    def _apply_config(self, params):
         """Apply the configuration
 
         Args:
-            msg: str: The message
+            params: dict: The parsed configuration
 
         Returns:
             None
         """
 
-        params = json.loads(msg)
         self.status["config"]["p"] = params["p"]
         self.status["config"]["i"] = params["i"]
         self.status["config"]["d"] = params["d"]
@@ -149,20 +148,21 @@ class SensorState(object):
         self.status["name"] = params["name"]
         self.sensor = sensor.BaseSensor.create_sensor(params["name"])
 
-    def _parse_and_go_to_setpoint(self, topic, msg):
-        if topic.decode("utf-8") != f"sensor/{self.config['SENSOR_ID']}/setpoint":
+    def _parse_and_go_to_setpoint(self, msg):
+
+        if msg.topic != f"sensor/{self.config['SENSOR_ID']}/setpoint":
             return
 
         # Parse incoming setpoint
-        params = json.loads(msg)
+        params = mqtt.load_message(msg)
         self.status["setpoint"] = params[self.config["SENSOR_ID"]]
 
         # Set state
-        self.client.set_callback(self.adjusting_cb)
+        self.client.callback = self.adjusting_cb
         self.status["status"] = "adjusting"
 
         # Trigger go to setpoint
-        if self.config['SIMULATE']:
+        if self.config["SIMULATE"]:
             self.sensor.simulate_go_to_setpoint(self.status["setpoint"])
         else:
             self.sensor.go_to_setpoint(self.status["setpoint"])
@@ -170,11 +170,11 @@ class SensorState(object):
         return
 
     def _end_experiment(self, topic):
-        if topic.decode("utf-8") == "controller/end":
-            self.client.set_callback(self.awaiting_config_cb)
+        if topic == "controller/end":
+            self.client.callback = self.awaiting_config_cb
             self.status["status"] = "awaiting_config"
-        if topic.decode("utf-8") == f"controller/stop":
-            self.client.set_callback(self.awaiting_config_cb)
+        if topic == f"controller/stop":
+            self.client.callback = self.awaiting_config_cb
             self.status["status"] = "awaiting_config"
 
         return

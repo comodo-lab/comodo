@@ -72,7 +72,7 @@ def send_measurement():
     position = measurement - state.status["setpoint"]
     if abs(position) > state.status["config"]["tolerance"]:
         # Change state
-        state.client.set_callback(state.adjusting_cb)
+        state.client.callback = state.adjusting_cb
         state.status["status"] = "adjusting"
 
         # Move to setpoint
