@@ -212,7 +212,7 @@ class TestDatabaseDump:
         ) as mock_makedirs:
             env_values = {
                 "INFLUX_BUCKET": "bucket1,bucket2,bucket3",
-                "INFLUX_ADDR": "http://localhost:8086",
+                "INFLUX_HOST": "localhost",
                 "INFLUX_ORG": "my_org",
             }
             mock_getenv.side_effect = lambda var, default=None: env_values.get(
@@ -251,7 +251,7 @@ class TestDatabaseDump:
             assert dump_mocks["getenv"].call_args_list == [
                 call("INFLUX_TOKEN"),  # Call added by first line of this test
                 call("INFLUX_BUCKET", "comodo"),
-                call("INFLUX_ADDR", "http://influxdb:8086"),
+                call("INFLUX_HOST", "localhost"),
                 call("INFLUX_ORG", "comodo"),
             ]
             dump_mocks["get_secret"].assert_called_once_with(

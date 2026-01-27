@@ -1,7 +1,9 @@
 name: comodo-debug
 services:
   mqttui:
-    # Run this with `docker compose run --build mqttui` and then run `mqttui` in the container
+    # Run this with:
+    #   docker compose -f compose.debug.yaml run --build mqttui
+    # Then run `mqttui` in the container
     build:
       context: .
       dockerfile_inline: |
@@ -14,4 +16,3 @@ services:
       MQTTUI_USERNAME: ${MQTT_USER}
       MQTTUI_PASSWORD: ${MQTT_PASS}
       MQTTUI_CLIENTID: mqttui-comodo
-    profiles: [debug]

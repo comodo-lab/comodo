@@ -24,7 +24,7 @@ probe_once() {
 
   sleep 1
 
-  timeout $TIMEOUT mosquitto_pub -h "$HOST" -p "$PORT" $AUTH_ARGS -t "$TOPIC" -m "ok" 2>&1
+  timeout $TIMEOUT mosquitto_pub -h "$HOST" -p "$PORT" $AUTH_ARGS -t "$TOPIC" -m '{"status":"ok"}' 2>&1
   PUB_STATUS=$?
 
   set +e

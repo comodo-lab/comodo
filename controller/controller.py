@@ -28,7 +28,7 @@ def main():
         ["WATCHDOG_INTERVAL"],
         ["WATCHDOG_TIMEOUT"],
         ["INFLUX_BUCKET"],
-        ["INFLUX_ADDR"],
+        ["INFLUX_HOST"],
         ["INFLUX_ORG"],
         ["INFLUX_TOKEN", "INFLUX_TOKEN_FILE"],
         ["SENSOR_SETUP_WAIT"],
