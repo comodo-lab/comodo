@@ -83,9 +83,14 @@ class SensorState(object):
         Returns:
             None
         """
+        # If a new config is recieved, apply it
+        self.awaiting_config_cb(_client, msg, _obj)
 
         # If setpoint is recieved and valid, go to it
         self._parse_and_go_to_setpoint(msg)
+
+        # if controller/end is received, move to the awaiting_config state
+        self._end_experiment(msg.topic)
 
     def adjusting_cb(self, _client, msg, _obj=None):
         """The callback function for the mqtt client when the sensor is adjusting
@@ -102,6 +107,8 @@ class SensorState(object):
         Returns:
             None
         """
+        # If a new config is recieved, apply it
+        self.awaiting_config_cb(_client, msg, _obj)
 
         # If setpoint is recieved and valid, go to it
         self._parse_and_go_to_setpoint(msg)
@@ -123,6 +130,8 @@ class SensorState(object):
         Returns:
             None
         """
+        # If a new config is recieved, apply it
+        self.awaiting_config_cb(_client, msg, _obj)
 
         # If setpoint is recieved and valid, go to it
         self._parse_and_go_to_setpoint(msg)
