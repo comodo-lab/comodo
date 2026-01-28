@@ -221,6 +221,18 @@ def test_awaiting_sensors_not_all_responded(
     assert state.status == "awaiting_sensors"
     assert state.sensors["configured"] == False
 
+    # First sensor heartbeat with awaiting_config
+    msg = sensor_heartbeat_msg(
+        sensor=sensors[0], status="awaiting_config", setpoint=None
+    )
+    on_heartbeat_message(heartbeat_client, msg, state)
+
+    # Should still not be ready
+    assert state.sensors[sensors[0]["name"]]["status"] == None
+    assert state.sensors[sensors[0]["name"]]["setpoint"] == None
+    assert state.status == "awaiting_sensors"
+    assert state.sensors["configured"] == False
+
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 0, "Should only publish if ready"
 
