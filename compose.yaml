@@ -69,6 +69,7 @@ services:
       - INFLUX_TOKEN=${INFLUX_TOKEN}
       - INFLUX_BUCKET=${INFLUX_BUCKET}
       - INFLUX_ORG=${INFLUX_ORG}
+      - GRAFANA_HOST=${GRAFANA_HOST}
       - FRONTEND_GRAFANA_URL=${FRONTEND_GRAFANA_URL}
     networks:
       comodo-core:

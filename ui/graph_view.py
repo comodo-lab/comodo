@@ -2,14 +2,12 @@ from dash import html
 import requests
 import os
 
-BACKEND_GRAFANA_URL = "http://grafana:3000"
+BACKEND_GRAFANA_URL = f"http://{os.getenv('GRAFANA_HOST', 'grafana')}:3000"
 QUERY_PATH = "/api/search"
 QUERY_PARAMS = "?query=&system-metrics"
 
-FRONTEND_GRAFANA_URL = os.getenv("FRONTEND_GRAFANA_URL")
-DISPLAY_PARAMS = (
-    "?orgId=1&from=now-5m&to=now&timezone=browser&refresh=auto&theme=light&kiosk=true"
-)
+DISPLAY_PARAMS = "?orgId=1&from=now-5m&to=now&timezone=browser&refresh=auto&kiosk=true"
+# GRAFANA_DASHBOARD_URL can be used to override the default dashboard URL (including DISPLAY_PARAMS)
 
 
 def get_dashboard_json():
@@ -38,12 +36,12 @@ def get_experiment_graph():
     """
     Creates a graph to display the experimental data.
     """
+    url = os.getenv("GRAFANA_DASHBOARD_URL")
+    if not url:
+        comodo_dashboard = get_dashboard_json()
+        if not comodo_dashboard:
+            return "Sad no dashboard noises"
+        url = f"{BACKEND_GRAFANA_URL}{comodo_dashboard.get('url')}{DISPLAY_PARAMS}"
 
-    comodo_dashboard = get_dashboard_json()
-    if not comodo_dashboard:
-        return "Sad no dashboard noises"
-
-    url_base = f"{FRONTEND_GRAFANA_URL}{comodo_dashboard.get('url')}"
-    url = f"{url_base}{DISPLAY_PARAMS}"
     graph = html.Div([html.Iframe(src=url, style={"width": "100%", "height": "80vh"})])
     return graph
