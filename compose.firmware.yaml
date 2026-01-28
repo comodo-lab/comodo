@@ -5,7 +5,7 @@ x-templates:
     MQTT_PASS: ${MQTT_PASS}
   sensor-env: &sensor-env
     <<: *mqtt-env
-    SIMULATE: "true"
+    SIMULATE: ${SIMULATE_SENSORS:-false}
   python-sensor-template: &python-sensor-template
     build:
       context: .

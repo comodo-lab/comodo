@@ -21,7 +21,7 @@ This repo contains everything you need to get started using Comodo for automatin
     - [Setting up Comodo](#setting-up-comodo)
       - [Bringing comodo down](#bringing-comodo-down)
     - [Setting up the firmware for the sensors and actuators](#setting-up-the-firmware-for-the-sensors-and-actuators)
-      - [Bringing the firmware down](#bringing-the-firmware-down)
+    - [Debugging](#debugging)
 
 
 ## What is Comodo?
@@ -45,7 +45,8 @@ The stack consists of:
 - A database (InfluxDB) for storing time series data from experiments.
   Data is recived in form of MQTT messages, translated by Telegraf, and stored in InfluxDB.
 
-The different components are glued together using the `comodo-nexus` compose file, which defines and configures all the services required to run Comodo.
+The different components are glued together using four `comodo-nexus` compose files, which define and configure all the services required to run Comodo.
+Each of these compose files can be run independently, allowing for flexible deployment options.
 
 Currently, only [manual deployment](#manual-deployment) is supported.
 
@@ -185,63 +186,77 @@ cp env.template .env
 ```
 and fill in the required environment variables:
 
-- `MQTT_HOST` sets the hostname or IP address of your MQTT broker.
-    If you're running the Comodo stack locally, set this to `rabbitmq`.
+- `MQTT_HOST` sets the address of your MQTT broker.
+    If you're running the Comodo stack locally, set this to your host's IP address.
     If you're using a remote broker, set this to the appropriate IP address or FQDN.
 - `MQTT_USER` is the username for your MQTT broker. You can set this to whatever you like.
 - `MQTT_PASS` is the password for your MQTT broker. You can set this to whatever you like.
-- `INFLUX_ADDR` is the address of your InfluxDB instance.
-    If you're running the Comodo stack locally, set this to `http://influxdb:8086`.
+- `INFLUX_HOST` is the address of your InfluxDB instance.
+    If you're running the Comodo stack locally, set this to your host's IP address.
+    If you're using a remote InfluxDB instance, set this to the appropriate IP address or FQDN.
 - `INFLUX_TOKEN` is the authentication token for your InfluxDB instance. You can set this to whatever you like.
 - `INFLUX_BUCKET` is the bucket name in InfluxDB where data will be stored. ~~You can set this to whatever you like.~~
   This currently has to be `comodo` for Grafana to work.
 - `INFLUX_ORG` is the organization name in InfluxDB.
 - If you're running the Comodo stack locally, set this to `comodo`.
-- `FRONTEND_GRAFANA_URL` is the URL of your Grafana dashboard.
-    This is currently not automated, and it requires you to manually [publish your dashboard](#publishing-the-grafana-dashboard) before setting it here.
+- `GRAFANA_HOST` is the hostname or IP address of your Grafana instance.
+    This is usually the same as your INFLUX_HOST.
+- `GRAFANA_DASHBOARD_URL` is optional. If not set, the default dashboard will be used.
+  If set, it overrides the URL of the Grafana dashboard to be embedded in the Comodo UI.
+  See [how to generate a url in this section](#publishing-a-grafana-dashboard).
+- `SIMULATE_SENSORS` is optional. If set to `true`, the firmware will simulate sensor readings instead of reading from real sensors.
+  This is useful for testing and development purposes.
+  If not set, it defaults to `false`.
+
 
 ### Setting up Comodo
+The Comodo stack is divided into four main compose files:
+- `compose.mqtt.yaml`: Defines the MQTT broker (RabbitMQ).
+- `compose.data.yaml`: Defines the data storage components (InfluxDB and Telegraf).
+- `docker-compose.yaml`: Defines the core controller and UI components.
+- `compose.firmware.yaml`: Defines the firmware deployment for the sensors and actuators.
 
-- Set up the [environment variables](#environment-variables).
-- Run `docker compose --profile mqtt --profile live up --build -d`.
-- Publish the Grafana dashboard ([steps](#publishing-the-grafana-dashboard)).
-- Update the `FRONTEND_GRAFANA_URL` environment variable in your `.env` file.
-- Run `docker compose up -d` to apply the changes.
-- Visit `localhost:8501` to access the Comodo UI.
+Each of these components can run independently, so you can choose to deploy them on separate hosts if desired.
+Equally, you can run all components on a single host, using the host's ip address for the environment variables.
+To set up Comodo, follow these steps:
+- Set up the [environment variables](#environment-variables), and copy the `.env` file to all of your comodo hosts.
+- On the *mqtt host*, run `docker compose -f compose.mqtt.yaml up --build -d`.
+- On the *data host*, run `docker compose -f compose.data.yaml up --build -d`.
+- On the *core host*, run `docker compose up --build -d`.
+- On the *firmware host*, run `docker compose -f compose.firmware.yaml up --build -d`.
+- Visit `localhost:8501` on the core host to access the Comodo UI.
 
-<details id="publishing-the-grafana-dashboard">
-<summary>How do I publishing the Grafana dashboard?</summary>
+<details id="publishing-a-grafana-dashboard">
+<summary>How do I publishing a Grafana dashboard?</summary>
 
 - Visit the Grafana UI at `localhost:3000`.
 - Select "Dashboards" on the navigation panel on the left.
-- Select the dashboard called "Comodo State Testing".
+- Select the dashboard you want.
 - Click the "Share" icon at the top of the page, which will copy a shortened url.
-- Use that URL as the value for the `FRONTEND_GRAFANA_URL` environment variable.
+- Use that URL as the value for the `GRAFANA_DASHBOARD_URL` environment variable.
 
 </details>
 
 
 #### Bringing comodo down
-If you must bring the stack down and want to start from scratch, run `docker compose --profile mqtt --profile live down -v`.
+If you must bring the stack down and want to start from scratch, run:
+- `docker compose -f compose.firmware.yaml down -v`
+- `docker compose down -v`
+- `docker compose -f compose.mqtt.yaml down -v`
+- `docker compose -f compose.data.yaml down -v`
 
 ### Setting up the firmware for the sensors and actuators
 
 Currently this is done through the `compose.firmware.yaml` file (see [note here](#central-configuration-file).)
 
-First, in the firmware directory, create env.json file from env.json.template:
-```bash
-cp firmware/env.json.template firmware/env.json
-```
+Since deployment is manual at this stage, the only recommended configuration is to either simulate the sensors or not.
+To simulate the sensors, ensure that the `SIMULATE_SENSORS` environment variable is set to `true` in the `.env` file.
+To use real sensors, set it to false, or simply remove the variable from the `.env` file.
 
-Copy the mqtt credentials you set up in the .env file into the firmware/env.json.
-If any of the hardware needs internet access, set the credentials in the file. Otherwise, you may delete these rows, or leave them empty.
-The settings sensor id, heartbeat interval and measurement interval will be overwritten (in firmware.config.py),
-with the environment variable values in the compose.firmware.yaml file.
+### Debugging
 
-Then bring the stack up with:
-```bash
-docker compose -f compose.firmware.yaml up --build -d
-```
+There is a fifth compose file, `compose.debug.yaml`, which can be used to deploy debugging tools for the different components of Comodo.
 
-#### Bringing the firmware down
-If you must bring the stack down and want to start from scratch, run `docker compose -f compose.firmware.yaml down -v`.
+- To run the mqttui tool, which allows you to monitor MQTT messages, run:
+    `docker compose -f compose.debug.yaml run --build mqttui`
+  and then run `mqttui` inside the container.
