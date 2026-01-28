@@ -59,7 +59,7 @@ def dump_database_for_experiment(obj):
     Dumps the influx databases for the experiment elapsed time.
     """
     influx_buckets = os.getenv("INFLUX_BUCKET", "comodo").split(",")
-    influx_url = os.getenv("INFLUX_ADDR", "http://influxdb:8086")
+    influx_url = f"http://{os.getenv("INFLUX_HOST", "localhost")}:8086"
     influx_org = os.getenv("INFLUX_ORG", "comodo")
     influx_token = get_env_or_secret("INFLUX_TOKEN", "INFLUX_TOKEN_FILE", None)
     if influx_token is None:

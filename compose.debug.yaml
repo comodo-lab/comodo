@@ -1,0 +1,18 @@
+name: comodo-debug
+services:
+  mqttui:
+    # Run this with:
+    #   docker compose -f compose.debug.yaml run --build mqttui
+    # Then run `mqttui` in the container
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM alpine:3.22
+        RUN apk update && apk add mqttui
+    container_name: comodo-mqttui
+    tty: true
+    environment:
+      MQTTUI_BROKER: mqtt://${MQTT_HOST}:1883
+      MQTTUI_USERNAME: ${MQTT_USER}
+      MQTTUI_PASSWORD: ${MQTT_PASS}
+      MQTTUI_CLIENTID: mqttui-comodo

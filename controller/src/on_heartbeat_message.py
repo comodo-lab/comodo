@@ -52,14 +52,15 @@ def on_heartbeat_message(client, msg, obj):
         obj_sensor["setpoint"] = sensor["setpoint"]
         obj_sensor["config"] = sensor["config"]
         if all(
-            obj.sensors[s]["status"] == "no_setpoint"
+            obj.sensors[s]["status"] not in [None, "awaiting_config"]
             for s in obj.sensors
             if s != "configured"
         ):
-            obj.sensors["configured"] = True
-            mqtt.MQTTPublisher.get_instance().publish(
-                "controller/ready", json.dumps({"uid": obj.experiment_uid})
-            )
+            if not obj.sensors["configured"]:
+                obj.sensors["configured"] = True
+                mqtt.MQTTPublisher.get_instance().publish(
+                    "controller/ready", json.dumps({"uid": obj.experiment_uid})
+                )
     else:
         obj_sensor["status"] = sensor["status"]
         obj_sensor["setpoint"] = sensor["setpoint"]

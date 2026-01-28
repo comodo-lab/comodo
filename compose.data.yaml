@@ -1,0 +1,109 @@
+name: comodo-data
+
+services:
+  mqtt-probe-data:
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM eclipse-mosquitto:2
+        COPY ./nexus/probe.sh /probe.sh
+        CMD ["/bin/sh", "/probe.sh"]
+    environment:
+      MQTT_HOST: ${MQTT_HOST}
+      MQTT_PORT: 1883
+      MQTT_USER: ${MQTT_USER}
+      MQTT_PASS: ${MQTT_PASS}
+    healthcheck:
+      test: ["CMD-SHELL", "exit $(cat /tmp/mqtt-health 2>/dev/null || echo 1)"]
+      interval: 1s
+      timeout: 10s
+      retries: 10
+    networks:
+      comodo-data:
+
+  influxdb:
+    image: influxdb:latest
+    container_name: comodo-influx
+    restart: unless-stopped
+    depends_on:
+      mqtt-probe-data:
+        condition: service_healthy
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=influx
+      - DOCKER_INFLUXDB_INIT_PASSWORD=influxinflux
+      - DOCKER_INFLUXDB_INIT_ORG=${INFLUX_ORG}
+      - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUX_BUCKET}
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUX_TOKEN}
+    ports:
+      - 8086:8086
+    volumes:
+      - influx_data:/var/lib/influxdb2
+      - influx_config:/etc/influxdb2
+    networks:
+      comodo-data:
+
+  telegraf:
+    image: telegraf:latest
+    container_name: comodo-telegraf
+    restart: unless-stopped
+    depends_on:
+      - influxdb
+    environment:
+      - MQTT_HOST=${MQTT_HOST}
+      - MQTT_USER=${MQTT_USER}
+      - MQTT_PASS=${MQTT_PASS}
+      - INFLUX_ADDR=http://influxdb:8086
+      - INFLUX_ORG=${INFLUX_ORG}
+      - INFLUX_BUCKET=${INFLUX_BUCKET}
+      - INFLUX_TOKEN=${INFLUX_TOKEN}
+    volumes:
+      - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+    networks:
+      comodo-data:
+
+  grafana:
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM grafana/grafana
+        USER root
+        RUN apk add envsubst
+        ARG INFLUX_ADDR=http://influxdb:8086
+        ARG INFLUX_TOKEN=${INFLUX_TOKEN}
+        ARG INFLUX_BUCKET=${INFLUX_BUCKET}
+        ARG INFLUX_ORG=${INFLUX_ORG}
+        COPY ./grafana/provisioning/ /etc/grafana/provisioning/
+        RUN envsubst < /etc/grafana/provisioning/datasources/datasource.yml.template > /etc/grafana/provisioning/datasources/datasource.yml.temp
+        RUN cp /etc/grafana/provisioning/datasources/datasource.yml.temp /etc/grafana/provisioning/datasources/datasource.yml
+        RUN /sbin/reboot
+        USER grafana
+    container_name: comodo-grafana
+    restart: unless-stopped
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_SECURITY_ALLOW_EMBEDDING=true
+      - GF_AUTH_ANONYMOUS_ORG_NAME=Main Org.
+    ports:
+      - 3000:3000
+    volumes:
+      - grafana-storage:/var/lib/grafana
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+      - ./grafana/dashboard.yaml:/etc/grafana/provisioning/dashboards/main.yaml
+    networks:
+      comodo-data:
+
+networks:
+  comodo-data:
+    name: comodo-data
+
+volumes:
+  rabbitmq_data:
+    name: comodo-rabbitmq
+  influx_data:
+    name: comodo-influx
+  influx_config:
+    name: comodo-influx-config
+  grafana-storage:
+    name: comodo-grafana

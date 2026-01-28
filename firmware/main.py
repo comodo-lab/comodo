@@ -1,13 +1,12 @@
 # System imports
-import time as t
-import sys
 import traceback
 import json
 import asyncio
 
+from utils import mqtt_clients as mqtt
+
 # Local imports
 import config as cfg
-import connect as con
 import state
 
 # Sensor imports (trigger sensor registration)
@@ -26,6 +25,7 @@ from sensors.pfeiffer_prismapro import MassSpec
 state = state.SensorState()
 
 ## ----------------- Timer helper functions ----------------- ##
+
 
 def send_heartbeat():
     """
@@ -53,8 +53,8 @@ def send_measurement():
     if (state.client is None) or (state.sensor is None):
         return
 
-    # Retrieve the measurement 
-    if state.config['SIMULATE']:
+    # Retrieve the measurement
+    if state.config["SIMULATE"]:
         measurement = state.sensor.simulate_get_measurement(state)
     else:
         measurement = state.sensor.get_measurement(state)
@@ -71,16 +71,16 @@ def send_measurement():
     position = measurement - state.status["setpoint"]
     if abs(position) > state.status["config"]["tolerance"]:
         # Change state
-        state.client.set_callback(state.adjusting_cb)
+        state.client.callback = state.adjusting_cb
         state.status["status"] = "adjusting"
 
         # Move to setpoint
-        if state.config['SIMULATE']:
+        if state.config["SIMULATE"]:
             state.sensor.simulate_go_to_setpoint(state.status["setpoint"])
         else:
-            state.sensor.go_to_setpoint(state.status["setpoint"])            
+            state.sensor.go_to_setpoint(state.status["setpoint"])
 
-        
+
 ## ----------------- Timer functions ----------------- ##
 
 
@@ -89,12 +89,15 @@ async def heartbeat_tick(timer):
         send_heartbeat()
         await asyncio.sleep(int(state.config["HEARTBEAT_INTERVAL"]) / 1000)
 
+
 async def measurement_tick(timer):
     while True:
         send_measurement()
         await asyncio.sleep(int(state.config["MEASUREMENT_INTERVAL"]) / 1000)
 
+
 # ----------------- Main function ----------------- ##
+
 
 # The main function
 async def main():
@@ -109,15 +112,29 @@ async def main():
     state.config = cfg.load_config()
     state.status["name"] = state.config["SENSOR_ID"]
 
-    ## Connect to the mqtt broker
-    state.client = con.connect_mqtt(state=state)
+    ## Create client
+    topics = [
+        f"sensor/{state.config['SENSOR_ID']}/setup",
+        f"sensor/{state.config['SENSOR_ID']}/setpoint_reached",
+        f"sensor/{state.config['SENSOR_ID']}/setpoint",
+        f"controller/end",
+        f"controller/stop",
+    ]
+    state.client = mqtt.MQTTClient(
+        id=state.status["name"],
+        callback=state.awaiting_config_cb,
+        topics=topics,
+        broker_address=state.config["MQTT_HOST"],
+        user=state.config["MQTT_USER"],
+        password=state.config["MQTT_PASS"],
+    )
 
     # Initialise the sensor
-    if not state.config['SIMULATE']:
+    if not state.config["SIMULATE"]:
         state.sensor.initialise()
     else:
         print(f" ### Simulating {state.config['SENSOR_ID']} ### ")
-    
+
     ## Set the ready flag
     state.config["ready"] = True
     print(f"Sensor {state.config['SENSOR_ID']} is ready")
@@ -138,8 +155,6 @@ if __name__ == "__main__":
     except Exception as e:
         traceback.print_exc()
         try:
-            state.client.publish(
-                f"error/sensor/{state.config['SENSOR_ID']}", str(e)
-            )
+            state.client.publish(f"error/sensor/{state.config['SENSOR_ID']}", str(e))
         except:
             print(f"Error: {e}")
