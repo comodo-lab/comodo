@@ -16,20 +16,9 @@ x-templates:
 name: comodo-firmware
 services:
   mqtt-probe-firmware:
-    build:
-      context: .
-      dockerfile_inline: |
-        FROM eclipse-mosquitto:2
-        COPY ./nexus/probe.sh /probe.sh
-        CMD ["/bin/sh", "/probe.sh"]
+    image: comodolab/comodo-mqtt_probe:latest
     environment:
       <<: *mqtt-env
-      MQTT_PORT: 1883
-    healthcheck:
-      test: ["CMD-SHELL", "exit $(cat /tmp/mqtt-health 2>/dev/null || echo 1)"]
-      interval: 1s
-      timeout: 10s
-      retries: 10
     networks:
       comodo-firmware:
 
