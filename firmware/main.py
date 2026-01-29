@@ -20,6 +20,7 @@ from sensors.el_flow_select_massflow import (
     MassFlowFluidTemp,
 )
 from sensors.pfeiffer_prismapro import MassSpec
+import sensor
 
 # Initialize the state
 state = state.SensorState()
@@ -128,6 +129,10 @@ async def main():
         user=state.config["MQTT_USER"],
         password=state.config["MQTT_PASS"],
     )
+
+    # Create the sensor
+    state.status["name"] = state.config["SENSOR_ID"]
+    state.sensor = sensor.BaseSensor.create_sensor(state.config["SENSOR_ID"])
 
     # Initialise the sensor
     if not state.config["SIMULATE"]:

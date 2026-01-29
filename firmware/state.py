@@ -155,9 +155,6 @@ class SensorState(object):
         self.status["config"]["d"] = params["d"]
         self.status["config"]["tolerance"] = params["tolerance"]
 
-        self.status["name"] = params["name"]
-        self.sensor = sensor.BaseSensor.create_sensor(params["name"])
-
     def _parse_and_go_to_setpoint(self, msg):
 
         if msg.topic != f"sensor/{self.config['SENSOR_ID']}/setpoint":
