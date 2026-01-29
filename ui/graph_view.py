@@ -43,5 +43,7 @@ def get_experiment_graph():
             return "Sad no dashboard noises"
         url = f"{BACKEND_GRAFANA_URL}{comodo_dashboard.get('url')}{DISPLAY_PARAMS}"
 
+    print(f"Using Grafana URL: \n{url}")
+
     graph = html.Div([html.Iframe(src=url, style={"width": "100%", "height": "80vh"})])
     return graph
