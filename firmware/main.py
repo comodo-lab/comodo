@@ -137,7 +137,8 @@ async def main():
 
     ## Set the ready flag
     state.config["ready"] = True
-    print(f"Sensor {state.config['SENSOR_ID']} is ready")
+    print(f"Sensor {state.config['SENSOR_ID']} created successfully.")
+    print(f"Sensor {state.config['SENSOR_ID']} awaiting configuration.")
 
     ## Setup heartbeat timer if on a pico or async timer if on linux
     asyncio.create_task(heartbeat_tick(None))

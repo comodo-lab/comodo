@@ -68,6 +68,7 @@ class SensorState(object):
             self._apply_config(mqtt.load_message(msg))
             self.client.callback = self.no_setpoint_cb
             self.status["status"] = "no_setpoint"
+            print(f"Sensor {self.config['SENSOR_ID']} configured.")
 
     def no_setpoint_cb(self, _client, msg, _obj=None):
         """The callback function for the mqtt client when the sensor is awaiting setpoint
@@ -162,6 +163,9 @@ class SensorState(object):
         if msg.topic != f"sensor/{self.config['SENSOR_ID']}/setpoint":
             return
 
+        if self.client.callback == self.no_setpoint_cb:
+            print(f"Sensor {self.config['SENSOR_ID']} active.")
+
         # Parse incoming setpoint
         params = mqtt.load_message(msg)
         self.status["setpoint"] = params[self.config["SENSOR_ID"]]
@@ -179,11 +183,9 @@ class SensorState(object):
         return
 
     def _end_experiment(self, topic):
-        if topic == "controller/end":
+        if topic in ["controller/end", "controller/stop"]:
             self.client.callback = self.awaiting_config_cb
             self.status["status"] = "awaiting_config"
-        if topic == f"controller/stop":
-            self.client.callback = self.awaiting_config_cb
-            self.status["status"] = "awaiting_config"
+            print(f"Sensor {self.config['SENSOR_ID']} awaiting configuration.")
 
         return
