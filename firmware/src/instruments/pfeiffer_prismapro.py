@@ -1,9 +1,7 @@
 import time
 import requests
 
-from sensor import BaseSensor
-
-from sensor import BaseSensor
+from src.instrument import BaseInstrument
 
 # Configuration Parameters
 VERBOSE = True
@@ -62,15 +60,15 @@ class MMSP:
         self.send("/mmsp/scanSetup/set?scanstop=1")
 
         print("Configuring ion source and detector...")
-        self.send("/mmsp/sensorIonSource/emissionCurrent/set?2000")
-        self.send("/mmsp/sensorIonSource/electronEnergy/set?70")
-        self.send("/mmsp/sensorIonSource/anode/set?250")
-        self.send("/mmsp/sensorIonSource/focus/set?25")
-        self.send("/mmsp/sensorIonSource/ionEnergyGlobal/set?8000")
+        self.send("/mmsp/instrumentIonSource/emissionCurrent/set?2000")
+        self.send("/mmsp/instrumentIonSource/electronEnergy/set?70")
+        self.send("/mmsp/instrumentIonSource/anode/set?250")
+        self.send("/mmsp/instrumentIonSource/focus/set?25")
+        self.send("/mmsp/instrumentIonSource/ionEnergyGlobal/set?8000")
 
         self.send("/mmsp/generalControl/setEmission?On")
         self.send("/mmsp/generalControl/setEM?On")
-        self.send("/mmsp/sensorDetector/emVoltage/set?841")
+        self.send("/mmsp/instrumentDetector/emVoltage/set?841")
 
         print("Setting up sweep channel (0–50 amu, 5 points/amu, dwell=32)...")
         chan = 1
@@ -163,8 +161,7 @@ class MMSP:
 
 
 
-@BaseSensor.register_sensor("mass_spec")
-class MassSpec(BaseSensor):
+class MassSpec(BaseInstrument):
 
     def __init__(self):
         self.mmsp = MMSP(TARGET_IP_ADDR)

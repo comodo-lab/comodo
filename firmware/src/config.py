@@ -4,7 +4,8 @@ import json
 import os
 
 config = {
-    "SENSOR_ID": "No name",
+    "INSTRUMENT_ID": "No name",
+    "FIRMWARE": "None specified",
     "MQTT_USER": "comodo",
     "MQTT_PASS": "comodo",
     "MQTT_HOST": "rabbitmq",

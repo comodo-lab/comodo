@@ -1,53 +1,33 @@
-class BaseSensor:
-    """
-    Base class for all sensors
+import importlib
+import pkgutil
 
-    This class is used to register all sensors and create them based on the input name.
+class BaseInstrument:
+    """
+    Base class for all instruments
+
+    This class is used to register all instruments and create them based on the input name.
 
     Attributes:
-        sensor_map: dict: The map of sensor name to sensor class
     """
 
-    sensor_map = {}  # Map of sensor name to sensor class
+    def create_instrument(instrument_name):
+        # Dynamically import the instrument module based on the instrument_name (if it exists)
+        try:
+            module = importlib.import_module(f"src.instruments.{instrument_name}")
+        except ModuleNotFoundError as e:
+            # List available instrument plugins
+            available_instruments = [name for _, name, _ in pkgutil.iter_modules(['instruments'])]
+            print(f"Available instruments: {available_instruments}")
 
-    @classmethod
-    def register_sensor(cls, sensor_name):
-        """
-        Register the sensor
+            # Raise error
+            raise ValueError(f"Unknown instrument plugin: {instrument_name}") from e
 
-        Args:
-            sensor_name: str: The name of the sensor
-
-        Returns:
-            function: The decorator function
-        """
-
-        def decorator(sensor):
-            cls.sensor_map[sensor_name] = sensor
-            return sensor
-
-        return decorator
-
-    @classmethod
-    def create_sensor(cls, input_name):
-        """
-        Create the sensor based on the input name
-
-        Args:
-            input_name: str: The name of the sensor
-
-        Returns:
-            BaseSensor: The sensor object
-
-        Raises:
-            ValueError: If the input name is invalid
-        """
-
-        sensor = cls.sensor_map.get(input_name)
-        if sensor:
-            return sensor()
-        else:
-            raise ValueError(f"Invalid sensor name: {input_name}")
+        # Instantiate the instrument class from the imported module
+        try:
+            cls = module.Instrument
+            return cls()
+        except AttributeError as e:
+            raise ValueError(f"Instrument plugin '{instrument_name}' does not have a 'Instrument' class") from e
 
     def __init__(self):
         """
@@ -66,7 +46,7 @@ class BaseSensor:
 
     def get_measurement(self, state):
         """
-        Get a measurement from the sensor
+        Get a measurement from the instrument
         """
         raise NotImplemented
 
@@ -88,7 +68,7 @@ class BaseSensor:
         
         distance = abs(measurement - state.status["setpoint"])
         if distance < state.status["config"]["tolerance"]:
-            state.client.publish(f"sensor/{state.config['SENSOR_ID']}/setpoint_reached", "true")
+            state.client.publish(f"instrument/{state.config['INSTRUMENT_ID']}/setpoint_reached", "true")
             
         state.measurement = measurement
         return measurement

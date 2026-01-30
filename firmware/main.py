@@ -3,27 +3,18 @@ import traceback
 import json
 import asyncio
 
+# Shared utils imports
 from utils import mqtt_clients as mqtt
 
 # Local imports
-import config as cfg
-import state
+import src.config as cfg
+import src.state as state
 
-# Sensor imports (trigger sensor registration)
-from sensors.carbolite_gero_thermocouple import TempLeft, TempMain, TempRight
-from sensors.pfeiffer_mpt_200_pressure import PressureDownstream, PressureUpstream
-from sensors.el_flow_select_massflow import (
-    MassFlow,
-    MassFlowTemp,
-    MassFlowPressureUpstream,
-    MassFlowPressureDownstream,
-    MassFlowFluidTemp,
-)
-from sensors.pfeiffer_prismapro import MassSpec
-import sensor
+# Instrument imports (trigger instrument registration)
+from src.instrument import BaseInstrument
 
 # Initialize the state
-state = state.SensorState()
+state = state.InstrumentState()
 
 ## ----------------- Timer helper functions ----------------- ##
 
@@ -38,9 +29,22 @@ def send_heartbeat():
     if state.client is not None and "ready" in state.config:
         heartbeat_structure = state.get_status()
         state.client.publish(
-            f"heartbeat/sensor/{state.config['SENSOR_ID']}", heartbeat_structure
+            f"heartbeat/instrument/{state.config['INSTRUMENT_ID']}", heartbeat_structure
         )
 
+## ----------------- Publishing helper functions ----------------- ##
+
+def publish_measurement(measurements):
+    if state.client is None:
+        return
+    
+    if type(measurements) is int or type(measurements) is float:
+        measurements = {"value": measurements}
+        
+    for key, measurement in measurements.items():
+        msg = json.dumps({key: measurement}) 
+        state.client.publish(f"measurement/{state.config['INSTRUMENT_ID']}", msg)
+        
 
 def send_measurement():
     """
@@ -50,20 +54,18 @@ def send_measurement():
         None
     """
 
-    # Return if the client or sensor is not ready
-    if (state.client is None) or (state.sensor is None):
+    # Return if the client or instrument is not ready
+    if (state.client is None) or (state.instrument is None):
         return
 
     # Retrieve the measurement
     if state.config["SIMULATE"]:
-        measurement = state.sensor.simulate_get_measurement(state)
+        measurements = state.instrument.simulate_get_measurement(state)
     else:
-        measurement = state.sensor.get_measurement(state)
+        measurements = state.instrument.get_measurement(state)
 
-    # Publish the measurement
-    measurement_structure = {"value": measurement}
-    msg = json.dumps(measurement_structure)
-    state.client.publish(f"measurement/{state.config['SENSOR_ID']}", msg)
+    # Publish the measurement (break lists into individual messages)
+    publish_measurement(measurements)
 
     # If ready and setpoint is recieved that is beyond tolerance way, move to it
     if state.status["status"] != "ready":
@@ -77,9 +79,9 @@ def send_measurement():
 
         # Move to setpoint
         if state.config["SIMULATE"]:
-            state.sensor.simulate_go_to_setpoint(state.status["setpoint"])
+            state.instrument.simulate_go_to_setpoint(state.status["setpoint"])
         else:
-            state.sensor.go_to_setpoint(state.status["setpoint"])
+            state.instrument.go_to_setpoint(state.status["setpoint"])
 
 
 ## ----------------- Timer functions ----------------- ##
@@ -111,13 +113,13 @@ async def main():
 
     ## Load the configuration file
     state.config = cfg.load_config()
-    state.status["name"] = state.config["SENSOR_ID"]
+    state.status["name"] = state.config["INSTRUMENT_ID"]
 
     ## Create client
     topics = [
-        f"sensor/{state.config['SENSOR_ID']}/setup",
-        f"sensor/{state.config['SENSOR_ID']}/setpoint_reached",
-        f"sensor/{state.config['SENSOR_ID']}/setpoint",
+        f"instrument/{state.config['INSTRUMENT_ID']}/setup",
+        f"instrument/{state.config['INSTRUMENT_ID']}/setpoint_reached",
+        f"instrument/{state.config['INSTRUMENT_ID']}/setpoint",
         f"controller/end",
         f"controller/stop",
     ]
@@ -128,22 +130,24 @@ async def main():
         broker_address=state.config["MQTT_HOST"],
         user=state.config["MQTT_USER"],
         password=state.config["MQTT_PASS"],
+        connection_timeout=60,
     )
 
-    # Create the sensor
-    state.status["name"] = state.config["SENSOR_ID"]
-    state.sensor = sensor.BaseSensor.create_sensor(state.config["SENSOR_ID"])
+    # Create the instrument
+    state.status["name"] = state.config["INSTRUMENT_ID"]
+    state.instrument = BaseInstrument.create_instrument(state.config["FIRMWARE"])
 
-    # Initialise the sensor
+    # Initialise the instrument
     if not state.config["SIMULATE"]:
-        state.sensor.initialise()
+        state.instrument.initialise()
     else:
-        print(f" ### Simulating {state.config['SENSOR_ID']} ### ")
+        print(f" ### Simulating {state.config['INSTRUMENT_ID']} ### ")
 
     ## Set the ready flag
     state.config["ready"] = True
-    print(f"Sensor {state.config['SENSOR_ID']} created successfully.")
-    print(f"Sensor {state.config['SENSOR_ID']} awaiting configuration.")
+    print(f"Instrument {state.config['INSTRUMENT_ID']} created successfully "
+          f"using firmware {state.config['FIRMWARE']}")
+    print(f"Instrument {state.config['INSTRUMENT_ID']} awaiting configuration.")
 
     ## Setup heartbeat timer if on a pico or async timer if on linux
     asyncio.create_task(heartbeat_tick(None))
@@ -161,6 +165,6 @@ if __name__ == "__main__":
     except Exception as e:
         traceback.print_exc()
         try:
-            state.client.publish(f"error/sensor/{state.config['SENSOR_ID']}", str(e))
+            state.client.publish(f"error/instrument/{state.config['INSTRUMENT_ID']}", str(e))
         except:
             print(f"Error: {e}")

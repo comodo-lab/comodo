@@ -3,13 +3,11 @@ Bronkhorst EL-FLOW Select Mass Flow Meter interface.
 https://prod-bronkhorst-products-cdn-ccdwbfhmd0gfecfb.a02.azurefd.net/media/3u4iwfxh/917099-manual-el-flow-select.pdf
 """
 
-from sensor import BaseSensor
+from src.instrument import BaseInstrument
 
 import propar
 import json
 import os
-
-READ_FILE = os.environ.get("MASSFLOW_READ_FILE", '/shared/massflow_read.json')
 
 ERROR_TIMEOUT = 10  # Seconds to wait before retrying after an error
 REPETITION_TIME = 2  # Seconds to wait before requesting another datapoint
@@ -47,7 +45,7 @@ PARAMETER_MAPPING = {
         "access": "RW",
         "range": "0 – 3.4E+38",
         "units": "bar",
-        "notes": "In case an external pressure sensor is connected, this parameter returns the actual system pressure in bar(a). If there is no external pressure sensor, the default value of this parameter is equal to parameter Inlet pressure.",
+        "notes": "In case an external pressure instrument is connected, this parameter returns the actual system pressure in bar(a). If there is no external pressure instrument, the default value of this parameter is equal to parameter Inlet pressure.",
     },
     # Advanced Measurement and Control
     "205": {
@@ -233,11 +231,10 @@ def write_general(instrument, name, value):
 
 def read_all(instrument):
     """
-    Reads all parameters from the EL-Flow Select instrument
-    and writes out to the READ_FILE as JSON for the other 
-    processes to consume.
+    Reads all parameters from the EL-Flow Select instrument,
+    add them to a dictionary and returns it.
 
-    Will write in format of:
+    Will create the data structure in the form:
     {
         "Flow_Rate_Measured": value,
         ...
@@ -251,25 +248,7 @@ def read_all(instrument):
         if 'R' in info['access']:
             value = read_parameter(instrument, int(channel))
             data[info['name']] = value
-    with open(READ_FILE, 'w') as f:
-        json.dump(data, f)
     return data
-
-
-def read_from_file(name):
-    """
-    Reads a parameter value from the READ_FILE JSON.
-
-    :param name: The name of the parameter to read.
-    :return: The value of the parameter if found, None otherwise.
-    """
-    try:
-        with open(READ_FILE, 'r') as f:
-            data = json.load(f)
-        return data.get(name, None)
-    except Exception as e:
-        print(f"Error reading from file {READ_FILE}: {e}")
-        return None
 
 
 # -------------------------------------------------------------------
@@ -277,14 +256,17 @@ def read_from_file(name):
 # -------------------------------------------------------------------
 
 
-@BaseSensor.register_sensor("massflow")
-class MassFlow(BaseSensor):
+class Instrument(BaseInstrument):
 
     def initialise(self):
         try:
-            # Map all docker containers to /dev/ttyUSB2)
-            self.instrument = propar.instrument("/dev/ttyUSB2")
-            print("Connected to EL-Flow Select instrument")
+            # Get device address from environment
+            device = os.getenv("DEVICE_ADDRESS", None)
+            if device is None:
+                print("DEVICE_ADDRESS environment variable not set, using default /dev/ttyUSB2")
+                device = "/dev/ttyUSB2"
+
+            self.instrument = propar.instrument(device)
         except Exception as e:
             print(f"Error initializing propar.Instrument!\n{e}")
             self.instrument = None
@@ -297,14 +279,8 @@ class MassFlow(BaseSensor):
             print("Instrument not initialized.")
             return None
 
-        read_all(self.instrument)
-        flow_rate = read_from_file("Flow_Rate_Measured")
-
-        if flow_rate is None:
-            print("Failed to read Flow_Rate_Measured from file.")
-            return None
-
-        return flow_rate
+        data = read_all(self.instrument)
+        return data
 
     def go_to_setpoint(self, setpoint):
         if self.instrument is None:
@@ -328,99 +304,3 @@ class MassFlow(BaseSensor):
             f"Set Flow_Rate_Setpoint to {setpoint}% ({int(instrument_setpoint)} in instrument scale)."
         )
         return result
-
-
-@BaseSensor.register_sensor("massflow_temp")
-class MassFlowTemp(BaseSensor):
-
-    def initialise(self):
-        return
-
-    def set_config(self, config):
-        pass
-
-    def get_measurement(self, state):
-
-        temperature = read_from_file("Temperature")
-        if temperature is None:
-            print("Failed to read Temperature.")
-            return None
-
-        state.measurement = temperature
-        return temperature
-
-    def go_to_setpoint(self, setpoint):
-        print("MassFlowTemp does not support setting a setpoint.")
-        return None
-
-
-@BaseSensor.register_sensor("massflow_pressure_upstream")
-class MassFlowPressureUpstream(BaseSensor):
-
-    def initialise(self):
-        return
-
-    def set_config(self, config):
-        pass
-
-    def get_measurement(self, state):
-
-        pressure = read_from_file("Inlet_Pressure")
-        if pressure is None:
-            print("Failed to read Inlet_Pressure.")
-            return None
-
-        state.measurement = pressure
-        return pressure
-
-    def go_to_setpoint(self, setpoint):
-        print("MassFlowPressureUpstream does not support setting a setpoint.")
-        return None
-
-
-@BaseSensor.register_sensor("massflow_pressure_downstream")
-class MassFlowPressureDownstream(BaseSensor):
-
-    def initialise(self):
-        return
-
-    def set_config(self, config):
-        pass
-
-    def get_measurement(self, state):
-
-        pressure = read_from_file("Outlet_Pressure")
-        if pressure is None:
-            print("Failed to read Outlet_Pressure.")
-            return None
-
-        state.measurement = pressure
-        return pressure
-
-    def go_to_setpoint(self, setpoint):
-        print("MassFlowPressureDownstream does not support setting a setpoint.")
-        return None
-
-
-@BaseSensor.register_sensor("massflow_fluid_temp")
-class MassFlowFluidTemp(BaseSensor):
-
-    def initialise(self):
-        return
-
-    def set_config(self, config):
-        pass
-
-    def get_measurement(self, state):
-
-        temperature = read_from_file("Fluid_Temperature")
-        if temperature is None:
-            print("Failed to read Fluid_Temperature.")
-            return None
-
-        state.measurement = temperature
-        return temperature
-
-    def go_to_setpoint(self, setpoint):
-        print("MassFlowFluidTemp does not support setting a setpoint.")
-        return None
