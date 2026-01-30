@@ -4,12 +4,12 @@ x-templates:
     MQTT_USER: ${MQTT_USER}
     MQTT_PASS: ${MQTT_PASS}
   influx-env: &influx-env
-    INFLUX_HOST: ${INFLUX_HOST}
+    INFLUX_HOST: ${DATA_HOST}
     INFLUX_TOKEN: ${INFLUX_TOKEN}
     INFLUX_BUCKET: ${INFLUX_BUCKET}
     INFLUX_ORG: ${INFLUX_ORG}
   grafana-env: &grafana-env
-    GRAFANA_HOST: ${GRAFANA_HOST}
+    GRAFANA_HOST: ${DATA_HOST}
     GRAFANA_DASHBOARD_URL: ${GRAFANA_DASHBOARD_URL:-}
 
 name: comodo-core
