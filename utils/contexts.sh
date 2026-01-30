@@ -6,7 +6,7 @@ This script configures docker contexts to facilitate deployment of the comodo st
 
 To generate the contexts, it reads the *_HOST and *_HOST_USER variables from the .env file.
 Add/remove host usernames from your .env to switch between local and remote deployments.
-Make sure you have SSH access to the remote hosts without password prompts (e.g., using SSH keys).
+Make sure you have SSH access to the remote hosts without password prompts (e.g., using SSH keys / SSH multiplexing).
 
 Usage: ./utils/contexts.sh [--clean|-c] [--help|-h]
 Options:
