@@ -322,6 +322,6 @@ class Instrument(BaseInstrument):
         elif self.simulated_measurement > self.simulated_setpoint:
             self.simulated_measurement -= 0.1
         state.measurement = self.simulated_measurement
-        return self.simulated_measurement
+        return self.simulated_measurement 
 
         
