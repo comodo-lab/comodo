@@ -97,8 +97,8 @@ def update_header_status(n_intervals, timezone):
         print(f"Error querying status: {e}")
         return "Unknown Status", "primary", None
 
-    if status == "awaiting_sensors":
-        return "Awaiting Sensors", "warning", timestamp
+    if status == "awaiting_instruments":
+        return "Awaiting Instruments", "warning", timestamp
     if status == "end":
         return "Experiment Ended", "light", timestamp
     if status == "idle":
@@ -155,11 +155,11 @@ def update_header_id(n_intervals, timezone):
     Output("adjusting_status", "color"),
     Output("adjusting_status-time", "children"),
     Input("interval", "n_intervals"),
-    State("sensor-store", "data"),
+    State("instrument-store", "data"),
     State("timezone-store", "data"),
     prevent_initial_call=True,
 )
-def update_header_id(n_intervals, sensors, timezone):
+def update_header_id(n_intervals, instruments, timezone):
     """
     Updates the header bar with the variables currently being adjusted.
     """
@@ -168,33 +168,33 @@ def update_header_id(n_intervals, sensors, timezone):
 
     adjusting = []
 
-    if sensors is None:
+    if instruments is None:
         return "None Adjusting", "primary", time
 
-    print(f"Checking state of {len(sensors)} sensors...")
-    for sensor in sensors:
-        sensor_name = sensor["name"]
+    print(f"Checking state of {len(instruments)} instruments...")
+    for instrument in instruments:
+        instrument_name = instrument["name"]
         try:
             result = query_influxdb_params(
                 fields=["status"],
-                topics=[f"heartbeat/sensor/{sensor_name}"],
+                topics=[f"heartbeat/instrument/{instrument_name}"],
                 start="-1m",
                 aggregate="last",
             )[-1]
             id = result.get_value()
             if id == "adjusting":
-                adjusting.append(sensor_name)
+                adjusting.append(instrument_name)
             iso_timestamp = result.get_time()
             timestamp = iso_timestamp.astimezone(user_tz).strftime("%Y-%m-%d %H:%M:%S")
         except Exception as e:
-            print(f"Error querying awaiting for {sensor_name}: {e}")
+            print(f"Error querying awaiting for {instrument_name}: {e}")
             return "None Adjusting", "primary", time
 
     if len(adjusting) == 0:
         return "None Adjusting", "primary", timestamp
     else:
         adjusting_str = ", ".join(
-            " ".join(sensor.split("_")).capitalize() for sensor in adjusting
+            " ".join(instrument.split("_")).capitalize() for instrument in adjusting
         )
 
     return adjusting_str, "success", timestamp

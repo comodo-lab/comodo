@@ -17,12 +17,12 @@
 
 <file:///work/DC_voltage> ex:address "192.168.111.XXX" ;
     ex:measurement_interval "1s" ;
-    ex:sensor [ ex:max "2000.0"^^xsd:float ;
+    ex:instrument [ ex:max "2000.0"^^xsd:float ;
             ex:min "0.0"^^xsd:float ;
             ex:type "float" ;
             ex:unit "V" ] .
 
-<file:///work/accelerator> ex:sensors [ ex:DC_voltage <file:///work/DC_voltage> ;
+<file:///work/accelerator> ex:instruments [ ex:DC_voltage <file:///work/DC_voltage> ;
             ex:coolant_temperature <file:///work/coolant_temperature> ;
             ex:turbo_pump_stage_1 <file:///work/turbo_pump_stage_1> ;
             ex:turbo_pump_stage_2 <file:///work/turbo_pump_stage_2> ;
@@ -36,7 +36,7 @@
         "turbo_pump_stage_2",
         "turbo_pump_stage_3" .
 
-<file:///work/blanket_module> ex:sensors [ ex:breeder_temperature <file:///work/breeder_temperature> ;
+<file:///work/blanket_module> ex:instruments [ ex:breeder_temperature <file:///work/breeder_temperature> ;
             ex:coolant_temperature <file:///work/coolant_temperature> ;
             ex:neutron_breeder_flux <file:///work/neutron_breeder_flux> ;
             ex:neutron_structure_flux <file:///work/neutron_structure_flux> ;
@@ -51,7 +51,7 @@
 
 <file:///work/breeder_temperature> ex:address "192.168.111.XXX" ;
     ex:measurement_interval "1s" ;
-    ex:sensor [ ex:max "1000.0"^^xsd:float ;
+    ex:instrument [ ex:max "1000.0"^^xsd:float ;
             ex:min "0.0"^^xsd:float ;
             ex:type "float" ;
             ex:unit "k" ] .
@@ -62,12 +62,12 @@
             ex:unit "\\%" ] ;
     ex:address "192.168.111.XXX" ;
     ex:measurement_interval "1s" ;
-    ex:sensor [ ex:max "20.0"^^xsd:float ;
+    ex:instrument [ ex:max "20.0"^^xsd:float ;
             ex:min "0.0"^^xsd:float ;
             ex:type "float" ;
             ex:unit "g/min" ] .
 
-<file:///work/deuterion_source> ex:sensors [ ex:deterium_flow_controller <file:///work/deterium_flow_controller> ;
+<file:///work/deuterion_source> ex:instruments [ ex:deterium_flow_controller <file:///work/deterium_flow_controller> ;
             ex:ionisation_source_power <file:///work/ionisation_source_power> ] .
 
 <file:///work/deuterion_source_graph> ex:title "Deuterion Source" ;
@@ -79,77 +79,77 @@
 
 <file:///work/extraction_pressure> ex:address "192.168.111.XXX" ;
     ex:measurement_interval "1s" ;
-    ex:sensor [ ex:max "30.0"^^xsd:float ;
+    ex:instrument [ ex:max "30.0"^^xsd:float ;
             ex:min "0.0"^^xsd:float ;
             ex:type "float" ;
             ex:unit "bar" ] .
 
 <file:///work/extraction_temperature> ex:address "192.168.111.XXX" ;
     ex:measurement_interval "1s" ;
-    ex:sensor [ ex:max "1000.0"^^xsd:float ;
+    ex:instrument [ ex:max "1000.0"^^xsd:float ;
             ex:min "0.0"^^xsd:float ;
             ex:type "float" ;
             ex:unit "k" ] .
 
 <file:///work/gas_pressure> ex:address "192.168.111.XXX" ;
     ex:measurement_interval "1s" ;
-    ex:sensor [ ex:max "10.0"^^xsd:float ;
+    ex:instrument [ ex:max "10.0"^^xsd:float ;
             ex:min "0.0"^^xsd:float ;
             ex:type "float" ;
             ex:unit "bar" ] .
 
 <file:///work/gas_temperature> ex:address "192.168.111.XXX" ;
     ex:measurement_interval "1s" ;
-    ex:sensor [ ex:max "400.0"^^xsd:float ;
+    ex:instrument [ ex:max "400.0"^^xsd:float ;
             ex:min "0.0"^^xsd:float ;
             ex:type "float" ;
             ex:unit "k" ] .
 
 <file:///work/getter_beds_temperature> ex:address "192.168.1.100" ;
-    ex:sensor [ ex:max "400.0"^^xsd:float ;
+    ex:instrument [ ex:max "400.0"^^xsd:float ;
             ex:min "0.0"^^xsd:float ;
             ex:type "float" ;
             ex:unit "k" ] .
 
 <file:///work/ionisation_source_power> ex:address "192.168.111.XXX" ;
     ex:measurement_interval "1s" ;
-    ex:sensor [ ex:max "200.0"^^xsd:float ;
+    ex:instrument [ ex:max "200.0"^^xsd:float ;
             ex:min "0.0"^^xsd:float ;
             ex:type "float" ;
             ex:unit "W" ] .
 
 <file:///work/neutron_breeder_flux> ex:address "192.168.111.XXX" ;
     ex:measurement_interval "1s" ;
-    ex:sensor [ ex:max "1000000000.0"^^xsd:float ;
+    ex:instrument [ ex:max "1000000000.0"^^xsd:float ;
             ex:min "0.0"^^xsd:float ;
             ex:type "float" ;
             ex:unit "n/cm^2s" ] .
 
 <file:///work/neutron_structure_flux> ex:address "192.168.111.XXX" ;
     ex:measurement_interval "1s" ;
-    ex:sensor [ ex:max "1000000000.0"^^xsd:float ;
+    ex:instrument [ ex:max "1000000000.0"^^xsd:float ;
             ex:min "0.0"^^xsd:float ;
             ex:type "float" ;
             ex:unit "n/cm^2s" ] .
 
 <file:///work/structural_temperature> ex:address "192.168.111.XXX" ;
     ex:measurement_interval "1s" ;
-    ex:sensor [ ex:max "1000.0"^^xsd:float ;
+    ex:instrument [ ex:max "1000.0"^^xsd:float ;
             ex:min "0.0"^^xsd:float ;
             ex:type "float" ;
             ex:unit "k" ] .
 
-<file:///work/target_chamber> ex:sensors [ ex:gas_pressure <file:///work/gas_pressure> ;
+<file:///work/target_chamber> ex:instruments [ ex:gas_pressure <file:///work/gas_pressure> ;
             ex:gas_temperature <file:///work/gas_temperature> ] .
 
 <file:///work/tritium_concentration> ex:address "192.168.111.XXX" ;
     ex:measurement_interval "1s" ;
-    ex:sensor [ ex:max "1.0"^^xsd:float ;
+    ex:instrument [ ex:max "1.0"^^xsd:float ;
             ex:min "0.0"^^xsd:float ;
             ex:type "float" ;
             ex:unit "g/cm^3" ] .
 
-<file:///work/tritium_extraction_system> ex:sensors [ ex:extraction_pressure <file:///work/extraction_pressure> ;
+<file:///work/tritium_extraction_system> ex:instruments [ ex:extraction_pressure <file:///work/extraction_pressure> ;
             ex:extraction_temperature <file:///work/extraction_temperature> ;
             ex:tritium_concentration <file:///work/tritium_concentration> ] .
 
@@ -162,25 +162,25 @@
     ex:outputs [ ex:quantity "librti:TritiumInventory" ;
             ex:unit "grams" ] .
 
-<file:///work/tritium_storage> ex:sensors [ ex:getter_beds_temperature <file:///work/getter_beds_temperature> ] .
+<file:///work/tritium_storage> ex:instruments [ ex:getter_beds_temperature <file:///work/getter_beds_temperature> ] .
 
 <file:///work/turbo_pump_stage_1> ex:address "192.168.111.XXX" ;
     ex:measurement_interval "1s" ;
-    ex:sensor [ ex:max "200.0"^^xsd:float ;
+    ex:instrument [ ex:max "200.0"^^xsd:float ;
             ex:min "0.0"^^xsd:float ;
             ex:type "float" ;
             ex:unit "W" ] .
 
 <file:///work/turbo_pump_stage_2> ex:address "192.168.111.XXX" ;
     ex:measurement_interval "1s" ;
-    ex:sensor [ ex:max "200.0"^^xsd:float ;
+    ex:instrument [ ex:max "200.0"^^xsd:float ;
             ex:min "0.0"^^xsd:float ;
             ex:type "float" ;
             ex:unit "W" ] .
 
 <file:///work/turbo_pump_stage_3> ex:address "192.168.111.XXX" ;
     ex:measurement_interval "1s" ;
-    ex:sensor [ ex:max "200.0"^^xsd:float ;
+    ex:instrument [ ex:max "200.0"^^xsd:float ;
             ex:min "0.0"^^xsd:float ;
             ex:type "float" ;
             ex:unit "W" ] .
@@ -195,7 +195,7 @@
 
 <file:///work/coolant_temperature> ex:address "192.168.111.XXX" ;
     ex:measurement_interval "1s" ;
-    ex:sensor [ ex:max "1000.0"^^xsd:float ;
+    ex:instrument [ ex:max "1000.0"^^xsd:float ;
             ex:min "0.0"^^xsd:float ;
             ex:type "float" ;
             ex:unit "k" ],

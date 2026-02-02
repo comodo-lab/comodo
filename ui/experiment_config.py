@@ -17,9 +17,9 @@ import dash_ag_grid as dag
 
 def get_experiment_config(data=[]):
     """
-    Creates a dash-ag-grid component for sensor setup with editing.
+    Creates a dash-ag-grid component for instrument setup with editing.
 
-    Should just be a table with sensor names and tolerances.
+    Should just be a table with instrument names and tolerances.
     """
     component_id = "experiment-config"
 
