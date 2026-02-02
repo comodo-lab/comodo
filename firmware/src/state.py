@@ -148,10 +148,10 @@ class InstrumentState(object):
         Returns:
             None
         """
+        # Set tolerance
         self.status["config"]["tolerance"] = params["tolerance"]
 
     def _parse_and_go_to_setpoint(self, msg):
-
         if msg.topic != f"instrument/{self.config['INSTRUMENT_ID']}/#/setpoint":
             return
 
