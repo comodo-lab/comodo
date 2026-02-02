@@ -22,6 +22,9 @@ This repo contains everything you need to get started using Comodo for automatin
       - [Bringing comodo down](#bringing-comodo-down)
     - [Setting up the firmware for the sensors and actuators](#setting-up-the-firmware-for-the-sensors-and-actuators)
     - [Debugging](#debugging)
+  - [Testing](#testing)
+    - [Testing a component](#testing-a-component)
+    - [Testing the full stack](#testing-the-full-stack)
 
 
 ## What is Comodo?
@@ -266,3 +269,35 @@ There is a fifth compose file, `compose.debug.yaml`, which can be used to deploy
 - To run the mqttui tool, which allows you to monitor MQTT messages, run:
     `docker compose -f compose.debug.yaml run --build mqttui`
   and then run `mqttui` inside the container.
+
+
+## Testing
+
+### Testing a component
+
+Each component of Comodo has its own unit and integration tests.
+These are completely independent from the rest of the stack, and (may) use common mocks and fixtures defined in the `utils/tests/` directory.
+It is implied, then, that `integration tests` in this sense refer to integration within a component, not between components.
+
+A compose file in the base directory of each component is provided to run the component's tests.
+This compose file is also used to run automated tests in CI/CD pipelines.
+
+Each component's tests are structured in a way that they can be run by moving into the component's directory, and from there running:
+```
+docker compose up --build
+```
+
+This uses pytest to discover and run all tests, and also use coverage to create a report.
+
+After running the tests, the report can be accessed with:
+```
+xdg-open $(docker volume inspect controller-tests_memory -f '{{ .Mountpoint }}')/htmlcov/class_index.html
+```
+
+Note: At the time of writing, only these components have comprehensive tests:
+- Controller
+- Setpoint Controller
+
+### Testing the full stack
+
+Tests for the full Comodo stack are sorely needed, but not yet implemented.
