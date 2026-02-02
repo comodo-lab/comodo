@@ -101,7 +101,7 @@ class SetpointController:
             id=self.pid.id,
             callback=SetpointController.on_sensor_message,
             topics=[
-                f"sensor/{sensor}/setpoint",
+                f"instrument/{sensor}/setpoint",
                 f"measurement/{sensor}",
                 # f"sensor/{sensor}/setpoint_reached",
                 f"{self.pid.id}/setup",
@@ -145,7 +145,7 @@ class SetpointController:
             spc.publish_heartbeat()
             return
 
-        if msg.topic == f"sensor/{spc.pid.sensor}/setpoint":
+        if msg.topic == f"instrument/{spc.pid.sensor}/setpoint":
             setpoint = message.get(spc.pid.sensor)
             if setpoint is not None:
                 spc.state["status"] = "adjusting"
@@ -160,11 +160,11 @@ class SetpointController:
                 spc.state["status"] = "adjusting"
                 setpoint = spc.pid.step(message["value"], spc.pid.setpoint)
                 mqtt.MQTTPublisher.get_instance().publish(
-                    f"sensor/{spc.pid.actuator}/setpoint",
+                    f"instrument/{spc.pid.actuator}/setpoint",
                     json.dumps({spc.pid.actuator: setpoint}),
                 )
             return
-        elif msg.topic == f"sensor/{spc.pid.sensor}/setpoint_reached":
+        elif msg.topic == f"instrument/{spc.pid.sensor}/setpoint_reached":
             spc.state["status"] = "ready"
             spc.pid.setpoint = None
             mqtt.MQTTPublisher.get_instance().publish(

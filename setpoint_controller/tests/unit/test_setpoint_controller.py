@@ -199,9 +199,9 @@ class Test_SetpointController_init:
             id="pid/A__B",
             callback=spc.on_sensor_message,
             topics=[
-                "sensor/A/setpoint",
+                "instrument/A/setpoint",
                 "measurement/A",
-                # "sensor/A/setpoint_reached",
+                # "instrument/A/setpoint_reached",
                 "pid/A__B/setup",
             ],
             broker_address="test_host",
@@ -229,7 +229,7 @@ class Test_on_sensor_message:
     def test_invalid_json_publishes_error(self, mock_spc, mqtt_mocks):
         client = Mock()
         msg = MockMessage(
-            f"sensor/{mock_spc.pid.sensor}/setpoint",
+            f"instrument/{mock_spc.pid.sensor}/setpoint",
             "this is not valid json {",
         )
 
@@ -251,7 +251,7 @@ class Test_on_setpoint_message:
         setpoint_value = 50.0
         assert mock_spc.pid.setpoint != setpoint_value
         msg = MockMessage(
-            f"sensor/{mock_spc.pid.sensor}/setpoint",
+            f"instrument/{mock_spc.pid.sensor}/setpoint",
             json.dumps({mock_spc.pid.sensor: setpoint_value}),
         )
 
@@ -270,7 +270,7 @@ class Test_on_setpoint_message:
         setpoint_value = 0.0
         assert mock_spc.pid.setpoint != setpoint_value
         msg = MockMessage(
-            f"sensor/{mock_spc.pid.sensor}/setpoint",
+            f"instrument/{mock_spc.pid.sensor}/setpoint",
             json.dumps({mock_spc.pid.sensor: setpoint_value}),
         )
 
@@ -287,7 +287,7 @@ class Test_on_setpoint_message:
     def test_ignores_other_setpoints(self, mock_spc, mqtt_mocks):
         client = Mock()
         msg = MockMessage(
-            f"sensor/{mock_spc.pid.sensor}/setpoint",
+            f"instrument/{mock_spc.pid.sensor}/setpoint",
             json.dumps({"some_other_sensor": 42.42}),
         )
 
@@ -329,7 +329,7 @@ class Test_on_measurement_message:
             measurement_value, mock_spc.pid.setpoint
         )
         mqtt_mocks["publisher_instance"].publish.assert_called_once_with(
-            f"sensor/{mock_spc.pid.actuator}/setpoint",
+            f"instrument/{mock_spc.pid.actuator}/setpoint",
             json.dumps({mock_spc.pid.actuator: 6.7}),
         )
 
@@ -340,7 +340,7 @@ class Test_on_setpoint_reached_message:
         client = Mock()
         mock_spc.pid.setpoint = 50.0
         msg = MockMessage(
-            f"sensor/{mock_spc.pid.sensor}/setpoint_reached",
+            f"instrument/{mock_spc.pid.sensor}/setpoint_reached",
             json.dumps({mock_spc.pid.sensor: True}),
         )
 
