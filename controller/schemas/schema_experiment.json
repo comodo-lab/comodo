@@ -27,12 +27,11 @@
           "type": "object",
           "properties": {
             "time": { "type": "number", "minimum": 0 },
-            "temp_right": { "type": "number"},
-            "temp_main": { "type": "number" },
-            "temp_left": { "type": "number" },
-            "pressure_upstream": { "type": "number" }
+            "furnace/temperature": { "type": "number" },
+            "pressure_downstream/pressure": { "type": "number" },
+            "pressure_upstream/pressure": { "type": "number" }
           },
-          "required": ["time", "temp_main", "temp_left", "temp_right", "pressure_upstream"]
+          "required": ["time", "furnace/temperature", "pressure_downstream/pressure", "pressure_upstream/pressure"]
         }
       }
     },

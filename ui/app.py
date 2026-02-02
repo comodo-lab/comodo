@@ -49,24 +49,15 @@ LONG_INTERVAL = 5000  # milliseconds
 
 # Params to read / actuate
 PARAMS = [
-    "temp_left",
-    "temp_main",
-    "temp_right",
-    "pressure_downstream",
-    "pressure_upstream",
-    "massflow_temp",
-    "massflow_pressure_upstream",
-    "massflow_pressure_downstream",
-    "massflow_fluid_temp",
-    "massflow",
-    # 'mass_spec'
+    "furnace/temperature",
+    "pressure_downstream/pressure",
+    "pressure_upstream/pressure",
 ]
 
 PARAM_DICT = [
-    {"name": "temp_left", "min": 0, "max": 1000, "step": 1},
-    {"name": "temp_main", "min": 0, "max": 1000, "step": 1},
-    {"name": "temp_right", "min": 0, "max": 1000, "step": 1},
-    {"name": "massflow", "min": 0, "max": 100, "step": 0.1},
+    {"name": "furnace/temperature", "min": 0, "max": 1000, "step": 1},
+    {"name": "pressure_downstream/pressure", "min": 0, "max": 1000, "step": 1},
+    {"name": "ressure_upstream/pressure", "min": 0, "max": 1000, "step": 1},
 ]
 
 INI_EXPERIMENT_CONFIG = [
@@ -77,45 +68,36 @@ INI_EXPERIMENT_CONFIG = [
 INI_DATA_DICT = [
     {
         "time": 0,
-        "temp_left": 20.0,
-        "temp_left_profile": "linear",
-        "temp_main": 20.0,
-        "temp_main_profile": "linear",
-        "temp_right": 20.0,
-        "temp_right_profile": "linear",
-        "pressure_upstream": 20.0,
-        "pressure_upstream_profile": "linear",
+        "furnace/temperature": 20.0,
+        "furnace/temperature_profile": "linear",
+        "pressure_downstream/pressure": 20.0,
+        "pressure_downstream/pressure_profile": "linear",
+        "pressure_upstream/pressure": 20.0,
+        "pressure_upstream/pressure_profile": "linear",
+    },
+    {
+        "time": 30,
+        "furnace/temperature": 200.0,
+        "furnace/temperature_profile": "linear",
+        "pressure_downstream/pressure": 40.0,
+        "pressure_downstream/pressure_profile": "linear",
+        "pressure_upstream/pressure": 30.0,
+        "pressure_upstream/pressure_profile": "linear",
     },
     {
         "time": 60,
-        "temp_left": 150.0,
-        "temp_left_profile": "linear",
-        "temp_main": 200.0,
-        "temp_main_profile": "linear",
-        "temp_right": 150.0,
-        "temp_right_profile": "linear",
-        "pressure_upstream": 5.0,
-        "pressure_upstream_profile": "linear",
-    },
-    {
-        "time": 120,
-        "temp_left": 150.0,
-        "temp_left_profile": "linear",
-        "temp_main": 200.0,
-        "temp_main_profile": "linear",
-        "temp_right": 150.0,
-        "temp_right_profile": "linear",
-        "pressure_upstream": 5.0,
-        "pressure_upstream_profile": "linear",
+        "furnace/temperature": 20.0,
+        "furnace/temperature_profile": "linear",
+        "pressure_downstream/pressure": 30.0,
+        "pressure_downstream/pressure_profile": "linear",
+        "pressure_upstream/pressure": 20.0,
+        "pressure_upstream/pressure_profile": "linear",
     }
 ]
 
 INI_SENSOR_DICT = [
     {
         "name": sensor,
-        "p": 0.21,
-        "i": 0.31,
-        "d": 0.41,
         "tolerance": 1.0,  # Default tolerance, can be edited
     }
     for sensor in PARAMS
