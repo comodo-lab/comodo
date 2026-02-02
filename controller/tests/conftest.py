@@ -25,7 +25,7 @@ def mock_state(status, mock_experiment_dict={}, mock_setpoints=[]):
     It expects a string corresponding to the callback to be tested, which should be one of:
         - "idle"
         - "starting"
-        - "awaiting_sensors"
+        - "awaiting_instruments"
         - "ready"
         - "running"
         - "end"
@@ -34,7 +34,7 @@ def mock_state(status, mock_experiment_dict={}, mock_setpoints=[]):
     if status not in [
         "idle",
         "starting",
-        "awaiting_sensors",
+        "awaiting_instruments",
         "ready",
         "running",
         "end",
@@ -64,7 +64,7 @@ def mock_state(status, mock_experiment_dict={}, mock_setpoints=[]):
         state_obj.setpoints = []
         state_obj.current_setpoint = None
         state_obj.past_setpoints = []
-        state_obj.sensors = {"configured": False}
+        state_obj.instruments = {"configured": False}
 
     state_obj.reset = MagicMock(side_effect=reset)
 
@@ -78,10 +78,10 @@ def mock_state(status, mock_experiment_dict={}, mock_setpoints=[]):
     state_obj.setpoints = []
     state_obj.current_setpoint = None
     state_obj.past_setpoints = []
-    state_obj.sensors = {"configured": False}
+    state_obj.instruments = {"configured": False}
     state_obj.adjusting = MagicMock(spec=AdjustingDict)
     state_obj.schema_path = "schemas/schema_experiment.json"
-    state_obj.schema_sensor_heartbeat_path = "schemas/schema_sensor_heartbeat.json"
+    state_obj.schema_instrument_heartbeat_path = "schemas/schema_instrument_heartbeat.json"
 
     if status == "idle":
         return state_obj
@@ -95,24 +95,24 @@ def mock_state(status, mock_experiment_dict={}, mock_setpoints=[]):
     if status == "starting":
         return state_obj
 
-    # ------------------------------- awaiting_sensors
-    state_obj.status = "awaiting_sensors"
+    # ------------------------------- awaiting_instruments
+    state_obj.status = "awaiting_instruments"
     state_obj._status_history = []
-    for sensor in state_obj.exp_config["config"]["sensors"]:
-        state_obj.sensors[sensor["name"]] = {
+    for instrument in state_obj.exp_config["config"]["instruments"]:
+        state_obj.instruments[instrument["name"]] = {
             "last_contact": None,
-            "config": {k: v for k, v in sensor.items() if k != "name"},
+            "config": {k: v for k, v in instrument.items() if k != "name"},
             "status": None,
             "setpoint": None,
         }
-    if status == "awaiting_sensors":
+    if status == "awaiting_instruments":
         return state_obj
 
     state_obj.setpoints = mock_setpoints
-    for sensor in state_obj.exp_config["config"]["sensors"]:
-        state_obj.sensors[sensor["name"]]["last_contact"] = t.time() - 1
-        state_obj.sensors[sensor["name"]]["status"] = "no_setpoint"
-    state_obj.sensors = {"configured": True}
+    for instrument in state_obj.exp_config["config"]["instruments"]:
+        state_obj.instruments[instrument["name"]]["last_contact"] = t.time() - 1
+        state_obj.instruments[instrument["name"]]["status"] = "no_setpoint"
+    state_obj.instruments = {"configured": True}
     if status == "ready":
         return state_obj
 
@@ -156,16 +156,16 @@ def mock_c_stopping():
         yield mock_c_stopping
 
 
-def sensor_heartbeat_msg(sensor, status, setpoint):
-    """Helper function to create a sensor heartbeat mock message."""
+def instrument_heartbeat_msg(instrument, status, setpoint):
+    """Helper function to create a instrument heartbeat mock message."""
     return MockMessage(
-        topic=f"heartbeat/sensor/{sensor['name']}",
+        topic=f"heartbeat/instrument/{instrument['name']}",
         payload=json.dumps(
             {
-                "name": sensor["name"],
+                "name": instrument["name"],
                 "status": status,
                 "setpoint": setpoint,
-                "config": {k: v for k, v in sensor.items() if k != "name"},
+                "config": {k: v for k, v in instrument.items() if k != "name"},
             }
         ),
     )

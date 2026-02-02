@@ -1,7 +1,7 @@
 {
     "uid": "123",
     "config":{
-        "sensors":[
+        "instruments":[
             {"name":"temperature",    "p":1, "i":2, "d":3, "tolerance":0.21},
             {"name":"pressure",       "p":1, "i":2, "d":3, "tolerance":0.22},
             {"name":"displacement 1", "p":1, "i":2, "d":3, "tolerance":0.23},

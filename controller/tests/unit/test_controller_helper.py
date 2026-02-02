@@ -116,7 +116,7 @@ class TestAssignSerialID:
 
     def test_updates_serial_id_correctly_empty_dir(self, state, data_path):
         assert state.experiment_uid == "123"
-        assert state.status == "awaiting_sensors"
+        assert state.status == "awaiting_instruments"
         assert state.exp_file == None
         current_year = str(datetime.now().year)[-2:]
 
@@ -134,7 +134,7 @@ class TestAssignSerialID:
 
     def test_updates_serial_id_correctly_non_empty_dir(self, state, data_path):
         assert state.experiment_uid == "123"
-        assert state.status == "awaiting_sensors"
+        assert state.status == "awaiting_instruments"
         assert state.exp_file == None
         current_year = str(datetime.now().year)[-2:]
 
@@ -153,7 +153,7 @@ class TestAssignSerialID:
 
     def test_moves_file_correctly(self, state, data_path):
         assert state.experiment_uid == "123"
-        assert state.status == "awaiting_sensors"
+        assert state.status == "awaiting_instruments"
 
         current_year = str(datetime.now().year)[-2:]
         d_path = f"{data_path}/D{current_year}-41.test_temp_exp.json"

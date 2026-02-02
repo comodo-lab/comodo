@@ -81,7 +81,7 @@ class TestMain:
             ["INFLUX_HOST"],
             ["INFLUX_ORG"],
             ["INFLUX_TOKEN", "INFLUX_TOKEN_FILE"],
-            ["SENSOR_SETUP_WAIT"],
+            ["INSTRUMENT_SETUP_WAIT"],
         ]
         for var_group in expected_env_vars:
             assert (
@@ -204,7 +204,7 @@ class TestMain:
             call(
                 id="heartbeat",
                 callback=mocks["callbacks"]["on_heartbeat_message"],
-                topics="heartbeat/sensor/#",
+                topics="heartbeat/instrument/#",
                 obj=state,
                 broker_address="test_host",
                 user="test_user",

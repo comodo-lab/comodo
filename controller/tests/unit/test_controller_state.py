@@ -20,10 +20,10 @@ def test_cstate_initialization():
     assert state.setpoints == []
     assert state.current_setpoint == None
     assert state.past_setpoints == []
-    assert state.sensors == {"configured": False}
+    assert state.instruments == {"configured": False}
     assert state.adjusting == AdjustingDict()
     assert state.schema_path == "schemas/schema_experiment.json"
-    assert state.schema_sensor_heartbeat_path == "schemas/schema_sensor_heartbeat.json"
+    assert state.schema_instrument_heartbeat_path == "schemas/schema_instrument_heartbeat.json"
 
 
 def test_cannot_add_new_attribute(state):
@@ -60,7 +60,7 @@ def test_reset(state):
     state.setpoints = [{"time": 0, "pressure": 0, "temperature": 0}]
     state.current_setpoint = {"time": 0, "pressure": 0, "temperature": 0}
     state.past_setpoints = [{"time": 0, "pressure": 0, "temperature": 0}]
-    state.sensors = {"configured": True}
+    state.instruments = {"configured": True}
     state.adjusting = {"T": 1, "P": 0, "D1": 1, "D2": 0}
 
     state.reset()
@@ -137,10 +137,10 @@ def test_status_invalid(state):
 
 
 def test_can_set_exp_config(state):
-    state.exp_config = {"uid": 123, "config": {"sensors": ["T", "P", "D1", "D2"]}}
+    state.exp_config = {"uid": 123, "config": {"instruments": ["T", "P", "D1", "D2"]}}
     assert state.exp_config == {
         "uid": 123,
-        "config": {"sensors": ["T", "P", "D1", "D2"]},
+        "config": {"instruments": ["T", "P", "D1", "D2"]},
     }
 
 
@@ -237,15 +237,15 @@ def test_cannot_set_wrong_type_past_setpoints(state):
         assert False, "Should not let you set wrong type"
 
 
-def test_can_set_sensors(state):
-    for sensor in ["T", "P"]:
-        state.sensors[sensor] = {
+def test_can_set_instruments(state):
+    for instrument in ["T", "P"]:
+        state.instruments[instrument] = {
             "last_contact": 0,
             "config": {},
             "status": "awaiting_config",
             "setpoint": None,
         }
-    assert state.sensors == {
+    assert state.instruments == {
         "configured": False,
         "T": {
             "last_contact": 0,
@@ -262,11 +262,11 @@ def test_can_set_sensors(state):
     }
 
 
-def test_cannot_set_wrong_type_sensors(state):
+def test_cannot_set_wrong_type_instruments(state):
     try:
-        state.sensors = 123
+        state.instruments = 123
     except TypeError as e:
-        assert "Sensors must be a dictionary, cannot accept <class 'int'>" in e.args[0]
+        assert "Instruments must be a dictionary, cannot accept <class 'int'>" in e.args[0]
     else:
         assert False, "Should not let you set wrong type"
 

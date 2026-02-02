@@ -19,7 +19,7 @@ from src.on_timer_message import on_timer_message
 
 @pytest.fixture
 def state(mock_experiment_dict, mock_setpoints):
-    return mock_state("awaiting_sensors", mock_experiment_dict, mock_setpoints)
+    return mock_state("awaiting_instruments", mock_experiment_dict, mock_setpoints)
 
 
 @pytest.fixture
@@ -37,7 +37,7 @@ def timer_client(mqtt_mocks):
 
 def test_wrong_json(message_bus, state):
     msg = MockMessage(
-        topic="timer/start/sensor_setup",
+        topic="timer/start/instrument_setup",
         payload="not a json",
     )
     on_timer_message(timer_client, msg, state)
@@ -46,14 +46,14 @@ def test_wrong_json(message_bus, state):
     assert len(messages) == 1
     assert messages[0].topic == "error/controller"
     assert (
-        "Error decoding timer/start/sensor_setup message, wrong JSON"
+        "Error decoding timer/start/instrument_setup message, wrong JSON"
         in messages[0].payload
     )
 
 
 def test_missing_uid(timer_client, message_bus, state):
     msg = MockMessage(
-        topic="timer/start/sensor_setup",
+        topic="timer/start/instrument_setup",
         payload=json.dumps({"some": "json"}),
     )
     on_timer_message(timer_client, msg, state)
@@ -61,7 +61,7 @@ def test_missing_uid(timer_client, message_bus, state):
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
     assert messages[0].topic == "error/timer"
-    assert "Error decoding timer/start/sensor_setup message" in messages[0].payload
+    assert "Error decoding timer/start/instrument_setup message" in messages[0].payload
     assert "missing" in messages[0].payload
     assert "uid" in messages[0].payload
 
@@ -70,7 +70,7 @@ def test_incorrect_uid(timer_client, message_bus, state):
     assert state.experiment_uid == "123"
 
     msg = MockMessage(
-        topic="timer/start/sensor_setup",
+        topic="timer/start/instrument_setup",
         payload=json.dumps({"uid": "999"}),
     )
     on_timer_message(timer_client, msg, state)
@@ -79,7 +79,7 @@ def test_incorrect_uid(timer_client, message_bus, state):
     assert len(messages) == 1
     assert messages[0].topic == "error/timer"
     assert (
-        "Current experiment is 123. Cannot act on timer/start/sensor_setup for experiment 999."
+        "Current experiment is 123. Cannot act on timer/start/instrument_setup for experiment 999."
         in messages[0].payload
     )
 
@@ -101,76 +101,76 @@ def test_incompatible_request(timer_client, message_bus, state):
 
 def test_timeout(timer_client, message_bus, state):
     assert state.experiment_uid == "123"
-    assert state.status == "awaiting_sensors"
-    assert state.sensors["configured"] == False
+    assert state.status == "awaiting_instruments"
+    assert state.instruments["configured"] == False
 
     with patch("os.getenv", return_value="0.1") as mock_getenv, patch(
         "src.on_timer_message.timer_check_frequency", 0.01
     ):
         msg = MockMessage(
-            topic="timer/start/sensor_setup",
+            topic="timer/start/instrument_setup",
             payload=json.dumps({"uid": "123"}),
         )
         on_timer_message(timer_client, msg, state)
 
-    mock_getenv.assert_called_once_with("SENSOR_SETUP_WAIT", 10)
+    mock_getenv.assert_called_once_with("INSTRUMENT_SETUP_WAIT", 10)
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 2
     assert messages[0].topic == "error/controller/timeout"
-    assert "Timed out waiting for sensors. Stopping..." in messages[0].payload
+    assert "Timed out waiting for instruments. Stopping..." in messages[0].payload
     assert messages[1].topic == "controller/stop"
     assert '{"uid": "123"' in messages[1].payload
 
 
 def test_stops_when_configured(message_bus, state, timer_client):
     assert state.experiment_uid == "123"
-    assert state.status == "awaiting_sensors"
-    state.sensors["configured"] = True
+    assert state.status == "awaiting_instruments"
+    state.instruments["configured"] = True
 
     msg = MockMessage(
-        topic="timer/start/sensor_setup",
+        topic="timer/start/instrument_setup",
         payload=json.dumps({"uid": "123"}),
     )
     on_timer_message(timer_client, msg, state)
 
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
-    assert messages[0].topic == "timer/done/sensor_setup"
+    assert messages[0].topic == "timer/done/instrument_setup"
     assert json.loads(messages[0].payload) == {
         "uid": "123",
-        "sensors_configured": True,
-        "controller_status": "awaiting_sensors",
+        "instruments_configured": True,
+        "controller_status": "awaiting_instruments",
     }
 
 
-def test_stops_when_not_awaiting_sensors(message_bus, state, timer_client):
+def test_stops_when_not_awaiting_instruments(message_bus, state, timer_client):
     assert state.experiment_uid == "123"
-    assert state.sensors["configured"] == False
+    assert state.instruments["configured"] == False
     state.status = "ready"
 
     msg = MockMessage(
-        topic="timer/start/sensor_setup",
+        topic="timer/start/instrument_setup",
         payload=json.dumps({"uid": "123"}),
     )
     on_timer_message(timer_client, msg, state)
 
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
-    assert messages[0].topic == "timer/done/sensor_setup"
+    assert messages[0].topic == "timer/done/instrument_setup"
     assert json.loads(messages[0].payload) == {
         "uid": "123",
-        "sensors_configured": False,
+        "instruments_configured": False,
         "controller_status": "ready",
     }
 
 
-def test_done_sensor_setup_uses_obj_uid(message_bus, state, timer_client):
+def test_done_instrument_setup_uses_obj_uid(message_bus, state, timer_client):
     assert state.experiment_uid == "123"
-    assert state.sensors["configured"] == False
+    assert state.instruments["configured"] == False
     state.status = "ready"
 
     with patch("src.on_timer_message.t.time") as mock_time:
-        # Simulate experiment uid change when sensors get configured
+        # Simulate experiment uid change when instruments get configured
         def change_uid(*args, **kwargs):
             state.experiment_uid = "D25-123"
             return 12345  # arbitrary time
@@ -178,17 +178,17 @@ def test_done_sensor_setup_uses_obj_uid(message_bus, state, timer_client):
         mock_time.side_effect = change_uid
 
         msg = MockMessage(
-            topic="timer/start/sensor_setup",
+            topic="timer/start/instrument_setup",
             payload=json.dumps({"uid": "123"}),
         )
         on_timer_message(timer_client, msg, state)
 
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
-    assert messages[0].topic == "timer/done/sensor_setup"
+    assert messages[0].topic == "timer/done/instrument_setup"
     assert json.loads(messages[0].payload) == {
         "uid": "D25-123",
-        "sensors_configured": False,
+        "instruments_configured": False,
         "controller_status": "ready",
     }
 
@@ -279,7 +279,7 @@ def test_timer_done_topic(message_bus, state, timer_client):
         payload=json.dumps(
             {
                 "uid": "123",
-                "sensors_configured": False,
+                "instruments_configured": False,
                 "controller_status": "ready",
             }
         ),

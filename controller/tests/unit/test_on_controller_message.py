@@ -309,43 +309,43 @@ class TestStarting:
         assert state.status == "validating"
         assert controller_client.callback == c_starting
 
-        sensors = mock_experiment_dict["config"]["sensors"]
-        sensor_names = [sensor["name"] for sensor in sensors]
+        instruments = mock_experiment_dict["config"]["instruments"]
+        instrument_names = [instrument["name"] for instrument in instruments]
 
         msg = MockMessage(topic="controller/start", payload=json.dumps({"uid": "123"}))
         c_starting(controller_client, msg, state)
 
-        # goes through starting to awaiting_sensors
-        assert state._status_history == ["starting", "awaiting_sensors"]
+        # goes through starting to awaiting_instruments
+        assert state._status_history == ["starting", "awaiting_instruments"]
         # State object updated correctly
         assert state.experiment_uid == "123"
         assert state.setpoints is not None
-        assert state.status == "awaiting_sensors"
+        assert state.status == "awaiting_instruments"
         assert controller_client.callback == mock_c_ready
-        # Sensor config list updated correctly
-        assert len(state.sensors) == len(sensors) + 1
-        assert state.sensors["configured"] == False
-        for sensor_key in state.sensors.keys():
-            if sensor_key != "configured":
-                assert sensor_key in sensor_names
-                sensor = state.sensors[sensor_key]
-                assert "last_contact" in sensor
-                assert sensor["last_contact"] is None
-                assert "config" in sensor
-                assert sensor["config"] is not None
-                assert "status" in sensor
-                assert sensor["status"] is None
-                assert "setpoint" in sensor
-                assert sensor["setpoint"] is None
+        # Instrument config list updated correctly
+        assert len(state.instruments) == len(instruments) + 1
+        assert state.instruments["configured"] == False
+        for instrument_key in state.instruments.keys():
+            if instrument_key != "configured":
+                assert instrument_key in instrument_names
+                instrument = state.instruments[instrument_key]
+                assert "last_contact" in instrument
+                assert instrument["last_contact"] is None
+                assert "config" in instrument
+                assert instrument["config"] is not None
+                assert "status" in instrument
+                assert instrument["status"] is None
+                assert "setpoint" in instrument
+                assert instrument["setpoint"] is None
         # Timer message sent
         messages = message_bus.get_messages(decoded=True)
-        assert len(messages) == 1 + len(sensors)
-        assert messages[0].topic == "timer/start/sensor_setup"
+        assert len(messages) == 1 + len(instruments)
+        assert messages[0].topic == "timer/start/instrument_setup"
         assert messages[0].payload == json.dumps({"uid": "123"})
-        # Sensor setup messages sent
-        for i, sensor in enumerate(sensors):
-            assert messages[i + 1].topic == f"sensor/{sensor['name']}/setup"
-            assert messages[i + 1].payload == json.dumps(sensor)
+        # Instrument setup messages sent
+        for i, instrument in enumerate(instruments):
+            assert messages[i + 1].topic == f"instrument/{instrument['name']}/setup"
+            assert messages[i + 1].payload == json.dumps(instrument)
 
 
 class TestReady:
@@ -374,7 +374,7 @@ class TestReady:
 
     def test_incompatible_request(self, message_bus, state, controller_client):
         assert state.experiment_uid == "123"
-        assert state.status == "awaiting_sensors"
+        assert state.status == "awaiting_instruments"
         assert controller_client.callback == c_ready
 
         msg = MockMessage(
@@ -383,12 +383,12 @@ class TestReady:
         )
         c_ready(controller_client, msg, state)
 
-        assert state.status == "awaiting_sensors"
+        assert state.status == "awaiting_instruments"
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 1
         assert messages[0].topic == "error/controller"
         assert (
-            "Controller is awaiting_sensors. Cannot act on controller/something_else"
+            "Controller is awaiting_instruments. Cannot act on controller/something_else"
             in messages[0].payload
         )
 
@@ -396,7 +396,7 @@ class TestReady:
         self, message_bus, state, controller_client, mock_c_stopping
     ):
         assert state.experiment_uid == "123"
-        assert state.status == "awaiting_sensors"
+        assert state.status == "awaiting_instruments"
         assert controller_client.callback == c_ready
 
         msg = MockMessage(topic="controller/stop", payload="not important")
@@ -412,7 +412,7 @@ class TestReady:
         mock_c_running,
     ):
         assert state.experiment_uid == "123"
-        assert state.status == "awaiting_sensors"
+        assert state.status == "awaiting_instruments"
         assert controller_client.callback == c_ready
 
         with patch("src.on_controller_message.assign_serial_id") as mock_assign:
@@ -585,19 +585,19 @@ class TestRunning:
         assert controller_client.callback == c_running
         assert state.current_setpoint is None
         first_sp = state.setpoints[0]
-        sensors = [k for k in first_sp if k != "duration"]
+        instruments = [k for k in first_sp if k != "duration"]
 
         msg = MockMessage(topic="controller/run", payload=json.dumps({"uid": "123"}))
         c_running(controller_client, msg, state)
 
         messages = message_bus.get_messages(decoded=True)
-        assert len(messages) == 1 + len(sensors)
+        assert len(messages) == 1 + len(instruments)
 
-        for i, sensor in enumerate(sensors):
-            assert messages[i].topic == f"sensor/{sensor}/setpoint"
+        for i, instrument in enumerate(instruments):
+            assert messages[i].topic == f"instrument/{instrument}/setpoint"
             assert json.loads(messages[i].payload) == {
                 "duration": first_sp["duration"],
-                sensor: first_sp[sensor],
+                instrument: first_sp[instrument],
             }
 
     def test_starts_setpoint_timer(
@@ -608,13 +608,13 @@ class TestRunning:
         assert controller_client.callback == c_running
         assert state.current_setpoint is None
         first_sp = state.setpoints[0]
-        sensors = [k for k in first_sp if k != "duration"]
+        instruments = [k for k in first_sp if k != "duration"]
 
         msg = MockMessage(topic="controller/run", payload=json.dumps({"uid": "123"}))
         c_running(controller_client, msg, state)
 
         messages = message_bus.get_messages(decoded=True)
-        assert len(messages) == 1 + len(sensors)
+        assert len(messages) == 1 + len(instruments)
         assert messages[-1].topic == "timer/start/setpoint"
         assert json.loads(messages[-1].payload) == {
             "uid": "123",
