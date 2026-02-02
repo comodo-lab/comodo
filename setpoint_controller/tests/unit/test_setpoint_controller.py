@@ -242,7 +242,7 @@ class Test_on_sensor_message:
         )
         assert topic == f"error/{mock_spc.pid.id}"
         assert "error" in message.keys()
-        assert "sensor/mock_sensor/setpoint message, wrong JSON:" in message["error"]
+        assert "instrument/mock_sensor/setpoint message, wrong JSON:" in message["error"]
 
 
 class Test_on_setpoint_message:
