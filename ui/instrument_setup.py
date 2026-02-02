@@ -25,9 +25,6 @@ def get_instrument_setup(data=[]):
 
     column_dicts = [
         {"headerName": "Instrument Name", "field": "name", "editable": True},
-        {"headerName": "P", "field": "p", "editable": True},
-        {"headerName": "I", "field": "i", "editable": True},
-        {"headerName": "D", "field": "d", "editable": True},
         {"headerName": "Tolerance", "field": "tolerance", "editable": True},
     ]
 
