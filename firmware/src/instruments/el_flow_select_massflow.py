@@ -257,6 +257,8 @@ def read_all(instrument):
 
 
 class Instrument(BaseInstrument):
+    self.simulated_setpoint = 0.0
+    self.simulated_measurement = 0.0
 
     def initialise(self):
         try:
@@ -304,3 +306,22 @@ class Instrument(BaseInstrument):
             f"Set Flow_Rate_Setpoint to {setpoint}% ({int(instrument_setpoint)} in instrument scale)."
         )
         return result
+
+    def simulate_go_to_setpoint(self, setpoint):        
+        if not (0 <= setpoint <= 100):
+            print("Setpoint must be between 0 and 100%.")
+            return None
+
+        self.simulated_setpoint = setpoint
+        print(f"(Simulated) Setting Flow_Rate_Setpoint to {setpoint}%.")
+
+    def simulate_get_measurement(self, state):
+        # Simple simulation: measurement approaches setpoint
+        if self.simulated_measurement < self.simulated_setpoint:
+            self.simulated_measurement += 0.1
+        elif self.simulated_measurement > self.simulated_setpoint:
+            self.simulated_measurement -= 0.1
+        state.measurement = self.simulated_measurement
+        return self.simulated_measurement
+
+        
