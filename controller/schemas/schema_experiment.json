@@ -6,7 +6,7 @@
       "config": {
         "type": "object",
         "properties": {
-          "sensors": {
+          "instruments": {
             "type": "array",
             "items": {
               "type": "object",
@@ -19,7 +19,7 @@
           },
           "resolution": { "type": "number" }
         },
-        "required": ["sensors", "resolution"]
+        "required": ["instruments", "resolution"]
       },
       "experiment": {
         "type": "array",
