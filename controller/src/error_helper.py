@@ -74,10 +74,10 @@ def experiment_validation_error(error, uid):
 
 def heartbeat_validation_error(msg, error):
     """
-    Publishes an error message when a validation error occurs on a sensor's heartbeat.
+    Publishes an error message when a validation error occurs on a instrument's heartbeat.
     """
     p = msg.payload.decode("utf-8")
-    t = msg.topic.split("heartbeat/sensor/")[1]
+    t = msg.topic.split("heartbeat/instrument/")[1]
     mqtt.MQTTPublisher.get_instance().publish(
         f"error/heartbeat/validation",
         json.dumps(
@@ -86,11 +86,11 @@ def heartbeat_validation_error(msg, error):
     )
 
 
-def unconfigured_sensor(msg, sensor_name):
+def unconfigured_instrument(msg, instrument_name):
     """
-    Publishes an error message when a sensor heartbeat is received and the sensor is not configured.
+    Publishes an error message when a instrument heartbeat is received and the instrument is not configured.
     """
-    error = f"Sensor {sensor_name} is not configured. Unexpected heartbeat message:\n    {msg.topic}  {msg.payload.decode('utf-8')}"
+    error = f"Instrument {instrument_name} is not configured. Unexpected heartbeat message:\n    {msg.topic}  {msg.payload.decode('utf-8')}"
     mqtt.MQTTPublisher.get_instance().publish(
         "error/heartbeat",
         json.dumps({"error": error}),
