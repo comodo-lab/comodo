@@ -189,18 +189,22 @@ and fill in the required environment variables:
 - `MQTT_HOST` sets the address of your MQTT broker.
     If you're running the Comodo stack locally, set this to your host's IP address.
     If you're using a remote broker, set this to the appropriate IP address or FQDN.
-- `MQTT_USER` is the username for your MQTT broker. You can set this to whatever you like.
-- `MQTT_PASS` is the password for your MQTT broker. You can set this to whatever you like.
-- `INFLUX_HOST` is the address of your InfluxDB instance.
+- `DATA_HOST` is the address of your InfluxDB instance.
     If you're running the Comodo stack locally, set this to your host's IP address.
     If you're using a remote InfluxDB instance, set this to the appropriate IP address or FQDN.
+- `FIRMWARE_HOST` is the address of the host where the firmware for the sensors and actuators will run.
+    If you're running the Comodo stack locally, leave this empty.
+    If you're using a remote host for the firmware, set this to the appropriate IP address or FQDN.
+- `MQTT_HOST_USER` is optional. It is only needed if you are deploying the stack
+  from the controller host to a remote host. It should be the username used to SSH into the remote host. The user needs to have ssh keys configured for passwordless login.
+- `DATA_HOST_USER` is optional. See `MQTT_HOST_USER` for details.
+- `FIRMWARE_HOST_USER` is optional. See `MQTT_HOST_USER` for details.
+- `MQTT_USER` is the username for your MQTT broker. You can set this to whatever you like.
+- `MQTT_PASS` is the password for your MQTT broker. You can set this to whatever you like.
 - `INFLUX_TOKEN` is the authentication token for your InfluxDB instance. You can set this to whatever you like.
 - `INFLUX_BUCKET` is the bucket name in InfluxDB where data will be stored. ~~You can set this to whatever you like.~~
   This currently has to be `comodo` for Grafana to work.
-- `INFLUX_ORG` is the organization name in InfluxDB.
-- If you're running the Comodo stack locally, set this to `comodo`.
-- `GRAFANA_HOST` is the hostname or IP address of your Grafana instance.
-    This is usually the same as your INFLUX_HOST.
+- `INFLUX_ORG` is the organization name in InfluxDB.  You can set this to whatever you like.
 - `GRAFANA_DASHBOARD_URL` is optional. If not set, the default dashboard will be used.
   If set, it overrides the URL of the Grafana dashboard to be embedded in the Comodo UI.
   See [how to generate a url in this section](#publishing-a-grafana-dashboard).
@@ -219,11 +223,13 @@ The Comodo stack is divided into four main compose files:
 Each of these components can run independently, so you can choose to deploy them on separate hosts if desired.
 Equally, you can run all components on a single host, using the host's ip address for the environment variables.
 To set up Comodo, follow these steps:
-- Set up the [environment variables](#environment-variables), and copy the `.env` file to all of your comodo hosts.
-- On the *mqtt host*, run `docker compose -f compose.mqtt.yaml up --build -d`.
-- On the *data host*, run `docker compose -f compose.data.yaml up --build -d`.
-- On the *core host*, run `docker compose up --build -d`.
-- On the *firmware host*, run `docker compose -f compose.firmware.yaml up --build -d`.
+- Set up the [environment variables](#environment-variables).
+- Run the contexts script: `./utils/contexts.sh`. This will set up the necessary Docker contexts for remote deployment, and provide the correct compose commands to deploy.
+  They should be equivalent to the ones below, albeit using the correct contexts.
+  - `docker compose -f compose.mqtt.yaml up --build -d`.
+  - `docker compose -f compose.data.yaml up --build -d`.
+  - `docker compose up --build -d`.
+  - `docker compose -f compose.firmware.yaml up --build -d`.
 - Visit `localhost:8501` on the core host to access the Comodo UI.
 
 <details id="publishing-a-grafana-dashboard">
