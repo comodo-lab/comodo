@@ -29,7 +29,7 @@ services:
     <<: *python-instrument-template
     environment:
       <<: *instrument-env
-      INSTRUMENT_ID: carbolite_gero
+      INSTRUMENT_ID: "furnace/temperature"
       FIRMWARE: carbolite_gero_thermocouple
       HEARTBEAT_INTERVAL: 1000
       MEASUREMENT_INTERVAL: 1000
@@ -38,7 +38,7 @@ services:
     <<: *python-instrument-template
     environment:
       <<: *instrument-env
-      INSTRUMENT_ID: pressure_downstream
+      INSTRUMENT_ID: "pressure_downstream/pressure"
       FIRMWARE: pfeiffer_mpt_200_pressure
       HEARTBEAT_INTERVAL: 1000
       MEASUREMENT_INTERVAL: 1000
@@ -51,7 +51,7 @@ services:
     <<: *python-instrument-template
     environment:
       <<: *instrument-env
-      INSTRUMENT_ID: pressure_upstream
+      INSTRUMENT_ID: "pressure_upstream/pressure"
       FIRMWARE: pfeiffer_mpt_200_pressure
       HEARTBEAT_INTERVAL: 1000
       MEASUREMENT_INTERVAL: 1000
@@ -69,8 +69,8 @@ services:
     environment:
       <<: *mqtt-env
       HEARTBEAT_INTERVAL: 1000
-      INSTRUMENT: pressure_upstream
-      ACTUATOR: massflow
+      SENSOR: "pressure_upstream/pressure"
+      ACTUATOR: "massflow/massflow"
       K_P: 1
       K_I: 0.1
       K_D: 0.05
@@ -84,7 +84,7 @@ services:
     <<: *python-instrument-template
     environment:
       <<: *instrument-env
-      INSTRUMENT_ID: massflow
+      INSTRUMENT_ID: "massflow/massflow"
       FIRMWARE: el_flow_select_massflow
       HEARTBEAT_INTERVAL: 1000
       MEASUREMENT_INTERVAL: 1000
