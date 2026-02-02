@@ -22,7 +22,7 @@ def on_timer_message(client, msg, obj):
     The timer client is used to de-couple the waiting times that the controller needs to wait,
     but keeps the controller callback available, as opposed to using time.sleep() in the controller,
     which would block the callback.
-    The timer client is used to wait for the sensors to be ready before starting the experiment,
+    The timer client is used to wait for the instruments to be ready before starting the experiment,
     and to wait for the setpoint duration before moving to the next setpoint.
     """
     try:
@@ -37,25 +37,25 @@ def on_timer_message(client, msg, obj):
         missing_keys(msg, e, source="timer")
         return
 
-    if msg.topic == "timer/start/sensor_setup":
-        # Wait for sensors to be ready or timeout
-        sensor_setup_wait = float(os.getenv("SENSOR_SETUP_WAIT", 10))
+    if msg.topic == "timer/start/instrument_setup":
+        # Wait for instruments to be ready or timeout
+        instrument_setup_wait = float(os.getenv("INSTRUMENT_SETUP_WAIT", 10))
         t0 = t.time()
-        while (not obj.sensors["configured"]) and obj.status == "awaiting_sensors":
+        while (not obj.instruments["configured"]) and obj.status == "awaiting_instruments":
             t.sleep(timer_check_frequency)
-            if t.time() - t0 > sensor_setup_wait:
-                controller_timeout(message["uid"], "sensors", "Stopping")
+            if t.time() - t0 > instrument_setup_wait:
+                controller_timeout(message["uid"], "instruments", "Stopping")
                 mqtt.MQTTPublisher.get_instance().publish(
                     "controller/stop", json.dumps({"uid": message["uid"]})
                 )
                 return
         mqtt.MQTTPublisher.get_instance().publish(
-            "timer/done/sensor_setup",
+            "timer/done/instrument_setup",
             json.dumps(
                 {
-                    # experiment uid changes when all sensors get configured, so have to use obj.experiment_uid, not message["uid"]
+                    # experiment uid changes when all instruments get configured, so have to use obj.experiment_uid, not message["uid"]
                     "uid": obj.experiment_uid,
-                    "sensors_configured": obj.sensors["configured"],
+                    "instruments_configured": obj.instruments["configured"],
                     "controller_status": obj.status,
                 }
             ),
