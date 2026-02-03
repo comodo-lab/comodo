@@ -195,11 +195,14 @@ and fill in the required environment variables:
 - `DATA_HOST` is the address of your InfluxDB instance.
     If you're running the Comodo stack locally, set this to your host's IP address.
     If you're using a remote InfluxDB instance, set this to the appropriate IP address or FQDN.
-- `FIRMWARE_HOST` is the address of the host where the firmware for the sensors and actuators will run.
-    If you're running the Comodo stack locally, leave this empty.
+- `FIRMWARE_HOST` is optional. If you're running the Comodo stack locally, leave this empty or comment it out.
+    It is only needed if you are deploying the stack from the controller host to a remote host.
+    It should be the address of the host where the firmware for the sensors and actuators will run.
     If you're using a remote host for the firmware, set this to the appropriate IP address or FQDN.
-- `MQTT_HOST_USER` is optional. It is only needed if you are deploying the stack
-  from the controller host to a remote host. It should be the username used to SSH into the remote host. The user needs to have ssh keys configured for passwordless login.
+- `MQTT_HOST_USER` is optional. If you're running the Comodo stack locally, leave this empty or comment it out.
+  It is only needed if you are deploying the stack from the controller host to a remote host.
+  It should be the username used to SSH into the remote host.
+  The user needs to have ssh keys configured for passwordless login.
 - `DATA_HOST_USER` is optional. See `MQTT_HOST_USER` for details.
 - `FIRMWARE_HOST_USER` is optional. See `MQTT_HOST_USER` for details.
 - `MQTT_USER` is the username for your MQTT broker. You can set this to whatever you like.
@@ -208,13 +211,15 @@ and fill in the required environment variables:
 - `INFLUX_BUCKET` is the bucket name in InfluxDB where data will be stored. ~~You can set this to whatever you like.~~
   This currently has to be `comodo` for Grafana to work.
 - `INFLUX_ORG` is the organization name in InfluxDB.  You can set this to whatever you like.
-- `GRAFANA_DASHBOARD_URL` is optional. If not set, the default dashboard will be used.
+- `GRAFANA_DASHBOARD_URL` is optional. If not set (empty or commented out), the default dashboard will be used.
   If set, it overrides the URL of the Grafana dashboard to be embedded in the Comodo UI.
   See [how to generate a url in this section](#publishing-a-grafana-dashboard).
 - `SIMULATE_SENSORS` is optional. If set to `true`, the firmware will simulate sensor readings instead of reading from real sensors.
   This is useful for testing and development purposes.
-  If not set, it defaults to `false`.
+  If not set (empty or commented out), it defaults to `false`.
 
+**Note:** To "not set" an optional environment variable, you can either leave it empty (`VAR=`), comment it out `# VAR=...`,
+or make sure the `ENV_*` variable is not defined in your shell environment.
 
 ### Setting up Comodo
 The Comodo stack is divided into four main compose files:
