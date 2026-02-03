@@ -34,13 +34,17 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+echo ""
 cd $(dirname "$0")
+unset DOCKER_HOST
 source ../.env
 
 existing_contexts=$(docker context ls --format '{{.Name}}' | grep 'comodo_' || true)
 if [ ! -z "$existing_contexts" ] && [ "$clean" != true ]; then
-  echo "WARNING: Existing comodo docker contexts detected:"
-  echo "$existing_contexts"
+  echo -e "\033[31mWARNING:\033[0m Existing comodo docker contexts detected:"
+  echo "$existing_contexts" | while IFS= read -r line; do
+    echo "  $line"
+  done
   echo "Use --clean to remove them before creating new ones."
   echo "I will continue without overwriting existing contexts."
   echo ""
@@ -48,14 +52,17 @@ fi
 
 if [ "$clean" = true ]; then
   echo "Removing existing docker contexts..."
+  if [[ -z "$existing_contexts" ]]; then
+    echo "  No pre-existing comodo contexts found."
+  fi
   if [[ "$existing_contexts" == *"comodo_mqtt_host"* ]]; then
-    docker context rm -f comodo_mqtt_host || true
+    docker context rm -f comodo_mqtt_host 2>&1 | sed 's/^/  /' || true
   fi
   if [[ "$existing_contexts" == *"comodo_data_host"* ]]; then
-    docker context rm -f comodo_data_host || true
+    docker context rm -f comodo_data_host 2>&1 | sed 's/^/  /' || true
   fi
   if [[ "$existing_contexts" == *"comodo_firmware_host"* ]]; then
-    docker context rm -f comodo_firmware_host || true
+    docker context rm -f comodo_firmware_host 2>&1 | sed 's/^/  /' || true
   fi
   echo ""
 fi
@@ -66,20 +73,21 @@ firmware_local=true
 
 echo "Configuring docker contexts..."
 if [ ! -z "${MQTT_HOST_USER}" ] && [ ! -z "${MQTT_HOST}" ]; then
-  docker context create comodo_mqtt_host --docker "host=ssh://${MQTT_HOST_USER}@${MQTT_HOST}"
+  docker context create comodo_mqtt_host --docker "host=ssh://${MQTT_HOST_USER}@${MQTT_HOST}" 2>&1 | sed 's/^/  /' || true
   mqtt_local=false
 fi
 
 if [ ! -z "${DATA_HOST_USER}" ] && [ ! -z "${DATA_HOST}" ]; then
-  docker context create comodo_data_host --docker "host=ssh://${DATA_HOST_USER}@${DATA_HOST}"
+  docker context create comodo_data_host --docker "host=ssh://${DATA_HOST_USER}@${DATA_HOST}" 2>&1 | sed 's/^/  /' || true
   data_local=false
 fi
 
 if [ ! -z "${FIRMWARE_HOST_USER}" ] && [ ! -z "${FIRMWARE_HOST}" ]; then
-  docker context create comodo_firmware_host --docker "host=ssh://${FIRMWARE_HOST_USER}@${FIRMWARE_HOST}"
+  docker context create comodo_firmware_host --docker "host=ssh://${FIRMWARE_HOST_USER}@${FIRMWARE_HOST}" 2>&1 | sed 's/^/  /' || true
   firmware_local=false
 fi
 
+echo ""
 echo ""
 echo "Deploy remote stacks with:"
 if [ "$mqtt_local" = false ]; then
