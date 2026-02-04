@@ -81,7 +81,7 @@ visualizations: # Definitions of monitoring visualizations
 That is, at the top level, the file is divided into three main sections: `global`, `instruments`, and `visualizations`.
 - The [`global`](#global-settings) section contains settings that apply to the entire experiment.
 - The [`instruments`](#instruments) section is where you define each instrument in the experiment.
-  Each *instrument* should represent a physical device and can be composed of multiple [`variables`](#variables).
+  Each *instrument* should represent a (connection to a) physical device and can be composed of multiple [`variables`](#variables).
 - The [`visualizations`](#visualizations) section defines how the data from the experiment will be monitored in the UI.
 
 ### Global Settings
