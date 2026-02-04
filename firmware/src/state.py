@@ -161,7 +161,13 @@ class InstrumentState(object):
 
         # Parse incoming setpoint
         params = mqtt.load_message(msg)
-        self.status["setpoint"] = params[self.config["INSTRUMENT_ID"]]
+        setpoint = params[self.config["INSTRUMENT_ID"]]
+        
+        # Check setpoint validity and store
+        if not isinstance(setpoint, (int, float)) or setpoint == None:
+            print(f"Invalid setpoint received: {setpoint}")
+            return
+        self.status["setpoint"] = setpoint
 
         # Set state
         self.client.callback = self.adjusting_cb
