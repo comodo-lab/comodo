@@ -152,7 +152,8 @@ class InstrumentState(object):
         self.status["config"]["tolerance"] = params["tolerance"]
 
     def _parse_and_go_to_setpoint(self, msg):
-        if msg.topic != f"instrument/{self.config['INSTRUMENT_ID']}/#/setpoint":
+        if msg.topic != f"instrument/{self.config['INSTRUMENT_ID']}/setpoint":
+            print("Not a setpoint message.")
             return
 
         if self.client.callback == self.no_setpoint_cb:
