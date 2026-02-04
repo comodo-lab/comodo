@@ -44,6 +44,12 @@ class BaseInstrument:
         """
         pass
 
+    def simulate_initialise(self, state):
+        """
+        Initialisations that are only safe when simulation is used
+        """
+        pass
+
     def get_measurement(self, state):
         """
         Get a measurement from the instrument
@@ -73,13 +79,13 @@ class BaseInstrument:
         state.measurement = measurement
         return measurement
 
-    def go_to_setpoint(self, setpoint):
+    def go_to_setpoint(self, state):
         """
         Go to the setpoint
         """
         raise NotImplemented
     
-    def simulate_go_to_setpoint(self, setpoint):
+    def simulate_go_to_setpoint(self, state):
         """
         Go to the setpoint 
         """

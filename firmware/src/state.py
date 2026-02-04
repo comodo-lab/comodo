@@ -169,9 +169,9 @@ class InstrumentState(object):
 
         # Trigger go to setpoint
         if self.config["SIMULATE"]:
-            self.instrument.simulate_go_to_setpoint(self.status["setpoint"])
+            self.instrument.simulate_go_to_setpoint(self)
         else:
-            self.instrument.go_to_setpoint(self.status["setpoint"])
+            self.instrument.go_to_setpoint(self)
 
         return
 

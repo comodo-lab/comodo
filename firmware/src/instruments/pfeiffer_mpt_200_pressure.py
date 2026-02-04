@@ -133,7 +133,7 @@ class Instrument(BaseInstrument):
     def __init__(self):
         pass
 
-    def go_to_setpoint(self, setpoint):
+    def go_to_setpoint(self, state):
         print(f"Setting upstream pressure to {setpoint} - not supported!")
 
     def set_config(self, config):

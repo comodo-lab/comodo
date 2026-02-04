@@ -285,11 +285,12 @@ class Instrument(BaseInstrument):
         data = read_all(self.instrument)
         return data
 
-    def go_to_setpoint(self, setpoint):
+    def go_to_setpoint(self, state):
         if self.instrument is None:
             print("Instrument not initialized.")
             return None
 
+        setpoint =  state.status["setpoint"]
         if not (0 <= setpoint <= 100):
             print("Setpoint must be between 0 and 100%.")
             return None
@@ -308,7 +309,8 @@ class Instrument(BaseInstrument):
         )
         return result
 
-    def simulate_go_to_setpoint(self, setpoint):        
+    def simulate_go_to_setpoint(self,state):        
+        setpoint =  state.status["setpoint"]
         if not (0 <= setpoint <= 100):
             print("Setpoint must be between 0 and 100%.")
             return None
