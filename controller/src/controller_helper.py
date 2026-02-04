@@ -73,23 +73,33 @@ def dump_database_for_experiment(obj):
 
     t0 = obj.experiment_start_time
     tf = datetime.now()
-    # get everything from influx database
-    client = influxdb_client.InfluxDBClient(
-        url=influx_url,
-        token=influx_token,
-        org=influx_org,
-    )
-    query_api = client.query_api()
-    exp_dir_path = obj.exp_file.replace(".json", "")
-    if not os.path.exists(exp_dir_path):
-        os.makedirs(exp_dir_path)
-    for bucket in influx_buckets:
-        query = f'from(bucket: "{bucket}") |> range(start: {t0.isoformat()}Z, stop: {tf.isoformat()}Z)'
-        data = query_api.query_csv(org=influx_org, query=query)
-        values = data.to_values()
-        with open(f"{exp_dir_path}/{bucket}.csv", "w", newline="") as myfile:
-            wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
-            wr.writerows(values)
-    print(
-        f"  Influx database for experiment {obj.experiment_uid} saved at {exp_dir_path}."
-    )
+
+    try:
+        # get everything from influx database
+        client = influxdb_client.InfluxDBClient(
+            url=influx_url,
+            token=influx_token,
+            org=influx_org,
+        )
+        query_api = client.query_api()
+        exp_dir_path = obj.exp_file.replace(".json", "")
+        
+        if not os.path.exists(exp_dir_path):
+            os.makedirs(exp_dir_path)
+        for bucket in influx_buckets:
+            query = f'from(bucket: "{bucket}") |> range(start: {t0.isoformat()}Z, stop: {tf.isoformat()}Z)'
+            data = query_api.query_csv(org=influx_org, query=query)
+            values = data.to_values()
+            with open(f"{exp_dir_path}/{bucket}.csv", "w", newline="") as myfile:
+                wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
+                wr.writerows(values)
+        print(
+            f"  Influx database for experiment {obj.experiment_uid} saved at {exp_dir_path}."
+        )
+    except Exception as e:
+        print(f"Error dumping influx database: {e}")
+        error = f"Error dumping influx database: {e}"
+        mqtt.MQTTPublisher.get_instance().publish(
+            f"error/controller",
+            json.dumps({"error": error}),
+        )
