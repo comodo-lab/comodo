@@ -67,22 +67,6 @@ def send_measurement():
     # Publish the measurement (break lists into individual messages)
     publish_measurement(measurements)
 
-    # If ready and setpoint is recieved that is beyond tolerance way, move to it
-    if state.status["status"] != "ready":
-        return
-
-    position = measurement - state.status["setpoint"]
-    if abs(position) > state.status["config"]["tolerance"]:
-        # Change state
-        state.client.callback = state.adjusting_cb
-        state.status["status"] = "adjusting"
-
-        # Move to setpoint
-        if state.config["SIMULATE"]:
-            state.instrument.simulate_go_to_setpoint(state.status["setpoint"])
-        else:
-            state.instrument.go_to_setpoint(state.status["setpoint"])
-
 
 ## ----------------- Timer functions ----------------- ##
 
