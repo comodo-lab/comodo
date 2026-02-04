@@ -257,8 +257,9 @@ def read_all(instrument):
 
 
 class Instrument(BaseInstrument):
-    self.simulated_setpoint = 0.0
-    self.simulated_measurement = 0.0
+    def __init__(self):
+        self.simulated_setpoint = 0.0
+        self.simulated_measurement = 0.0
 
     def initialise(self):
         try:
@@ -323,5 +324,3 @@ class Instrument(BaseInstrument):
             self.simulated_measurement -= 0.1
         state.measurement = self.simulated_measurement
         return self.simulated_measurement 
-
-        
