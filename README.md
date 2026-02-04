@@ -22,6 +22,9 @@ This repo contains everything you need to get started using Comodo for automatin
       - [Bringing comodo down](#bringing-comodo-down)
     - [Setting up the firmware for the sensors and actuators](#setting-up-the-firmware-for-the-sensors-and-actuators)
     - [Debugging](#debugging)
+  - [Testing](#testing)
+    - [Testing a component](#testing-a-component)
+    - [Testing the full stack](#testing-the-full-stack)
 
 
 ## What is Comodo?
@@ -192,11 +195,14 @@ and fill in the required environment variables:
 - `DATA_HOST` is the address of your InfluxDB instance.
     If you're running the Comodo stack locally, set this to your host's IP address.
     If you're using a remote InfluxDB instance, set this to the appropriate IP address or FQDN.
-- `FIRMWARE_HOST` is the address of the host where the firmware for the sensors and actuators will run.
-    If you're running the Comodo stack locally, leave this empty.
+- `FIRMWARE_HOST` is optional. If you're running the Comodo stack locally, leave this empty or comment it out.
+    It is only needed if you are deploying the stack from the controller host to a remote host.
+    It should be the address of the host where the firmware for the sensors and actuators will run.
     If you're using a remote host for the firmware, set this to the appropriate IP address or FQDN.
-- `MQTT_HOST_USER` is optional. It is only needed if you are deploying the stack
-  from the controller host to a remote host. It should be the username used to SSH into the remote host. The user needs to have ssh keys configured for passwordless login.
+- `MQTT_HOST_USER` is optional. If you're running the Comodo stack locally, leave this empty or comment it out.
+  It is only needed if you are deploying the stack from the controller host to a remote host.
+  It should be the username used to SSH into the remote host.
+  The user needs to have ssh keys configured for passwordless login.
 - `DATA_HOST_USER` is optional. See `MQTT_HOST_USER` for details.
 - `FIRMWARE_HOST_USER` is optional. See `MQTT_HOST_USER` for details.
 - `MQTT_USER` is the username for your MQTT broker. You can set this to whatever you like.
@@ -205,13 +211,15 @@ and fill in the required environment variables:
 - `INFLUX_BUCKET` is the bucket name in InfluxDB where data will be stored. ~~You can set this to whatever you like.~~
   This currently has to be `comodo` for Grafana to work.
 - `INFLUX_ORG` is the organization name in InfluxDB.  You can set this to whatever you like.
-- `GRAFANA_DASHBOARD_URL` is optional. If not set, the default dashboard will be used.
+- `GRAFANA_DASHBOARD_URL` is optional. If not set (empty or commented out), the default dashboard will be used.
   If set, it overrides the URL of the Grafana dashboard to be embedded in the Comodo UI.
   See [how to generate a url in this section](#publishing-a-grafana-dashboard).
 - `SIMULATE_SENSORS` is optional. If set to `true`, the firmware will simulate sensor readings instead of reading from real sensors.
   This is useful for testing and development purposes.
-  If not set, it defaults to `false`.
+  If not set (empty or commented out), it defaults to `false`.
 
+**Note:** To "not set" an optional environment variable, you can either leave it empty (`VAR=`), comment it out `# VAR=...`,
+or make sure the `ENV_*` variable is not defined in your shell environment.
 
 ### Setting up Comodo
 The Comodo stack is divided into four main compose files:
@@ -266,3 +274,35 @@ There is a fifth compose file, `compose.debug.yaml`, which can be used to deploy
 - To run the mqttui tool, which allows you to monitor MQTT messages, run:
     `docker compose -f compose.debug.yaml run --build mqttui`
   and then run `mqttui` inside the container.
+
+
+## Testing
+
+### Testing a component
+
+Each component of Comodo has its own unit and integration tests.
+These are completely independent from the rest of the stack, and (may) use common mocks and fixtures defined in the `utils/tests/` directory.
+It is implied, then, that `integration tests` in this sense refer to integration within a component, not between components.
+
+A compose file in the base directory of each component is provided to run the component's tests.
+This compose file is also used to run automated tests in CI/CD pipelines.
+
+Each component's tests are structured in a way that they can be run by moving into the component's directory, and from there running:
+```
+docker compose up --build
+```
+
+This uses pytest to discover and run all tests, and also use coverage to create a report.
+
+After running the tests, the report can be accessed with:
+```
+xdg-open $(docker volume inspect controller-tests_memory -f '{{ .Mountpoint }}')/htmlcov/class_index.html
+```
+
+Note: At the time of writing, only these components have comprehensive tests:
+- Controller
+- Setpoint Controller
+
+### Testing the full stack
+
+Tests for the full Comodo stack are sorely needed, but not yet implemented.
