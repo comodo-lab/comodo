@@ -37,13 +37,13 @@ def send_heartbeat():
 def publish_measurement(measurements):
     if state.client is None:
         return
-    
+
     if type(measurements) is int or type(measurements) is float:
         measurements = {"value": measurements}
         
     for key, measurement in measurements.items():
-        msg = json.dumps({key: measurement}) 
-        state.client.publish(f"measurement/{state.config['INSTRUMENT_ID']}", msg)
+        msg = json.dumps({"value": measurement}) 
+        state.client.publish(f"measurement/{state.config['INSTRUMENT_ID']}/{key}", msg)
         
 
 def send_measurement():
