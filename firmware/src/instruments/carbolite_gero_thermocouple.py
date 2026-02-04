@@ -27,7 +27,6 @@ def read_temperature(host):
             result = register_value.registers
         else:
             raise ValueError(f"Error reading register: {register_value}")
-        # print(f"Read is {result[0]}")
         return float(result[0])
     except Exception as e:
         print(f"Error reading! \n\t {e}")
@@ -39,7 +38,6 @@ def write_temperature(host, setpoint):
         result = host.write_register(
             address=MODBUS_REGISTER_WRITE_ADDRESS, value=int(setpoint)
         )
-        # print(f'Result of writing {setpoint}: {result}')
     except Exception as e:
         print(f"Error writing! \n\t {e}")
         pass
@@ -56,14 +54,12 @@ class Instrument(BaseInstrument):
             self.clients = ModbusTcpClient(host=state.config["DEVICE_ADDRESS"],
                                            port=MODBUS_PORT)
         except Exception as e:
-            print(f"Error initializing ModbusTcpClient for {name}!\n{e}")
+            print(f"Error initializing ModbusTcpClient!\n{e}")
 
     def go_to_setpoint(self, setpoint):
-        print(f'Setting temperature to {setpoint}')
         write_temperature(self.clients, setpoint)
 
     def simulate_go_to_setpoint(self, setpoint):
-        print(f"(Simulated) Setting temperature to {setpoint}")
         self.simulated_setpoint = setpoint
 
     def set_config(self, config):
@@ -80,14 +76,10 @@ class Instrument(BaseInstrument):
 
         current_temp = self.simulated_temperature
         target_temp = self.simulated_setpoint
-        print(f"(Simulated) Current temp: {current_temp}, Target: {target_temp}")
         if current_temp < target_temp:
-            print("(Simulated) Heating up")
             current_temp += min(1.0, target_temp - current_temp)
         elif current_temp > target_temp:
-            print("(Simulated) Cooling down")
             current_temp -= (current_temp - target_temp) * 0.1
-        print(f"(Simulated) New temp for {name}: {current_temp}")
 
         self.simulated_temperature = current_temp
         state.measurement = current_temp
