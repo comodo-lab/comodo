@@ -88,12 +88,12 @@ def heartbeat_validation_error(msg, error):
 
 def unconfigured_instrument(msg, instrument_name):
     """
-    Publishes an error message when a instrument heartbeat is received and the instrument is not configured.
+    Publishes a warning message when a instrument heartbeat is received and the instrument is not configured.
     """
     error = f"Instrument {instrument_name} is not configured. Unexpected heartbeat message:\n    {msg.topic}  {msg.payload.decode('utf-8')}"
     mqtt.MQTTPublisher.get_instance().publish(
-        "error/heartbeat",
-        json.dumps({"error": error}),
+        "warning/heartbeat",
+        json.dumps({"warn": error}),
     )
 
 
