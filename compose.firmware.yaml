@@ -29,16 +29,38 @@ services:
     <<: *python-instrument-template
     environment:
       <<: *instrument-env
-      INSTRUMENT_ID: "furnace/temperature"
+      INSTRUMENT: "furnace"
       FIRMWARE: carbolite_gero_thermocouple
+      DEVICE_ADDRESS: 192.168.111.222
       HEARTBEAT_INTERVAL: 1000
       MEASUREMENT_INTERVAL: 1000
+
+  furnace_left:
+    <<: *python-instrument-template
+    environment:
+      <<: *instrument-env
+      INSTRUMENT: "furnace_left"
+      FIRMWARE: carbolite_gero_thermocouple
+      DEVICE_ADDRESS: 192.168.111.224
+      HEARTBEAT_INTERVAL: 1000
+      MEASUREMENT_INTERVAL: 1000
+
+  furnace_right:
+    <<: *python-instrument-template
+    environment:
+      <<: *instrument-env
+      INSTRUMENT: "furnace_right"
+      FIRMWARE: carbolite_gero_thermocouple
+      DEVICE_ADDRESS: 192.168.111.225
+      HEARTBEAT_INTERVAL: 1000
+      MEASUREMENT_INTERVAL: 1000
+
 
   pressure_downstream:
     <<: *python-instrument-template
     environment:
       <<: *instrument-env
-      INSTRUMENT_ID: "pressure_downstream/pressure"
+      INSTRUMENT_ID: "pressure_downstream"
       FIRMWARE: pfeiffer_mpt_200_pressure
       HEARTBEAT_INTERVAL: 1000
       MEASUREMENT_INTERVAL: 1000
@@ -51,11 +73,11 @@ services:
     <<: *python-instrument-template
     environment:
       <<: *instrument-env
-      INSTRUMENT_ID: "pressure_upstream/pressure"
+      INSTRUMENT_ID: "pressure_upstream"
       FIRMWARE: pfeiffer_mpt_200_pressure
+      DEVICE_ADDRESS: /dev/ttyUSB0
       HEARTBEAT_INTERVAL: 1000
       MEASUREMENT_INTERVAL: 1000
-      DEVICE_ADDRESS: /dev/ttyUSB0
     devices:
       - "/dev/ttyUSB1:/dev/ttyUSB1"
     privileged: true
@@ -84,11 +106,11 @@ services:
     <<: *python-instrument-template
     environment:
       <<: *instrument-env
-      INSTRUMENT_ID: "massflow/massflow"
+      INSTRUMENT_ID: "massflow"
       FIRMWARE: el_flow_select_massflow
+      DEVICE_ADDRESS: /dev/ttyUSB2
       HEARTBEAT_INTERVAL: 1000
       MEASUREMENT_INTERVAL: 1000
-      DEVICE_ADDRESS: /dev/ttyUSB2
     devices: 
       - "/dev/ttyUSB2:/dev/ttyUSB2"
     privileged: true 
