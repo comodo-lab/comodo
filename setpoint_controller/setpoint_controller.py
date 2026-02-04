@@ -18,8 +18,8 @@ def main():
         mqtt_user = os.getenv("MQTT_USER")
         mqtt_pass = os.getenv("MQTT_PASS")
 
-        sensor = os.getenv("SENSOR")
-        actuator = os.getenv("ACTUATOR")
+        sensor = os.getenv("SENSOR").replace("/", "_")
+        actuator = os.getenv("ACTUATOR").replace("/", "_")
     except KeyError as e:
         print(f"Missing required environment variable: {e}")
         exit(1)
