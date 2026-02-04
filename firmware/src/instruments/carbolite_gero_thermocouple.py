@@ -46,8 +46,6 @@ def write_temperature(host, setpoint):
 class Instrument(BaseInstrument):
     def __init__(self):
         self.client = {}
-        self.simulated_temperature = 20
-        self.simulated_setpoint = 20
 
     def intialise(self, state):
         try:
@@ -56,11 +54,12 @@ class Instrument(BaseInstrument):
         except Exception as e:
             print(f"Error initializing ModbusTcpClient!\n{e}")
 
-    def go_to_setpoint(self, setpoint):
+    def go_to_setpoint(self, state):
+        setpoint = state.status["setpoint"]
         write_temperature(self.clients, setpoint)
 
-    def simulate_go_to_setpoint(self, setpoint):
-        self.simulated_setpoint = setpoint
+    def simulate_go_to_setpoint(self, state):
+        pass
 
     def set_config(self, config):
         pass
@@ -75,16 +74,16 @@ class Instrument(BaseInstrument):
     def simulate_get_measurement(self, state):
         # Simple simulation: move simulated temperature towards setpoint
         # Linearly if heating, exponentially if cooling
+        current_temp = state.measurement
+        target_temp = state.status["setpoint"]
 
-        current_temp = self.simulated_temperature
-        target_temp = self.simulated_setpoint
-        if current_temp < target_temp:
+        if target_temp is None:
+            return {"temperature": current_temp}
+        elif current_temp < target_temp:
             current_temp += min(1.0, target_temp - current_temp)
         elif current_temp > target_temp:
             current_temp -= (current_temp - target_temp) * 0.1
 
-        self.simulated_temperature = current_temp
         state.measurement = current_temp
-
         measurement = {"temperature": current_temp}
         return measurement
