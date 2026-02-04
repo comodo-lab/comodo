@@ -38,7 +38,7 @@ class BaseInstrument:
         
         pass
 
-    def initialise(self):
+    def initialise(self, state):
         """
         Initialisations that are only safe when hardware is used
         """
