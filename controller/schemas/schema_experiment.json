@@ -28,13 +28,9 @@
           "properties": {
             "time": { "type": "number", "minimum": 0 },
             "furnace": { "type": "number" },
-            "furnace_left": { "type": "number" },
-            "furnace_right": { "type": "number" },
-            "pressure_downstream": { "type": "number" },
-            "pressure_upstream": { "type": "number" },
-            "massflow": { "type": "number" }
+            "pressure_downstream": { "type": "number" }
           },
-          "required": ["time", "furnace", "furnace_left", "furnace_right", "pressure_downstream", "pressure_upstream", "massflow"]
+          "required": ["time", "furnace", "pressure_downstream"]
         }
       }
     },
