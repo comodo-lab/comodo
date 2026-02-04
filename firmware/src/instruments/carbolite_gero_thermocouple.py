@@ -66,8 +66,10 @@ class Instrument(BaseInstrument):
         pass
 
     def get_measurement(self, state):
-        measurement = read_temperature(client)
-        state.measurement = measurement
+        value = read_temperature(client)
+        state.measurement = value
+
+        measurement = {"temperature": value}
         return measurement
 
     def simulate_get_measurement(self, state):
@@ -83,4 +85,6 @@ class Instrument(BaseInstrument):
 
         self.simulated_temperature = current_temp
         state.measurement = current_temp
-        return current_temp
+
+        measurement = {"temperature": current_temp}
+        return measurement
