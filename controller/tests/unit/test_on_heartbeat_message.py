@@ -104,7 +104,7 @@ def test_unconfigured_instrument(message_bus, state):
 
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
-    assert messages[0].topic == "error/heartbeat"
+    assert messages[0].topic == "warning/heartbeat"
     assert "Instrument instrument_1 is not configured" in messages[0].payload
 
 
