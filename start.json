@@ -1,4 +1,4 @@
- {
+{
   "uid": "b31754e0",
   "config": {
     "resolution": 1,
@@ -49,7 +49,7 @@
       "furnace": 20,
       "furnace_profile": "linear",
       "pressure_downstream": 30,
-      "pressure_downstream_profile": "linear",
+      "pressure_downstream_profile": "linear"
     }
   ]
 }
