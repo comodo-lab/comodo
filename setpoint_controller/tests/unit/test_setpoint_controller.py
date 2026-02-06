@@ -58,6 +58,12 @@ class Test_main:
 
     def test_parameters_pulled_from_env(self, mocks_for_main):
         mocks = mocks_for_main
+        mocks["env_values"].update(
+            {
+                "SENSOR": "A",
+                "ACTUATOR": "B",
+            }
+        )
 
         main()
 
@@ -85,8 +91,8 @@ class Test_main:
                 "MQTT_HOST": "test_host",
                 "MQTT_USER": "test_user",
                 "MQTT_PASS": "test_pass",
-                "SENSOR": "A",
-                "ACTUATOR": "B",
+                "SENSOR": "I1/A",
+                "ACTUATOR": "I2/B",
             }
         )
 
@@ -96,7 +102,7 @@ class Test_main:
             broker_address="test_host",
             user="test_user",
             password="test_pass",
-            id="publisher_pid_A__B",
+            id="publisher_pid_I1_A__I2_B",
         )
 
     def test_spc_initialized_with_correct_params(self, mocks_for_main):
@@ -242,7 +248,9 @@ class Test_on_sensor_message:
         )
         assert topic == f"error/{mock_spc.pid.id}"
         assert "error" in message.keys()
-        assert "instrument/mock_sensor/setpoint message, wrong JSON:" in message["error"]
+        assert (
+            "instrument/mock_sensor/setpoint message, wrong JSON:" in message["error"]
+        )
 
 
 class Test_on_setpoint_message:
