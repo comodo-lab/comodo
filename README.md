@@ -24,7 +24,9 @@ This repo contains everything you need to get started using Comodo for automatin
     - [Debugging](#debugging)
   - [Testing](#testing)
     - [Testing a component](#testing-a-component)
+      - [Helper script](#helper-script)
     - [Testing the full stack](#testing-the-full-stack)
+    - [Temporary experiment trigger:](#temporary-experiment-trigger)
 
 
 ## What is Comodo?
@@ -313,3 +315,11 @@ For convenience, there is a helper script to run the tests for all components, w
 ### Testing the full stack
 
 Tests for the full Comodo stack are sorely needed, but not yet implemented.
+
+### Temporary experiment trigger:
+
+UI currently out of step due to instrument refactor, to start an experiment use:
+```
+source .env
+mosquitto_pub -u ${MQTT_USER} -P ${MQTT_PASS} -h ${MQTT_HOST} -t ui/start -f start.json
+```
