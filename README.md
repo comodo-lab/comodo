@@ -303,6 +303,13 @@ Note: At the time of writing, only these components have comprehensive tests:
 - Controller
 - Setpoint Controller
 
+#### Helper script
+
+For convenience, there is a helper script to run the tests for all components, which can be run from the base directory with:
+```bash
+./utils/run_all_tests.sh
+```
+
 ### Testing the full stack
 
 Tests for the full Comodo stack are sorely needed, but not yet implemented.
