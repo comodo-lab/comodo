@@ -68,7 +68,7 @@ class TestIdle:
         assert messages[0].topic == "error/controller"
         assert "Controller is idle. Cannot act on controller/run" in messages[0].payload
 
-    def test_wrong_json(self, message_bus, state, controller_client):
+    def test_wrong_json(self, message_bus, state, controller_client, capsys):
         assert state.experiment_uid == None
         assert state.status == "idle"
 
@@ -81,12 +81,11 @@ class TestIdle:
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 1
         assert messages[0].topic == "error/controller"
-        assert (
-            "Error decoding controller/validate message, wrong JSON"
-            in messages[0].payload
-        )
+        exp_err = "Cannot decode controller/validate message, wrong JSON:"
+        assert exp_err in messages[0].payload
+        assert f"ERROR: {exp_err}" in capsys.readouterr().out
 
-    def test_json_missing_file_key(self, message_bus, state, controller_client):
+    def test_json_missing_file_key(self, message_bus, state, controller_client, capsys):
         assert state.experiment_uid == None
         assert state.status == "idle"
 
@@ -101,10 +100,9 @@ class TestIdle:
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 1
         assert messages[0].topic == "error/controller"
-        assert (
-            "Error decoding controller/validate message, missing: \n   'file'"
-            in json.loads(messages[0].payload)["error"]
-        )
+        exp_err = "Cannot decode controller/validate message, missing: \n   'file'"
+        assert exp_err in json.loads(messages[0].payload)["error"]
+        assert f"ERROR: {exp_err}" in capsys.readouterr().out
 
     def test_missing_file(self, message_bus, state, controller_client):
         assert state.experiment_uid == None
@@ -116,7 +114,7 @@ class TestIdle:
         )
         with patch("src.on_controller_message.validate_file") as mock_validate_file:
             mock_validate_file.side_effect = ValidationException(
-                f"Error: File not found - {state.schema_path}"
+                f"ERROR: File not found - {state.schema_path}"
             )
             c_idle(controller_client, msg, state)
 

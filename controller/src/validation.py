@@ -26,20 +26,20 @@ def validate_file(file_path: str, schema_path: str) -> Dict[str, Any]:
         with open(schema_path, "r") as f:
             schema = json.load(f)
     except FileNotFoundError:
-        raise ValidationException(f"Error: File not found - {schema_path}")
+        raise ValidationException(f"ERROR: File not found - {schema_path}")
     except json.JSONDecodeError as e:
         raise ValidationException(
-            f"Error decoding JSON: {schema_path}\n{textwrap.indent(str(e), '   ')}"
+            f"ERROR: Cannot decode JSON: {schema_path}\n{textwrap.indent(str(e), '   ')}"
         )
     # Get data
     try:
         with open(file_path, "r") as f:
             data = json.load(f)
     except FileNotFoundError:
-        raise ValidationException(f"Error: File not found - {file_path}")
+        raise ValidationException(f"ERROR: File not found - {file_path}")
     except json.JSONDecodeError as e:
         raise ValidationException(
-            f"Error decoding JSON: {file_path}\n{textwrap.indent(str(e), '   ')}"
+            f"ERROR: Cannot decode JSON: {file_path}\n{textwrap.indent(str(e), '   ')}"
         )
     # Validate json data against schema
     try:
@@ -113,10 +113,10 @@ def validate_dict(dict_to_validate: Dict[str, Any], schema_path: str) -> Dict[st
         with open(schema_path, "r") as f:
             schema = json.load(f)
     except FileNotFoundError:
-        raise ValidationException(f"Error: File not found - {schema_path}")
+        raise ValidationException(f"ERROR: File not found - {schema_path}")
     except json.JSONDecodeError as e:
         raise ValidationException(
-            f"Error decoding JSON: {schema_path}\n{textwrap.indent(str(e), '   ')}"
+            f"ERROR: Cannot decode JSON: {schema_path}\n{textwrap.indent(str(e), '   ')}"
         )
     # Validate dict against schema
     try:

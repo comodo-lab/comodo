@@ -49,7 +49,7 @@ def test_incompatible_request(message_bus, heartbeat_client, state):
     assert "Heartbeat cannot act on heartbeat/something_else" in messages[0].payload
 
 
-def test_wrong_json(message_bus, state):
+def test_wrong_json(message_bus, state, capsys):
     msg = MockMessage(
         topic="heartbeat/instrument/instrument_1",
         payload="not a json",
@@ -59,10 +59,9 @@ def test_wrong_json(message_bus, state):
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
     assert messages[0].topic == "error/heartbeat"
-    assert (
-        "Error decoding heartbeat/instrument/instrument_1 message, wrong JSON"
-        in messages[0].payload
-    )
+    exp_err = "Cannot decode heartbeat/instrument/instrument_1 message, wrong JSON:"
+    assert exp_err in messages[0].payload
+    assert f"ERROR: {exp_err}" in capsys.readouterr().out
 
 
 def test_validation_exception(message_bus, state):
@@ -76,7 +75,7 @@ def test_validation_exception(message_bus, state):
     assert len(messages) == 1
     assert messages[0].topic == "error/heartbeat/validation"
     m = messages[0].payload
-    assert "Error validating heartbeat from instrument_1:" in m
+    assert "Invalid heartbeat from instrument_1:" in m
     assert "Validation errors:" in m
     assert "'name' is a required property" in m
     assert "'status' is a required property" in m

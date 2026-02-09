@@ -35,7 +35,7 @@ def timer_client(mqtt_mocks):
 # ========================================
 
 
-def test_wrong_json(message_bus, state):
+def test_wrong_json(message_bus, state, capsys):
     msg = MockMessage(
         topic="timer/start/instrument_setup",
         payload="not a json",
@@ -45,13 +45,12 @@ def test_wrong_json(message_bus, state):
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
     assert messages[0].topic == "error/controller"
-    assert (
-        "Error decoding timer/start/instrument_setup message, wrong JSON"
-        in messages[0].payload
-    )
+    exp_err = "Cannot decode timer/start/instrument_setup message, wrong JSON:"
+    assert exp_err in messages[0].payload
+    assert f"ERROR: {exp_err}" in capsys.readouterr().out
 
 
-def test_missing_uid(timer_client, message_bus, state):
+def test_missing_uid(timer_client, message_bus, state, capsys):
     msg = MockMessage(
         topic="timer/start/instrument_setup",
         payload=json.dumps({"some": "json"}),
@@ -61,9 +60,10 @@ def test_missing_uid(timer_client, message_bus, state):
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
     assert messages[0].topic == "error/timer"
-    assert "Error decoding timer/start/instrument_setup message" in messages[0].payload
-    assert "missing" in messages[0].payload
+    exp_err = "Cannot decode timer/start/instrument_setup message, missing:"
+    assert exp_err in messages[0].payload
     assert "uid" in messages[0].payload
+    assert f"ERROR: {exp_err}" in capsys.readouterr().out
 
 
 def test_incorrect_uid(timer_client, message_bus, state):
@@ -209,7 +209,7 @@ def test_timer_setpoint(message_bus, state, timer_client):
     assert messages[0].payload == '{"uid": "123"}'
 
 
-def test_timer_setpoint_missing_duration(timer_client, message_bus, state):
+def test_timer_setpoint_missing_duration(timer_client, message_bus, state, capsys):
     assert state.experiment_uid == "123"
     state.status = "running"
 
@@ -222,9 +222,10 @@ def test_timer_setpoint_missing_duration(timer_client, message_bus, state):
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
     assert messages[0].topic == "error/timer"
-    assert "Error decoding timer/start/setpoint message" in messages[0].payload
-    assert "missing" in messages[0].payload
+    exp_err = "Cannot decode timer/start/setpoint message, missing:"
+    assert exp_err in messages[0].payload
     assert "duration" in messages[0].payload
+    assert f"ERROR: {exp_err}" in capsys.readouterr().out
 
 
 def test_timer_setpoint_incompatible_controller_state(timer_client, message_bus, state):

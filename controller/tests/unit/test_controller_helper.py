@@ -243,49 +243,48 @@ class TestDatabaseDump:
                 "makedirs": mock_makedirs,
             }
 
-    def test_warns_on_missing_token(self, state, dump_mocks, message_bus):
+    def test_warns_on_missing_token(self, state, dump_mocks, message_bus, capsys):
         assert dump_mocks["getenv"]("INFLUX_TOKEN") is None  # Adds a call to getenv
-        with patch("builtins.print") as mock_print:
-            dump_database_for_experiment(state)
+        dump_database_for_experiment(state)
 
-            assert dump_mocks["getenv"].call_args_list == [
-                call("INFLUX_TOKEN"),  # Call added by first line of this test
-                call("INFLUX_BUCKET", "comodo"),
-                call("INFLUX_HOST", "localhost"),
-                call("INFLUX_ORG", "comodo"),
-            ]
-            dump_mocks["get_secret"].assert_called_once_with(
-                "INFLUX_TOKEN", "INFLUX_TOKEN_FILE", None
-            )
-            mock_print.assert_called_once_with(
-                "INFLUX_TOKEN environment variable not set. Cannot dump influx database."
-            )
-            messages = message_bus.get_messages(decoded=True)
-            assert len(messages) == 1
-            assert messages[0].topic == "error/controller"
-            assert (
-                "Error dumping database. INFLUX_TOKEN not set." in messages[0].payload
-            )
+        assert dump_mocks["getenv"].call_args_list == [
+            call("INFLUX_TOKEN"),  # Call added by first line of this test
+            call("INFLUX_BUCKET", "comodo"),
+            call("INFLUX_HOST", "localhost"),
+            call("INFLUX_ORG", "comodo"),
+        ]
+        dump_mocks["get_secret"].assert_called_once_with(
+            "INFLUX_TOKEN", "INFLUX_TOKEN_FILE", None
+        )
+        assert (
+            "ERROR: Cannot dump influx database. INFLUX_TOKEN not set."
+            in capsys.readouterr().out
+        )
+        messages = message_bus.get_messages(decoded=True)
+        assert len(messages) == 1
+        assert messages[0].topic == "error/controller"
+        assert (
+            "Cannot dump influx database. INFLUX_TOKEN not set." in messages[0].payload
+        )
 
-    def test_database_dump_error(self, state, dump_mocks, message_bus):
+    def test_database_dump_error(self, state, dump_mocks, message_bus, capsys):
         dump_mocks["get_secret"].return_value = "dummy_token"
         tmp_path = f"{data_path}/tmp/123.test_temp_exp.json"
         state.exp_file = tmp_path
         dump_mocks["path_exists"].return_value = False
         assert not os.path.exists(tmp_path)
         dump_mocks["mock_query_csv"].side_effect = Exception("Database error")
-        with patch("builtins.print") as mock_print:
-            dump_database_for_experiment(state)
+        dump_database_for_experiment(state)
 
-            dump_mocks["get_secret"].assert_called_once_with(
-                "INFLUX_TOKEN", "INFLUX_TOKEN_FILE", None
-            )
-            expected_error = "Error dumping influx database: Database error"
-            mock_print.assert_called_once_with(expected_error)
-            messages = message_bus.get_messages(decoded=True)
-            assert len(messages) == 1
-            assert messages[0].topic == "error/controller"
-            assert expected_error in messages[0].payload
+        dump_mocks["get_secret"].assert_called_once_with(
+            "INFLUX_TOKEN", "INFLUX_TOKEN_FILE", None
+        )
+        expected_error = "Could not dump influx database: Database error"
+        assert f"ERROR: {expected_error}" in capsys.readouterr().out
+        messages = message_bus.get_messages(decoded=True)
+        assert len(messages) == 1
+        assert messages[0].topic == "error/controller"
+        assert expected_error in messages[0].payload
 
     def test_database_dump(self, state, dump_mocks, data_path):
         dump_mocks["get_secret"].return_value = "dummy_token"

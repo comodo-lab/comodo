@@ -154,7 +154,7 @@ class TestMain:
             call(
                 id="watchdog",
                 callback=mocks["callbacks"]["on_watchdog_message"],
-                topics=["watchdog/#", "heartbeat/controller", "ERROR/exception"],
+                topics=["watchdog/#", "heartbeat/controller", "error/exception"],
                 obj=wdog,
                 broker_address="test_host",
                 user="test_user",

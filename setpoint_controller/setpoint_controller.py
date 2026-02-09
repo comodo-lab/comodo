@@ -136,7 +136,8 @@ class SetpointController:
         try:
             message = mqtt.load_message(msg)
         except json.JSONDecodeError as e:
-            error = f"Error decoding {msg.topic} message, wrong JSON: \n{textwrap.indent(str(e), '   ')}"
+            error = f"Cannot decode {msg.topic} message, wrong JSON: \n{textwrap.indent(str(e), '   ')}"
+            print(f"ERROR: {error}")
             mqtt.MQTTPublisher.get_instance().publish(
                 f"error/{spc.pid.id}",
                 json.dumps({"error": error}),

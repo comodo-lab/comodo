@@ -118,7 +118,7 @@ def test_unhandled_exceptions(capmqtt, capsys):
     captured = capsys.readouterr()
 
     # Error in mqtt
-    assert capmqtt.messages[-1].topic == "ERROR/exception"
+    assert capmqtt.messages[-1].topic == "error/exception"
     assert "Unhandled exception in callback_with_error" in capmqtt.messages[-1].payload
     assert "This is a test error" in capmqtt.messages[-1].payload
     # Error in console

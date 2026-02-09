@@ -232,7 +232,7 @@ class Test_SetpointController_init:
 
 
 class Test_on_sensor_message:
-    def test_invalid_json_publishes_error(self, mock_spc, mqtt_mocks):
+    def test_invalid_json_publishes_error(self, mock_spc, mqtt_mocks, capsys):
         client = Mock()
         msg = MockMessage(
             f"instrument/{mock_spc.pid.sensor}/setpoint",
@@ -248,9 +248,9 @@ class Test_on_sensor_message:
         )
         assert topic == f"error/{mock_spc.pid.id}"
         assert "error" in message.keys()
-        assert (
-            "instrument/mock_sensor/setpoint message, wrong JSON:" in message["error"]
-        )
+        exp_err = f"Cannot decode instrument/mock_sensor/setpoint message, wrong JSON:"
+        assert exp_err in message["error"]
+        assert f"ERROR: {exp_err}" in capsys.readouterr().out
 
 
 class Test_on_setpoint_message:

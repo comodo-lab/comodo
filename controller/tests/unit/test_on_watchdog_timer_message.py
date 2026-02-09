@@ -61,8 +61,10 @@ def test_wrong_json(message_bus, wd_timer_client, wd_state, capsys):
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
     assert messages[0].topic == "error/wd_timer"
-    assert "Error decoding wd_timer/start message, wrong JSON:" in messages[0].payload
+    exp_err = "Cannot decode wd_timer/start message, wrong JSON:"
+    assert exp_err in messages[0].payload
     assert wd_state["healthy"] == False
+    assert f"ERROR: {exp_err}" in captured.out
 
 
 def test_missing_keys(message_bus, wd_timer_client, wd_state, capsys):
@@ -78,11 +80,11 @@ def test_missing_keys(message_bus, wd_timer_client, wd_state, capsys):
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
     assert messages[0].topic == "error/wd_timer"
-    assert (
-        "Error decoding wd_timer/start message, missing: \\n   'interval"
-        in messages[0].payload
-    )
+    exp_err = "Cannot decode wd_timer/start message, missing:"
+    assert exp_err in messages[0].payload
+    assert "interval" in messages[0].payload
     assert wd_state["healthy"] == False
+    assert f"ERROR: {exp_err}" in captured.out
 
 
 def test_incompatible_values(message_bus, wd_timer_client, wd_state, capsys):

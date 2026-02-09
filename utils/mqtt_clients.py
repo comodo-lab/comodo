@@ -51,7 +51,7 @@ def mqtt_publish_exceptions(name, func):
         try:
             return func(*args, **kwargs)
         except Exception as e:
-            print(f"error:\n   Unhandled exception in {name}: {str(e)}")
+            print(f"ERROR:\n   Unhandled exception in {name}: {str(e)}")
             # print all e.__traceback__.tb_frame and recurring tb_next
             print(f"Traceback:")
             tb = e.__traceback__
