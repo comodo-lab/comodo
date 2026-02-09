@@ -147,8 +147,10 @@ def test_awaiting_instruments_wrong_config(
 
     # Incorrect heartbeat for first instrument
     wrong_config = instruments[0].copy()
-    wrong_config["p"] = wrong_config["p"] + 1
-    msg = instrument_heartbeat_msg(instrument=wrong_config, status="no_setpoint", setpoint=0)
+    wrong_config["tolerance"] = wrong_config["tolerance"] + 1
+    msg = instrument_heartbeat_msg(
+        instrument=wrong_config, status="no_setpoint", setpoint=0
+    )
     with pytest.raises(RuntimeError, match="Instrument misconfigured"):
         on_heartbeat_message(heartbeat_client, msg, state)
 
@@ -179,7 +181,7 @@ def test_awaiting_instruments_racing_heartbeat(
 
     # Incorrect heartbeat for first instrument
     wrong_config = instruments[0].copy()
-    wrong_config["p"] = wrong_config["p"] + 1
+    wrong_config["tolerance"] = wrong_config["tolerance"] + 1
     msg = instrument_heartbeat_msg(
         instrument=wrong_config, status="awaiting_config", setpoint=0
     )
@@ -211,7 +213,9 @@ def test_awaiting_instruments_not_all_responded(
 
     # Correct heartbeat for all but first instruments
     for instrument in instruments[1:]:
-        msg = instrument_heartbeat_msg(instrument=instrument, status="no_setpoint", setpoint=None)
+        msg = instrument_heartbeat_msg(
+            instrument=instrument, status="no_setpoint", setpoint=None
+        )
         on_heartbeat_message(heartbeat_client, msg, state)
 
     # Should have updated instruments, but not be ready yet
@@ -251,7 +255,9 @@ def test_awaiting_instruments_all_responded(
 
     # Correct heartbeat for all instruments
     for instrument in instruments:
-        msg = instrument_heartbeat_msg(instrument=instrument, status="no_setpoint", setpoint=None)
+        msg = instrument_heartbeat_msg(
+            instrument=instrument, status="no_setpoint", setpoint=None
+        )
         on_heartbeat_message(heartbeat_client, msg, state)
 
     assert state.instruments[instrument["name"]]["status"] == "no_setpoint"
@@ -273,7 +279,9 @@ def test_running_heartbeat_updates_instrument(
     state.status = "running"
     instruments = mock_experiment_dict["config"]["instruments"]
 
-    msg = instrument_heartbeat_msg(instrument=instruments[0], status="adjusting", setpoint=42)
+    msg = instrument_heartbeat_msg(
+        instrument=instruments[0], status="adjusting", setpoint=42
+    )
     on_heartbeat_message(heartbeat_client, msg, state)
 
     assert state.instruments[instruments[0]["name"]]["status"] == "adjusting"
