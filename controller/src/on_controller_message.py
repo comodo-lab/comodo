@@ -110,6 +110,7 @@ def c_starting(client, msg, obj):
         mqtt.MQTTPublisher.get_instance().publish(
             f"instrument/{instrument['name']}/setup", json.dumps(instrument)
         )
+        print(f"Instrument configuration sent: {json.dumps(instrument)}")
 
 
 def c_ready(client, msg, obj):

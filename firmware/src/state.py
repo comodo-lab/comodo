@@ -148,8 +148,13 @@ class InstrumentState(object):
         Returns:
             None
         """
-        # Set tolerance
-        self.status["config"]["tolerance"] = params["tolerance"]
+        config = {k: v for k, v in params.items() if k != "name"}
+        print(f"Instrument configuration received: {config}")
+        if config["tolerance"] == None:
+            print("Invalid instrument configuration received: tolerance is required.")
+            return
+        for key in config:
+            self.status["config"][key] = config[key]
 
     def _parse_and_go_to_setpoint(self, msg):
         if msg.topic != f"instrument/{self.config['INSTRUMENT_ID']}/setpoint":
@@ -162,7 +167,7 @@ class InstrumentState(object):
         # Parse incoming setpoint
         params = mqtt.load_message(msg)
         setpoint = params[self.config["INSTRUMENT_ID"]]
-        
+
         # Check setpoint validity and store
         if not isinstance(setpoint, (int, float)) or setpoint == None:
             print(f"Invalid setpoint received: {setpoint}")
