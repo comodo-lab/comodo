@@ -46,7 +46,19 @@ def on_heartbeat_message(client, msg, obj):
         if instrument["status"] == "awaiting_config":
             return
         if instrument["config"] != obj_instrument["config"]:
-            raise RuntimeError("Instrument misconfigured")
+            e = (
+                f"Instrument '{instrument['name']}' misconfigured. "
+                f"Expected {obj_instrument['config']}, received {instrument['config']}."
+            )
+            print(f"ERROR: {e} Stopping experiment.")
+            mqtt.MQTTPublisher.get_instance().publish(
+                f"error/sensor/configuration",
+                json.dumps({"error": e}),
+            )
+            mqtt.MQTTPublisher.get_instance().publish(
+                f"controller/stop", json.dumps({"uid": obj.experiment_uid})
+            )
+            return
 
         obj_instrument["status"] = instrument["status"]
         obj_instrument["setpoint"] = instrument["setpoint"]

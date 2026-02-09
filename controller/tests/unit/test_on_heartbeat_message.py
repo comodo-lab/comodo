@@ -134,6 +134,7 @@ def test_awaiting_instruments_wrong_config(
     state,
     heartbeat_client,
     mock_experiment_dict,
+    capsys,
 ):
     assert state.instruments["configured"] == False
 
@@ -150,8 +151,7 @@ def test_awaiting_instruments_wrong_config(
     msg = instrument_heartbeat_msg(
         instrument=wrong_config, status="no_setpoint", setpoint=0
     )
-    with pytest.raises(RuntimeError, match="Instrument misconfigured"):
-        on_heartbeat_message(heartbeat_client, msg, state)
+    on_heartbeat_message(heartbeat_client, msg, state)
 
     # Should not have updated instrument
     assert state.instruments[first_instrument_name]["status"] == None
@@ -159,8 +159,15 @@ def test_awaiting_instruments_wrong_config(
     assert state.instruments[first_instrument_name]["config"] == first_instrument_config
     assert state.instruments["configured"] == False
 
+    # Should abort experiment due to wrong config
     messages = message_bus.get_messages(decoded=True)
-    assert len(messages) == 0, "Should only publish if ready"
+    assert len(messages) == 2
+    assert messages[0].topic == "error/sensor/configuration"
+    exp_err = "Instrument 'temperature' misconfigured. Expected {'tolerance': 0.21}, received {'tolerance': 1.21}"
+    assert exp_err in messages[0].payload
+    assert f"ERROR: {exp_err}" in capsys.readouterr().out
+    assert messages[1].topic == "controller/stop"
+    assert json.loads(messages[1].payload)["uid"] == "123"
 
 
 def test_awaiting_instruments_racing_heartbeat(
