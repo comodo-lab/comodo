@@ -267,6 +267,26 @@ class TestDatabaseDump:
                 "Error dumping database. INFLUX_TOKEN not set." in messages[0].payload
             )
 
+    def test_database_dump_error(self, state, dump_mocks, message_bus):
+        dump_mocks["get_secret"].return_value = "dummy_token"
+        tmp_path = f"{data_path}/tmp/123.test_temp_exp.json"
+        state.exp_file = tmp_path
+        dump_mocks["path_exists"].return_value = False
+        assert not os.path.exists(tmp_path)
+        dump_mocks["mock_query_csv"].side_effect = Exception("Database error")
+        with patch("builtins.print") as mock_print:
+            dump_database_for_experiment(state)
+
+            dump_mocks["get_secret"].assert_called_once_with(
+                "INFLUX_TOKEN", "INFLUX_TOKEN_FILE", None
+            )
+            expected_error = "Error dumping influx database: Database error"
+            mock_print.assert_called_once_with(expected_error)
+            messages = message_bus.get_messages(decoded=True)
+            assert len(messages) == 1
+            assert messages[0].topic == "error/controller"
+            assert expected_error in messages[0].payload
+
     def test_database_dump(self, state, dump_mocks, data_path):
         dump_mocks["get_secret"].return_value = "dummy_token"
         t0 = datetime(2024, 1, 2, 3, 45, 6)

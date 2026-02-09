@@ -83,7 +83,7 @@ def dump_database_for_experiment(obj):
         )
         query_api = client.query_api()
         exp_dir_path = obj.exp_file.replace(".json", "")
-        
+
         if not os.path.exists(exp_dir_path):
             os.makedirs(exp_dir_path)
         for bucket in influx_buckets:
@@ -97,8 +97,8 @@ def dump_database_for_experiment(obj):
             f"  Influx database for experiment {obj.experiment_uid} saved at {exp_dir_path}."
         )
     except Exception as e:
-        print(f"Error dumping influx database: {e}")
         error = f"Error dumping influx database: {e}"
+        print(error)
         mqtt.MQTTPublisher.get_instance().publish(
             f"error/controller",
             json.dumps({"error": error}),
