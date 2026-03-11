@@ -49,14 +49,14 @@ LONG_INTERVAL = 5000  # milliseconds
 
 # Params to read / actuate
 PARAMS = [
-    "furnace/temperature",
+    # "furnace/temperature",
     "pressure_downstream/pressure",
     "pressure_upstream/pressure",
     "massflow/massflow"
 ]
 
 PARAM_DICT = [
-    {"name": "furnace/temperature", "min": 0, "max": 1000, "step": 1},
+    # {"name": "furnace/temperature", "min": 0, "max": 1000, "step": 1},
     {"name": "pressure_downstream/pressure", "min": 0, "max": 1000, "step": 1},
     {"name": "ressure_upstream/pressure", "min": 0, "max": 1000, "step": 1},
     {"name": "massflow/massflow", "min": 0, "max": 100, "step": 1},
@@ -70,8 +70,8 @@ INI_EXPERIMENT_CONFIG = [
 INI_DATA_DICT = [
     {
         "time": 0,
-        "furnace/temperature": 20.0,
-        "furnace/temperature_profile": "linear",
+        # "furnace/temperature": 20.0,
+        # "furnace/temperature_profile": "linear",
         "pressure_downstream/pressure": 20.0,
         "pressure_downstream/pressure_profile": "linear",
         "pressure_upstream/pressure": 20.0,
@@ -81,8 +81,8 @@ INI_DATA_DICT = [
     },
     {
         "time": 30,
-        "furnace/temperature": 200.0,
-        "furnace/temperature_profile": "linear",
+        # "furnace/temperature": 200.0,
+        # "furnace/temperature_profile": "linear",
         "pressure_downstream/pressure": 40.0,
         "pressure_downstream/pressure_profile": "linear",
         "pressure_upstream/pressure": 30.0,
@@ -92,8 +92,8 @@ INI_DATA_DICT = [
     },
     {
         "time": 60,
-        "furnace/temperature": 20.0,
-        "furnace/temperature_profile": "linear",
+        # "furnace/temperature": 20.0,
+        # "furnace/temperature_profile": "linear",
         "pressure_downstream/pressure": 30.0,
         "pressure_downstream/pressure_profile": "linear",
         "pressure_upstream/pressure": 20.0,

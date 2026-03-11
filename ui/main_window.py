@@ -26,7 +26,7 @@ PROFILES = ["linear", "logarithmic", "exponential", "step"]
 
 # Params to actuate
 PARAMS = [
-    "furnace/temperature",
+    # "furnace/temperature",
     "pressure_downstream/pressure",
     "pressure_upsteam/pressure",
     "massflow/massflow"
