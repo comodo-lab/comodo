@@ -30,7 +30,7 @@
             "furnace": { "type": "number" },
             "pressure_downstream": { "type": "number" }
           },
-          "required": ["time", "furnace", "pressure_downstream"]
+          "required": ["time", "pressure_downstream"]
         }
       }
     },
