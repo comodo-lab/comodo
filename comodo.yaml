@@ -3,41 +3,41 @@ global:
   measurement_interval: 1s
 
 instruments:
-  furnace_centre:
-    firmware: carbolite_gero/tg3
-    address: "192.168.111.222:502"
-    variables:
-      temperature:
-        sensor:
-          type: float
-          min: 0
-          max: 1000
-          unit: °C
-        actuator:
-          type: float
-          min: 0
-          max: 1000
-          unit: °C
-  furnace_left:
-    firmware: carbolite_gero/tg3
-    address: "192.168.111.224:502"
-    variables:
-      temperature:
-        sensor:
-          type: float
-          min: 0
-          max: 1000
-          unit: °C
-  furnace_right:
-    firmware: carbolite_gero/tg3
-    address: "192.168.111.225:502"
-    variables:
-      temperature:
-        sensor:
-          type: float
-          min: 0
-          max: 1000
-          unit: °C
+  # furnace_centre:
+  #   firmware: carbolite_gero/tg3
+  #   address: "192.168.111.222:502"
+  #   variables:
+  #     temperature:
+  #       sensor:
+  #         type: float
+  #         min: 0
+  #         max: 1000
+  #         unit: °C
+  #       actuator:
+  #         type: float
+  #         min: 0
+  #         max: 1000
+  #         unit: °C
+  # furnace_left:
+  #   firmware: carbolite_gero/tg3
+  #   address: "192.168.111.224:502"
+  #   variables:
+  #     temperature:
+  #       sensor:
+  #         type: float
+  #         min: 0
+  #         max: 1000
+  #         unit: °C
+  # furnace_right:
+  #   firmware: carbolite_gero/tg3
+  #   address: "192.168.111.225:502"
+  #   variables:
+  #     temperature:
+  #       sensor:
+  #         type: float
+  #         min: 0
+  #         max: 1000
+  #         unit: °C
   pressure_downstream:
     firmware: pfeiffer/mpt200
     address: "/dev/ttyUSB0"
@@ -98,13 +98,13 @@ instruments:
           min: 0
           max: 10
           unit: bar
-  mass_spec:
-    firmware: pfeiffer/prisma_pro
-    address: "192.168.1.100"
-    variables:
-      mass_spec:
-        sensor:
-          type: array
+  # mass_spec:
+  #   firmware: pfeiffer/prisma_pro
+  #   address: "192.168.1.100"
+  #   variables:
+  #     mass_spec:
+  #       sensor:
+  #         type: array
 
 visualisations:
   temperature_graph:
