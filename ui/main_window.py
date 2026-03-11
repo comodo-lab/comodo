@@ -26,10 +26,7 @@ PROFILES = ["linear", "logarithmic", "exponential", "step"]
 
 # Params to actuate
 PARAMS = [
-    # "furnace/temperature",
-    "pressure_downstream/pressure",
-    "pressure_upsteam/pressure",
-    "massflow/massflow"
+    "pressure_upstream/pressure",
 ]
 
 def get_experiment_designer(data=[]):

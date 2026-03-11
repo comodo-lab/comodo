@@ -49,10 +49,7 @@ LONG_INTERVAL = 5000  # milliseconds
 
 # Params to read / actuate
 PARAMS = [
-    # "furnace/temperature",
-    "pressure_downstream/pressure",
     "pressure_upstream/pressure",
-    "massflow/massflow"
 ]
 
 PARAM_DICT = [
