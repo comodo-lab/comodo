@@ -75,7 +75,7 @@ services:
       <<: *instrument-env
       INSTRUMENT_ID: "pressure_upstream"
       FIRMWARE: pfeiffer_mpt_200_pressure
-      DEVICE_ADDRESS: /dev/ttyUSB0
+      DEVICE_ADDRESS: /dev/ttyUSB1
       HEARTBEAT_INTERVAL: 1000
       MEASUREMENT_INTERVAL: 1000
     devices:
