@@ -24,24 +24,23 @@ from plot import plot_data_plotly
 
 PROFILES = ["linear", "logarithmic", "exponential", "step"]
 
-# Params to actuate
-PARAMS = [
-    # "furnace/temperature",
-    "pressure_downstream/pressure",
-    "pressure_upsteam/pressure",
-    "massflow/massflow"
-]
+# Set by get_experiment_designer on first call; used by callbacks
+_active_params = []
 
-def get_experiment_designer(data=[]):
+
+def get_experiment_designer(data=[], params=[]):
     """
     Creates a dash-ag-grid component for experimental control data with
     editing, dropdowns, and row add/delete support.
     """
+    global _active_params
+    _active_params = params
+
     component_id = "experiment-designer"
 
     # Build column list
     columns = ["time"]
-    for col in PARAMS:
+    for col in params:
         columns.append(col)
         columns.append(f"{col}_profile")
 

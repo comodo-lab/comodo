@@ -1,0 +1,100 @@
+import yaml
+import os
+
+
+CONFIG_PATH = os.getenv("COMODO_CONFIG", "/app/comodo.yaml")
+
+
+class ComodoConfig:
+    def __init__(self, config_path=CONFIG_PATH):
+        with open(config_path, "r") as f:
+            self._raw = yaml.safe_load(f)
+        self._instruments = self._raw.get("instruments", {})
+        self._controllable = []
+        self._param_dicts = []
+        self._parse()
+
+    def _parse(self):
+        pid_targets = self._find_pid_targets()
+        # _controllable: params shown in experiment designer + control panel
+        #   (direct actuators without PID, and PID-target sensors)
+        # _all_controllable: all instruments that need tolerance tracking
+        #   (everything in _controllable plus PID-output actuators)
+        self._controllable = []
+        self._all_controllable = []
+        self._param_dicts = []
+        self._all_param_dicts = []
+
+        for inst_name, inst_config in self._instruments.items():
+            variables = inst_config.get("variables", {})
+            for var_name, var_config in variables.items():
+                key = f"{inst_name}/{var_name}"
+
+                if "actuator" in var_config:
+                    act = var_config["actuator"]
+                    entry = {
+                        "name": key,
+                        "min": act.get("min", 0),
+                        "max": act.get("max", 100),
+                        "step": 1,
+                    }
+                    self._all_controllable.append(key)
+                    self._all_param_dicts.append(entry)
+                    if "setpoint_controller" not in var_config:
+                        # Direct actuator — user sets this directly in the designer
+                        self._controllable.append(key)
+                        self._param_dicts.append(entry)
+
+                if key in pid_targets:
+                    sensor = var_config.get("sensor", {})
+                    entry = {
+                        "name": key,
+                        "min": sensor.get("min", 0),
+                        "max": sensor.get("max", 100),
+                        "step": 1,
+                    }
+                    self._controllable.append(key)
+                    self._param_dicts.append(entry)
+                    self._all_controllable.append(key)
+                    self._all_param_dicts.append(entry)
+
+    def _find_pid_targets(self):
+        targets = set()
+        for inst_config in self._instruments.values():
+            variables = inst_config.get("variables", {})
+            for var_config in variables.values():
+                sc = var_config.get("setpoint_controller")
+                if sc and "external_sensor" in sc:
+                    ref = sc["external_sensor"]
+                    # "pressure_upstream.pressure" -> "pressure_upstream/pressure"
+                    targets.add(ref.replace(".", "/"))
+        return targets
+
+    @property
+    def params(self):
+        return list(self._controllable)
+
+    @property
+    def param_dicts(self):
+        return list(self._param_dicts)
+
+    @property
+    def ini_data_dict(self):
+        rows = []
+        for t in [0, 30, 60]:
+            row = {"time": t}
+            for p in self._controllable:
+                row[p] = 0.0
+                row[f"{p}_profile"] = "linear"
+            rows.append(row)
+        return rows
+
+    @property
+    def ini_instrument_dict(self):
+        return [{"name": p, "tolerance": 1.0} for p in self._all_controllable]
+
+    @property
+    def ini_experiment_config(self):
+        return [
+            {"name": "resolution", "display_name": "Simulation Resolution (s)", "value": 1},
+        ]
