@@ -26,11 +26,10 @@
         "items": {
           "type": "object",
           "properties": {
-            "time": { "type": "number", "minimum": 0 },
-            "furnace": { "type": "number" },
-            "pressure_downstream": { "type": "number" }
+            "time": { "type": "number", "minimum": 0 }
           },
-          "required": ["time", "pressure_downstream"]
+          "required": ["time"],
+          "additionalProperties": true
         }
       }
     },
