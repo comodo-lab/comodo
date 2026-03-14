@@ -11,9 +11,10 @@ COPY ui /app
 COPY utils/mqtt_clients.py /app/utils/mqtt_clients.py
 COPY utils/interpolation.py /app/utils/interpolation.py
 COPY utils/influx_query.py /app/utils/influx_query.py
+COPY comodo.yaml /app/comodo.yaml
 
 # Copy entrypoint that handles *_FILE secrets
-COPY ui/entrypoint.sh /entrypoint.sh
+COPY utils/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 ENTRYPOINT ["/entrypoint.sh"]
