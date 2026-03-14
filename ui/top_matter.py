@@ -159,7 +159,7 @@ def update_header_id(n_intervals, timezone):
     State("timezone-store", "data"),
     prevent_initial_call=True,
 )
-def update_header_id(n_intervals, instruments, timezone):
+def update_adjusting_status(n_intervals, instruments, timezone):
     """
     Updates the header bar with the variables currently being adjusted.
     """
