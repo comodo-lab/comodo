@@ -1,10 +1,10 @@
 matplotlib
 paho-mqtt
 
-dash
+dash<4.0.0
 pandas
 dash-bootstrap-components
-# pyyaml
+pyyaml
 dash-ag-grid
 dash-daq
 dash-cytoscape
