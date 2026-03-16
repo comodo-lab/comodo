@@ -55,7 +55,6 @@ INI_EXPERIMENT_CONFIG = config.ini_experiment_config
 INI_DATA_DICT = config.ini_data_dict
 INI_INSTRUMENT_DICT = config.ini_instrument_dict
 
-
 # ---------------------------------------------------
 # MAIN WINDOW
 # ---------------------------------------------------
