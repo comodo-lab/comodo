@@ -219,3 +219,7 @@ CLAUDE.md
 .claude/
 
 .DS_Store
+
+# Local env/credential files
+firmware/env.json
+env.json
