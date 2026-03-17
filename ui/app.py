@@ -116,7 +116,7 @@ def update_instrument_page(data):
     prevent_initial_call=True,
 )
 def initialize_experiment_store(pathname, current_data):
-    if pathname == "/instrument" and not current_data:
+    if pathname in ("/instrument", "/control") and not current_data:
         return INI_INSTRUMENT_DICT
     return no_update
 

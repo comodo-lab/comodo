@@ -180,8 +180,12 @@ def delete_selected(n_clicks, selected_rows, current_data):
 def update_figure(data):
     if not data:
         return go.Figure()
-    fig = plot_data_plotly(data, xlabel="Time (s)")
-    return fig
+    try:
+        fig = plot_data_plotly(data, xlabel="Time (s)")
+        return fig
+    except Exception as e:
+        print(f"Error plotting experiment data: {e}")
+        return go.Figure()
 
 
 @callback(

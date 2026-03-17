@@ -49,19 +49,20 @@ def get_control_panel(params=[]):
     prevent_initial_call=True,
 )
 def update_output(n_clicks, table_data, instruments, exp_config):
-    if n_clicks == None:
+    if n_clicks is None:
         raise PreventUpdate
+    if not table_data:
+        print("No experiment table data. Cannot start experiment.")
+        return None
 
     # Prepare data for transmission
     experiment_id = str(uuid.uuid4())[:8]
 
-    for config in exp_config:
-        if config["name"] == "resolution":
-            resolution = config["value"]
-
-    if resolution is None:
-        print("No resolution set, defaulting to 1 second.")
-        resolution = 1
+    resolution = 1
+    if exp_config:
+        for config in exp_config:
+            if config["name"] == "resolution":
+                resolution = config["value"]
 
     experiment_config = {
         "uid": experiment_id,
@@ -175,6 +176,9 @@ def update_control_component(n_intervals, instruments, slider_id, timezone):
     """
     Updates the control component based on the selected parameter.
     """
+    if instruments is None:
+        raise PreventUpdate
+
     # Extract the parameter name from the slider's id
     param_name = slider_id["index"]
 

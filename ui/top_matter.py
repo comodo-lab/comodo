@@ -81,6 +81,9 @@ def update_header_status(n_intervals, timezone):
     """
     Updates the header bar with the latest status.
     """
+    if timezone is None:
+        return "Unknown Status", "primary", None
+
     user_tz = pytz.timezone(timezone)
 
     try:
@@ -129,6 +132,9 @@ def update_header_id(n_intervals, timezone):
     """
     Updates the header bar with the latest experiment ID.
     """
+    if timezone is None:
+        return "Awaiting Experiment", "primary", None
+
     user_tz = pytz.timezone(timezone)
 
     try:
@@ -163,13 +169,13 @@ def update_adjusting_status(n_intervals, instruments, timezone):
     """
     Updates the header bar with the variables currently being adjusted.
     """
+    if timezone is None or instruments is None:
+        return "None Adjusting", "primary", None
+
     user_tz = pytz.timezone(timezone)
     time = pytz.datetime.datetime.now(user_tz).strftime("%Y-%m-%d %H:%M:%S")
 
     adjusting = []
-
-    if instruments is None:
-        return "None Adjusting", "primary", time
 
     print(f"Checking state of {len(instruments)} instruments...")
     for instrument in instruments:
