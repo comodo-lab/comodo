@@ -1,0 +1,159 @@
+<mxfile host="app.diagrams.net">
+  <diagram id="comodo-c4" name="Comodo - Container Diagram">
+    <mxGraphModel dx="1422" dy="762" grid="0" gridSize="10" guides="0" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="1300" pageHeight="720" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Diagram title -->
+        <mxCell id="title" value="Comodo — Container Diagram"
+          style="text;html=1;fontSize=18;fontStyle=1;align=left;"
+          vertex="1" parent="1">
+          <mxGeometry x="30" y="20" width="400" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Comodo system boundary -->
+        <mxCell id="boundary" value="Comodo"
+          style="swimlane;startSize=30;fillColor=#f5f5f5;strokeColor=#444444;strokeWidth=2;dashed=1;dashPattern=8 4;fontStyle=1;fontSize=13;fontColor=#444444;swimlaneLine=1;"
+          vertex="1" parent="1">
+          <mxGeometry x="180" y="60" width="1080" height="590" as="geometry" />
+        </mxCell>
+
+        <!-- MQTT Broker (central bus, inside boundary) -->
+        <mxCell id="mqtt" value="&lt;b&gt;MQTT Broker&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:10px;&quot;&gt;[RabbitMQ]&lt;/font&gt;&lt;br/&gt;&lt;font style=&quot;font-size:9px;font-style:italic;&quot;&gt;Async message bus&lt;/font&gt;"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1168BD;fontColor=#ffffff;strokeColor=#0E5AA5;fontSize=12;"
+          vertex="1" parent="boundary">
+          <mxGeometry x="90" y="230" width="880" height="55" as="geometry" />
+        </mxCell>
+
+        <!-- Web UI (inside boundary) -->
+        <mxCell id="ui" value="&lt;b&gt;Web UI&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:10px;&quot;&gt;[Dash / Python]&lt;/font&gt;&lt;br/&gt;&lt;font style=&quot;font-size:9px;font-style:italic;&quot;&gt;Experiment config &amp; monitoring&lt;/font&gt;"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1168BD;fontColor=#ffffff;strokeColor=#0E5AA5;fontSize=12;"
+          vertex="1" parent="boundary">
+          <mxGeometry x="90" y="110" width="170" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Controller (inside boundary) -->
+        <mxCell id="ctrl" value="&lt;b&gt;Controller&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:10px;&quot;&gt;[Python]&lt;/font&gt;&lt;br/&gt;&lt;font style=&quot;font-size:9px;font-style:italic;&quot;&gt;Experiment state machine&lt;/font&gt;"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1168BD;fontColor=#ffffff;strokeColor=#0E5AA5;fontSize=12;"
+          vertex="1" parent="boundary">
+          <mxGeometry x="360" y="100" width="170" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Firmware (inside boundary) -->
+        <mxCell id="fw" value="&lt;b&gt;Firmware&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:10px;&quot;&gt;[Python — per instrument]&lt;/font&gt;&lt;br/&gt;&lt;font style=&quot;font-size:9px;font-style:italic;&quot;&gt;Instrument drivers&lt;/font&gt;"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1168BD;fontColor=#ffffff;strokeColor=#0E5AA5;fontSize=12;"
+          vertex="1" parent="boundary">
+          <mxGeometry x="630" y="100" width="180" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Telegraf (inside boundary) -->
+        <mxCell id="tel" value="&lt;b&gt;Telegraf&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:10px;&quot;&gt;[Telegraf]&lt;/font&gt;&lt;br/&gt;&lt;font style=&quot;font-size:9px;font-style:italic;&quot;&gt;Subscribes &amp; forwards metrics&lt;/font&gt;"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1168BD;fontColor=#ffffff;strokeColor=#0E5AA5;fontSize=12;"
+          vertex="1" parent="boundary">
+          <mxGeometry x="630" y="400" width="170" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- InfluxDB (inside boundary) -->
+        <mxCell id="idb" value="&lt;b&gt;InfluxDB&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:10px;&quot;&gt;[Time-series DB]&lt;/font&gt;&lt;br/&gt;&lt;font style=&quot;font-size:9px;font-style:italic;&quot;&gt;Stores all measurement data&lt;/font&gt;"
+          style="shape=mxgraph.c4.database;whiteSpace=wrap;html=1;fillColor=#1168BD;fontColor=#ffffff;strokeColor=#0E5AA5;fontSize=12;"
+          vertex="1" parent="boundary">
+          <mxGeometry x="410" y="400" width="160" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Grafana (inside boundary) -->
+        <mxCell id="grf" value="&lt;b&gt;Grafana&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:10px;&quot;&gt;[Grafana]&lt;/font&gt;&lt;br/&gt;&lt;font style=&quot;font-size:9px;font-style:italic;&quot;&gt;Live dashboards (embedded in UI)&lt;/font&gt;"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1168BD;fontColor=#ffffff;strokeColor=#0E5AA5;fontSize=12;"
+          vertex="1" parent="boundary">
+          <mxGeometry x="170" y="400" width="170" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Operator (person, outside boundary) -->
+        <mxCell id="op" value="&lt;b&gt;Operator&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:9px;font-style:italic;&quot;&gt;Configures and starts experiments&lt;/font&gt;"
+          style="shape=mxgraph.c4.person;fillColor=#08427B;fontColor=#ffffff;strokeColor=#073B6F;fontSize=11;"
+          vertex="1" parent="1">
+          <mxGeometry x="60" y="170" width="100" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- Physical Instruments (external system, outside boundary) -->
+        <mxCell id="hw" value="&lt;b&gt;Physical Instruments&lt;/b&gt;&lt;br/&gt;&lt;font style=&quot;font-size:10px;&quot;&gt;[External]&lt;/font&gt;&lt;br/&gt;&lt;font style=&quot;font-size:9px;font-style:italic;&quot;&gt;Sensors &amp; actuators&lt;/font&gt;"
+          style="rounded=1;whiteSpace=wrap;html=1;fillColor=#999999;fontColor=#ffffff;strokeColor=#8A8A8A;fontSize=12;"
+          vertex="1" parent="1">
+          <mxGeometry x="1090" y="200" width="170" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- ARROWS -->
+
+        <!-- Operator → UI -->
+        <mxCell id="e1" value="&lt;font style=&quot;font-size:10px;&quot;&gt;Uses&lt;/font&gt;"
+          style="endArrow=block;endFill=1;html=1;dashed=0;strokeColor=#444444;fontColor=#444444;"
+          edge="1" source="op" target="ui" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- UI → MQTT -->
+        <mxCell id="e2" value="&lt;font style=&quot;font-size:10px;&quot;&gt;Publishes ui/start&lt;/font&gt;"
+          style="endArrow=block;endFill=1;html=1;strokeColor=#ffffff;fontColor=#ffffff;edgeStyle=orthogonalEdgeStyle;"
+          edge="1" source="ui" target="mqtt" parent="boundary">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- MQTT → Controller -->
+        <mxCell id="e3" value=""
+          style="endArrow=block;startArrow=block;startFill=1;endFill=1;html=1;strokeColor=#ffffff;edgeStyle=orthogonalEdgeStyle;"
+          edge="1" source="ctrl" target="mqtt" parent="boundary">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- MQTT ↔ Firmware -->
+        <mxCell id="e4" value="&lt;font style=&quot;font-size:10px;&quot;&gt;Commands / measurements&lt;/font&gt;"
+          style="endArrow=block;startArrow=block;startFill=1;endFill=1;html=1;strokeColor=#ffffff;fontColor=#ffffff;edgeStyle=orthogonalEdgeStyle;"
+          edge="1" source="fw" target="mqtt" parent="boundary">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Firmware ↔ Physical Instruments -->
+        <mxCell id="e5" value="&lt;font style=&quot;font-size:10px;&quot;&gt;Drives / reads&lt;/font&gt;"
+          style="endArrow=block;startArrow=block;startFill=1;endFill=1;html=1;strokeColor=#444444;fontColor=#444444;"
+          edge="1" source="fw" target="hw" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- MQTT → Telegraf -->
+        <mxCell id="e6" value="&lt;font style=&quot;font-size:10px;&quot;&gt;Subscribes to measurements&lt;/font&gt;"
+          style="endArrow=block;endFill=1;html=1;strokeColor=#ffffff;fontColor=#ffffff;edgeStyle=orthogonalEdgeStyle;"
+          edge="1" source="mqtt" target="tel" parent="boundary">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Telegraf → InfluxDB -->
+        <mxCell id="e7" value="&lt;font style=&quot;font-size:10px;&quot;&gt;Writes&lt;/font&gt;"
+          style="endArrow=block;endFill=1;html=1;strokeColor=#ffffff;fontColor=#ffffff;"
+          edge="1" source="tel" target="idb" parent="boundary">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- InfluxDB → Grafana -->
+        <mxCell id="e8" value="&lt;font style=&quot;font-size:10px;&quot;&gt;Queries&lt;/font&gt;"
+          style="endArrow=block;endFill=1;html=1;strokeColor=#ffffff;fontColor=#ffffff;"
+          edge="1" source="grf" target="idb" parent="boundary">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Grafana → UI (embedded dashboards) -->
+        <mxCell id="e9" value="&lt;font style=&quot;font-size:10px;&quot;&gt;Embedded dashboards&lt;/font&gt;"
+          style="endArrow=block;endFill=1;html=1;strokeColor=#ffffff;fontColor=#ffffff;edgeStyle=orthogonalEdgeStyle;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0;entryY=1;entryDx=0;entryDy=0;"
+          edge="1" source="grf" target="ui" parent="boundary">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="255" y="360" />
+              <mxPoint x="130" y="360" />
+              <mxPoint x="130" y="190" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
