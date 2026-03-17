@@ -28,12 +28,22 @@ instruments:
           min: 0
           max: 1000
           unit: °C
+        actuator:
+          type: float
+          min: 0
+          max: 1000
+          unit: °C
   furnace_right:
     firmware: carbolite_gero/tg3
     address: "192.168.111.225:502"
     variables:
       temperature:
         sensor:
+          type: float
+          min: 0
+          max: 1000
+          unit: °C
+        actuator:
           type: float
           min: 0
           max: 1000
