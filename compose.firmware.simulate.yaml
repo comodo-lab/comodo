@@ -63,7 +63,7 @@ services:
       FIRMWARE: pfeiffer_mpt_200_pressure
       HEARTBEAT_INTERVAL: 1000
       MEASUREMENT_INTERVAL: 1000
-      DEVICE_ADDRESS: /dev/ttyUSB0
+      DEVICE_ADDRESS: /dev/ttyUSB1
 
   pressure_upstream:
     <<: *python-instrument-template
@@ -71,7 +71,7 @@ services:
       <<: *instrument-env
       INSTRUMENT_ID: "pressure_upstream"
       FIRMWARE: pfeiffer_mpt_200_pressure
-      DEVICE_ADDRESS: /dev/ttyUSB1
+      DEVICE_ADDRESS: /dev/ttyUSB0
       HEARTBEAT_INTERVAL: 1000
       MEASUREMENT_INTERVAL: 1000
 

@@ -63,9 +63,9 @@ services:
       FIRMWARE: pfeiffer_mpt_200_pressure
       HEARTBEAT_INTERVAL: 1000
       MEASUREMENT_INTERVAL: 1000
-      DEVICE_ADDRESS: /dev/ttyUSB0
+      DEVICE_ADDRESS: /dev/ttyUSB1
     devices:
-      - "/dev/ttyUSB0:/dev/ttyUSB0"
+      - "/dev/ttyUSB1:/dev/ttyUSB1"
     privileged: true
 
   pressure_upstream:
@@ -74,11 +74,11 @@ services:
       <<: *instrument-env
       INSTRUMENT_ID: "pressure_upstream"
       FIRMWARE: pfeiffer_mpt_200_pressure
-      DEVICE_ADDRESS: /dev/ttyUSB1
+      DEVICE_ADDRESS: /dev/ttyUSB0
       HEARTBEAT_INTERVAL: 1000
       MEASUREMENT_INTERVAL: 1000
     devices:
-      - "/dev/ttyUSB1:/dev/ttyUSB1"
+      - "/dev/ttyUSB0:/dev/ttyUSB0"
     privileged: true
 
   setpoint-controller:

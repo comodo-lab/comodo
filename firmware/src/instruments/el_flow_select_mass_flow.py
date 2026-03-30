@@ -72,6 +72,13 @@ PARAMETER_MAPPING = {
         "units": "s",
         "notes": "The time in seconds to go from 0-100% setpoint for flow rate adjustment. A value of 0 means no slope, i.e., the setpoint is reached immediately.",
     },
+    "12": {
+        "name": "Control_Mode",
+        "type": "unsigned int",
+        "access": "RW",
+        "range": "0 – 255",
+        "notes": "0 = Analog, 1 = RS232/Bus, 3 = Valve fully closed, 4 = Valve fully open.",
+    },
     "122": {
         "name": "Counter_Value",
         "type": "float",
@@ -269,7 +276,13 @@ class Instrument(BaseInstrument):
                 print("DEVICE_ADDRESS environment variable not set, using default /dev/ttyUSB2")
                 device = "/dev/ttyUSB2"
 
-            self.instrument = propar.instrument(device)
+            try:
+                self.instrument = propar.instrument(device)
+            except AttributeError:
+                self.instrument = propar.Instrument(device)
+            # Ensure Control_Mode is set to Bus/RS232 (Value 1)
+            print("Ensuring Mass Flow is in Bus control mode...")
+            write_general(self.instrument, "Control_Mode", 1)
         except Exception as e:
             print(f"Error initializing propar.Instrument!\n{e}")
             self.instrument = None
