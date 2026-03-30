@@ -286,6 +286,15 @@ class Instrument(BaseInstrument):
             return None
 
         data = read_all(self.instrument)
+        
+        # Calculate actual flow as a percentage (0-100%)
+        # Bronkhorst scale: 100% = 32000
+        raw_flow = data.get("Flow_Rate_Measured", 0)
+        if raw_flow is not None:
+            data["mass_flow"] = (float(raw_flow) / 32000) * 100
+        else:
+            data["mass_flow"] = 0.0
+            
         return data
 
     def go_to_setpoint(self, state):
@@ -328,4 +337,4 @@ class Instrument(BaseInstrument):
         elif self.simulated_measurement > self.simulated_setpoint:
             self.simulated_measurement -= 0.1
         state.measurement = self.simulated_measurement
-        return self.simulated_measurement 
+        return {"mass_flow": self.simulated_measurement} 
