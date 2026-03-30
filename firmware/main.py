@@ -123,8 +123,9 @@ async def main():
 
     # Initialise the instrument
     if not state.config["SIMULATE"]:
-        state.instrument.initialise()
+        state.instrument.initialise(state)
     else:
+        state.instrument.simulate_initialise(state)
         print(f" ### Simulating {state.config['INSTRUMENT_ID']} ### ")
 
     ## Set the ready flag

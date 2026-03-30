@@ -261,7 +261,7 @@ class Instrument(BaseInstrument):
         self.simulated_setpoint = 0.0
         self.simulated_measurement = 0.0
 
-    def initialise(self):
+    def initialise(self, state):
         try:
             # Get device address from environment
             device = os.getenv("DEVICE_ADDRESS", None)
@@ -273,6 +273,9 @@ class Instrument(BaseInstrument):
         except Exception as e:
             print(f"Error initializing propar.Instrument!\n{e}")
             self.instrument = None
+
+    def simulate_initialise(self, state):
+        pass
 
     def set_config(self, config):
         pass

@@ -45,14 +45,17 @@ def write_temperature(host, setpoint):
 
 class Instrument(BaseInstrument):
     def __init__(self):
-        self.client = {}
+        self.clients = None
 
-    def intialise(self, state):
+    def initialise(self, state):
         try:
             self.clients = ModbusTcpClient(host=state.config["DEVICE_ADDRESS"],
                                            port=MODBUS_PORT)
         except Exception as e:
             print(f"Error initializing ModbusTcpClient!\n{e}")
+
+    def simulate_initialise(self, state):
+        pass
 
     def go_to_setpoint(self, state):
         setpoint = state.status["setpoint"]
@@ -65,7 +68,7 @@ class Instrument(BaseInstrument):
         pass
 
     def get_measurement(self, state):
-        value = read_temperature(client)
+        value = read_temperature(self.clients)
         state.measurement = value
 
         measurement = {"temperature": value}
