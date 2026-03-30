@@ -25,35 +25,35 @@ services:
     networks:
       comodo-firmware:
 
-  furnace_centre:
-    <<: *python-instrument-template
-    environment:
-      <<: *instrument-env
-      INSTRUMENT_ID: "furnace_centre"
-      FIRMWARE: carbolite_gero_thermocouple
-      DEVICE_ADDRESS: 192.168.111.222
-      HEARTBEAT_INTERVAL: 1000
-      MEASUREMENT_INTERVAL: 1000
+  # furnace_centre:
+  #   <<: *python-instrument-template
+  #   environment:
+  #     <<: *instrument-env
+  #     INSTRUMENT_ID: "furnace_centre"
+  #     FIRMWARE: carbolite_gero_thermocouple
+  #     DEVICE_ADDRESS: 192.168.111.222
+  #     HEARTBEAT_INTERVAL: 1000
+  #     MEASUREMENT_INTERVAL: 1000
 
-  furnace_left:
-    <<: *python-instrument-template
-    environment:
-      <<: *instrument-env
-      INSTRUMENT_ID: "furnace_left"
-      FIRMWARE: carbolite_gero_thermocouple
-      DEVICE_ADDRESS: 192.168.111.224
-      HEARTBEAT_INTERVAL: 1000
-      MEASUREMENT_INTERVAL: 1000
+  # furnace_left:
+  #   <<: *python-instrument-template
+  #   environment:
+  #     <<: *instrument-env
+  #     INSTRUMENT_ID: "furnace_left"
+  #     FIRMWARE: carbolite_gero_thermocouple
+  #     DEVICE_ADDRESS: 192.168.111.224
+  #     HEARTBEAT_INTERVAL: 1000
+  #     MEASUREMENT_INTERVAL: 1000
 
-  furnace_right:
-    <<: *python-instrument-template
-    environment:
-      <<: *instrument-env
-      INSTRUMENT_ID: "furnace_right"
-      FIRMWARE: carbolite_gero_thermocouple
-      DEVICE_ADDRESS: 192.168.111.225
-      HEARTBEAT_INTERVAL: 1000
-      MEASUREMENT_INTERVAL: 1000
+  # furnace_right:
+  #   <<: *python-instrument-template
+  #   environment:
+  #     <<: *instrument-env
+  #     INSTRUMENT_ID: "furnace_right"
+  #     FIRMWARE: carbolite_gero_thermocouple
+  #     DEVICE_ADDRESS: 192.168.111.225
+  #     HEARTBEAT_INTERVAL: 1000
+  #     MEASUREMENT_INTERVAL: 1000
 
   pressure_downstream:
     <<: *python-instrument-template
@@ -91,7 +91,7 @@ services:
       <<: *mqtt-env
       HEARTBEAT_INTERVAL: 1000
       SENSOR: "pressure_upstream/pressure"
-      ACTUATOR: "massflow/massflow"
+      ACTUATOR: "massflow"
       K_P: 1
       K_I: 0.1
       K_D: 0.05
