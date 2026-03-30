@@ -134,6 +134,7 @@ class Instrument(BaseInstrument):
         pass
 
     def go_to_setpoint(self, state):
+        setpoint = state.status["setpoint"]
         print(f"Setting upstream pressure to {setpoint} - not supported!")
 
     def set_config(self, config):

@@ -99,6 +99,15 @@ async def main():
     state.config = cfg.load_config()
     state.status["name"] = state.config["INSTRUMENT_ID"]
 
+    ## Initialise publisher singleton
+    mqtt.MQTTPublisher.get_instance(
+        id=f"publisher_{state.status['name']}",
+        broker_address=state.config["MQTT_HOST"],
+        user=state.config["MQTT_USER"],
+        password=state.config["MQTT_PASS"],
+        connection_timeout=60,
+    )
+
     ## Create client
     topics = [
         f"instrument/{state.config['INSTRUMENT_ID']}/setup",
