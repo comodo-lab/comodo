@@ -80,11 +80,18 @@ class ComodoConfig:
 
     @property
     def ini_data_dict(self):
+        times = [0, 30, 60, 90, 120, 150, 180]
+        defaults = {
+            "furnace_centre/temperature": [150, 150, 150, 100, 50, 25, 0],
+            "furnace_left/temperature":   [100, 100, 100,  67, 33, 17, 0],
+            "furnace_right/temperature":  [100, 100, 100,  67, 33, 17, 0],
+            "pressure_upstream/pressure": [5, 3.75, 2.5, 1.25, 0, 0, 0],
+        }
         rows = []
-        for t in [0, 30, 60]:
+        for i, t in enumerate(times):
             row = {"time": t}
             for p in self._controllable:
-                row[p] = 0.0
+                row[p] = defaults.get(p, [0.0] * len(times))[i]
                 row[f"{p}_profile"] = "linear"
             rows.append(row)
         return rows

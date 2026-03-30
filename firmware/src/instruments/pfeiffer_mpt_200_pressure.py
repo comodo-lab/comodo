@@ -149,4 +149,4 @@ class Instrument(BaseInstrument):
         # Get the pressure
         measurement = get_pressure(device)
         state.measurement = measurement
-        return measurement
+        return {"pressure": measurement}
