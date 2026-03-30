@@ -25,12 +25,25 @@ def main():
         exit(1)
 
     # Initialise publisher singleton
-    publisher = mqtt.MQTTPublisher.get_instance(
-        broker_address=mqtt_host,
-        user=mqtt_user,
-        password=mqtt_pass,
-        id=f"publisher_pid_{sensor}__{actuator}",
-    )
+    connected = False
+    retries = 0
+    while not connected and retries < 10:
+        try:
+            publisher = mqtt.MQTTPublisher.get_instance(
+                broker_address=mqtt_host,
+                user=mqtt_user,
+                password=mqtt_pass,
+                id=f"publisher_pid_{sensor}__{actuator}",
+            )
+            connected = True
+        except Exception as e:
+            print(f"Failed to connect to MQTT broker ({mqtt_host}): {e}. Retrying in 5s...")
+            retries += 1
+            t.sleep(5)
+    
+    if not connected:
+        print("Could not connect to MQTT broker after 10 retries. Exiting.")
+        exit(1)
 
     k_p = os.getenv("K_P", None)
     k_i = os.getenv("K_I", None)
@@ -100,20 +113,31 @@ class SetpointController:
         sensor_id = sensor.split("/")[0]
 
         # Initialize MQTT client
-        self.pid_client = mqtt.MQTTClient(
-            id=self.pid.id,
-            callback=SetpointController.on_sensor_message,
-            topics=[
-                f"instrument/{sensor_id}/setpoint",
-                f"measurement/{sensor}",
-                # f"sensor/{sensor}/setpoint_reached",
-                f"{self.pid.id}/setup",
-            ],
-            broker_address=mqtt_host,
-            user=mqtt_user,
-            password=mqtt_pass,
-            obj=self,
-        )
+        self.pid_client = None
+        retries = 0
+        while self.pid_client is None and retries < 10:
+            try:
+                self.pid_client = mqtt.MQTTClient(
+                    id=self.pid.id,
+                    callback=SetpointController.on_sensor_message,
+                    topics=[
+                        f"instrument/{sensor_id}/setpoint",
+                        f"measurement/{sensor}",
+                        # f"sensor/{sensor}/setpoint_reached",
+                        f"{self.pid.id}/setup",
+                    ],
+                    broker_address=mqtt_host,
+                    user=mqtt_user,
+                    password=mqtt_pass,
+                    obj=self,
+                )
+            except Exception as e:
+                print(f"SetpointController client failed to connect to {mqtt_host}: {e}. Retrying...")
+                retries += 1
+                t.sleep(5)
+        
+        if self.pid_client is None:
+            raise RuntimeError(f"SetpointController failed to connect after {retries} retries.")
 
         # no_setpoint
         # adjusting
