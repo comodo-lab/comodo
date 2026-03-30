@@ -176,41 +176,12 @@ def write_param(instrument, channel, value):
     :param instrument: The propar instrument object.
     :param channel: The channel number to write.
     :param value: Value to write to channel
-    :return: The value of the parameter if written, None if error.
+    :return: The result of the write operation, or None if error.
     """
     try:
-        # TODO - Check this is the correct syntax for write to instrument
-        write = instrument.writeParameter(channel, value)
-        return write
+        return instrument.writeParameter(channel, value)
     except Exception as e:
-        print(f"Error writing {value} to channel {channel}: {e}")
-        return None
-
-
-def write_param_protected(instrument, channel, value):
-    """
-    Unlocks secured params for write
-
-    :param instrument: The propar insturment object
-    :param channel: The channel number to read.
-    :param value: Value to write to channel
-    :return: The value of the parameter if written, None if error.
-    """
-    try:
-        # TODO - Check this is the correct syntax for write to instrument
-        unlock = write_param(instrument, 7, 64)  # Unlock protected write
-        if unlock is None:
-            raise PermissionError("Could not unlock protected write param")
-
-        write = write_param(instrument, channel, value)
-
-        lock = write_param(instrument, 7, 82)  # Lock protected write
-        if lock is None:
-            raise PermissionError("Could not lock protected write param")
-        return write
-
-    except Exception as e:
-        print(f"Error writing {value} to protected channel {channel}: {e}")
+        print(f"Error writing value {value} to parameter {channel}: {e}")
         return None
 
 
@@ -228,10 +199,7 @@ def write_general(instrument, name, value):
             if "W" not in info["access"]:
                 print(f"Parameter {name} is not writable.")
                 return None
-            if "B" in info["access"]:
-                return write_param_protected(instrument, int(channel), value)
-            else:
-                return write_param(instrument, int(channel), value)
+            return write_param(instrument, int(channel), value)
     print(f"Parameter {name} not found in mapping.")
     return None
 
