@@ -302,10 +302,11 @@ class Instrument(BaseInstrument):
         
         # Calculate actual flow as a percentage (0-100%)
         # Bronkhorst scale: 100% = 32000
-        raw_flow = data.get("Flow_Rate_Measured", 0)
+        raw_flow = data.get("Flow_Rate_Measured")
         if raw_flow is not None:
             data["mass_flow"] = (float(raw_flow) / 32000) * 100
         else:
+            print("WARNING: Flow_Rate_Measured read back as None (communication error?)")
             data["mass_flow"] = 0.0
             
         return data
@@ -316,21 +317,34 @@ class Instrument(BaseInstrument):
             return None
 
         setpoint =  state.status["setpoint"]
+        if setpoint is None:
+            return None
+            
         if not (0 <= setpoint <= 100):
-            print("Setpoint must be between 0 and 100%.")
+            print(f"Setpoint {setpoint} out of range (0-100%).")
             return None
 
         # Convert percentage to instrument scale (0-32000)
-        instrument_setpoint = (setpoint / 100) * 32000
+        instrument_setpoint = int((setpoint / 100) * 32000)
+        
+        # Double check read back of control mode before writing
+        mode = self.instrument.readParameter(12)
+        if mode != 1:
+            print(f"CRITICAL: Instrument is in Control Mode {mode}, not Bus (1). Re-setting...")
+            self.instrument.writeParameter(12, 1)
+
         result = write_general(
-            self.instrument, "Flow_Rate_Setpoint", int(instrument_setpoint)
+            self.instrument, "Flow_Rate_Setpoint", instrument_setpoint
         )
         if result is None:
             print("Failed to write Flow_Rate_Setpoint.")
             return None
 
+        # Verify write
+        read_back = self.instrument.readParameter(9)
         print(
-            f"Set Flow_Rate_Setpoint to {setpoint}% ({int(instrument_setpoint)} in instrument scale)."
+            f"Set Flow_Rate_Setpoint to {setpoint}% ({instrument_setpoint}). "
+            f"Instrument reports: {read_back} ({(float(read_back)/32000)*100 if read_back is not None else 'N/A'}%)"
         )
         return result
 

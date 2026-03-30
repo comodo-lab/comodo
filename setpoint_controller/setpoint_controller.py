@@ -180,6 +180,7 @@ class SetpointController:
             setpoint = message.get(sensor_id)
             if setpoint is not None:
                 spc.state["status"] = "adjusting"
+                spc.state["setpoint"] = setpoint
                 spc.pid.setpoint = setpoint
                 mqtt.MQTTPublisher.get_instance().publish(
                     f"{spc.pid.id}/setpoint",
@@ -189,6 +190,7 @@ class SetpointController:
         elif msg.topic == f"measurement/{spc.pid.sensor}" or msg.topic.endswith(f"/{spc.pid.sensor}"):
             if spc.pid.setpoint is not None:
                 spc.state["status"] = "adjusting"
+                spc.state["setpoint"] = spc.pid.setpoint
                 setpoint = spc.pid.step(message["value"], spc.pid.setpoint)
                 
                 # Extract instrument ID from actuator (e.g., 'massflow' from 'massflow/massflow')
