@@ -1,88 +1,95 @@
 x-templates:
-  instrument-env: &instrument-env
-    MQTT_HOST: rabbitmq
+  mqtt-env: &mqtt-env
+    MQTT_HOST: ${MQTT_HOST}
     MQTT_USER: ${MQTT_USER}
     MQTT_PASS: ${MQTT_PASS}
-    SIMULATE: "true"
-    HEARTBEAT_INTERVAL: 1000
-    MEASUREMENT_INTERVAL: 1000
+  instrument-env: &instrument-env
+    <<: *mqtt-env
+    SIMULATE: true
   python-instrument-template: &python-instrument-template
     build:
       context: .
       dockerfile: firmware/Dockerfile
     networks:
-      mcfe_mcfe:
-
-name: comodo-firmware-simulate
+      comodo-firmware:
+    depends_on:
+      mqtt-probe-firmware:
+        condition: service_healthy
+      
+name: comodo-firmware
 services:
+  mqtt-probe-firmware:
+    image: comodolab/comodo-mqtt_probe:latest
+    environment:
+      <<: *mqtt-env
+    networks:
+      comodo-firmware:
+
   furnace_centre:
     <<: *python-instrument-template
     environment:
       <<: *instrument-env
-      INSTRUMENT_ID: "furnace_centre/temperature"
+      INSTRUMENT_ID: "furnace_centre"
       FIRMWARE: carbolite_gero_thermocouple
+      DEVICE_ADDRESS: 192.168.111.222
+      HEARTBEAT_INTERVAL: 1000
+      MEASUREMENT_INTERVAL: 1000
 
   furnace_left:
     <<: *python-instrument-template
     environment:
       <<: *instrument-env
-      INSTRUMENT_ID: "furnace_left/temperature"
+      INSTRUMENT_ID: "furnace_left"
       FIRMWARE: carbolite_gero_thermocouple
+      DEVICE_ADDRESS: 192.168.111.224
+      HEARTBEAT_INTERVAL: 1000
+      MEASUREMENT_INTERVAL: 1000
 
   furnace_right:
     <<: *python-instrument-template
     environment:
       <<: *instrument-env
-      INSTRUMENT_ID: "furnace_right/temperature"
+      INSTRUMENT_ID: "furnace_right"
       FIRMWARE: carbolite_gero_thermocouple
+      DEVICE_ADDRESS: 192.168.111.225
+      HEARTBEAT_INTERVAL: 1000
+      MEASUREMENT_INTERVAL: 1000
 
   pressure_downstream:
     <<: *python-instrument-template
     environment:
       <<: *instrument-env
-      INSTRUMENT_ID: "pressure_downstream/pressure"
+      INSTRUMENT_ID: "pressure_downstream"
       FIRMWARE: pfeiffer_mpt_200_pressure
+      HEARTBEAT_INTERVAL: 1000
+      MEASUREMENT_INTERVAL: 1000
+      DEVICE_ADDRESS: /dev/ttyUSB0
 
   pressure_upstream:
     <<: *python-instrument-template
     environment:
       <<: *instrument-env
-      INSTRUMENT_ID: "pressure_upstream/pressure"
+      INSTRUMENT_ID: "pressure_upstream"
       FIRMWARE: pfeiffer_mpt_200_pressure
+      DEVICE_ADDRESS: /dev/ttyUSB1
+      HEARTBEAT_INTERVAL: 1000
+      MEASUREMENT_INTERVAL: 1000
 
   mass_flow:
     <<: *python-instrument-template
     environment:
       <<: *instrument-env
-      INSTRUMENT_ID: "mass_flow/mass_flow"
-      FIRMWARE: el_flow_select_massflow
-    volumes:
-      - massflow_read:/shared
-
-  setpoint-controller:
-    build:
-      context: .
-      dockerfile: setpoint_controller/Dockerfile
-    networks:
-      mcfe_mcfe:
-    environment:
-      MQTT_HOST: rabbitmq
-      MQTT_USER: ${MQTT_USER}
-      MQTT_PASS: ${MQTT_PASS}
+      INSTRUMENT_ID: "mass_flow"
+      FIRMWARE: el_flow_select_mass_flow
+      DEVICE_ADDRESS: /dev/ttyUSB2
       HEARTBEAT_INTERVAL: 1000
-      SENSOR: "pressure_upstream/pressure"
-      ACTUATOR: "mass_flow/mass_flow"
-      K_P: 1
-      K_I: 0.1
-      K_D: 0.05
-      K_AW: 0.05
-      K_DF: 0.01
-      OUT_MIN: 0
-      OUT_MAX: 100
+      MEASUREMENT_INTERVAL: 1000
+    volumes:
+      - mass_flow_read:/shared
 
 networks:
-  mcfe_mcfe:
-    external: true
+  comodo-firmware:
+    name: comodo-firmware
 
 volumes:
-  massflow_read:
+  mass_flow_read:
