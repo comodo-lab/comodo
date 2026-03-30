@@ -34,16 +34,22 @@ def send_heartbeat():
 
 ## ----------------- Publishing helper functions ----------------- ##
 
-def publish_measurement(measurements):
+def publish_measurement(measurements, prefix=None):
     if state.client is None:
         return
 
-    if type(measurements) is int or type(measurements) is float:
-        measurements = {"value": measurements}
-        
-    for key, measurement in measurements.items():
-        msg = json.dumps({"value": measurement}) 
-        state.client.publish(f"measurement/{state.config['INSTRUMENT_ID']}/{key}", msg)
+    if prefix is None:
+        prefix = f"measurement/{state.config['INSTRUMENT_ID']}"
+
+    if isinstance(measurements, (int, float)):
+        msg = json.dumps({"value": measurements})
+        state.client.publish(prefix, msg)
+        return
+
+    if isinstance(measurements, dict):
+        for key, measurement in measurements.items():
+            new_prefix = f"{prefix}/{key}"
+            publish_measurement(measurement, prefix=new_prefix)
         
 
 def send_measurement():

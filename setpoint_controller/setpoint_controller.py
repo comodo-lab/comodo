@@ -186,7 +186,7 @@ class SetpointController:
                     json.dumps({spc.pid.sensor: setpoint}),
                 )
             return
-        elif msg.topic == f"measurement/{spc.pid.sensor}":
+        elif msg.topic == f"measurement/{spc.pid.sensor}" or msg.topic.endswith(f"/{spc.pid.sensor}"):
             if spc.pid.setpoint is not None:
                 spc.state["status"] = "adjusting"
                 setpoint = spc.pid.step(message["value"], spc.pid.setpoint)
