@@ -91,7 +91,7 @@ services:
       <<: *mqtt-env
       HEARTBEAT_INTERVAL: 1000
       SENSOR: "pressure_upstream/pressure"
-      ACTUATOR: "massflow"
+      ACTUATOR: "mass_flow"
       K_P: 1
       K_I: 0.1
       K_D: 0.05
@@ -101,11 +101,11 @@ services:
       OUT_MAX: 100
       # OUT_MAX_R: 10
 
-  massflow:
+  mass_flow:
     <<: *python-instrument-template
     environment:
       <<: *instrument-env
-      INSTRUMENT_ID: "massflow"
+      INSTRUMENT_ID: "mass_flow"
       FIRMWARE: el_flow_select_massflow
       DEVICE_ADDRESS: /dev/ttyUSB2
       HEARTBEAT_INTERVAL: 1000
@@ -114,11 +114,11 @@ services:
       - "/dev/ttyUSB2:/dev/ttyUSB2"
     privileged: true 
     volumes:
-      - massflow_read:/shared
+      - mass_flow_read:/shared
 
 networks:
   comodo-firmware:
     name: comodo-firmware
 
 volumes:
-  massflow_read:
+  mass_flow_read:
