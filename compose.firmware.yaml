@@ -19,7 +19,7 @@ x-templates:
 name: comodo-firmware
 services:
   mqtt-probe-firmware:
-    image: comodolab/comodo-mqtt_probe:latest
+    image: williamjsmith15/comodo-mqtt_probe:latest
     environment:
       <<: *mqtt-env
     networks:
