@@ -37,6 +37,7 @@ class ComodoConfig:
                         "min": act.get("min", 0),
                         "max": act.get("max", 100),
                         "step": 1,
+                        "default_setpoint": act.get("default_setpoint", 0),
                     }
                     self._all_controllable.append(key)
                     self._all_param_dicts.append(entry)
@@ -95,6 +96,16 @@ class ComodoConfig:
                 row[f"{p}_profile"] = "linear"
             rows.append(row)
         return rows
+
+    @property
+    def default_setpoints(self):
+        # {instrument_id: default_setpoint} for all actuators
+        result = {}
+        for entry in self._all_param_dicts:
+            if "default_setpoint" in entry:
+                inst_id = entry["name"].split("/")[0]
+                result[inst_id] = entry["default_setpoint"]
+        return result
 
     @property
     def ini_instrument_dict(self):

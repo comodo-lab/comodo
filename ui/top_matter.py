@@ -1,7 +1,14 @@
 from dash import html, callback, Output, Input, State
 import dash_bootstrap_components as dbc
+from dash.exceptions import PreventUpdate
 from utils.influx_query import query_influxdb_params
+from utils.mqtt_clients import MQTTPublisher
+from config_loader import ComodoConfig
+import json
 import pytz
+
+_config = ComodoConfig()
+_default_setpoints = _config.default_setpoints
 
 
 def status_item(item_name):
@@ -41,6 +48,13 @@ def get_header_bar():
                     dbc.CardBody(
                         [
                             html.H1("Comodo Lab", className="card-title"),
+                            dbc.Button(
+                                [html.I(className="bi bi-stop-circle me-1"), "Stop Experiment"],
+                                id="stop-experiment-btn",
+                                color="danger",
+                                n_clicks=0,
+                                className="mt-2",
+                            ),
                         ]
                     ),
                 ],
@@ -67,6 +81,42 @@ def get_header_bar():
         ]
     )
     return header_bar
+
+
+@callback(
+    Output("hidden-div", "children", allow_duplicate=True),
+    Input("stop-experiment-btn", "n_clicks"),
+    prevent_initial_call=True,
+)
+def stop_experiment(n_clicks):
+    try:
+        result = query_influxdb_params(
+            fields=["experiment"],
+            topics=["heartbeat/controller"],
+            start="-1m",
+            aggregate="last",
+        )
+        if not result:
+            raise PreventUpdate
+        uid = result[-1].get_value()
+        if not uid:
+            raise PreventUpdate
+    except PreventUpdate:
+        raise
+    except Exception:
+        raise PreventUpdate
+
+    client = MQTTPublisher.get_instance()
+
+    # Send each actuator to its default setpoint before stopping
+    for inst_id, default_val in _default_setpoints.items():
+        client.publish(
+            f"instrument/{inst_id}/setpoint",
+            json.dumps({inst_id: default_val}),
+        )
+
+    client.publish("controller/stop", json.dumps({"uid": uid}))
+    return None
 
 
 @callback(
