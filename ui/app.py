@@ -67,12 +67,13 @@ def get_main_window(row_data):
 
 @app.callback(
     Output("designer-wrapper", "children"),
-    Input("experiment-designer-store", "data"),
+    Input("url", "pathname"),
+    State("experiment-designer-store", "data"),
 )
-def update_designer_page(data):
-    if data is None:
-        return html.Div("Loading designer...")
-    return get_main_window(row_data=data)
+def update_designer_page(pathname, data):
+    if pathname not in ["/", None, "/designer"]:
+        raise PreventUpdate
+    return get_main_window(row_data=data or [])
 
 
 # ---------------------------------------------------
