@@ -300,17 +300,15 @@ class Instrument(BaseInstrument):
             return None
 
         data = read_all(self.instrument)
-        
-        # Calculate actual flow as a percentage (0-100%)
-        # Bronkhorst scale: 100% = 32000
+
         raw_flow = data.get("Flow_Rate_Measured")
         if raw_flow is not None:
-            data["mass_flow"] = (float(raw_flow) / 32000) * 100
+            mass_flow_pct = (float(raw_flow) / 32000) * 100
         else:
             print("WARNING: Flow_Rate_Measured read back as None (communication error?)")
-            data["mass_flow"] = 0.0
-            
-        return data
+            mass_flow_pct = 0.0
+
+        return {"mass_flow": mass_flow_pct}
 
     def go_to_setpoint(self, state):
         if self.instrument is None:
