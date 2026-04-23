@@ -8,6 +8,7 @@ Usage:
 
 Options:
     --set-bus           Force control mode to Bus/RS232 (mode 1)
+    --set-slope=N       Write Setpoint_Slope (param 10) to N seconds (0 = immediate)
     --set-flow=N        Write a flow setpoint of N% (0-100), then read back
     --read-all          Read and print all known parameters
 
@@ -15,8 +16,9 @@ Examples:
     python utils/check_mass_flow.py
     python utils/check_mass_flow.py /dev/ttyUSB0
     python utils/check_mass_flow.py /dev/ttyUSB2 --set-bus
+    python utils/check_mass_flow.py /dev/ttyUSB2 --set-slope=0
     python utils/check_mass_flow.py /dev/ttyUSB2 --set-flow=5
-    python utils/check_mass_flow.py /dev/ttyUSB2 --set-bus --set-flow=5 --read-all
+    python utils/check_mass_flow.py /dev/ttyUSB2 --set-bus --set-slope=0 --set-flow=5 --read-all
 """
 
 import sys
@@ -211,6 +213,15 @@ def main():
                 print(f"ERROR: invalid --set-flow value: {arg}")
                 sys.exit(1)
 
+    set_slope = None
+    for arg in args:
+        if arg.startswith("--set-slope="):
+            try:
+                set_slope = int(arg.split("=", 1)[1])
+            except ValueError:
+                print(f"ERROR: invalid --set-slope value: {arg}")
+                sys.exit(1)
+
     print(f"\nBronkhorst EL-FLOW Select -- diagnostic")
     print(f"Port: {port}\n")
 
@@ -225,6 +236,17 @@ def main():
 
     check_control_mode(instrument, force_bus=force_bus)
     check_flow_state(instrument)
+
+    if set_slope is not None:
+        print(SEP)
+        print(f"SETPOINT SLOPE -- writing {set_slope} s to param 10")
+        print(SEP)
+        ok, result = write_param(instrument, 10, set_slope)
+        readback = read_param(instrument, 10)
+        if ok and readback == set_slope:
+            print(f"OK   -- Setpoint_Slope set to {readback} s")
+        else:
+            print(f"FAIL -- wrote {set_slope}, readback = {readback}, result = {result}")
 
     if target_flow is not None:
         test_setpoint_write(instrument, target_flow)
