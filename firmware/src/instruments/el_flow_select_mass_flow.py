@@ -359,4 +359,13 @@ class Instrument(BaseInstrument):
         elif self.simulated_measurement > self.simulated_setpoint:
             self.simulated_measurement -= 0.1
         state.measurement = self.simulated_measurement
-        return {"mass_flow": self.simulated_measurement} 
+
+        setpoint = state.status.get("setpoint")
+        if setpoint is not None:
+            tolerance = (state.status.get("config") or {}).get("tolerance", 1)
+            if abs(self.simulated_measurement - setpoint) < tolerance:
+                state.client.publish(
+                    f"instrument/{state.config['INSTRUMENT_ID']}/setpoint_reached", "true"
+                )
+
+        return {"mass_flow": self.simulated_measurement}

@@ -127,5 +127,12 @@ class Instrument(BaseInstrument):
             current_temp -= (current_temp - target_temp) * 0.1
 
         state.measurement = current_temp
+
+        tolerance = (state.status.get("config") or {}).get("tolerance", 1)
+        if abs(current_temp - target_temp) < tolerance:
+            state.client.publish(
+                f"instrument/{state.config['INSTRUMENT_ID']}/setpoint_reached", "true"
+            )
+
         measurement = {"temperature": current_temp}
         return measurement
