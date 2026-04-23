@@ -62,13 +62,13 @@ class Instrument(BaseInstrument):
     def initialise(self, state):
         try:
             addr = state.config["DEVICE_ADDRESS"]
+            print(f"DEBUG: state.config = {state.config}")
             # Support both a single scale or independent read/write scales
-            # Safely handle None or missing values by falling back to defaults
             base_scale = state.config.get("TEMPERATURE_SCALE")
             if base_scale is None:
                 base_scale = 1.0
-            else:
-                base_scale = float(base_scale)
+            
+            base_scale = float(base_scale)
 
             read_scale = state.config.get("TEMPERATURE_READ_SCALE")
             self.read_scale = float(read_scale) if read_scale is not None else base_scale
@@ -77,7 +77,7 @@ class Instrument(BaseInstrument):
             self.write_scale = float(write_scale) if write_scale is not None else base_scale
             
             print(f"Initializing ModbusTcpClient for {state.config['INSTRUMENT_ID']} at {addr}")
-            print(f"  Read Scale: {self.read_scale}, Write Scale: {self.write_scale}")
+            print(f"  Final Scales -> Read: {self.read_scale}, Write: {self.write_scale}")
             
             self.clients = ModbusTcpClient(host=addr,
                                            port=MODBUS_PORT)
