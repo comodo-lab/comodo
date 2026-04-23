@@ -23,7 +23,8 @@ build_and_push() {
         --push .
 }
 
-build_and_push comodo-ui                ./ui/Dockerfile
-build_and_push comodo-controller        ./controller/Dockerfile
-build_and_push comodo-mqtt_probe        ./mqtt_probe/Dockerfile
+build_and_push comodo-ui                  ./ui/Dockerfile
+build_and_push comodo-controller          ./controller/Dockerfile
+build_and_push comodo-mqtt_probe          ./mqtt_probe/Dockerfile
 build_and_push comodo-setpoint_controller ./setpoint_controller/Dockerfile
+build_and_push comodo-firmware            ./firmware/Dockerfile
