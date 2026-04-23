@@ -248,9 +248,24 @@ class Instrument(BaseInstrument):
                 self.instrument = propar.instrument(device)
             except AttributeError:
                 self.instrument = propar.Instrument(device)
-            # Ensure Control_Mode is set to Bus/RS232 (Value 1)
-            print("Ensuring Mass Flow is in Bus control mode...")
-            write_general(self.instrument, "Control_Mode", 1)
+
+            # Must be in Analog mode (0) — Bus mode (1) rejects RS232 setpoint writes.
+            write_param(self.instrument, 12, 0)
+            mode = read_param(self.instrument, 12)
+            if mode != 0:
+                print(f"WARNING: Control_Mode readback = {mode}, expected 0 (Analog). Setpoint writes may fail.")
+            else:
+                print("Control_Mode confirmed: 0 (Analog)")
+
+            # Slope 0 = immediate response (no ramp)
+            write_param(self.instrument, 10, 0)
+            slope = read_param(self.instrument, 10)
+            if slope != 0:
+                print(f"WARNING: Setpoint_Slope readback = {slope}, expected 0.")
+            else:
+                print("Setpoint_Slope confirmed: 0 (immediate)")
+
+            print(f"Mass flow initialised on {device}")
         except Exception as e:
             print(f"Error initializing propar.Instrument!\n{e}")
             self.instrument = None
@@ -294,12 +309,6 @@ class Instrument(BaseInstrument):
 
         # Convert percentage to instrument scale (0-32000)
         instrument_setpoint = int((setpoint / 100) * 32000)
-        
-        # Double check read back of control mode before writing
-        mode = self.instrument.readParameter(12)
-        if mode != 1:
-            print(f"CRITICAL: Instrument is in Control Mode {mode}, not Bus (1). Re-setting...")
-            self.instrument.writeParameter(12, 1)
 
         result = write_general(
             self.instrument, "Flow_Rate_Setpoint", instrument_setpoint

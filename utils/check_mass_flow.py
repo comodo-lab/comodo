@@ -7,7 +7,7 @@ Usage:
     PORT                Serial port (default: /dev/ttyUSB2)
 
 Options:
-    --set-bus           Force control mode to Bus/RS232 (mode 1)
+    --set-analog        Force control mode to Analog (mode 0) — required for RS232 writes
     --set-slope=N       Write Setpoint_Slope (param 10) to N seconds (0 = immediate)
     --set-flow=N        Write a flow setpoint of N% (0-100), then read back
     --read-all          Read and print all known parameters
@@ -15,10 +15,10 @@ Options:
 Examples:
     python utils/check_mass_flow.py
     python utils/check_mass_flow.py /dev/ttyUSB0
-    python utils/check_mass_flow.py /dev/ttyUSB2 --set-bus
+    python utils/check_mass_flow.py /dev/ttyUSB2 --set-analog
     python utils/check_mass_flow.py /dev/ttyUSB2 --set-slope=0
     python utils/check_mass_flow.py /dev/ttyUSB2 --set-flow=5
-    python utils/check_mass_flow.py /dev/ttyUSB2 --set-bus --set-slope=0 --set-flow=5 --read-all
+    python utils/check_mass_flow.py /dev/ttyUSB2 --set-analog --set-slope=0 --set-flow=5 --read-all
 """
 
 import sys
@@ -100,21 +100,23 @@ def check_control_mode(instrument, force_bus=False):
         return
 
     mode_name = CONTROL_MODES.get(mode, f"Unknown ({mode})")
-    label = "OK  " if mode == 1 else "WARN"
+    # Mode 0 (Analog) accepts RS232 setpoint writes and the valve follows them.
+    # Mode 1 (Bus) rejects setpoint writes on this device. Mode 0 is correct.
+    label = "OK  " if mode == 0 else "WARN"
     print(f"{label} -- Control_Mode = {mode} ({mode_name})")
 
-    if mode != 1:
+    if mode != 0:
         if force_bus:
-            print("      Writing Control_Mode = 1 (Bus)...")
-            ok, result = write_param(instrument, 12, 1)
+            print("      Writing Control_Mode = 0 (Analog)...")
+            ok, result = write_param(instrument, 12, 0)
             readback = read_param(instrument, 12)
-            if ok and readback == 1:
-                print(f"OK   -- Control_Mode set to 1 (Bus/RS232). Readback: {readback}")
+            if ok and readback == 0:
+                print(f"OK   -- Control_Mode set to 0 (Analog). Readback: {readback}")
             else:
                 print(f"FAIL -- Write attempted but readback = {readback}. Result: {result}")
         else:
-            print("      Device is NOT in Bus mode -- setpoint writes will be ignored.")
-            print("      Run with --set-bus to force Bus mode.")
+            print("      NOTE: In Bus mode, setpoint writes are rejected on this device.")
+            print("      Analog mode (0) is the correct operating mode.")
 
 
 def check_flow_state(instrument):
@@ -201,7 +203,7 @@ def main():
         port = args[0]
         args = args[1:]
 
-    force_bus = "--set-bus" in args
+    force_bus = "--set-analog" in args or "--set-bus" in args  # --set-bus kept for compat
     show_all  = "--read-all" in args
 
     target_flow = None
