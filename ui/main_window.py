@@ -83,6 +83,7 @@ def get_experiment_designer(data=[], params=[]):
                     dashGridOptions={
                         "rowSelection": "multiple",
                         "suppressRowClickSelection": True,
+                        "domLayout": "autoHeight",
                     },
                 )
             ]
@@ -193,7 +194,7 @@ def update_figure(data):
     Input("experiment-designer", "cellValueChanged"),
     State("experiment-designer", "rowData"),
 )
-def update_table(cell_change, current_rows):
+def update_designer_table(cell_change, current_rows):
     # Sort the rows by time for presentation and ease of plotting
     sorted_rows = sorted(current_rows, key=lambda r: r.get("time", 0))
     return sorted_rows

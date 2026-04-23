@@ -40,7 +40,7 @@ def get_experiment_config(data=[]):
                     className="ag-theme-alpine",
                     defaultColDef={"editable": True, "resizable": True},
                     columnSize="responsiveSizeToFit",
-                    # dashGridOptions={"rowSelection": "multiple", "suppressRowClickSelection": True},
+                    dashGridOptions={"domLayout": "autoHeight"},
                 )
             ]
         )
@@ -52,7 +52,7 @@ def get_experiment_config(data=[]):
 @callback(
     Output("experiment-config", "rowData"), Input("experiment-config-store", "data")
 )
-def update_table(data):
+def update_config_table(data):
     return data
 
 
@@ -62,5 +62,5 @@ def update_table(data):
     State("experiment-config", "rowData"),
     prevent_initial_call=True,
 )
-def sync_edits_to_store(cell_change, current_rows):
+def sync_config_edits_to_store(cell_change, current_rows):
     return current_rows

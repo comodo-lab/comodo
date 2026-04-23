@@ -39,7 +39,7 @@ def get_instrument_setup(data=[]):
                     className="ag-theme-alpine",
                     defaultColDef={"editable": True, "resizable": True},
                     columnSize="responsiveSizeToFit",
-                    # dashGridOptions={"rowSelection": "multiple", "suppressRowClickSelection": True},
+                    dashGridOptions={"domLayout": "autoHeight"},
                 )
             ]
         )
@@ -49,7 +49,7 @@ def get_instrument_setup(data=[]):
 
 
 @callback(Output("instrument_setup", "rowData"), Input("instrument-store", "data"))
-def update_table(data):
+def update_instrument_table(data):
     return data
 
 
@@ -59,5 +59,5 @@ def update_table(data):
     State("instrument_setup", "rowData"),
     prevent_initial_call=True,
 )
-def sync_edits_to_store(cell_change, current_rows):
+def sync_instrument_edits_to_store(cell_change, current_rows):
     return current_rows

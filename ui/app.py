@@ -2,8 +2,6 @@ from dash import Dash, html, dcc, Input, Output, callback, State, no_update
 from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 
-from dash import Dash, html
-
 import top_matter as tm
 import main_window as mw
 import control_window as cw
@@ -73,20 +71,8 @@ def get_main_window(row_data):
 )
 def update_designer_page(data):
     if data is None:
-        raise PreventUpdate  # Wait for initialization
+        return html.Div("Loading designer...")
     return get_main_window(row_data=data)
-
-
-@app.callback(
-    Output("experiment-designer-store", "data", allow_duplicate=True),
-    Input("url", "pathname"),
-    State("experiment-designer-store", "data"),
-    prevent_initial_call=True,
-)
-def initialize_experiment_store(pathname, current_data):
-    if pathname == "/designer" and not current_data:
-        return INI_DATA_DICT
-    return no_update
 
 
 # ---------------------------------------------------
@@ -105,20 +91,8 @@ def get_instrument_window(row_data):
 )
 def update_instrument_page(data):
     if data is None:
-        raise PreventUpdate  # Wait for initialization
+        return html.Div("Loading instruments...")
     return get_instrument_window(row_data=data)
-
-
-@app.callback(
-    Output("instrument-store", "data", allow_duplicate=True),
-    Input("url", "pathname"),
-    State("instrument-store", "data"),
-    prevent_initial_call=True,
-)
-def initialize_experiment_store(pathname, current_data):
-    if pathname in ("/instrument", "/control") and not current_data:
-        return INI_INSTRUMENT_DICT
-    return no_update
 
 
 # ---------------------------------------------------
@@ -137,20 +111,8 @@ def get_experiment_config_window(row_data):
 )
 def update_experiment_config_page(data):
     if data is None:
-        raise PreventUpdate  # Wait for initialization
+        return html.Div("Loading config...")
     return get_experiment_config_window(row_data=data)
-
-
-@app.callback(
-    Output("experiment-config-store", "data", allow_duplicate=True),
-    Input("url", "pathname"),
-    State("experiment-config-store", "data"),
-    prevent_initial_call=True,
-)
-def initialize_experiment_store(pathname, current_data):
-    if pathname == "/experiment-config" and not current_data:
-        return INI_EXPERIMENT_CONFIG
-    return no_update
 
 
 control_window = cw.get_control_panel(PARAM_DICT)
@@ -163,12 +125,10 @@ wf.register_workflow_callbacks(app)
 
 @app.callback(Output("page-content", "children"), Input("url", "pathname"))
 def render_page(pathname):
-    if pathname in ["/", None]:
-        return dcc.Location(href="/designer", id="redirect")
+    if pathname in ["/", None, "/designer"]:
+        return dcc.Loading(html.Div(id="designer-wrapper"))
     elif pathname == "/instrument":
         return dcc.Loading(html.Div(id="instrument-wrapper"))
-    elif pathname == "/designer":
-        return dcc.Loading(html.Div(id="designer-wrapper"))
     elif pathname == "/metadata":
         return metadata_layout
     elif pathname == "/control":
@@ -190,9 +150,9 @@ app.layout = dbc.Container(
         dcc.Interval(id="interval-short", interval=SHORT_INTERVAL),
         dcc.Location(id="url", refresh=False),
         dcc.Store(id="timezone-store"),
-        dcc.Store(id="experiment-designer-store"),
-        dcc.Store(id="instrument-store"),
-        dcc.Store(id="experiment-config-store"),
+        dcc.Store(id="experiment-designer-store", data=INI_DATA_DICT),
+        dcc.Store(id="instrument-store", data=INI_INSTRUMENT_DICT),
+        dcc.Store(id="experiment-config-store", data=INI_EXPERIMENT_CONFIG),
         html.Div(id="hidden-div", style={"display": "none"}),
         tm.get_header_bar(),
         dbc.Nav(
