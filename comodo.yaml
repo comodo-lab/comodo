@@ -3,119 +3,51 @@ global:
   measurement_interval: 1s
 
 instruments:
-  # furnace_centre:
-  #   firmware: carbolite_gero/tg3
-  #   address: "192.168.111.222:502"
-  #   variables:
-  #     temperature:
-  #       sensor:
-  #         type: float
-  #         min: 0
-  #         max: 1000
-  #         unit: °C
-  #       actuator:
-  #         type: float
-  #         min: 0
-  #         max: 1000
-  #         unit: °C
-  # furnace_left:
-  #   firmware: carbolite_gero/tg3
-  #   address: "192.168.111.224:502"
-  #   variables:
-  #     temperature:
-  #       sensor:
-  #         type: float
-  #         min: 0
-  #         max: 1000
-  #         unit: °C
-  #       actuator:
-  #         type: float
-  #         min: 0
-  #         max: 1000
-  #         unit: °C
-  # furnace_right:
-  #   firmware: carbolite_gero/tg3
-  #   address: "192.168.111.225:502"
-  #   variables:
-  #     temperature:
-  #       sensor:
-  #         type: float
-  #         min: 0
-  #         max: 1000
-  #         unit: °C
-  #       actuator:
-  #         type: float
-  #         min: 0
-  #         max: 1000
-  #         unit: °C
-  # pressure_downstream:
-  #   firmware: pfeiffer/mpt200
-  #   address: "/dev/ttyUSB0"
-  #   variables:
-  #     pressure:
-  #       sensor:
-  #         type: float
-  #         min: 0
-  #         max: 10
-  #         unit: bar
-  # pressure_upstream:
-  #   firmware: pfeiffer/mpt200
-  #   address: "/dev/ttyUSB1"
-  #   measurement_interval: 0.5s
-  #   variables:
-  #     pressure:
-  #       sensor:
-  #         type: float
-  #         min: 0
-  #         max: 10
-  #         unit: bar
-  # mass_flow:
-  #   firmware: bronkhorst/el_flow_select
-  #   address: "/dev/ttyUSB2"
-  #   variables:
-  #     mass_flow:
-  #       sensor:
-  #         type: float
-  #         min: 0
-  #         max: 100
-  #         unit: \%
-  #       actuator:
-  #         type: float
-  #         min: 0
-  #         max: 100
-  #         unit: \%
-  #       setpoint_controller:
-  #         external_sensor: pressure_upstream.pressure
-  #         P: 10.0
-  #         I: 1.0
-  #         D: 0.1
-  #         output_function: "sigma"
-  #     temperature:
-  #       sensor:
-  #         type: float
-  #         min: 0
-  #         max: 100
-  #         unit: °C
-  #     pressure_upstream:
-  #       sensor:
-  #         type: float
-  #         min: 0
-  #         max: 10
-  #         unit: bar
-  #     pressure_downstream:
-  #       sensor:
-  #         type: float
-  #         min: 0
-  #         max: 10
-  #         unit: bar
-  # mass_spec:
-  #   firmware: pfeiffer/prisma_pro
-  #   address: "192.168.1.100"
-  #   variables:
-  #     mass_spec:
-  #       sensor:
-  #         type: array
-
+  furnace_centre:
+    firmware: carbolite_gero/tg3
+    address: "192.168.111.222:502"
+    variables:
+      temperature:
+        sensor:
+          type: float
+          min: 0
+          max: 1000
+          unit: °C
+        actuator:
+          type: float
+          min: 0
+          max: 1000
+          unit: °C
+  furnace_left:
+    firmware: carbolite_gero/tg3
+    address: "192.168.111.224:502"
+    variables:
+      temperature:
+        sensor:
+          type: float
+          min: 0
+          max: 1000
+          unit: °C
+        actuator:
+          type: float
+          min: 0
+          max: 1000
+          unit: °C
+  furnace_right:
+    firmware: carbolite_gero/tg3
+    address: "192.168.111.225:502"
+    variables:
+      temperature:
+        sensor:
+          type: float
+          min: 0
+          max: 1000
+          unit: °C
+        actuator:
+          type: float
+          min: 0
+          max: 1000
+          unit: °C
   pressure_downstream:
     firmware: pfeiffer/mpt200
     address: "/dev/ttyUSB0"
@@ -178,19 +110,13 @@ instruments:
           unit: bar
 
 visualisations:
-  # temperature_graph:
-  #   title: Temperature Control
-  #   type: graph
-  #   y_values:
-  #     - temperature_left
-  #     - temperature_centre
-  #     - temperature_right
-  # gauge_1:
-  #   id: gauge_1
-  #   type: gauge
-  #   value:
-  #     - temperature_centre
-
+  temperature_graph:
+    title: Temperature Control
+    type: graph
+    y_values:
+      - furnace_left/temperature
+      - furnace_centre/temperature
+      - furnace_right/temperature
   pressure_graph:
     title: System Pressure
     type: graph

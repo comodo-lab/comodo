@@ -34,6 +34,7 @@ services:
       DEVICE_ADDRESS: 192.168.111.222
       HEARTBEAT_INTERVAL: 1000
       MEASUREMENT_INTERVAL: 1000
+      TEMPERATURE_SCALE: "10.0"
 
   furnace_left:
     <<: *python-instrument-template
@@ -44,6 +45,7 @@ services:
       DEVICE_ADDRESS: 192.168.111.224
       HEARTBEAT_INTERVAL: 1000
       MEASUREMENT_INTERVAL: 1000
+      TEMPERATURE_SCALE: "1.0"
 
   furnace_right:
     <<: *python-instrument-template
@@ -54,6 +56,7 @@ services:
       DEVICE_ADDRESS: 192.168.111.225
       HEARTBEAT_INTERVAL: 1000
       MEASUREMENT_INTERVAL: 1000
+      TEMPERATURE_SCALE: "1.0"
 
   pressure_downstream:
     <<: *python-instrument-template
