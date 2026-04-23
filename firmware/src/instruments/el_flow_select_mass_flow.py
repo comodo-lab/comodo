@@ -249,10 +249,27 @@ class Instrument(BaseInstrument):
                 self.instrument = propar.instrument(device)
             except AttributeError:
                 self.instrument = propar.Instrument(device)
+            except Exception as inner_e:
+                print(f"Failed to create propar instrument on {device}: {inner_e}")
+                self.instrument = None
+                return
+
+            if self.instrument is None:
+                print(f"propar.instrument({device}) returned None without raising.")
+                return
+
+            # Verify connection by reading a parameter
+            print("Verifying connection to mass flow...")
+            mode = read_parameter(self.instrument, 12)
+            if mode is None or (isinstance(mode, str) and "<ERR" in mode):
+                 print(f"Connection verification failed. Mode read back: {mode}")
+                 self.instrument = None
+                 return
 
             # Must be in Analog mode (0) — Bus mode (1) rejects RS232 setpoint writes.
+            print(f"Current Control_Mode: {mode}. Setting to 0 (Analog)...")
             write_param(self.instrument, 12, 0)
-            mode = read_param(self.instrument, 12)
+            mode = read_parameter(self.instrument, 12)
             if mode != 0:
                 print(f"WARNING: Control_Mode readback = {mode}, expected 0 (Analog). Setpoint writes may fail.")
             else:
@@ -260,7 +277,7 @@ class Instrument(BaseInstrument):
 
             # Slope 0 = immediate response (no ramp)
             write_param(self.instrument, 10, 0)
-            slope = read_param(self.instrument, 10)
+            slope = read_parameter(self.instrument, 10)
             if slope != 0:
                 print(f"WARNING: Setpoint_Slope readback = {slope}, expected 0.")
             else:
@@ -268,7 +285,7 @@ class Instrument(BaseInstrument):
 
             print(f"Mass flow initialised on {device}")
         except Exception as e:
-            print(f"Error initializing propar.Instrument!\n{e}")
+            print(f"Error during mass flow initialization sequence!\n{e}")
             self.instrument = None
 
     def simulate_initialise(self, state):

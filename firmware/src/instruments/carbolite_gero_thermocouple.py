@@ -31,7 +31,8 @@ def read_temperature(host):
             result = register_value.registers
         else:
             raise ValueError(f"Error reading register: {register_value}")
-        return float(result[0])
+        # Divide by 10.0 for 0.1 degree units
+        return float(result[0]) / 10.0
     except Exception as e:
         print(f"Error reading! \n\t {e}")
         return None
@@ -43,8 +44,9 @@ def write_temperature(host, setpoint):
     try:
         if not host.connected:
             host.connect()
+        # Multiply by 10 for 0.1 degree units
         result = host.write_register(
-            address=MODBUS_REGISTER_WRITE_ADDRESS, value=int(setpoint)
+            address=MODBUS_REGISTER_WRITE_ADDRESS, value=int(setpoint * 10)
         )
     except Exception as e:
         print(f"Error writing! \n\t {e}")
