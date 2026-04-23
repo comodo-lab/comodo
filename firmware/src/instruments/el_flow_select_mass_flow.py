@@ -238,12 +238,13 @@ class Instrument(BaseInstrument):
 
     def initialise(self, state):
         try:
-            # Get device address from environment
-            device = os.getenv("DEVICE_ADDRESS", None)
+            # Get device address from state config
+            device = state.config.get("DEVICE_ADDRESS")
             if device is None:
-                print("DEVICE_ADDRESS environment variable not set, using default /dev/ttyUSB2")
+                print("WARNING: DEVICE_ADDRESS not in state.config, falling back to /dev/ttyUSB2")
                 device = "/dev/ttyUSB2"
 
+            print(f"Initializing propar.Instrument on {device}")
             try:
                 self.instrument = propar.instrument(device)
             except AttributeError:

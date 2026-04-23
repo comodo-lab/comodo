@@ -19,7 +19,11 @@ MODBUS_REGISTER_COUNT = 1
 
 
 def read_temperature(host):
+    if host is None:
+        return None
     try:
+        if not host.connected:
+            host.connect()
         register_value = host.read_input_registers(
             address=MODBUS_REGISTER_READ_ADDRESS, count=MODBUS_REGISTER_COUNT
         )
@@ -34,7 +38,11 @@ def read_temperature(host):
 
 
 def write_temperature(host, setpoint):
+    if host is None:
+        return
     try:
+        if not host.connected:
+            host.connect()
         result = host.write_register(
             address=MODBUS_REGISTER_WRITE_ADDRESS, value=int(setpoint)
         )
@@ -49,10 +57,17 @@ class Instrument(BaseInstrument):
 
     def initialise(self, state):
         try:
-            self.clients = ModbusTcpClient(host=state.config["DEVICE_ADDRESS"],
+            addr = state.config["DEVICE_ADDRESS"]
+            print(f"Initializing ModbusTcpClient for {state.config['INSTRUMENT_ID']} at {addr}")
+            self.clients = ModbusTcpClient(host=addr,
                                            port=MODBUS_PORT)
+            if self.clients.connect():
+                print(f"ModbusTcpClient connected to {addr}")
+            else:
+                print(f"WARNING: ModbusTcpClient failed to connect to {addr}")
         except Exception as e:
             print(f"Error initializing ModbusTcpClient!\n{e}")
+            self.clients = None
 
     def simulate_initialise(self, state):
         pass

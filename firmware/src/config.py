@@ -1,9 +1,8 @@
 import sys
-
 import json
 import os
 
-config = {
+DEFAULT_CONFIG = {
     "INSTRUMENT_ID": "No name",
     "FIRMWARE": "None specified",
     "MQTT_USER": "comodo",
@@ -11,7 +10,8 @@ config = {
     "MQTT_HOST": "rabbitmq",
     "HEARTBEAT_INTERVAL": 1000,
     "MEASUREMENT_INTERVAL": 1000,
-    "SIMULATE": True
+    "SIMULATE": False,
+    "DEVICE_ADDRESS": None
 }
 
 def load_config():
@@ -20,11 +20,13 @@ def load_config():
     Returns:
         dict: The configuration object
     """
-    for key, value in config.items():
-        val = os.getenv(key, value)
-        if key == "SIMULATE" and isinstance(val, str):
-            val = val.lower() == "true"
-        config[key] = val
+    config = DEFAULT_CONFIG.copy()
+    for key in config:
+        val = os.getenv(key)
+        if val is not None:
+            if key == "SIMULATE":
+                val = val.lower() == "true"
+            config[key] = val
     
     # Fallback to SIMULATE_SENSORS if SIMULATE is not set or its default
     if os.getenv("SIMULATE_SENSORS"):
