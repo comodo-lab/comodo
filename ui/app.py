@@ -17,7 +17,7 @@ import os
 import random
 
 app = Dash(
-    external_stylesheets=[dbc.themes.LUX],
+    external_stylesheets=[dbc.themes.LUX, dbc.icons.BOOTSTRAP],
     suppress_callback_exceptions=True,
 )
 

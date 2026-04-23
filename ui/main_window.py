@@ -10,6 +10,8 @@ from dash import (
 )
 import dash_bootstrap_components as dbc
 import uuid
+import json
+import base64
 
 import dash_ag_grid as dag
 
@@ -20,7 +22,6 @@ from plot import plot_data_plotly
 
 PROFILES = ["linear", "logarithmic", "exponential", "step"]
 
-# Set by get_experiment_designer on first call; used by callbacks
 _active_params = []
 
 
@@ -82,24 +83,41 @@ def get_experiment_designer(data=[], params=[]):
             [
                 dbc.Col(
                     dbc.Button(
-                        "Add Row",
-                        id=f"{component_id}-add",
-                        n_clicks=0,
-                        color="success",
+                        [html.I(className="bi bi-plus-lg me-1"), "Add Row"],
+                        id=f"{component_id}-add", n_clicks=0, color="success",
                     ),
-                    className="d-grid gap-2",
+                    className="d-grid",
                 ),
                 dbc.Col(
                     dbc.Button(
-                        "Delete Selected",
-                        id=f"{component_id}-delete",
-                        n_clicks=0,
-                        color="danger",
+                        [html.I(className="bi bi-trash me-1"), "Delete"],
+                        id=f"{component_id}-delete", n_clicks=0, color="danger",
                     ),
-                    className="d-grid gap-2",
+                    className="d-grid",
                 ),
-            ]
+                dbc.Col(
+                    dbc.Button(
+                        [html.I(className="bi bi-download me-1"), "Save"],
+                        id="experiment-save", n_clicks=0, color="primary",
+                    ),
+                    className="d-grid",
+                ),
+                dbc.Col(
+                    dcc.Upload(
+                        dbc.Button(
+                            [html.I(className="bi bi-upload me-1"), "Load"],
+                            color="primary", style={"width": "100%"},
+                        ),
+                        id="experiment-load",
+                        accept=".json",
+                        style={"width": "100%"},
+                    ),
+                    className="d-grid",
+                ),
+            ],
+            className="g-2 mt-1",
         ),
+        dcc.Download(id="experiment-download"),
     ]
 
     return html.Div(layout, id="experiment-designer-container")
@@ -157,6 +175,42 @@ def sync_to_store(virtual_rows, _cell_change, row_data):
     if not rows:
         return no_update
     return sorted(rows, key=lambda r: r.get("time", 0))
+
+
+@callback(
+    Output("experiment-download", "data"),
+    Input("experiment-save", "n_clicks"),
+    State("experiment-designer-store", "data"),
+    prevent_initial_call=True,
+)
+def save_experiment(n_clicks, data):
+    if not data:
+        return no_update
+    # Strip internal id fields before export
+    export = [{k: v for k, v in row.items() if k != "id"} for row in data]
+    return dcc.send_string(json.dumps(export, indent=2), "experiment.json")
+
+
+@callback(
+    Output("experiment-designer", "rowData"),
+    Output("experiment-designer-store", "data", allow_duplicate=True),
+    Input("experiment-load", "contents"),
+    prevent_initial_call=True,
+)
+def load_experiment(contents):
+    if not contents:
+        return no_update, no_update
+    try:
+        _, encoded = contents.split(",", 1)
+        decoded = base64.b64decode(encoded).decode("utf-8")
+        rows = json.loads(decoded)
+        if not isinstance(rows, list):
+            return no_update, no_update
+        for row in rows:
+            row["id"] = str(uuid.uuid4())
+        return rows, rows
+    except Exception:
+        return no_update, no_update
 
 
 @callback(
