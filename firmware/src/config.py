@@ -11,7 +11,8 @@ DEFAULT_CONFIG = {
     "HEARTBEAT_INTERVAL": 1000,
     "MEASUREMENT_INTERVAL": 1000,
     "SIMULATE": False,
-    "DEVICE_ADDRESS": None
+    "DEVICE_ADDRESS": None,
+    "TEMPERATURE_SCALE": 1.0
 }
 
 def load_config():

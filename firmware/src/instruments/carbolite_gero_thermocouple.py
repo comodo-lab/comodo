@@ -18,7 +18,7 @@ MODBUS_REGISTER_COUNT = 1
 # Helper functions
 
 
-def read_temperature(host):
+def read_temperature(host, scale=1.0):
     if host is None:
         return None
     try:
@@ -31,22 +31,22 @@ def read_temperature(host):
             result = register_value.registers
         else:
             raise ValueError(f"Error reading register: {register_value}")
-        # Divide by 10.0 for 0.1 degree units
-        return float(result[0]) / 10.0
+        # Scale the reading (e.g. divide by 10.0 for 0.1 degree units)
+        return float(result[0]) / scale
     except Exception as e:
         print(f"Error reading! \n\t {e}")
         return None
 
 
-def write_temperature(host, setpoint):
+def write_temperature(host, setpoint, scale=1.0):
     if host is None:
         return
     try:
         if not host.connected:
             host.connect()
-        # Multiply by 10 for 0.1 degree units
+        # Scale the setpoint (e.g. multiply by 10 for 0.1 degree units)
         result = host.write_register(
-            address=MODBUS_REGISTER_WRITE_ADDRESS, value=int(setpoint * 10)
+            address=MODBUS_REGISTER_WRITE_ADDRESS, value=int(setpoint * scale)
         )
     except Exception as e:
         print(f"Error writing! \n\t {e}")
@@ -56,11 +56,14 @@ def write_temperature(host, setpoint):
 class Instrument(BaseInstrument):
     def __init__(self):
         self.clients = None
+        self.scale = 1.0
 
     def initialise(self, state):
         try:
             addr = state.config["DEVICE_ADDRESS"]
-            print(f"Initializing ModbusTcpClient for {state.config['INSTRUMENT_ID']} at {addr}")
+            # Load scale from environment or state config
+            self.scale = float(state.config.get("TEMPERATURE_SCALE", 1.0))
+            print(f"Initializing ModbusTcpClient for {state.config['INSTRUMENT_ID']} at {addr} with scale {self.scale}")
             self.clients = ModbusTcpClient(host=addr,
                                            port=MODBUS_PORT)
             if self.clients.connect():
@@ -76,7 +79,7 @@ class Instrument(BaseInstrument):
 
     def go_to_setpoint(self, state):
         setpoint = state.status["setpoint"]
-        write_temperature(self.clients, setpoint)
+        write_temperature(self.clients, setpoint, scale=self.scale)
 
     def simulate_go_to_setpoint(self, state):
         pass
@@ -85,7 +88,7 @@ class Instrument(BaseInstrument):
         pass
 
     def get_measurement(self, state):
-        value = read_temperature(self.clients)
+        value = read_temperature(self.clients, scale=self.scale)
         state.measurement = value
 
         measurement = {"temperature": value}
