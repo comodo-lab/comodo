@@ -93,24 +93,27 @@ def c_starting(client, msg, obj):
     # Create list of instruments dicts with expected config values
     obj.instruments = {"configured": False}
     for instrument in obj.exp_config["config"]["instruments"]:
-        obj.instruments[instrument["name"]] = {
+        # Extract base instrument ID (e.g., 'pressure_upstream' from 'pressure_upstream/pressure')
+        instrument_id = instrument["name"].split("/")[0]
+        
+        obj.instruments[instrument_id] = {
             "last_contact": None,
             "config": {k: v for k, v in instrument.items() if k != "name"},
             "status": None,
             "setpoint": None,
         }
+        # Send instrument config to the base instrument ID
+        mqtt.MQTTPublisher.get_instance().publish(
+            f"instrument/{instrument_id}/setup", json.dumps(instrument)
+        )
+        print(f"Instrument configuration sent to {instrument_id}: {json.dumps(instrument)}")
+
     # Update state and callback of controller
     obj.status = "awaiting_instruments"
     client.callback = c_ready
     mqtt.MQTTPublisher.get_instance().publish(
         "timer/start/instrument_setup", json.dumps({"uid": obj.experiment_uid})
     )
-    # Send instrument config
-    for instrument in obj.exp_config["config"]["instruments"]:
-        mqtt.MQTTPublisher.get_instance().publish(
-            f"instrument/{instrument['name']}/setup", json.dumps(instrument)
-        )
-        print(f"Instrument configuration sent: {json.dumps(instrument)}")
 
 
 def c_ready(client, msg, obj):
@@ -178,14 +181,19 @@ def c_running(client, msg, obj):
     obj.current_setpoint = next_setpoint
     print(f"Next setpoint: {next_setpoint}")
     duration = next_setpoint.get("duration")
-    for instrument, setpoint in next_setpoint.items():
-        if instrument == "duration":
+    for full_key, setpoint in next_setpoint.items():
+        if full_key == "duration":
             continue
-        sp = {instrument: setpoint}
+        
+        # Extract base instrument ID (e.g., 'mass_flow' from 'mass_flow/mass_flow')
+        instrument_id = full_key.split("/")[0]
+        
+        sp = {instrument_id: setpoint}
         if duration is not None:
             sp["duration"] = duration
+            
         mqtt.MQTTPublisher.get_instance().publish(
-            f"instrument/{instrument}/setpoint", json.dumps(sp)
+            f"instrument/{instrument_id}/setpoint", json.dumps(sp)
         )
     mqtt.MQTTPublisher.get_instance().publish(
         "timer/start/setpoint",
