@@ -27,9 +27,12 @@ def on_timer_message(client, msg, obj):
     """
     try:
         message = mqtt.load_message(msg)
-        if message["uid"] != obj.experiment_uid:
-            incompatible_uid(obj, msg, source="timer")
-            return
+        # Note: experiment_uid might have changed from UUID to Serial ID (e.g. D26-001)
+        # during the instrument setup phase. 
+        if msg.topic != "timer/done/instrument_setup":
+            if message["uid"] != obj.experiment_uid:
+                incompatible_uid(obj, msg, source="timer")
+                return
     except json.JSONDecodeError as e:
         wrong_json(msg, e)
         return
