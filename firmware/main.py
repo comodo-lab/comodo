@@ -79,13 +79,19 @@ def send_measurement():
 
 async def heartbeat_tick(timer):
     while True:
-        send_heartbeat()
+        try:
+            send_heartbeat()
+        except Exception as e:
+            print(f"Error in heartbeat_tick: {e}")
         await asyncio.sleep(int(state.config["HEARTBEAT_INTERVAL"]) / 1000)
 
 
 async def measurement_tick(timer):
     while True:
-        send_measurement()
+        try:
+            send_measurement()
+        except Exception as e:
+            print(f"Error in measurement_tick: {e}")
         await asyncio.sleep(int(state.config["MEASUREMENT_INTERVAL"]) / 1000)
 
 

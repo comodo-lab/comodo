@@ -115,17 +115,21 @@ def process_response(response):
 def get_pressure(device):
     try:
         with serial.Serial(device, 9600, timeout=1) as ser:
-            ser.write(get_pressure_read_command().encode("ascii"))
+            command = get_pressure_read_command()
+            ser.write(command.encode("ascii"))
             response = ser.read(64)  # Adjust as needed
-            print("Response:", response.decode("ascii", errors="replace"))
+            if not response:
+                print(f"No response from pressure gauge on {device}")
+                return None
+                
+            print(f"Response from {device}:", response.decode("ascii", errors="replace"))
 
             pressure = process_response(response)
             print(f"Pressure is {pressure}")
+            return float(pressure)
     except Exception as e:
-        print(f"An error occurred: {e}")
-        pressure = None
-
-    return float(pressure)
+        print(f"Error reading pressure from {device}: {e}")
+        return None
 
 
 class Instrument(BaseInstrument):
@@ -141,13 +145,16 @@ class Instrument(BaseInstrument):
         pass
 
     def get_measurement(self, state):
-        # Get device address from environment
-        device = os.getenv("DEVICE_ADDRESS", None)
+        # Get device address from state config
+        device = state.config.get("DEVICE_ADDRESS")
         if device is None:
-            print("DEVICE_ADDRESS environment variable not set, using default /dev/ttyUSB0")
+            print("WARNING: DEVICE_ADDRESS not in state.config, falling back to /dev/ttyUSB0")
             device = "/dev/ttyUSB0"
 
         # Get the pressure
         measurement = get_pressure(device)
-        state.measurement = measurement
-        return {"pressure": measurement}
+        if measurement is not None:
+            state.measurement = measurement
+            return {"pressure": measurement}
+        else:
+            return {"pressure": 0.0}

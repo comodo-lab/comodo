@@ -81,7 +81,8 @@ def mqtt_publish_exceptions(name, func):
 
 
 def on_subscribe(client, userdata, mid, reason_code_list, properties):
-    print(f"Client '{userdata.get("id")}' succeded? {reason_code_list} in subscribing.")
+    print(f"Client '{userdata.get('id')}' succeded? {reason_code_list} in subscribing.")
+
     if all(rc <= 2 for rc in reason_code_list):
         print(f"Client '{userdata.get('id')}' successfully subscribed (mid {mid}).")
         userdata["successful_mids"].append(mid)
@@ -98,8 +99,8 @@ def on_subscribe(client, userdata, mid, reason_code_list, properties):
 
 
 def on_connect_fail(client, userdata):
-    print(f"Client '{userdata.get("id")}' failed to connect.")
-    raise RuntimeError(f"Client '{userdata.get("id")}' failed to connect.")
+    print(f"Client '{userdata.get('id')}' failed to connect.")
+    raise RuntimeError(f"Client '{userdata.get('id')}' failed to connect.")
 
 
 def on_connect(client, userdata, flags, rc, properties):
