@@ -53,6 +53,7 @@ class ComodoConfig:
                         "min": sensor.get("min", 0),
                         "max": sensor.get("max", 100),
                         "step": 1,
+                        "default_setpoint": sensor.get("default_setpoint", 0),
                     }
                     self._controllable.append(key)
                     self._param_dicts.append(entry)
@@ -109,7 +110,13 @@ class ComodoConfig:
 
     @property
     def ini_instrument_dict(self):
-        return [{"name": p, "tolerance": 1.0} for p in self._all_controllable]
+        result = []
+        for entry in self._all_param_dicts:
+            item = {"name": entry["name"], "tolerance": 1.0}
+            if "default_setpoint" in entry:
+                item["default_setpoint"] = entry["default_setpoint"]
+            result.append(item)
+        return result
 
     @property
     def ini_experiment_config(self):

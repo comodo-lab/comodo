@@ -3,12 +3,8 @@ import dash_bootstrap_components as dbc
 from dash.exceptions import PreventUpdate
 from utils.influx_query import query_influxdb_params
 from utils.mqtt_clients import MQTTPublisher
-from config_loader import ComodoConfig
 import json
 import pytz
-
-_config = ComodoConfig()
-_default_setpoints = _config.default_setpoints
 
 
 def status_item(item_name):
@@ -107,15 +103,7 @@ def stop_experiment(n_clicks):
         raise PreventUpdate
 
     client = MQTTPublisher.get_instance()
-
-    # Send each actuator to its default setpoint before stopping
-    for inst_id, default_val in _default_setpoints.items():
-        client.publish(
-            f"instrument/{inst_id}/setpoint",
-            json.dumps({inst_id: default_val}),
-        )
-
-    client.publish("controller/stop", json.dumps({"uid": uid}))
+    client.publish("ui/stop", json.dumps({"uid": uid}))
     return None
 
 
