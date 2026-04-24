@@ -12,7 +12,8 @@
               "type": "object",
               "properties": {
                 "name": { "type": "string" },
-                "tolerance": { "type": "number" }
+                "tolerance": { "type": "number" },
+                "default_setpoint": { "type": "number" }
               },
               "required": ["name", "tolerance"]
             }

@@ -3,7 +3,7 @@ import os
 
 from utils import mqtt_clients as mqtt
 
-from src.controller_helper import data_path
+from src.controller_helper import data_path, send_default_setpoints
 from src.error_helper import (
     wrong_json,
     missing_keys,
@@ -60,6 +60,7 @@ def on_ui_message(client, msg, obj):
     else:
         if msg.topic == "ui/stop":
             if uid == obj.experiment_uid:
+                send_default_setpoints(obj)
                 mqtt.MQTTPublisher.get_instance().publish(
                     "controller/stop",
                     json.dumps({"uid": uid}),

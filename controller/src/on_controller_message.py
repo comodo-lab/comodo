@@ -5,7 +5,7 @@ from datetime import datetime
 from utils import mqtt_clients as mqtt
 from utils.interpolation import split_setpoints
 
-from src.controller_helper import assign_serial_id, dump_database_for_experiment
+from src.controller_helper import assign_serial_id, dump_database_for_experiment, send_default_setpoints
 from src.error_helper import (
     incompatible_request,
     incompatible_uid,
@@ -221,6 +221,7 @@ def c_stopping(client, msg, obj):
     if message["uid"] == obj.experiment_uid:
         obj.status = "stopping"
         client.callback = c_stopping
+        send_default_setpoints(obj)
         ### Safe stop placeholder
         t.sleep(1)
         dump_database_for_experiment(obj)

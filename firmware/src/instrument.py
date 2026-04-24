@@ -73,7 +73,8 @@ class BaseInstrument:
         measurement = half_diff + value
         
         distance = abs(measurement - state.status["setpoint"])
-        if distance < state.status["config"]["tolerance"]:
+        tolerance = state.status["config"].get("tolerance")
+        if tolerance is not None and distance < tolerance:
             state.client.publish(f"instrument/{state.config['INSTRUMENT_ID']}/setpoint_reached", "true")
             
         state.measurement = measurement
