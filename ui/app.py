@@ -146,6 +146,8 @@ def render_page(pathname):
 
 app.layout = dbc.Container(
     [
+        dcc.Download(id="experiment-download"),
+        dcc.Store(id="save-trigger", data=0),
         dcc.Interval(id="interval", interval=CONTROL_INTERVAL),
         dcc.Interval(id="interval-long", interval=LONG_INTERVAL),
         dcc.Interval(id="interval-short", interval=SHORT_INTERVAL),

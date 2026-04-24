@@ -98,7 +98,7 @@ def get_experiment_designer(data=[], params=[]):
                 dbc.Col(
                     dbc.Button(
                         [html.I(className="bi bi-download me-1"), "Save"],
-                        id="experiment-save", n_clicks=0, color="primary",
+                        id="experiment-save-designer", n_clicks=0, color="primary",
                     ),
                     className="d-grid",
                 ),
@@ -108,7 +108,7 @@ def get_experiment_designer(data=[], params=[]):
                             [html.I(className="bi bi-upload me-1"), "Load"],
                             color="primary", style={"width": "100%"},
                         ),
-                        id="experiment-load",
+                        id="experiment-load-designer",
                         accept=".json",
                         style={"width": "100%"},
                     ),
@@ -117,7 +117,6 @@ def get_experiment_designer(data=[], params=[]):
             ],
             className="g-2 mt-1",
         ),
-        dcc.Download(id="experiment-download"),
     ]
 
     return html.Div(layout, id="experiment-designer-container")
@@ -178,39 +177,69 @@ def sync_to_store(virtual_rows, _cell_change, row_data):
 
 
 @callback(
-    Output("experiment-download", "data"),
-    Input("experiment-save", "n_clicks"),
-    State("experiment-designer-store", "data"),
+    Output("save-trigger", "data", allow_duplicate=True),
+    Input("experiment-save-designer", "n_clicks"),
     prevent_initial_call=True,
 )
-def save_experiment(n_clicks, data):
-    if not data:
+def trigger_save_designer(n):
+    if not n:
         return no_update
-    # Strip internal id fields before export
-    export = [{k: v for k, v in row.items() if k != "id"} for row in data]
+    return n
+
+
+@callback(
+    Output("experiment-download", "data"),
+    Input("save-trigger", "data"),
+    State("experiment-designer-store", "data"),
+    State("instrument-store", "data"),
+    State("experiment-config-store", "data"),
+    prevent_initial_call=True,
+)
+def save_all(trigger, exp_data, inst_data, cfg_data):
+    export = {
+        "experiment": [{k: v for k, v in row.items() if k != "id"} for row in (exp_data or [])],
+        "instruments": inst_data or [],
+        "config": cfg_data or [],
+    }
     return dcc.send_string(json.dumps(export, indent=2), "experiment.json")
+
+
+def _parse_load(contents):
+    _, encoded = contents.split(",", 1)
+    return json.loads(base64.b64decode(encoded).decode("utf-8"))
 
 
 @callback(
     Output("experiment-designer", "rowData"),
     Output("experiment-designer-store", "data", allow_duplicate=True),
-    Input("experiment-load", "contents"),
+    Output("instrument-store", "data", allow_duplicate=True),
+    Output("experiment-config-store", "data", allow_duplicate=True),
+    Input("experiment-load-designer", "contents"),
     prevent_initial_call=True,
 )
-def load_experiment(contents):
+def load_from_designer(contents):
     if not contents:
-        return no_update, no_update
+        return no_update, no_update, no_update, no_update
     try:
-        _, encoded = contents.split(",", 1)
-        decoded = base64.b64decode(encoded).decode("utf-8")
-        rows = json.loads(decoded)
-        if not isinstance(rows, list):
-            return no_update, no_update
-        for row in rows:
+        loaded = _parse_load(contents)
+        exp_rows, inst_rows, cfg_rows = _split_load(loaded)
+        for row in exp_rows:
             row["id"] = str(uuid.uuid4())
-        return rows, rows
+        return exp_rows, exp_rows, inst_rows, cfg_rows
     except Exception:
-        return no_update, no_update
+        return no_update, no_update, no_update, no_update
+
+
+def _split_load(loaded):
+    if isinstance(loaded, dict):
+        exp = loaded.get("experiment", [])
+        inst = loaded.get("instruments", no_update)
+        cfg = loaded.get("config", no_update)
+    else:
+        exp = loaded if isinstance(loaded, list) else []
+        inst = no_update
+        cfg = no_update
+    return exp, inst, cfg
 
 
 @callback(
