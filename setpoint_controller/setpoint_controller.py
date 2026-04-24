@@ -125,6 +125,9 @@ class SetpointController:
                         f"measurement/{sensor}",
                         # f"sensor/{sensor}/setpoint_reached",
                         f"{self.pid.id}/setup",
+                        "controller/pause",
+                        "controller/stop",
+                        "controller/end",
                     ],
                     broker_address=mqtt_host,
                     user=mqtt_user,
@@ -175,6 +178,17 @@ class SetpointController:
 
         # Extract instrument ID from sensor (e.g., 'pressure_upstream' from 'pressure_upstream/pressure')
         sensor_id = spc.pid.sensor.split("/")[0]
+
+        if msg.topic in ["controller/pause", "controller/stop", "controller/end"]:
+            print(f"PID {spc.pid.id} silenced by {msg.topic}")
+            spc.state["status"] = "no_setpoint"
+            spc.state["setpoint"] = None
+            spc.pid.setpoint = None
+            # Extract instrument ID from actuator (e.g., 'massflow' from 'massflow/massflow')
+            actuator_id = spc.pid.actuator.split("/")[0]
+            # Publish None to stop the actuator if needed (optional, firmware usually holds)
+            # mqtt.MQTTPublisher.get_instance().publish(f"instrument/{actuator_id}/setpoint", json.dumps({actuator_id: None}))
+            return
 
         if msg.topic == f"instrument/{sensor_id}/setpoint":
             setpoint = message.get(sensor_id)

@@ -79,14 +79,17 @@ def on_timer_message(client, msg, obj):
                     json.dumps({"uid": message["uid"]}),
                 )
                 return
-        if obj.status != "stopping":
-            controller_state_incompatible_with_timer(
-                message["uid"], "setpoint", "running", obj.status
-            )
-        else:
+        if obj.status == "paused":
+            # Experiment paused; a new timer will be started on resume
+            return
+        elif obj.status == "stopping":
             mqtt.MQTTPublisher.get_instance().publish(
                 "timer/done/setpoint",
                 json.dumps({"uid": message["uid"], "controller_status": obj.status}),
+            )
+        else:
+            controller_state_incompatible_with_timer(
+                message["uid"], "setpoint", "running", obj.status
             )
     elif msg.topic.startswith("timer/done/"):
         return

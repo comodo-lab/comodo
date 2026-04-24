@@ -15,6 +15,7 @@ class cstate:
         "awaiting_instruments",
         "ready",
         "running",
+        "paused",
         "stopping",
         "error",
     ]

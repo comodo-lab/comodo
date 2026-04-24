@@ -15,13 +15,12 @@ from src.error_helper import (
 def on_ui_message(client, msg, obj):
     """
     Handles the UI messages received by the controller, serving as an interface between the UI and the controller.
-    It expects two types of messages (json formatted):
-    - ui/start: to start an experiment
-        The message should comply with the experiment schema.
-        Can only be actioned if the controller is idle.
-    - ui/stop: to stop the current experiment
-        The message should contain the experiment's uid.
-        Can only be actioned if the controller is not idle and the uid matches the current experiment's uid.
+    Topics handled (json formatted):
+    - ui/start:    Start a new experiment (only when idle)
+    - ui/stop:     Stop the current experiment (any non-idle state)
+    - ui/pause:    Pause a running experiment
+    - ui/resume:   Resume a paused experiment (advances to next scheduled setpoint)
+    - ui/setpoint: Apply a global setpoint override while paused
 
     Args:
         client: The ui MQTT client.
@@ -42,30 +41,63 @@ def on_ui_message(client, msg, obj):
         missing_keys(msg, e)
         return
 
-    if obj.status == "idle":
-        if msg.topic == "ui/start":
-            if not os.path.exists(f"{data_path}/tmp"):
-                os.makedirs(f"{data_path}/tmp")
+    publisher = mqtt.MQTTPublisher.get_instance()
 
-            exp_file = f"{data_path}/tmp/experiment_{uid}.json"
-            with open(exp_file, "w") as f:
-                json.dump(experiment, f)
+    if msg.topic == "ui/start":
+        if obj.status != "idle":
+            incompatible_request(obj, msg)
+            return
+        if not os.path.exists(f"{data_path}/tmp"):
+            os.makedirs(f"{data_path}/tmp")
+        exp_file = f"{data_path}/tmp/experiment_{uid}.json"
+        with open(exp_file, "w") as f:
+            json.dump(experiment, f)
+        publisher.publish("controller/validate", json.dumps({"uid": uid, "file": exp_file}))
 
-            mqtt.MQTTPublisher.get_instance().publish(
-                "controller/validate",
-                json.dumps({"uid": uid, "file": exp_file}),
+    elif msg.topic == "ui/stop":
+        if obj.status == "idle":
+            incompatible_request(obj, msg)
+            return
+        if uid != obj.experiment_uid:
+            incompatible_uid(obj, msg)
+            return
+        send_default_setpoints(obj)
+        publisher.publish("controller/stop", json.dumps({"uid": uid}))
+
+    elif msg.topic == "ui/pause":
+        if obj.status != "running":
+            incompatible_request(obj, msg)
+            return
+        if uid != obj.experiment_uid:
+            incompatible_uid(obj, msg)
+            return
+        publisher.publish("controller/pause", json.dumps({"uid": uid}))
+
+    elif msg.topic == "ui/resume":
+        if obj.status != "paused":
+            incompatible_request(obj, msg)
+            return
+        if uid != obj.experiment_uid:
+            incompatible_uid(obj, msg)
+            return
+        publisher.publish("controller/resume", json.dumps({"uid": uid}))
+
+    elif msg.topic == "ui/setpoint":
+        if obj.status not in ["paused", "idle"]:
+            incompatible_request(obj, msg)
+            return
+        if obj.status == "paused" and uid != obj.experiment_uid:
+            incompatible_uid(obj, msg)
+            return
+        
+        setpoints = experiment.get("setpoints", {})
+        for full_id, value in setpoints.items():
+            # Extract base instrument ID (e.g., 'mass_flow' from 'mass_flow/mass_flow')
+            base_id = full_id.split("/")[0]
+            publisher.publish(
+                f"instrument/{base_id}/setpoint",
+                json.dumps({base_id: value}),
             )
-        else:
-            incompatible_request(obj, msg)
+
     else:
-        if msg.topic == "ui/stop":
-            if uid == obj.experiment_uid:
-                send_default_setpoints(obj)
-                mqtt.MQTTPublisher.get_instance().publish(
-                    "controller/stop",
-                    json.dumps({"uid": uid}),
-                )
-            else:
-                incompatible_uid(obj, msg)
-        else:
-            incompatible_request(obj, msg)
+        incompatible_request(obj, msg)

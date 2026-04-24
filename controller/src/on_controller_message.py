@@ -156,6 +156,14 @@ def c_running(client, msg, obj):
     If there are no more setpoints, the controller updates its state and callback to "stopping",
     and publishes a message to end the experiment.
     """
+    if msg.topic == "controller/pause":
+        payload = mqtt.load_message(msg)
+        if payload.get("uid") == obj.experiment_uid:
+            obj.status = "paused"
+            client.callback = c_paused
+        else:
+            incompatible_uid(obj, msg)
+        return
     if msg.topic != "controller/run":
         if msg.topic == "controller/stop":
             c_stopping(client, msg, obj)
@@ -199,6 +207,30 @@ def c_running(client, msg, obj):
         "timer/start/setpoint",
         json.dumps({"uid": obj.experiment_uid, "duration": next_setpoint["duration"]}),
     )
+
+
+def c_paused(client, msg, obj):
+    """
+    Callback for the controller when the experiment is paused.
+
+    On "controller/resume", advances to the next scheduled setpoint (resumes from queue,
+    not from the time position where the pause occurred).
+    On "controller/stop", delegates to c_stopping.
+    """
+    if msg.topic == "controller/resume":
+        payload = mqtt.load_message(msg)
+        if payload.get("uid") == obj.experiment_uid:
+            obj.status = "running"
+            client.callback = c_running
+            mqtt.MQTTPublisher.get_instance().publish(
+                "controller/run", json.dumps({"uid": obj.experiment_uid})
+            )
+        else:
+            incompatible_uid(obj, msg)
+    elif msg.topic == "controller/stop":
+        c_stopping(client, msg, obj)
+    else:
+        incompatible_request(obj, msg)
 
 
 def c_stopping(client, msg, obj):
