@@ -89,6 +89,26 @@ services:
     volumes:
       - mass_flow_read:/shared
 
+  setpoint-controller:
+    build:
+      context: .
+      dockerfile: setpoint_controller/Dockerfile
+    networks:
+      comodo-firmware:
+      mcfe_mcfe:
+    environment:
+      <<: *mqtt-env
+      HEARTBEAT_INTERVAL: 1000
+      SENSOR: "pressure_upstream/pressure"
+      ACTUATOR: "mass_flow"
+      K_P: 1
+      K_I: 0.1
+      K_D: 0.05
+      K_AW: 0.05
+      K_DF: 0.01
+      OUT_MIN: 0
+      OUT_MAX: 100
+
 networks:
   comodo-firmware:
     name: comodo-firmware
