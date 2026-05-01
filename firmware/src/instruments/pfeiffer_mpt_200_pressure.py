@@ -135,11 +135,25 @@ def get_pressure(device):
 class Instrument(BaseInstrument):
 
     def __init__(self):
-        pass
+        self._simulated_pressure = 0.0
 
     def go_to_setpoint(self, state):
         setpoint = state.status["setpoint"]
         print(f"Setting upstream pressure to {setpoint} - not supported!")
+
+    def simulate_get_measurement(self, state):
+        # Pressure responds to mass_flow: 100% mass_flow -> 10 bar
+        try:
+            with open("/shared/mass_flow_setpoint.txt") as f:
+                mass_flow_pct = float(f.read().strip())
+        except Exception:
+            mass_flow_pct = 0.0
+
+        target_pressure = mass_flow_pct * 0.002  # ~5% flow -> 10 mBar
+        # First-order lag: approach target with tau ~ 10 measurement cycles
+        self._simulated_pressure += (target_pressure - self._simulated_pressure) * 0.1
+        state.measurement = self._simulated_pressure
+        return {"pressure": round(self._simulated_pressure, 4)}
 
     def set_config(self, config):
         pass

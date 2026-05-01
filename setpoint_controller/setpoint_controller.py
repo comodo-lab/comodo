@@ -128,6 +128,7 @@ class SetpointController:
                         "controller/pause",
                         "controller/stop",
                         "controller/end",
+                        "setpoint_controller/override",
                     ],
                     broker_address=mqtt_host,
                     user=mqtt_user,
@@ -147,10 +148,12 @@ class SetpointController:
         # ready
         # awaiting_config
         # Initialise status dictionary
+        self._overridden = False
         self.state = {
             "name": f"pid_{sensor}__{actuator}",
             "status": "no_setpoint",
             "setpoint": None,
+            "overridden": False,
             "config": self.pid.get_config(),
         }
 
@@ -190,6 +193,17 @@ class SetpointController:
             # mqtt.MQTTPublisher.get_instance().publish(f"instrument/{actuator_id}/setpoint", json.dumps({actuator_id: None}))
             return
 
+        if msg.topic == "setpoint_controller/override":
+            override = message.get("override", False)
+            spc._overridden = override
+            spc.state["overridden"] = override
+            spc.state["status"] = "overridden" if override else (
+                "no_setpoint" if spc.pid.setpoint is None else "adjusting"
+            )
+            print(f"PID {spc.pid.id} override: {override}")
+            spc.publish_heartbeat()
+            return
+
         if msg.topic == f"instrument/{sensor_id}/setpoint":
             setpoint = message.get(sensor_id)
             if setpoint is not None:
@@ -202,7 +216,7 @@ class SetpointController:
                 )
             return
         elif msg.topic == f"measurement/{spc.pid.sensor}" or msg.topic.endswith(f"/{spc.pid.sensor}"):
-            if spc.pid.setpoint is not None:
+            if spc.pid.setpoint is not None and not spc._overridden:
                 spc.state["status"] = "adjusting"
                 spc.state["setpoint"] = spc.pid.setpoint
                 setpoint = spc.pid.step(message["value"], spc.pid.setpoint)

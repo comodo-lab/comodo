@@ -76,6 +76,8 @@ services:
       DEVICE_ADDRESS: /dev/ttyUSB0
       HEARTBEAT_INTERVAL: 1000
       MEASUREMENT_INTERVAL: 1000
+    volumes:
+      - mass_flow_read:/shared
 
   mass_flow:
     <<: *python-instrument-template

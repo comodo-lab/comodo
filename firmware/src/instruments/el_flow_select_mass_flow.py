@@ -341,13 +341,18 @@ class Instrument(BaseInstrument):
         )
         return result
 
-    def simulate_go_to_setpoint(self,state):        
-        setpoint =  state.status["setpoint"]
+    def simulate_go_to_setpoint(self, state):
+        setpoint = state.status["setpoint"]
         if not (0 <= setpoint <= 100):
             print("Setpoint must be between 0 and 100%.")
             return None
 
         self.simulated_setpoint = setpoint
+        try:
+            with open("/shared/mass_flow_setpoint.txt", "w") as f:
+                f.write(str(setpoint))
+        except Exception as e:
+            print(f"Warning: could not write mass_flow setpoint to shared volume: {e}")
         print(f"(Simulated) Setting Flow_Rate_Setpoint to {setpoint}%.")
 
     def simulate_get_measurement(self, state):
