@@ -161,28 +161,23 @@ class MMSP:
 
 
 
-class MassSpec(BaseInstrument):
+class Instrument(BaseInstrument):
 
     def __init__(self):
         self.mmsp = None
 
     def initialise(self, state):
-        self.mmsp = MMSP(TARGET_IP_ADDR)
+        device = state.config.get("DEVICE_ADDRESS", TARGET_IP_ADDR)
+        self.mmsp = MMSP(device)
+        self.mmsp.configure()
 
     def simulate_initialise(self, state):
         pass
 
     def set_config(self, config):
-        self.mmsp.configure()
-        return
+        pass
 
     def get_measurement(self, state):
-        """Get the measurement
-
-        Returns:
-            float: A random temperature value for testing purposes
-        """
         scan = self.mmsp.run_and_get_scan()
-
         state.measurement = scan
-        return state.measurement
+        return scan

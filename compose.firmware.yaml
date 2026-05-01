@@ -104,6 +104,16 @@ services:
       OUT_MAX: 100
       # OUT_MAX_R: 10
 
+  mass_spec:
+    <<: *python-instrument-template
+    environment:
+      <<: *instrument-env
+      INSTRUMENT_ID: "mass_spec"
+      FIRMWARE: pfeiffer_prismapro
+      DEVICE_ADDRESS: 192.168.1.100
+      HEARTBEAT_INTERVAL: 1000
+      MEASUREMENT_INTERVAL: 10000
+
   mass_flow:
     <<: *python-instrument-template
     environment:
