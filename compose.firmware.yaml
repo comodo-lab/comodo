@@ -95,10 +95,10 @@ services:
       HEARTBEAT_INTERVAL: 1000
       SENSOR: "pressure_upstream/pressure"
       ACTUATOR: "mass_flow"
-      K_P: 1
-      K_I: 0.1
-      K_D: 0.05
-      K_AW: 0.05
+      K_P: 0.9
+      K_I: 0.05
+      K_D: 0.15
+      K_AW: 0.15
       K_DF: 0.01
       OUT_MIN: 0
       OUT_MAX: 100
