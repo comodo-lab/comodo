@@ -49,6 +49,7 @@ LONG_INTERVAL = 5000  # milliseconds
 config = ComodoConfig()
 PARAMS = config.params
 PARAM_DICT = config.param_dicts
+PID_PAIRS = config.pid_pairs
 INI_EXPERIMENT_CONFIG = config.ini_experiment_config
 INI_DATA_DICT = config.ini_data_dict
 INI_INSTRUMENT_DICT = config.ini_instrument_dict
@@ -116,7 +117,7 @@ def update_experiment_config_page(data):
     return get_experiment_config_window(row_data=data)
 
 
-control_window = cw.get_control_panel(PARAM_DICT)
+control_window = cw.get_control_panel(PARAM_DICT, pid_pairs=PID_PAIRS)
 graph_layout = gv.get_experiment_graph()
 metadata_workflow = wf.get_workflow_layout()
 

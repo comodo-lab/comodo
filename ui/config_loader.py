@@ -24,6 +24,7 @@ class ComodoConfig:
         self._all_controllable = []
         self._param_dicts = []
         self._all_param_dicts = []
+        tracked_instruments = set()  # instrument base IDs already in _all_param_dicts
 
         for inst_name, inst_config in self._instruments.items():
             variables = inst_config.get("variables", {})
@@ -41,8 +42,11 @@ class ComodoConfig:
                     }
                     self._all_controllable.append(key)
                     self._all_param_dicts.append(entry)
+                    tracked_instruments.add(inst_name)
+
+                    # PID-actuators are driven automatically; only direct actuators
+                    # appear in the designer and control panel.
                     if "setpoint_controller" not in var_config:
-                        # Direct actuator — user sets this directly in the designer
                         self._controllable.append(key)
                         self._param_dicts.append(entry)
 
@@ -59,6 +63,19 @@ class ComodoConfig:
                     self._param_dicts.append(entry)
                     self._all_controllable.append(key)
                     self._all_param_dicts.append(entry)
+                    tracked_instruments.add(inst_name)
+
+        # Second pass: instruments with only sensor variables (no actuator, not PID-tracked)
+        # need a setup entry so the controller sends them a config message and they
+        # transition out of awaiting_config. Only one entry per instrument is needed.
+        for inst_name, inst_config in self._instruments.items():
+            if inst_name in tracked_instruments:
+                continue
+            variables = inst_config.get("variables", {})
+            for var_name, var_config in variables.items():
+                if "sensor" in var_config:
+                    self._all_param_dicts.append({"name": f"{inst_name}/{var_name}"})
+                    break  # one entry per instrument is enough for setup
 
     def _find_pid_targets(self):
         targets = set()
@@ -71,6 +88,20 @@ class ComodoConfig:
                     # "pressure_upstream.pressure" -> "pressure_upstream/pressure"
                     targets.add(ref.replace(".", "/"))
         return targets
+
+    @property
+    def pid_pairs(self):
+        """List of {sensor, actuator} dicts for each PID-controlled pair."""
+        pairs = []
+        for inst_name, inst_config in self._instruments.items():
+            variables = inst_config.get("variables", {})
+            for var_name, var_config in variables.items():
+                sc = var_config.get("setpoint_controller")
+                if sc and "external_sensor" in sc:
+                    sensor = sc["external_sensor"].replace(".", "/")
+                    actuator = f"{inst_name}/{var_name}"
+                    pairs.append({"sensor": sensor, "actuator": actuator})
+        return pairs
 
     @property
     def params(self):

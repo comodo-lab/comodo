@@ -19,8 +19,11 @@ from utils.mqtt_clients import MQTTPublisher
 from utils.influx_query import query_influxdb_params
 
 
-def get_control_panel(params=[]):
-    card_cols = [dbc.Col(get_instrument_card(p), md=4, sm=6) for p in params]
+def get_control_panel(params=[], pid_pairs=[]):
+    pid_sensor_names = {pair["sensor"] for pair in pid_pairs}
+    regular_params = [p for p in params if p["name"] not in pid_sensor_names]
+    card_cols = [dbc.Col(get_instrument_card(p), md=4, sm=6) for p in regular_params]
+    pid_card_cols = [dbc.Col(get_pid_card(pair, params), md=6) for pair in pid_pairs]
 
     return dbc.Container(
         [
@@ -81,6 +84,7 @@ def get_control_panel(params=[]):
                 id="override-hint",
                 className="text-muted mt-2 small",
             ),
+            dbc.Row(pid_card_cols, className="g-3 mt-1") if pid_pairs else html.Div(),
         ],
         fluid=True,
     )
@@ -88,7 +92,7 @@ def get_control_panel(params=[]):
 
 def get_instrument_card(param):
     name = param["name"]
-    label = " ".join(w.capitalize() for w in name.split("_"))
+    label = " ".join(w.capitalize() for w in name.replace("/", " ").split("_"))
     return dbc.Card(
         [
             dbc.CardHeader(html.Strong(label)),
@@ -119,6 +123,115 @@ def get_instrument_card(param):
                         max=param.get("max", 100),
                         step=param.get("step", 1),
                         placeholder="Override value…",
+                    ),
+                ]
+            ),
+        ]
+    )
+
+
+def get_pid_card(pair, all_params=[]):
+    sensor = pair["sensor"]    # e.g. "pressure_upstream/pressure"
+    actuator = pair["actuator"]  # e.g. "mass_flow/mass_flow"
+
+    sensor_label = sensor.split("/")[0].replace("_", " ").title()
+    actuator_label = actuator.split("/")[0].replace("_", " ").title()
+
+    sensor_param = next((p for p in all_params if p["name"] == sensor), {})
+    actuator_param = next((p for p in all_params if p["name"] == actuator), {})
+
+    return dbc.Card(
+        [
+            dbc.CardHeader(
+                dbc.Row(
+                    [
+                        dbc.Col(html.Strong(f"PID: {sensor_label} → {actuator_label}"), width="auto"),
+                        dbc.Col(
+                            dbc.Switch(
+                                id={"type": "pid-override-switch", "index": sensor},
+                                label="Override PID",
+                                value=False,
+                                className="mb-0",
+                            ),
+                            className="ms-auto d-flex align-items-center",
+                            width="auto",
+                        ),
+                    ],
+                    align="center",
+                )
+            ),
+            dbc.CardBody(
+                [
+                    dbc.Row(
+                        [
+                            dbc.Col(
+                                [
+                                    html.Small(f"{sensor_label} (sensor)", className="text-muted d-block"),
+                                    dbc.Row([
+                                        dbc.Col([
+                                            html.Small("Current", className="text-muted d-block"),
+                                            html.H4("—", id={"type": "live-value", "index": sensor}),
+                                        ]),
+                                        dbc.Col([
+                                            html.Small("Setpoint", className="text-muted d-block"),
+                                            html.H4("—", id={"type": "live-setpoint", "index": sensor}),
+                                        ]),
+                                    ]),
+                                    html.Hr(className="my-2"),
+                                    html.Small("PID target", className="text-muted d-block mb-1"),
+                                    dbc.Input(
+                                        id={"type": "manual-input", "index": sensor},
+                                        type="number",
+                                        min=sensor_param.get("min", 0),
+                                        max=sensor_param.get("max", 100),
+                                        step=sensor_param.get("step", 1),
+                                        placeholder=f"Set {sensor_label} target…",
+                                    ),
+                                ]
+                            ),
+                            dbc.Col(
+                                [
+                                    html.Small(f"{actuator_label} (actuator)", className="text-muted d-block"),
+                                    dbc.Row([
+                                        dbc.Col([
+                                            html.Small("Current", className="text-muted d-block"),
+                                            html.H4("—", id={"type": "live-value", "index": actuator}),
+                                        ]),
+                                        dbc.Col([
+                                            html.Small("PID Output", className="text-muted d-block"),
+                                            html.H4("—", id={"type": "live-setpoint", "index": actuator}),
+                                        ]),
+                                    ]),
+                                ]
+                            ),
+                        ],
+                        className="mb-2",
+                    ),
+                    html.Hr(className="my-2"),
+                    dbc.Collapse(
+                        [
+                            html.Small("Manual actuator setpoint (PID disabled)", className="text-muted d-block mb-1"),
+                            dbc.InputGroup(
+                                [
+                                    dbc.Input(
+                                        id={"type": "pid-manual-input", "index": actuator},
+                                        type="number",
+                                        min=actuator_param.get("min", 0),
+                                        max=actuator_param.get("max", 100),
+                                        step=actuator_param.get("step", 1),
+                                        placeholder=f"Manual {actuator_label} value…",
+                                    ),
+                                    dbc.Button(
+                                        "Apply",
+                                        id={"type": "pid-override-apply", "index": actuator},
+                                        color="warning",
+                                        n_clicks=0,
+                                    ),
+                                ]
+                            ),
+                        ],
+                        id={"type": "pid-override-collapse", "index": sensor},
+                        is_open=False,
                     ),
                 ]
             ),
@@ -164,10 +277,12 @@ def start_experiment(n_clicks, table_data, instruments, exp_config):
     Output("override-wrapper", "style"),
     Output("override-hint", "children"),
     Output("submit-experiment", "disabled"),
+    Output({"type": "pid-override-switch", "index": ALL}, "value"),
     Input("interval", "n_intervals"),
+    State({"type": "pid-override-switch", "index": ALL}, "value"),
     prevent_initial_call=True,
 )
-def update_control_state(n_intervals):
+def update_control_state(n_intervals, pid_switch_values):
     disabled_style = {"pointerEvents": "none", "opacity": "0.65"}
     enabled_style = {}
     pause_btn = [html.I(className="bi bi-pause-fill me-1"), "Pause"]
@@ -188,6 +303,7 @@ def update_control_state(n_intervals):
             pause_btn, "warning", True,
             True, disabled_style, hint_inactive,
             False,
+            [no_update] * len(pid_switch_values),
         )
 
     status_map = {
@@ -217,11 +333,15 @@ def update_control_state(n_intervals):
     hint = hint_active if (is_paused or is_idle) else hint_inactive
     submit_disabled = not is_idle
 
+    # Reset PID override switches when idle (experiment ended); leave them alone otherwise
+    pid_switches = [False] * len(pid_switch_values) if is_idle else [no_update] * len(pid_switch_values)
+
     return (
         badge_text, badge_color,
         btn_label, btn_color, btn_disabled,
         override_disabled, wrapper_style, hint,
         submit_disabled,
+        pid_switches,
     )
 
 
@@ -235,10 +355,8 @@ def update_control_state(n_intervals):
 def update_live_readings(n_intervals, component_id):
     name = component_id["index"]
     try:
-        # name is "instrument_id/variable_name"
         base_id = name.split("/")[0]
-        
-        # Setpoint is published to instrument/{base_id}/setpoint with field {base_id}
+
         setpoint_results = query_influxdb_params(
             fields=[base_id],
             topics=[f"instrument/{base_id}/setpoint"],
@@ -246,8 +364,7 @@ def update_live_readings(n_intervals, component_id):
             aggregate="last",
         )
         setpoint = setpoint_results[-1].get_value() if setpoint_results else None
-        
-        # Measurement is published to measurement/{base_id}/{variable} with field "value"
+
         actual_results = query_influxdb_params(
             fields=["value"],
             topics=[f"measurement/{name}"],
@@ -255,15 +372,15 @@ def update_live_readings(n_intervals, component_id):
             aggregate="last",
         )
         actual = actual_results[-1].get_value() if actual_results else None
-        
+
         if not actual_results and n_intervals % 5 == 0:
-             print(f"DEBUG: No actual results found in InfluxDB for measurement/{name} in the last 1m")
+            print(f"DEBUG: No actual results for measurement/{name}")
         if not setpoint_results and n_intervals % 5 == 0:
-             print(f"DEBUG: No setpoint results found in InfluxDB for instrument/{base_id}/setpoint in the last 1m")
+            print(f"DEBUG: No setpoint results for instrument/{base_id}/setpoint")
 
         setpoint_display = f"{setpoint:.3g}" if setpoint is not None else "—"
         actual_display = f"{actual:.3g}" if actual is not None else "—"
-        
+
         return actual_display, setpoint_display
     except Exception as e:
         print(f"ERROR in update_live_readings for {name}: {e}")
@@ -338,3 +455,41 @@ def apply_override(n_clicks, values, input_ids):
         "ui/setpoint", json.dumps({"uid": uid, "setpoints": setpoints})
     )
     return None
+
+
+@callback(
+    Output({"type": "pid-override-collapse", "index": MATCH}, "is_open"),
+    Input({"type": "pid-override-switch", "index": MATCH}, "value"),
+    prevent_initial_call=True,
+)
+def toggle_pid_override(override_on):
+    MQTTPublisher.get_instance().publish(
+        "setpoint_controller/override",
+        json.dumps({"override": override_on}),
+    )
+    return override_on
+
+
+@callback(
+    Output("hidden-div", "children", allow_duplicate=True),
+    Input({"type": "pid-override-apply", "index": ALL}, "n_clicks"),
+    State({"type": "pid-manual-input", "index": ALL}, "value"),
+    State({"type": "pid-override-apply", "index": ALL}, "id"),
+    prevent_initial_call=True,
+)
+def apply_pid_override(n_clicks_list, values, btn_ids):
+    triggered = ctx.triggered_id
+    if not triggered or not any(n_clicks_list):
+        raise PreventUpdate
+    idx = triggered.get("index")
+    for val, btn_id in zip(values, btn_ids):
+        if btn_id["index"] == idx:
+            if val is None:
+                raise PreventUpdate
+            base_id = idx.split("/")[0]
+            MQTTPublisher.get_instance().publish(
+                f"instrument/{base_id}/setpoint",
+                json.dumps({base_id: val}),
+            )
+            return None
+    raise PreventUpdate

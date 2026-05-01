@@ -187,10 +187,9 @@ class SetpointController:
             spc.state["status"] = "no_setpoint"
             spc.state["setpoint"] = None
             spc.pid.setpoint = None
-            # Extract instrument ID from actuator (e.g., 'massflow' from 'massflow/massflow')
-            actuator_id = spc.pid.actuator.split("/")[0]
-            # Publish None to stop the actuator if needed (optional, firmware usually holds)
-            # mqtt.MQTTPublisher.get_instance().publish(f"instrument/{actuator_id}/setpoint", json.dumps({actuator_id: None}))
+            if msg.topic in ["controller/stop", "controller/end"]:
+                spc._overridden = False
+                spc.state["overridden"] = False
             return
 
         if msg.topic == "setpoint_controller/override":
