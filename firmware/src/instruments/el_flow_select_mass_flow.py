@@ -245,9 +245,9 @@ def read_all(instrument):
     """
     data = {}
     for channel, info in PARAMETER_MAPPING.items():
-        if 'R' in info['access']:
+        if "R" in info["access"]:
             value = read_parameter(instrument, int(channel))
-            data[info['name']] = value
+            data[info["name"]] = value
     return data
 
 
@@ -266,7 +266,9 @@ class Instrument(BaseInstrument):
             # Get device address from environment
             device = os.getenv("DEVICE_ADDRESS", None)
             if device is None:
-                print("DEVICE_ADDRESS environment variable not set, using default /dev/ttyUSB2")
+                print(
+                    "DEVICE_ADDRESS environment variable not set, using default /dev/ttyUSB2"
+                )
                 device = "/dev/ttyUSB2"
 
             self.instrument = propar.instrument(device)
@@ -290,7 +292,7 @@ class Instrument(BaseInstrument):
             print("Instrument not initialized.")
             return None
 
-        setpoint =  state.status["setpoint"]
+        setpoint = state.status["setpoint"]
         if not (0 <= setpoint <= 100):
             print("Setpoint must be between 0 and 100%.")
             return None
@@ -309,8 +311,8 @@ class Instrument(BaseInstrument):
         )
         return result
 
-    def simulate_go_to_setpoint(self,state):        
-        setpoint =  state.status["setpoint"]
+    def simulate_go_to_setpoint(self, state):
+        setpoint = state.status["setpoint"]
         if not (0 <= setpoint <= 100):
             print("Setpoint must be between 0 and 100%.")
             return None
@@ -325,4 +327,4 @@ class Instrument(BaseInstrument):
         elif self.simulated_measurement > self.simulated_setpoint:
             self.simulated_measurement -= 0.1
         state.measurement = self.simulated_measurement
-        return self.simulated_measurement 
+        return self.simulated_measurement
