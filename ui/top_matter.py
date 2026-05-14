@@ -1,9 +1,6 @@
 from dash import html, callback, Output, Input, State
 import dash_bootstrap_components as dbc
-from dash.exceptions import PreventUpdate
 from utils.influx_query import query_influxdb_params
-from utils.mqtt_clients import MQTTPublisher
-import json
 import pytz
 
 
@@ -44,13 +41,6 @@ def get_header_bar():
                     dbc.CardBody(
                         [
                             html.H1("Comodo Lab", className="card-title"),
-                            dbc.Button(
-                                [html.I(className="bi bi-stop-circle me-1"), "Stop Experiment"],
-                                id="stop-experiment-btn",
-                                color="danger",
-                                n_clicks=0,
-                                className="mt-2",
-                            ),
                         ]
                     ),
                 ],
@@ -80,34 +70,6 @@ def get_header_bar():
 
 
 @callback(
-    Output("hidden-div", "children", allow_duplicate=True),
-    Input("stop-experiment-btn", "n_clicks"),
-    prevent_initial_call=True,
-)
-def stop_experiment(n_clicks):
-    try:
-        result = query_influxdb_params(
-            fields=["experiment"],
-            topics=["heartbeat/controller"],
-            start="-1m",
-            aggregate="last",
-        )
-        if not result:
-            raise PreventUpdate
-        uid = result[-1].get_value()
-        if not uid:
-            raise PreventUpdate
-    except PreventUpdate:
-        raise
-    except Exception:
-        raise PreventUpdate
-
-    client = MQTTPublisher.get_instance()
-    client.publish("ui/stop", json.dumps({"uid": uid}))
-    return None
-
-
-@callback(
     Output("controller_status-title", "children"),
     Output("controller_status", "color"),
     Output("controller_status-time", "children"),
@@ -119,9 +81,6 @@ def update_header_status(n_intervals, timezone):
     """
     Updates the header bar with the latest status.
     """
-    if timezone is None:
-        return "Unknown Status", "primary", None
-
     user_tz = pytz.timezone(timezone)
 
     try:
@@ -170,9 +129,6 @@ def update_header_id(n_intervals, timezone):
     """
     Updates the header bar with the latest experiment ID.
     """
-    if timezone is None:
-        return "Awaiting Experiment", "primary", None
-
     user_tz = pytz.timezone(timezone)
 
     try:
@@ -203,17 +159,17 @@ def update_header_id(n_intervals, timezone):
     State("timezone-store", "data"),
     prevent_initial_call=True,
 )
-def update_adjusting_status(n_intervals, instruments, timezone):
+def update_header_id(n_intervals, instruments, timezone):
     """
     Updates the header bar with the variables currently being adjusted.
     """
-    if timezone is None or instruments is None:
-        return "None Adjusting", "primary", None
-
     user_tz = pytz.timezone(timezone)
     time = pytz.datetime.datetime.now(user_tz).strftime("%Y-%m-%d %H:%M:%S")
 
     adjusting = []
+
+    if instruments is None:
+        return "None Adjusting", "primary", time
 
     print(f"Checking state of {len(instruments)} instruments...")
     for instrument in instruments:

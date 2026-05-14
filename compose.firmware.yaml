@@ -5,7 +5,7 @@ x-templates:
     MQTT_PASS: ${MQTT_PASS}
   instrument-env: &instrument-env
     <<: *mqtt-env
-    SIMULATE: ${SIMULATE_SENSORS:-false}
+    SIMULATE: ${SIMULATE_INSTRUMENTS:-false}
   python-instrument-template: &python-instrument-template
     build:
       context: .
@@ -19,22 +19,21 @@ x-templates:
 name: comodo-firmware
 services:
   mqtt-probe-firmware:
-    image: williamjsmith15/comodo-mqtt_probe:latest
+    image: comodolab/comodo-mqtt_probe:latest
     environment:
       <<: *mqtt-env
     networks:
       comodo-firmware:
 
-  furnace_centre:
+  furnace:
     <<: *python-instrument-template
     environment:
       <<: *instrument-env
-      INSTRUMENT_ID: "furnace_centre"
+      INSTRUMENT_ID: "furnace"
       FIRMWARE: carbolite_gero_thermocouple
       DEVICE_ADDRESS: 192.168.111.222
       HEARTBEAT_INTERVAL: 1000
       MEASUREMENT_INTERVAL: 1000
-      TEMPERATURE_SCALE: "10.0"
 
   furnace_left:
     <<: *python-instrument-template
@@ -45,7 +44,6 @@ services:
       DEVICE_ADDRESS: 192.168.111.224
       HEARTBEAT_INTERVAL: 1000
       MEASUREMENT_INTERVAL: 1000
-      TEMPERATURE_SCALE: "1.0"
 
   furnace_right:
     <<: *python-instrument-template
@@ -56,7 +54,7 @@ services:
       DEVICE_ADDRESS: 192.168.111.225
       HEARTBEAT_INTERVAL: 1000
       MEASUREMENT_INTERVAL: 1000
-      TEMPERATURE_SCALE: "1.0"
+
 
   pressure_downstream:
     <<: *python-instrument-template
@@ -66,9 +64,9 @@ services:
       FIRMWARE: pfeiffer_mpt_200_pressure
       HEARTBEAT_INTERVAL: 1000
       MEASUREMENT_INTERVAL: 1000
-      DEVICE_ADDRESS: /dev/ttyUSB1
+      DEVICE_ADDRESS: /dev/ttyUSB0
     devices:
-      - "/dev/ttyUSB1:/dev/ttyUSB1"
+      - "/dev/ttyUSB0:/dev/ttyUSB0"
     privileged: true
 
   pressure_upstream:
@@ -81,7 +79,7 @@ services:
       HEARTBEAT_INTERVAL: 1000
       MEASUREMENT_INTERVAL: 1000
     devices:
-      - "/dev/ttyUSB0:/dev/ttyUSB0"
+      - "/dev/ttyUSB1:/dev/ttyUSB1"
     privileged: true
 
   setpoint-controller:
@@ -94,31 +92,21 @@ services:
       <<: *mqtt-env
       HEARTBEAT_INTERVAL: 1000
       SENSOR: "pressure_upstream/pressure"
-      ACTUATOR: "mass_flow"
-      K_P: 0.9
-      K_I: 0.05
-      K_D: 0.15
-      K_AW: 0.15
+      ACTUATOR: "massflow/massflow"
+      K_P: 1
+      K_I: 0.1
+      K_D: 0.05
+      K_AW: 0.05
       K_DF: 0.01
       OUT_MIN: 0
       OUT_MAX: 100
       # OUT_MAX_R: 10
 
-  mass_spec:
+  massflow:
     <<: *python-instrument-template
     environment:
       <<: *instrument-env
-      INSTRUMENT_ID: "mass_spec"
-      FIRMWARE: pfeiffer_prismapro
-      DEVICE_ADDRESS: 192.168.1.100
-      HEARTBEAT_INTERVAL: 1000
-      MEASUREMENT_INTERVAL: 10000
-
-  mass_flow:
-    <<: *python-instrument-template
-    environment:
-      <<: *instrument-env
-      INSTRUMENT_ID: "mass_flow"
+      INSTRUMENT_ID: "massflow"
       FIRMWARE: el_flow_select_mass_flow
       DEVICE_ADDRESS: /dev/ttyUSB2
       HEARTBEAT_INTERVAL: 1000
@@ -127,11 +115,11 @@ services:
       - "/dev/ttyUSB2:/dev/ttyUSB2"
     privileged: true 
     volumes:
-      - mass_flow_read:/shared
+      - massflow_read:/shared
 
 networks:
   comodo-firmware:
     name: comodo-firmware
 
 volumes:
-  mass_flow_read:
+  massflow_read:

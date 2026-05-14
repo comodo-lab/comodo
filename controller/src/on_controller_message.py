@@ -5,7 +5,7 @@ from datetime import datetime
 from utils import mqtt_clients as mqtt
 from utils.interpolation import split_setpoints
 
-from src.controller_helper import assign_serial_id, dump_database_for_experiment, send_default_setpoints
+from src.controller_helper import assign_serial_id, dump_database_for_experiment
 from src.error_helper import (
     incompatible_request,
     incompatible_uid,
@@ -93,27 +93,24 @@ def c_starting(client, msg, obj):
     # Create list of instruments dicts with expected config values
     obj.instruments = {"configured": False}
     for instrument in obj.exp_config["config"]["instruments"]:
-        # Extract base instrument ID (e.g., 'pressure_upstream' from 'pressure_upstream/pressure')
-        instrument_id = instrument["name"].split("/")[0]
-        
-        obj.instruments[instrument_id] = {
+        obj.instruments[instrument["name"]] = {
             "last_contact": None,
             "config": {k: v for k, v in instrument.items() if k != "name"},
             "status": None,
             "setpoint": None,
         }
-        # Send instrument config to the base instrument ID
-        mqtt.MQTTPublisher.get_instance().publish(
-            f"instrument/{instrument_id}/setup", json.dumps(instrument)
-        )
-        print(f"Instrument configuration sent to {instrument_id}: {json.dumps(instrument)}")
-
     # Update state and callback of controller
     obj.status = "awaiting_instruments"
     client.callback = c_ready
     mqtt.MQTTPublisher.get_instance().publish(
         "timer/start/instrument_setup", json.dumps({"uid": obj.experiment_uid})
     )
+    # Send instrument config
+    for instrument in obj.exp_config["config"]["instruments"]:
+        mqtt.MQTTPublisher.get_instance().publish(
+            f"instrument/{instrument['name']}/setup", json.dumps(instrument)
+        )
+        print(f"Instrument configuration sent: {json.dumps(instrument)}")
 
 
 def c_ready(client, msg, obj):
@@ -156,14 +153,6 @@ def c_running(client, msg, obj):
     If there are no more setpoints, the controller updates its state and callback to "stopping",
     and publishes a message to end the experiment.
     """
-    if msg.topic == "controller/pause":
-        payload = mqtt.load_message(msg)
-        if payload.get("uid") == obj.experiment_uid:
-            obj.status = "paused"
-            client.callback = c_paused
-        else:
-            incompatible_uid(obj, msg)
-        return
     if msg.topic != "controller/run":
         if msg.topic == "controller/stop":
             c_stopping(client, msg, obj)
@@ -189,48 +178,19 @@ def c_running(client, msg, obj):
     obj.current_setpoint = next_setpoint
     print(f"Next setpoint: {next_setpoint}")
     duration = next_setpoint.get("duration")
-    for full_key, setpoint in next_setpoint.items():
-        if full_key == "duration":
+    for instrument, setpoint in next_setpoint.items():
+        if instrument == "duration":
             continue
-        
-        # Extract base instrument ID (e.g., 'mass_flow' from 'mass_flow/mass_flow')
-        instrument_id = full_key.split("/")[0]
-        
-        sp = {instrument_id: setpoint}
+        sp = {instrument: setpoint}
         if duration is not None:
             sp["duration"] = duration
-            
         mqtt.MQTTPublisher.get_instance().publish(
-            f"instrument/{instrument_id}/setpoint", json.dumps(sp)
+            f"instrument/{instrument}/setpoint", json.dumps(sp)
         )
     mqtt.MQTTPublisher.get_instance().publish(
         "timer/start/setpoint",
         json.dumps({"uid": obj.experiment_uid, "duration": next_setpoint["duration"]}),
     )
-
-
-def c_paused(client, msg, obj):
-    """
-    Callback for the controller when the experiment is paused.
-
-    On "controller/resume", advances to the next scheduled setpoint (resumes from queue,
-    not from the time position where the pause occurred).
-    On "controller/stop", delegates to c_stopping.
-    """
-    if msg.topic == "controller/resume":
-        payload = mqtt.load_message(msg)
-        if payload.get("uid") == obj.experiment_uid:
-            obj.status = "running"
-            client.callback = c_running
-            mqtt.MQTTPublisher.get_instance().publish(
-                "controller/run", json.dumps({"uid": obj.experiment_uid})
-            )
-        else:
-            incompatible_uid(obj, msg)
-    elif msg.topic == "controller/stop":
-        c_stopping(client, msg, obj)
-    else:
-        incompatible_request(obj, msg)
 
 
 def c_stopping(client, msg, obj):
@@ -253,7 +213,6 @@ def c_stopping(client, msg, obj):
     if message["uid"] == obj.experiment_uid:
         obj.status = "stopping"
         client.callback = c_stopping
-        send_default_setpoints(obj)
         ### Safe stop placeholder
         t.sleep(1)
         dump_database_for_experiment(obj)

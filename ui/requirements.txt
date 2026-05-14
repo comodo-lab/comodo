@@ -1,11 +1,11 @@
 matplotlib
 paho-mqtt
 
-dash==3.3.0
+dash
 pandas
-dash-bootstrap-components==2.0.4
-pyyaml
-dash-ag-grid==32.3.4
+dash-bootstrap-components
+# pyyaml
+dash-ag-grid
 dash-daq
 dash-cytoscape
 numpy

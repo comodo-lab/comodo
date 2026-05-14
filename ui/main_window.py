@@ -1,4 +1,6 @@
 from dash import (
+    Dash,
+    dash_table,
     html,
     dcc,
     callback,
@@ -9,37 +11,45 @@ from dash import (
     ctx,
 )
 import dash_bootstrap_components as dbc
+import plotly.express as px
 import uuid
-import json
-import base64
 
 import dash_ag_grid as dag
 
+import pandas as pd
 import plotly.graph_objects as go
 
 from plot import plot_data_plotly
 
-
 PROFILES = ["linear", "logarithmic", "exponential", "step"]
 
-_active_params = []
+# Params to actuate
+PARAMS = [
+    "furnace/temperature",
+    "pressure_downstream/pressure",
+    "pressure_upsteam/pressure",
+    "massflow/massflow",
+]
 
 
-def get_experiment_designer(data=[], params=[]):
-    global _active_params
-    _active_params = params
-
+def get_experiment_designer(data=[]):
+    """
+    Creates a dash-ag-grid component for experimental control data with
+    editing, dropdowns, and row add/delete support.
+    """
     component_id = "experiment-designer"
 
+    # Build column list
     columns = ["time"]
-    for col in params:
+    for col in PARAMS:
         columns.append(col)
         columns.append(f"{col}_profile")
 
+    # Ensure each row has a unique ID
     for row in data:
-        if "id" not in row:
-            row["id"] = str(uuid.uuid4())
+        row["id"] = str(uuid.uuid4())
 
+    # Construct column definitions
     column_dicts = [
         {"headerName": " ".join(w.capitalize() for w in col.split("_")), "field": col}
         for col in columns
@@ -57,8 +67,10 @@ def get_experiment_designer(data=[], params=[]):
                 }
             )
 
+    # Prepend ID field (hidden)
     column_dicts.insert(0, {"field": "id", "hide": True})
 
+    # Layout with add/delete buttons and state
     layout = [
         dbc.Row(
             [
@@ -69,53 +81,45 @@ def get_experiment_designer(data=[], params=[]):
                     className="ag-theme-alpine",
                     defaultColDef={"editable": True, "resizable": True},
                     columnSize="responsiveSizeToFit",
-                    getRowId="params.data.id",
                     dashGridOptions={
                         "rowSelection": "multiple",
                         "suppressRowClickSelection": True,
-                        "domLayout": "autoHeight",
                     },
                 )
             ]
         ),
         html.Hr(),
-        dbc.Row(
+        html.Div(
             [
-                dbc.Col(
-                    dbc.Button(
-                        [html.I(className="bi bi-plus-lg me-1"), "Add Row"],
-                        id=f"{component_id}-add", n_clicks=0, color="success",
-                    ),
-                    className="d-grid",
-                ),
-                dbc.Col(
-                    dbc.Button(
-                        [html.I(className="bi bi-trash me-1"), "Delete"],
-                        id=f"{component_id}-delete", n_clicks=0, color="danger",
-                    ),
-                    className="d-grid",
-                ),
-                dbc.Col(
-                    dbc.Button(
-                        [html.I(className="bi bi-download me-1"), "Save"],
-                        id="experiment-save-designer", n_clicks=0, color="primary",
-                    ),
-                    className="d-grid",
-                ),
-                dbc.Col(
-                    dcc.Upload(
-                        dbc.Button(
-                            [html.I(className="bi bi-upload me-1"), "Load"],
-                            color="primary", style={"width": "100%"},
+                dbc.Row(
+                    [
+                        dbc.Col(
+                            [
+                                dbc.Button(
+                                    "Add Row",
+                                    id=f"{component_id}-add",
+                                    n_clicks=0,
+                                    color="success",
+                                    className="me-1",
+                                ),
+                            ],
+                            className="d-grid gap-2",
                         ),
-                        id="experiment-load-designer",
-                        accept=".json",
-                        style={"width": "100%"},
-                    ),
-                    className="d-grid",
-                ),
-            ],
-            className="g-2 mt-1",
+                        dbc.Col(
+                            [
+                                dbc.Button(
+                                    "Delete Selected",
+                                    id=f"{component_id}-delete",
+                                    n_clicks=0,
+                                    color="danger",
+                                    className="me-1",
+                                ),
+                            ],
+                            className="d-grid gap-2",
+                        ),
+                    ]
+                )
+            ]
         ),
     ]
 
@@ -123,123 +127,51 @@ def get_experiment_designer(data=[], params=[]):
 
 
 def get_experiment_graph():
-    return dcc.Graph(id="experiment-plot", responsive=True)
+    """
+    Creates a graph to display the experimental data.
+    """
+    graph = dcc.Graph(id="experiment-plot", responsive=True)
+    return graph
 
 
 @callback(
-    Output("experiment-designer", "rowTransaction"),
-    Input("experiment-designer-add", "n_clicks"),
-    Input("experiment-designer-delete", "n_clicks"),
-    State("experiment-designer", "rowData"),
-    State("experiment-designer", "selectedRows"),
-    prevent_initial_call=True,
-)
-def modify_rows(add_clicks, delete_clicks, current_rows, selected_rows):
-    trigger = ctx.triggered_id
-    if trigger == "experiment-designer-add":
-        current_rows = current_rows or []
-        new_row = {"id": str(uuid.uuid4())}
-        template = current_rows[0] if current_rows else {}
-        for col in template:
-            if col == "id":
-                continue
-            elif col.endswith("_profile"):
-                new_row[col] = PROFILES[0]
-            else:
-                new_row[col] = 0.0 if col != "time" else 0
-        last_time = max(
-            (row.get("time", 0) for row in current_rows if isinstance(row.get("time"), (int, float))),
-            default=0,
-        )
-        new_row["time"] = last_time + 30
-        return {"add": [new_row]}
-
-    if trigger == "experiment-designer-delete":
-        if not selected_rows:
-            return no_update
-        return {"remove": selected_rows}
-
-    return no_update
-
-
-@callback(
-    Output("experiment-designer-store", "data"),
-    Input("experiment-designer", "virtualRowData"),
-    Input("experiment-designer", "cellValueChanged"),
-    State("experiment-designer", "rowData"),
-    prevent_initial_call=True,
-)
-def sync_to_store(virtual_rows, _cell_change, row_data):
-    rows = virtual_rows or row_data or []
-    if not rows:
-        return no_update
-    return sorted(rows, key=lambda r: r.get("time", 0))
-
-
-@callback(
-    Output("save-trigger", "data", allow_duplicate=True),
-    Input("experiment-save-designer", "n_clicks"),
-    prevent_initial_call=True,
-)
-def trigger_save_designer(n):
-    if not n:
-        return no_update
-    return n
-
-
-@callback(
-    Output("experiment-download", "data"),
-    Input("save-trigger", "data"),
-    State("experiment-designer-store", "data"),
-    State("instrument-store", "data"),
-    State("experiment-config-store", "data"),
-    prevent_initial_call=True,
-)
-def save_all(trigger, exp_data, inst_data, cfg_data):
-    export = {
-        "experiment": [{k: v for k, v in row.items() if k != "id"} for row in (exp_data or [])],
-        "instruments": inst_data or [],
-        "config": cfg_data or [],
-    }
-    return dcc.send_string(json.dumps(export, indent=2), "experiment.json")
-
-
-def _parse_load(contents):
-    _, encoded = contents.split(",", 1)
-    return json.loads(base64.b64decode(encoded).decode("utf-8"))
-
-
-@callback(
-    Output("experiment-designer", "rowData"),
     Output("experiment-designer-store", "data", allow_duplicate=True),
-    Output("instrument-store", "data", allow_duplicate=True),
-    Output("experiment-config-store", "data", allow_duplicate=True),
-    Input("experiment-load-designer", "contents"),
-    prevent_initial_call=True,
+    Input("experiment-designer-add", "n_clicks"),
+    State("experiment-designer-store", "data"),
+    prevent_initial_call="initial_duplicate",
 )
-def load_from_designer(contents):
-    if not contents:
-        return no_update, no_update, no_update, no_update
-    try:
-        loaded = _parse_load(contents)
-        exp_rows, inst_rows, cfg_rows = _split_load(loaded)
-        for row in exp_rows:
-            row["id"] = str(uuid.uuid4())
-        return exp_rows, exp_rows, inst_rows, cfg_rows
-    except Exception:
-        return no_update, no_update, no_update, no_update
+def add_row(n_clicks, data):
+    if not data:
+        return data
+    new_row = {"id": str(uuid.uuid4())}
+    for col in data[0]:
+        if col == "id":
+            continue
+        elif col.endswith("_profile"):
+            new_row[col] = PROFILES[0]
+        else:
+            new_row[col] = 0.0 if col != "time" else 0
+
+    #  Add new row with time as max time +30s (default could be changed via user preferences?)
+    last_time = max(
+        row.get("time", 0) for row in data if isinstance(row.get("time"), (int, float))
+    )
+    new_row["time"] = last_time + 30
+    return data + [new_row]
 
 
-def _split_load(loaded):
-    if isinstance(loaded, dict):
-        exp = loaded.get("experiment", [])
-        inst = loaded.get("instruments", no_update)
-        cfg = loaded.get("config", no_update)
-    else:
-        exp = loaded if isinstance(loaded, list) else []
-        inst = no_update
-        cfg = no_update
-    return exp, inst, cfg
+@callback(
+    Output("experiment-designer-store", "data", allow_duplicate=True),
+    Input("experiment-designer-delete", "n_clicks"),
+    State("experiment-designer", "selectedRows"),
+    State("experiment-designer-store", "data"),
+    prevent_initial_call="initial_duplicate",
+)
+def delete_selected(n_clicks, selected_rows, current_data):
+    if not selected_rows:
+        return current_data
+    selected_ids = {row["id"] for row in selected_rows}
+    return [row for row in current_data if row["id"] not in selected_ids]
 
 
 @callback(
@@ -249,8 +181,16 @@ def _split_load(loaded):
 def update_figure(data):
     if not data:
         return go.Figure()
-    try:
-        return plot_data_plotly(data, xlabel="Time (s)")
-    except Exception as e:
-        print(f"Error plotting experiment data: {e}")
-        return go.Figure()
+    fig = plot_data_plotly(data, xlabel="Time (s)")
+    return fig
+
+
+@callback(
+    Output("experiment-designer-store", "data"),
+    Input("experiment-designer", "cellValueChanged"),
+    State("experiment-designer", "rowData"),
+)
+def update_table(cell_change, current_rows):
+    # Sort the rows by time for presentation and ease of plotting
+    sorted_rows = sorted(current_rows, key=lambda r: r.get("time", 0))
+    return sorted_rows

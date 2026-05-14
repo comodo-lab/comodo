@@ -15,7 +15,6 @@ class cstate:
         "awaiting_instruments",
         "ready",
         "running",
-        "paused",
         "stopping",
         "error",
     ]
@@ -50,7 +49,9 @@ class cstate:
         self.instruments: Dict[str, Any] = {"configured": False}
         self.adjusting: AdjustingDict = AdjustingDict()
         self.schema_path: str = "schemas/schema_experiment.json"
-        self.schema_instrument_heartbeat_path: str = "schemas/schema_instrument_heartbeat.json"
+        self.schema_instrument_heartbeat_path: str = (
+            "schemas/schema_instrument_heartbeat.json"
+        )
 
     def heartbeat(self) -> Dict[str, Any]:
         """

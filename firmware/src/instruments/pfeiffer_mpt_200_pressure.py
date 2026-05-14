@@ -115,60 +115,40 @@ def process_response(response):
 def get_pressure(device):
     try:
         with serial.Serial(device, 9600, timeout=1) as ser:
-            command = get_pressure_read_command()
-            ser.write(command.encode("ascii"))
+            ser.write(get_pressure_read_command().encode("ascii"))
             response = ser.read(64)  # Adjust as needed
-            if not response:
-                print(f"No response from pressure gauge on {device}")
-                return None
-                
-            print(f"Response from {device}:", response.decode("ascii", errors="replace"))
+            print("Response:", response.decode("ascii", errors="replace"))
 
             pressure = process_response(response)
             print(f"Pressure is {pressure}")
-            return float(pressure)
     except Exception as e:
-        print(f"Error reading pressure from {device}: {e}")
-        return None
+        print(f"An error occurred: {e}")
+        pressure = None
+
+    return float(pressure)
 
 
 class Instrument(BaseInstrument):
 
     def __init__(self):
-        self._simulated_pressure = 0.0
+        pass
 
     def go_to_setpoint(self, state):
-        setpoint = state.status["setpoint"]
         print(f"Setting upstream pressure to {setpoint} - not supported!")
-
-    def simulate_get_measurement(self, state):
-        # Pressure responds to mass_flow: 100% mass_flow -> 10 bar
-        try:
-            with open("/shared/mass_flow_setpoint.txt") as f:
-                mass_flow_pct = float(f.read().strip())
-        except Exception:
-            mass_flow_pct = 0.0
-
-        target_pressure = mass_flow_pct * 0.002  # ~5% flow -> 10 mBar
-        # First-order lag: approach target with tau ~ 10 measurement cycles
-        self._simulated_pressure += (target_pressure - self._simulated_pressure) * 0.1
-        state.measurement = self._simulated_pressure
-        return {"pressure": round(self._simulated_pressure, 4)}
 
     def set_config(self, config):
         pass
 
     def get_measurement(self, state):
-        # Get device address from state config
-        device = state.config.get("DEVICE_ADDRESS")
+        # Get device address from environment
+        device = os.getenv("DEVICE_ADDRESS", None)
         if device is None:
-            print("WARNING: DEVICE_ADDRESS not in state.config, falling back to /dev/ttyUSB0")
+            print(
+                "DEVICE_ADDRESS environment variable not set, using default /dev/ttyUSB0"
+            )
             device = "/dev/ttyUSB0"
 
         # Get the pressure
         measurement = get_pressure(device)
-        if measurement is not None:
-            state.measurement = measurement
-            return {"pressure": measurement}
-        else:
-            return {"pressure": 0.0}
+        state.measurement = measurement
+        return measurement

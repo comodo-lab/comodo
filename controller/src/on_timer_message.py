@@ -27,12 +27,9 @@ def on_timer_message(client, msg, obj):
     """
     try:
         message = mqtt.load_message(msg)
-        # Note: experiment_uid might have changed from UUID to Serial ID (e.g. D26-001)
-        # during the instrument setup phase. 
-        if msg.topic != "timer/done/instrument_setup":
-            if message["uid"] != obj.experiment_uid:
-                incompatible_uid(obj, msg, source="timer")
-                return
+        if message["uid"] != obj.experiment_uid:
+            incompatible_uid(obj, msg, source="timer")
+            return
     except json.JSONDecodeError as e:
         wrong_json(msg, e)
         return
@@ -44,7 +41,9 @@ def on_timer_message(client, msg, obj):
         # Wait for instruments to be ready or timeout
         instrument_setup_wait = float(os.getenv("INSTRUMENT_SETUP_WAIT", 10))
         t0 = t.time()
-        while (not obj.instruments["configured"]) and obj.status == "awaiting_instruments":
+        while (
+            not obj.instruments["configured"]
+        ) and obj.status == "awaiting_instruments":
             t.sleep(timer_check_frequency)
             if t.time() - t0 > instrument_setup_wait:
                 controller_timeout(message["uid"], "instruments", "Stopping")
@@ -79,17 +78,14 @@ def on_timer_message(client, msg, obj):
                     json.dumps({"uid": message["uid"]}),
                 )
                 return
-        if obj.status == "paused":
-            # Experiment paused; a new timer will be started on resume
-            return
-        elif obj.status == "stopping":
+        if obj.status != "stopping":
+            controller_state_incompatible_with_timer(
+                message["uid"], "setpoint", "running", obj.status
+            )
+        else:
             mqtt.MQTTPublisher.get_instance().publish(
                 "timer/done/setpoint",
                 json.dumps({"uid": message["uid"], "controller_status": obj.status}),
-            )
-        else:
-            controller_state_incompatible_with_timer(
-                message["uid"], "setpoint", "running", obj.status
             )
     elif msg.topic.startswith("timer/done/"):
         return

@@ -2,6 +2,8 @@ from dash import Dash, html, dcc, Input, Output, callback, State, no_update
 from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 
+from dash import Dash, html
+
 import top_matter as tm
 import main_window as mw
 import control_window as cw
@@ -12,12 +14,11 @@ import workflow_ui as wf
 import meta_data_ui as md
 
 from utils.mqtt_clients import MQTTPublisher
-from config_loader import ComodoConfig
 import os
 import random
 
 app = Dash(
-    external_stylesheets=[dbc.themes.LUX, dbc.icons.BOOTSTRAP],
+    external_stylesheets=[dbc.themes.LUX],
     suppress_callback_exceptions=True,
 )
 
@@ -46,13 +47,70 @@ CONTROL_INTERVAL = 5000  # milliseconds
 SHORT_INTERVAL = 1000  # milliseconds
 LONG_INTERVAL = 5000  # milliseconds
 
-config = ComodoConfig()
-PARAMS = config.params
-PARAM_DICT = config.param_dicts
-PID_PAIRS = config.pid_pairs
-INI_EXPERIMENT_CONFIG = config.ini_experiment_config
-INI_DATA_DICT = config.ini_data_dict
-INI_INSTRUMENT_DICT = config.ini_instrument_dict
+# Params to read / actuate
+PARAMS = [
+    "furnace/temperature",
+    "pressure_downstream/pressure",
+    "pressure_upstream/pressure",
+    "massflow/massflow",
+]
+
+PARAM_DICT = [
+    {"name": "furnace/temperature", "min": 0, "max": 1000, "step": 1},
+    {"name": "pressure_downstream/pressure", "min": 0, "max": 1000, "step": 1},
+    {"name": "ressure_upstream/pressure", "min": 0, "max": 1000, "step": 1},
+    {"name": "massflow/massflow", "min": 0, "max": 100, "step": 1},
+]
+
+INI_EXPERIMENT_CONFIG = [
+    {"name": "resolution", "display_name": "Simulation Resolution (s)", "value": 1},
+]
+
+
+INI_DATA_DICT = [
+    {
+        "time": 0,
+        "furnace/temperature": 20.0,
+        "furnace/temperature_profile": "linear",
+        "pressure_downstream/pressure": 20.0,
+        "pressure_downstream/pressure_profile": "linear",
+        "pressure_upstream/pressure": 20.0,
+        "pressure_upstream/pressure_profile": "linear",
+        "massflow/massflow": 20.0,
+        "massflow/massflow_profile": "linear",
+    },
+    {
+        "time": 30,
+        "furnace/temperature": 200.0,
+        "furnace/temperature_profile": "linear",
+        "pressure_downstream/pressure": 40.0,
+        "pressure_downstream/pressure_profile": "linear",
+        "pressure_upstream/pressure": 30.0,
+        "pressure_upstream/pressure_profile": "linear",
+        "massflow/massflow": 25.0,
+        "massflow/massflow_profile": "linear",
+    },
+    {
+        "time": 60,
+        "furnace/temperature": 20.0,
+        "furnace/temperature_profile": "linear",
+        "pressure_downstream/pressure": 30.0,
+        "pressure_downstream/pressure_profile": "linear",
+        "pressure_upstream/pressure": 20.0,
+        "pressure_upstream/pressure_profile": "linear",
+        "massflow/massflow": 20.0,
+        "massflow/massflow_profile": "linear",
+    },
+]
+
+INI_INSTRUMENT_DICT = [
+    {
+        "name": instrument,
+        "tolerance": 1.0,  # Default tolerance, can be edited
+    }
+    for instrument in PARAMS
+]
+
 
 # ---------------------------------------------------
 # MAIN WINDOW
@@ -60,7 +118,7 @@ INI_INSTRUMENT_DICT = config.ini_instrument_dict
 
 
 def get_main_window(row_data):
-    designer_layout = mw.get_experiment_designer(data=row_data, params=PARAMS)
+    designer_layout = mw.get_experiment_designer(data=row_data)
     graph_layout = mw.get_experiment_graph()
 
     return html.Div([designer_layout, graph_layout])
@@ -68,13 +126,24 @@ def get_main_window(row_data):
 
 @app.callback(
     Output("designer-wrapper", "children"),
+    Input("experiment-designer-store", "data"),
+)
+def update_designer_page(data):
+    if data is None:
+        raise PreventUpdate  # Wait for initialization
+    return get_main_window(row_data=data)
+
+
+@app.callback(
+    Output("experiment-designer-store", "data", allow_duplicate=True),
     Input("url", "pathname"),
     State("experiment-designer-store", "data"),
+    prevent_initial_call=True,
 )
-def update_designer_page(pathname, data):
-    if pathname not in ["/", None, "/designer"]:
-        raise PreventUpdate
-    return get_main_window(row_data=data or [])
+def initialize_experiment_store(pathname, current_data):
+    if pathname == "/designer" and not current_data:
+        return INI_DATA_DICT
+    return no_update
 
 
 # ---------------------------------------------------
@@ -93,8 +162,20 @@ def get_instrument_window(row_data):
 )
 def update_instrument_page(data):
     if data is None:
-        return html.Div("Loading instruments...")
+        raise PreventUpdate  # Wait for initialization
     return get_instrument_window(row_data=data)
+
+
+@app.callback(
+    Output("instrument-store", "data", allow_duplicate=True),
+    Input("url", "pathname"),
+    State("instrument-store", "data"),
+    prevent_initial_call=True,
+)
+def initialize_experiment_store(pathname, current_data):
+    if pathname == "/instrument" and not current_data:
+        return INI_INSTRUMENT_DICT
+    return no_update
 
 
 # ---------------------------------------------------
@@ -113,24 +194,39 @@ def get_experiment_config_window(row_data):
 )
 def update_experiment_config_page(data):
     if data is None:
-        return html.Div("Loading config...")
+        raise PreventUpdate  # Wait for initialization
     return get_experiment_config_window(row_data=data)
 
 
-control_window = cw.get_control_panel(PARAM_DICT, pid_pairs=PID_PAIRS)
+@app.callback(
+    Output("experiment-config-store", "data", allow_duplicate=True),
+    Input("url", "pathname"),
+    State("experiment-config-store", "data"),
+    prevent_initial_call=True,
+)
+def initialize_experiment_store(pathname, current_data):
+    if pathname == "/experiment-config" and not current_data:
+        return INI_EXPERIMENT_CONFIG
+    return no_update
+
+
+control_window = cw.get_control_panel(PARAM_DICT)
 graph_layout = gv.get_experiment_graph()
 metadata_workflow = wf.get_workflow_layout()
 
 metadata_layout = md.get_metadata_layout()
-# Register metadata callbacks 
+# Register metadata callbacks
 wf.register_workflow_callbacks(app)
+
 
 @app.callback(Output("page-content", "children"), Input("url", "pathname"))
 def render_page(pathname):
-    if pathname in ["/", None, "/designer"]:
-        return dcc.Loading(html.Div(id="designer-wrapper"))
+    if pathname in ["/", None]:
+        return dcc.Location(href="/designer", id="redirect")
     elif pathname == "/instrument":
         return dcc.Loading(html.Div(id="instrument-wrapper"))
+    elif pathname == "/designer":
+        return dcc.Loading(html.Div(id="designer-wrapper"))
     elif pathname == "/metadata":
         return metadata_layout
     elif pathname == "/control":
@@ -147,16 +243,14 @@ def render_page(pathname):
 
 app.layout = dbc.Container(
     [
-        dcc.Download(id="experiment-download"),
-        dcc.Store(id="save-trigger", data=0),
         dcc.Interval(id="interval", interval=CONTROL_INTERVAL),
         dcc.Interval(id="interval-long", interval=LONG_INTERVAL),
         dcc.Interval(id="interval-short", interval=SHORT_INTERVAL),
         dcc.Location(id="url", refresh=False),
         dcc.Store(id="timezone-store"),
-        dcc.Store(id="experiment-designer-store", data=INI_DATA_DICT),
-        dcc.Store(id="instrument-store", data=INI_INSTRUMENT_DICT),
-        dcc.Store(id="experiment-config-store", data=INI_EXPERIMENT_CONFIG),
+        dcc.Store(id="experiment-designer-store"),
+        dcc.Store(id="instrument-store"),
+        dcc.Store(id="experiment-config-store"),
         html.Div(id="hidden-div", style={"display": "none"}),
         tm.get_header_bar(),
         dbc.Nav(
@@ -190,8 +284,9 @@ app.layout = dbc.Container(
                     className="me-0",
                 ),
                 dbc.NavItem(
-                    dbc.NavLink("Workflow", href="/workflow", active="exact"), 
-                    className="me-0"),
+                    dbc.NavLink("Workflow", href="/workflow", active="exact"),
+                    className="me-0",
+                ),
             ],
             pills=True,
             justified=True,

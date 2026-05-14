@@ -18,32 +18,19 @@ def main():
         mqtt_user = os.getenv("MQTT_USER")
         mqtt_pass = os.getenv("MQTT_PASS")
 
-        sensor = os.getenv("SENSOR")
-        actuator = os.getenv("ACTUATOR")
+        sensor = os.getenv("SENSOR").replace("/", "_")
+        actuator = os.getenv("ACTUATOR").replace("/", "_")
     except KeyError as e:
         print(f"Missing required environment variable: {e}")
         exit(1)
 
     # Initialise publisher singleton
-    connected = False
-    retries = 0
-    while not connected and retries < 10:
-        try:
-            publisher = mqtt.MQTTPublisher.get_instance(
-                broker_address=mqtt_host,
-                user=mqtt_user,
-                password=mqtt_pass,
-                id=f"publisher_pid_{sensor}__{actuator}",
-            )
-            connected = True
-        except Exception as e:
-            print(f"Failed to connect to MQTT broker ({mqtt_host}): {e}. Retrying in 5s...")
-            retries += 1
-            t.sleep(5)
-    
-    if not connected:
-        print("Could not connect to MQTT broker after 10 retries. Exiting.")
-        exit(1)
+    publisher = mqtt.MQTTPublisher.get_instance(
+        broker_address=mqtt_host,
+        user=mqtt_user,
+        password=mqtt_pass,
+        id=f"publisher_pid_{sensor}__{actuator}",
+    )
 
     k_p = os.getenv("K_P", None)
     k_i = os.getenv("K_I", None)
@@ -109,51 +96,31 @@ class SetpointController:
             **pid_params,  # unpack PID parameters
         )
 
-        # Extract instrument ID from sensor (e.g., 'pressure_upstream' from 'pressure_upstream/pressure')
-        sensor_id = sensor.split("/")[0]
-
         # Initialize MQTT client
-        self.pid_client = None
-        retries = 0
-        while self.pid_client is None and retries < 10:
-            try:
-                self.pid_client = mqtt.MQTTClient(
-                    id=self.pid.id,
-                    callback=SetpointController.on_sensor_message,
-                    topics=[
-                        f"instrument/{sensor_id}/setpoint",
-                        f"measurement/{sensor}",
-                        # f"sensor/{sensor}/setpoint_reached",
-                        f"{self.pid.id}/setup",
-                        "controller/pause",
-                        "controller/stop",
-                        "controller/end",
-                        "setpoint_controller/override",
-                    ],
-                    broker_address=mqtt_host,
-                    user=mqtt_user,
-                    password=mqtt_pass,
-                    obj=self,
-                )
-            except Exception as e:
-                print(f"SetpointController client failed to connect to {mqtt_host}: {e}. Retrying...")
-                retries += 1
-                t.sleep(5)
-        
-        if self.pid_client is None:
-            raise RuntimeError(f"SetpointController failed to connect after {retries} retries.")
+        self.pid_client = mqtt.MQTTClient(
+            id=self.pid.id,
+            callback=SetpointController.on_sensor_message,
+            topics=[
+                f"instrument/{sensor}/setpoint",
+                f"measurement/{sensor}",
+                # f"sensor/{sensor}/setpoint_reached",
+                f"{self.pid.id}/setup",
+            ],
+            broker_address=mqtt_host,
+            user=mqtt_user,
+            password=mqtt_pass,
+            obj=self,
+        )
 
         # no_setpoint
         # adjusting
         # ready
         # awaiting_config
         # Initialise status dictionary
-        self._overridden = False
         self.state = {
             "name": f"pid_{sensor}__{actuator}",
             "status": "no_setpoint",
             "setpoint": None,
-            "overridden": False,
             "config": self.pid.get_config(),
         }
 
@@ -179,53 +146,23 @@ class SetpointController:
             spc.publish_heartbeat()
             return
 
-        # Extract instrument ID from sensor (e.g., 'pressure_upstream' from 'pressure_upstream/pressure')
-        sensor_id = spc.pid.sensor.split("/")[0]
-
-        if msg.topic in ["controller/pause", "controller/stop", "controller/end"]:
-            print(f"PID {spc.pid.id} silenced by {msg.topic}")
-            spc.state["status"] = "no_setpoint"
-            spc.state["setpoint"] = None
-            spc.pid.setpoint = None
-            if msg.topic in ["controller/stop", "controller/end"]:
-                spc._overridden = False
-                spc.state["overridden"] = False
-            return
-
-        if msg.topic == "setpoint_controller/override":
-            override = message.get("override", False)
-            spc._overridden = override
-            spc.state["overridden"] = override
-            spc.state["status"] = "overridden" if override else (
-                "no_setpoint" if spc.pid.setpoint is None else "adjusting"
-            )
-            print(f"PID {spc.pid.id} override: {override}")
-            spc.publish_heartbeat()
-            return
-
-        if msg.topic == f"instrument/{sensor_id}/setpoint":
-            setpoint = message.get(sensor_id)
+        if msg.topic == f"instrument/{spc.pid.sensor}/setpoint":
+            setpoint = message.get(spc.pid.sensor)
             if setpoint is not None:
                 spc.state["status"] = "adjusting"
-                spc.state["setpoint"] = setpoint
                 spc.pid.setpoint = setpoint
                 mqtt.MQTTPublisher.get_instance().publish(
                     f"{spc.pid.id}/setpoint",
                     json.dumps({spc.pid.sensor: setpoint}),
                 )
             return
-        elif msg.topic == f"measurement/{spc.pid.sensor}" or msg.topic.endswith(f"/{spc.pid.sensor}"):
-            if spc.pid.setpoint is not None and not spc._overridden:
+        elif msg.topic == f"measurement/{spc.pid.sensor}":
+            if spc.pid.setpoint is not None:
                 spc.state["status"] = "adjusting"
-                spc.state["setpoint"] = spc.pid.setpoint
                 setpoint = spc.pid.step(message["value"], spc.pid.setpoint)
-                
-                # Extract instrument ID from actuator (e.g., 'massflow' from 'massflow/massflow')
-                actuator_id = spc.pid.actuator.split("/")[0]
-                
                 mqtt.MQTTPublisher.get_instance().publish(
-                    f"instrument/{actuator_id}/setpoint",
-                    json.dumps({actuator_id: setpoint}),
+                    f"instrument/{spc.pid.actuator}/setpoint",
+                    json.dumps({spc.pid.actuator: setpoint}),
                 )
             return
         elif msg.topic == f"instrument/{spc.pid.sensor}/setpoint_reached":

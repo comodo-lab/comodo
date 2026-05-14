@@ -30,20 +30,6 @@ def get_env_or_secret(env_var, secret=None, default=None):
 data_path = "data"
 
 
-def send_default_setpoints(obj):
-    publisher = mqtt.MQTTPublisher.get_instance()
-    for instrument_id, inst_data in obj.instruments.items():
-        if instrument_id == "configured":
-            continue
-        default = inst_data.get("config", {}).get("default_setpoint")
-        if default is not None:
-            publisher.publish(
-                f"instrument/{instrument_id}/setpoint",
-                json.dumps({instrument_id: default}),
-            )
-            print(f"Default setpoint sent to {instrument_id}: {default}")
-
-
 def assign_serial_id(obj):
     """
     Assigns a serial id to the experiment, using the format: DYY-XXX,
@@ -73,7 +59,7 @@ def dump_database_for_experiment(obj):
     Dumps the influx databases for the experiment elapsed time.
     """
     influx_buckets = os.getenv("INFLUX_BUCKET", "comodo").split(",")
-    influx_url = os.getenv("INFLUX_ADDR") or f"http://{os.getenv('INFLUX_HOST', 'localhost')}:8086"
+    influx_url = f"http://{os.getenv("INFLUX_HOST", "localhost")}:8086"
     influx_org = os.getenv("INFLUX_ORG", "comodo")
     influx_token = get_env_or_secret("INFLUX_TOKEN", "INFLUX_TOKEN_FILE", None)
     if influx_token is None:

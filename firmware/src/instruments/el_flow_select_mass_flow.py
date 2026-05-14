@@ -72,13 +72,6 @@ PARAMETER_MAPPING = {
         "units": "s",
         "notes": "The time in seconds to go from 0-100% setpoint for flow rate adjustment. A value of 0 means no slope, i.e., the setpoint is reached immediately.",
     },
-    "12": {
-        "name": "Control_Mode",
-        "type": "unsigned int",
-        "access": "RW",
-        "range": "0 – 255",
-        "notes": "0 = Analog, 1 = RS232/Bus, 3 = Valve fully closed, 4 = Valve fully open.",
-    },
     "122": {
         "name": "Counter_Value",
         "type": "float",
@@ -176,12 +169,41 @@ def write_param(instrument, channel, value):
     :param instrument: The propar instrument object.
     :param channel: The channel number to write.
     :param value: Value to write to channel
-    :return: The result of the write operation, or None if error.
+    :return: The value of the parameter if written, None if error.
     """
     try:
-        return instrument.writeParameter(channel, value)
+        # TODO - Check this is the correct syntax for write to instrument
+        write = instrument.writeParameter(channel, value)
+        return write
     except Exception as e:
-        print(f"Error writing value {value} to parameter {channel}: {e}")
+        print(f"Error writing {value} to channel {channel}: {e}")
+        return None
+
+
+def write_param_protected(instrument, channel, value):
+    """
+    Unlocks secured params for write
+
+    :param instrument: The propar insturment object
+    :param channel: The channel number to read.
+    :param value: Value to write to channel
+    :return: The value of the parameter if written, None if error.
+    """
+    try:
+        # TODO - Check this is the correct syntax for write to instrument
+        unlock = write_param(instrument, 7, 64)  # Unlock protected write
+        if unlock is None:
+            raise PermissionError("Could not unlock protected write param")
+
+        write = write_param(instrument, channel, value)
+
+        lock = write_param(instrument, 7, 82)  # Lock protected write
+        if lock is None:
+            raise PermissionError("Could not lock protected write param")
+        return write
+
+    except Exception as e:
+        print(f"Error writing {value} to protected channel {channel}: {e}")
         return None
 
 
@@ -199,7 +221,10 @@ def write_general(instrument, name, value):
             if "W" not in info["access"]:
                 print(f"Parameter {name} is not writable.")
                 return None
-            return write_param(instrument, int(channel), value)
+            if "B" in info["access"]:
+                return write_param_protected(instrument, int(channel), value)
+            else:
+                return write_param(instrument, int(channel), value)
     print(f"Parameter {name} not found in mapping.")
     return None
 
@@ -220,9 +245,9 @@ def read_all(instrument):
     """
     data = {}
     for channel, info in PARAMETER_MAPPING.items():
-        if 'R' in info['access']:
+        if "R" in info["access"]:
             value = read_parameter(instrument, int(channel))
-            data[info['name']] = value
+            data[info["name"]] = value
     return data
 
 
@@ -236,60 +261,20 @@ class Instrument(BaseInstrument):
         self.simulated_setpoint = 0.0
         self.simulated_measurement = 0.0
 
-    def initialise(self, state):
+    def initialise(self):
         try:
-            # Get device address from state config
-            device = state.config.get("DEVICE_ADDRESS")
+            # Get device address from environment
+            device = os.getenv("DEVICE_ADDRESS", None)
             if device is None:
-                print("WARNING: DEVICE_ADDRESS not in state.config, falling back to /dev/ttyUSB2")
+                print(
+                    "DEVICE_ADDRESS environment variable not set, using default /dev/ttyUSB2"
+                )
                 device = "/dev/ttyUSB2"
 
-            print(f"Initializing propar.Instrument on {device}")
-            try:
-                self.instrument = propar.instrument(device)
-            except AttributeError:
-                self.instrument = propar.Instrument(device)
-            except Exception as inner_e:
-                print(f"Failed to create propar instrument on {device}: {inner_e}")
-                self.instrument = None
-                return
-
-            if self.instrument is None:
-                print(f"propar.instrument({device}) returned None without raising.")
-                return
-
-            # Verify connection by reading a parameter
-            print("Verifying connection to mass flow...")
-            mode = read_parameter(self.instrument, 12)
-            if mode is None or (isinstance(mode, str) and "<ERR" in mode):
-                 print(f"Connection verification failed. Mode read back: {mode}")
-                 self.instrument = None
-                 return
-
-            # Must be in Analog mode (0) — Bus mode (1) rejects RS232 setpoint writes.
-            print(f"Current Control_Mode: {mode}. Setting to 0 (Analog)...")
-            write_param(self.instrument, 12, 0)
-            mode = read_parameter(self.instrument, 12)
-            if mode != 0:
-                print(f"WARNING: Control_Mode readback = {mode}, expected 0 (Analog). Setpoint writes may fail.")
-            else:
-                print("Control_Mode confirmed: 0 (Analog)")
-
-            # Slope 0 = immediate response (no ramp)
-            write_param(self.instrument, 10, 0)
-            slope = read_parameter(self.instrument, 10)
-            if slope != 0:
-                print(f"WARNING: Setpoint_Slope readback = {slope}, expected 0.")
-            else:
-                print("Setpoint_Slope confirmed: 0 (immediate)")
-
-            print(f"Mass flow initialised on {device}")
+            self.instrument = propar.instrument(device)
         except Exception as e:
-            print(f"Error during mass flow initialization sequence!\n{e}")
+            print(f"Error initializing propar.Instrument!\n{e}")
             self.instrument = None
-
-    def simulate_initialise(self, state):
-        pass
 
     def set_config(self, config):
         pass
@@ -300,44 +285,29 @@ class Instrument(BaseInstrument):
             return None
 
         data = read_all(self.instrument)
-
-        raw_flow = data.get("Flow_Rate_Measured")
-        if raw_flow is not None:
-            mass_flow_pct = (float(raw_flow) / 32000) * 100
-        else:
-            print("WARNING: Flow_Rate_Measured read back as None (communication error?)")
-            mass_flow_pct = 0.0
-
-        return {"mass_flow": mass_flow_pct}
+        return data
 
     def go_to_setpoint(self, state):
         if self.instrument is None:
             print("Instrument not initialized.")
             return None
 
-        setpoint =  state.status["setpoint"]
-        if setpoint is None:
-            return None
-            
+        setpoint = state.status["setpoint"]
         if not (0 <= setpoint <= 100):
-            print(f"Setpoint {setpoint} out of range (0-100%).")
+            print("Setpoint must be between 0 and 100%.")
             return None
 
         # Convert percentage to instrument scale (0-32000)
-        instrument_setpoint = int((setpoint / 100) * 32000)
-
+        instrument_setpoint = (setpoint / 100) * 32000
         result = write_general(
-            self.instrument, "Flow_Rate_Setpoint", instrument_setpoint
+            self.instrument, "Flow_Rate_Setpoint", int(instrument_setpoint)
         )
         if result is None:
             print("Failed to write Flow_Rate_Setpoint.")
             return None
 
-        # Verify write
-        read_back = self.instrument.readParameter(9)
         print(
-            f"Set Flow_Rate_Setpoint to {setpoint}% ({instrument_setpoint}). "
-            f"Instrument reports: {read_back} ({(float(read_back)/32000)*100 if read_back is not None else 'N/A'}%)"
+            f"Set Flow_Rate_Setpoint to {setpoint}% ({int(instrument_setpoint)} in instrument scale)."
         )
         return result
 
@@ -348,11 +318,6 @@ class Instrument(BaseInstrument):
             return None
 
         self.simulated_setpoint = setpoint
-        try:
-            with open("/shared/mass_flow_setpoint.txt", "w") as f:
-                f.write(str(setpoint))
-        except Exception as e:
-            print(f"Warning: could not write mass_flow setpoint to shared volume: {e}")
         print(f"(Simulated) Setting Flow_Rate_Setpoint to {setpoint}%.")
 
     def simulate_get_measurement(self, state):
@@ -362,13 +327,4 @@ class Instrument(BaseInstrument):
         elif self.simulated_measurement > self.simulated_setpoint:
             self.simulated_measurement -= 0.1
         state.measurement = self.simulated_measurement
-
-        setpoint = state.status.get("setpoint")
-        if setpoint is not None:
-            tolerance = (state.status.get("config") or {}).get("tolerance", 1)
-            if abs(self.simulated_measurement - setpoint) < tolerance:
-                state.client.publish(
-                    f"instrument/{state.config['INSTRUMENT_ID']}/setpoint_reached", "true"
-                )
-
-        return {"mass_flow": self.simulated_measurement}
+        return self.simulated_measurement

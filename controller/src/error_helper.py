@@ -50,12 +50,8 @@ def incompatible_uid(obj, msg, source="controller"):
     """
     Publishes an error message when the experiment uid in the mqtt request does not match the current experiment's uid.
     """
-    try:
-        msg_uid = json.loads(msg.payload.decode("utf-8"))["uid"]
-    except:
-        msg_uid = "unknown"
+    msg_uid = json.loads(msg.payload.decode("utf-8"))["uid"]
     error = f"Current experiment is {obj.experiment_uid}. Cannot act on {msg.topic} for experiment {msg_uid}."
-    print(f"ERROR: {error}")
     mqtt.MQTTPublisher.get_instance().publish(
         "error/" + source,
         json.dumps({"error": error}),

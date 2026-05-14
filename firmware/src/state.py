@@ -68,9 +68,6 @@ class InstrumentState(object):
             self.client.callback = self.no_setpoint_cb
             self.status["status"] = "no_setpoint"
             print(f"Instrument configured: {self.status['config']}")
-            return
-
-        self._parse_and_go_to_setpoint(msg)
 
     def no_setpoint_cb(self, _client, msg, _obj=None):
         """The callback function for the mqtt client when the instrument is awaiting setpoint

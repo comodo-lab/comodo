@@ -28,11 +28,6 @@ instruments:
           min: 0
           max: 1000
           unit: °C
-        actuator:
-          type: float
-          min: 0
-          max: 1000
-          unit: °C
   furnace_right:
     firmware: carbolite_gero/tg3
     address: "192.168.111.225:502"
@@ -43,19 +38,6 @@ instruments:
           min: 0
           max: 1000
           unit: °C
-        actuator:
-          type: float
-          min: 0
-          max: 1000
-          unit: °C
-  mass_spec:
-    firmware: pfeiffer/prisma_pro
-    address: "192.168.1.100"
-    variables:
-      spectrum:
-        sensor:
-          type: object
-
   pressure_downstream:
     firmware: pfeiffer/mpt200
     address: "/dev/ttyUSB0"
@@ -116,18 +98,24 @@ instruments:
           min: 0
           max: 10
           unit: bar
+  mass_spec:
+    firmware: pfeiffer/prisma_pro
+    address: "192.168.1.100"
+    variables:
+      mass_spec:
+        sensor:
+          type: array
 
 visualisations:
   temperature_graph:
     title: Temperature Control
     type: graph
     y_values:
-      - furnace_left/temperature
-      - furnace_centre/temperature
-      - furnace_right/temperature
-  pressure_graph:
-    title: System Pressure
-    type: graph
-    y_values:
-      - pressure_upstream/pressure
-      - pressure_downstream/pressure
+      - temperature_left
+      - temperature_centre
+      - temperature_right
+  gauge_1:
+    id: gauge_1
+    type: gauge
+    value:
+      - temperature_centre

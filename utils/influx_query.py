@@ -1,8 +1,7 @@
 import influxdb_client
 import os
 
-
-URL = os.getenv("INFLUX_ADDR", "http://localhost:8086")
+URL = f"http://{os.getenv("INFLUX_HOST", "localhost")}:8086"
 TOKEN = os.environ["INFLUX_TOKEN"]
 ORG = os.environ["INFLUX_ORG"]
 BUCKET = os.environ["INFLUX_BUCKET"]

@@ -6,8 +6,8 @@ from src.instrument import BaseInstrument
 # Configuration Parameters
 VERBOSE = True
 SCAN_COUNT = 1
-SCAN_INTERVAL = 9023   # ms between scans
-DEFAULT_DWELL = 32     # ms dwell time
+SCAN_INTERVAL = 9023  # ms between scans
+DEFAULT_DWELL = 32  # ms dwell time
 AMU = 50
 TARGET_IP_ADDR = "192.168.1.100"
 
@@ -93,11 +93,11 @@ class MMSP:
             http_code, resp = self.send("/mmsp/measurement/nextScan/get")
             if not isinstance(resp, dict) or "data" not in resp:
                 continue
-            data = resp['data']
-            system_status = data['systemStatus']
-            current_scan  = data['currentScan']
-            scan_num      = data['scannum']
-            scan_values   = data['values']
+            data = resp["data"]
+            system_status = data["systemStatus"]
+            current_scan = data["currentScan"]
+            scan_num = data["scannum"]
+            scan_values = data["values"]
 
             if scan_values is not None:
                 # Print live scan data (real time data for InfluxDB)
@@ -115,14 +115,14 @@ class MMSP:
             http_code, resp = self.send("/mmsp/scanInfo/get?currentScan&scanning")
             if not isinstance(resp, dict) or "data" not in resp:
                 continue
-            current_scan = resp['data']['currentScan']
-            scanning = resp['data']['scanning']
+            current_scan = resp["data"]["currentScan"]
+            scanning = resp["data"]["scanning"]
             if not scanning:
                 print("\rAll Done, finished scanning")
                 break
             elif current_scan != last_report:
                 msg = "Scan %d/%d" % (current_scan, SCAN_COUNT)
-                print("\r\t%-20s" % msg, end='')
+                print("\r\t%-20s" % msg, end="")
                 last_report = current_scan
 
     def run_and_get_scan(self):
@@ -149,7 +149,7 @@ class MMSP:
         # Ensure we have exactly AMU+1 points (0–50)
         if len(integer_amu_values) != AMU + 1:
             # Sometimes rounding can cause off-by-one
-            integer_amu_values = integer_amu_values[:AMU+1]
+            integer_amu_values = integer_amu_values[: AMU + 1]
 
         # --- Convert to dictionary ---
         scan_dict = {i: val for i, val in enumerate(integer_amu_values)}
@@ -160,24 +160,23 @@ class MMSP:
         return scan_dict
 
 
-
-class Instrument(BaseInstrument):
+class MassSpec(BaseInstrument):
 
     def __init__(self):
-        self.mmsp = None
-
-    def initialise(self, state):
-        device = state.config.get("DEVICE_ADDRESS", TARGET_IP_ADDR)
-        self.mmsp = MMSP(device)
-        self.mmsp.configure()
-
-    def simulate_initialise(self, state):
-        pass
+        self.mmsp = MMSP(TARGET_IP_ADDR)
+        return
 
     def set_config(self, config):
-        pass
+        self.mmsp.configure()
+        return
 
     def get_measurement(self, state):
+        """Get the measurement
+
+        Returns:
+            float: A random temperature value for testing purposes
+        """
         scan = self.mmsp.run_and_get_scan()
+
         state.measurement = scan
-        return scan
+        return state.measurement

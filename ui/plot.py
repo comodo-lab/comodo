@@ -2,59 +2,55 @@ import json
 import numpy as np
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-from collections import OrderedDict
 from utils.interpolation import split_setpoints
 
 
-def plot_data_plotly(data, xlabel="Time (s)"):
+def plot_data_plotly(data, xlabel="Time", ylabel="Temperature"):
+    """
+    Plots time series of temp_left, temp_main, and temp_right using Plotly.
+
+    Parameters:
+        data (list of dict): Each dict must contain 'duration' and one or more temperature fields.
+        title (str): Title of the plot.
+        xlabel (str): Label for the x-axis.
+        ylabel (str): Label for the y-axis.
+
+    Returns:
+        go.Figure: A Plotly figure object containing the plot.
+    """
     if not data:
         raise ValueError("Input data is empty.")
 
     data = split_setpoints(data, resolution=1)
 
     special_keys = ["duration"]
-    keys = [k for k in data[0].keys() if k not in special_keys]
+    keys = list(data[0].keys())
 
+    # Compute cumulative time
     durations = [entry["duration"] for entry in data]
     time = np.cumsum(durations)
 
-    # Group variables by type (part after "/"), preserving order
-    groups = OrderedDict()
+    # Prepare figure
+    fig = go.Figure()
+
+    # Plot each variable except 'duration'
     for key in keys:
-        if "/" in key:
-            var_type = key.split("/", 1)[1]
-        else:
-            var_type = key
-        groups.setdefault(var_type, []).append(key)
+        if key in special_keys:
+            continue
+        y = [entry[key] for entry in data]
+        fig.add_trace(go.Scatter(x=time, y=y, mode="lines", name=key))
 
-    n_groups = len(groups)
-    fig = make_subplots(
-        rows=n_groups,
-        cols=1,
-        shared_xaxes=True,
-        vertical_spacing=0.08,
-        subplot_titles=[vt.replace("_", " ").capitalize() for vt in groups],
-    )
-
-    for row, (var_type, var_keys) in enumerate(groups.items(), start=1):
-        for key in var_keys:
-            label = key.split("/")[0].replace("_", " ").capitalize()
-            y = [entry[key] for entry in data]
-            fig.add_trace(
-                go.Scatter(x=time, y=y, mode="lines", name=label),
-                row=row,
-                col=1,
-            )
-
+    # Layout
     fig.update_layout(
+        xaxis_title=xlabel,
+        yaxis_title=ylabel,
         template="plotly_white",
         hovermode="x unified",
-        margin={"autoexpand": True, "l": 0, "r": 0, "t": 30, "b": 0},
-        height=300 * n_groups,
+        legend={"xanchor": "auto", "yanchor": "auto"},
+        margin={"autoexpand": True, "l": 0, "r": 0, "t": 0, "b": 0},
     )
-    fig.update_xaxes(title_text=xlabel, row=n_groups, col=1)
 
+    # fig.show()
     return fig
 
 

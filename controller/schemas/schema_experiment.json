@@ -12,8 +12,7 @@
               "type": "object",
               "properties": {
                 "name": { "type": "string" },
-                "tolerance": { "type": "number" },
-                "default_setpoint": { "type": "number" }
+                "tolerance": { "type": "number" }
               },
               "required": ["name", "tolerance"]
             }
@@ -27,10 +26,11 @@
         "items": {
           "type": "object",
           "properties": {
-            "time": { "type": "number", "minimum": 0 }
+            "time": { "type": "number", "minimum": 0 },
+            "furnace": { "type": "number" },
+            "pressure_downstream": { "type": "number" }
           },
-          "required": ["time"],
-          "additionalProperties": true
+          "required": ["time", "furnace", "pressure_downstream"]
         }
       }
     },

@@ -32,25 +32,21 @@ def send_heartbeat():
             f"heartbeat/instrument/{state.config['INSTRUMENT_ID']}", heartbeat_structure
         )
 
+
 ## ----------------- Publishing helper functions ----------------- ##
 
-def publish_measurement(measurements, prefix=None):
+
+def publish_measurement(measurements):
     if state.client is None:
         return
 
-    if prefix is None:
-        prefix = f"measurement/{state.config['INSTRUMENT_ID']}"
+    if type(measurements) is int or type(measurements) is float:
+        measurements = {"value": measurements}
 
-    if isinstance(measurements, (int, float)):
-        msg = json.dumps({"value": measurements})
-        state.client.publish(prefix, msg)
-        return
+    for key, measurement in measurements.items():
+        msg = json.dumps({"value": measurement})
+        state.client.publish(f"measurement/{state.config['INSTRUMENT_ID']}/{key}", msg)
 
-    if isinstance(measurements, dict):
-        for key, measurement in measurements.items():
-            new_prefix = f"{prefix}/{key}"
-            publish_measurement(measurement, prefix=new_prefix)
-        
 
 def send_measurement():
     """
@@ -79,19 +75,13 @@ def send_measurement():
 
 async def heartbeat_tick(timer):
     while True:
-        try:
-            send_heartbeat()
-        except Exception as e:
-            print(f"Error in heartbeat_tick: {e}")
+        send_heartbeat()
         await asyncio.sleep(int(state.config["HEARTBEAT_INTERVAL"]) / 1000)
 
 
 async def measurement_tick(timer):
     while True:
-        try:
-            send_measurement()
-        except Exception as e:
-            print(f"Error in measurement_tick: {e}")
+        send_measurement()
         await asyncio.sleep(int(state.config["MEASUREMENT_INTERVAL"]) / 1000)
 
 
@@ -110,15 +100,6 @@ async def main():
     ## Load the configuration file
     state.config = cfg.load_config()
     state.status["name"] = state.config["INSTRUMENT_ID"]
-
-    ## Initialise publisher singleton
-    mqtt.MQTTPublisher.get_instance(
-        id=f"publisher_{state.status['name']}",
-        broker_address=state.config["MQTT_HOST"],
-        user=state.config["MQTT_USER"],
-        password=state.config["MQTT_PASS"],
-        connection_timeout=60,
-    )
 
     ## Create client
     topics = [
@@ -144,15 +125,16 @@ async def main():
 
     # Initialise the instrument
     if not state.config["SIMULATE"]:
-        state.instrument.initialise(state)
+        state.instrument.initialise()
     else:
-        state.instrument.simulate_initialise(state)
         print(f" ### Simulating {state.config['INSTRUMENT_ID']} ### ")
 
     ## Set the ready flag
     state.config["ready"] = True
-    print(f"Instrument {state.config['INSTRUMENT_ID']} created successfully "
-          f"using firmware {state.config['FIRMWARE']}")
+    print(
+        f"Instrument {state.config['INSTRUMENT_ID']} created successfully "
+        f"using firmware {state.config['FIRMWARE']}"
+    )
     print(f"Instrument {state.config['INSTRUMENT_ID']} awaiting configuration.")
 
     ## Setup heartbeat timer if on a pico or async timer if on linux
@@ -171,6 +153,8 @@ if __name__ == "__main__":
     except Exception as e:
         traceback.print_exc()
         try:
-            state.client.publish(f"error/instrument/{state.config['INSTRUMENT_ID']}", str(e))
+            state.client.publish(
+                f"error/instrument/{state.config['INSTRUMENT_ID']}", str(e)
+            )
         except:
             print(f"Error: {e}")
