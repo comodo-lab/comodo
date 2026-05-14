@@ -54,37 +54,37 @@ ex:test_002 a schema:Test ;
 	schema:description "Ensures pressure is within ±10%" .
 
 ex:Parameters a schema:Time_Series_Data ;
-	schema:hasSensor ex:Furnace_Center_Sensor, ex:Furnace_Left_Sensor, ex:Furnace_Right_Sensor, ex:pressure_inlet, ex:pressure_outlet ;
-	schema:name "Sensors" .
+	schema:hasInstrument ex:Furnace_Center_Instrument, ex:Furnace_Left_Instrument, ex:Furnace_Right_Instrument, ex:pressure_inlet, ex:pressure_outlet ;
+	schema:name "Instruments" .
 
-ex:Furnace_Center_Sensor a schema:Sensor ;
+ex:Furnace_Center_Instrument a schema:Instrument ;
 	schema:hasSet_value ex:set_temperature_center ;
 	schema:hasRead_value ex:read_temperature_center ;
 	schema:hasTest ex:quality_test_001 ;
     schema:pass "false" ;
-	schema:name "Furnace_Center_Sensor" .
+	schema:name "Furnace_Center_Instrument" .
 
-ex:Furnace_Left_Sensor a schema:Sensor ;
+ex:Furnace_Left_Instrument a schema:Instrument ;
 	schema:hasSet_value ex:set_temperature_left ;
 	schema:hasRead_value ex:read_temperature_left ;
 	schema:hasTest ex:quality_test_001 ;
     schema:pass "false" ;
-	schema:name "Furnace_Left_Sensor" .
+	schema:name "Furnace_Left_Instrument" .
 
-ex:Furnace_Right_Sensor a schema:Sensor ;
+ex:Furnace_Right_Instrument a schema:Instrument ;
 	schema:hasSet_value ex:set_temperature_right ;
 	schema:hasRead_value ex:read_temperature_right ;
 	schema:hasTest ex:quality_test_001 ;
     schema:pass "false" ;
-	schema:name "Furnace_Right_Sensor" .
+	schema:name "Furnace_Right_Instrument" .
 
-ex:pressure_inlet a schema:Sensor ;
+ex:pressure_inlet a schema:Instrument ;
 	schema:hasSet_value ex:set_pressure_inlet ;
 	schema:hasRead_value ex:read_pressure_inlet ;
 	schema:hasTest ex:quality_test_002 ;
 	schema:name "Pressure_Inlet" .
 
-ex:pressure_outlet a schema:Sensor ;
+ex:pressure_outlet a schema:Instrument ;
 	schema:hasSet_value ex:set_pressure_outlet ;
 	schema:hasRead_value ex:read_pressure_outlet ;
 	schema:hasTest ex:quality_test_002 ;

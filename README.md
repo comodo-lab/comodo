@@ -24,7 +24,9 @@ This repo contains everything you need to get started using Comodo for automatin
     - [Debugging](#debugging)
   - [Testing](#testing)
     - [Testing a component](#testing-a-component)
+      - [Helper script](#helper-script)
     - [Testing the full stack](#testing-the-full-stack)
+    - [Temporary experiment trigger:](#temporary-experiment-trigger)
 
 
 ## What is Comodo?
@@ -84,7 +86,7 @@ visualizations: # Definitions of monitoring visualizations
 That is, at the top level, the file is divided into three main sections: `global`, `instruments`, and `visualizations`.
 - The [`global`](#global-settings) section contains settings that apply to the entire experiment.
 - The [`instruments`](#instruments) section is where you define each instrument in the experiment.
-  Each *instrument* should represent a physical device and can be composed of multiple [`variables`](#variables).
+  Each *instrument* should represent a (connection to a) physical device and can be composed of multiple [`variables`](#variables).
 - The [`visualizations`](#visualizations) section defines how the data from the experiment will be monitored in the UI.
 
 ### Global Settings
@@ -303,6 +305,21 @@ Note: At the time of writing, only these components have comprehensive tests:
 - Controller
 - Setpoint Controller
 
+#### Helper script
+
+For convenience, there is a helper script to run the tests for all components, which can be run from the base directory with:
+```bash
+./utils/run_all_tests.sh
+```
+
 ### Testing the full stack
 
 Tests for the full Comodo stack are sorely needed, but not yet implemented.
+
+### Temporary experiment trigger:
+
+UI currently out of step due to instrument refactor, to start an experiment use:
+```
+source .env
+mosquitto_pub -u ${MQTT_USER} -P ${MQTT_PASS} -h ${MQTT_HOST} -t ui/start -f start.json
+```

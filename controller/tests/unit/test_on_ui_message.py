@@ -41,7 +41,7 @@ def data_path():
 # ========================================
 
 
-def test_invalid_ui_message(message_bus, state, ui_client):
+def test_invalid_ui_message(message_bus, state, ui_client, capsys):
     assert state.experiment_uid == None
 
     msg = MockMessage(topic="ui/start", payload="invalid")
@@ -50,10 +50,12 @@ def test_invalid_ui_message(message_bus, state, ui_client):
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
     assert messages[0].topic == "error/controller"
-    assert f"Error decoding ui/start message, wrong JSON" in messages[0].payload
+    exp_err = "Cannot decode ui/start message, wrong JSON:"
+    assert exp_err in messages[0].payload
+    assert f"ERROR: {exp_err}" in capsys.readouterr().out
 
 
-def test_missing_uid(message_bus, state, ui_client):
+def test_missing_uid(message_bus, state, ui_client, capsys):
     assert state.experiment_uid == None
 
     msg = MockMessage(topic="ui/start", payload=json.dumps({"no": "uid"}))
@@ -62,10 +64,10 @@ def test_missing_uid(message_bus, state, ui_client):
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
     assert messages[0].topic == "error/controller"
-    assert (
-        f"Error decoding ui/start message, missing: \n   'uid'"
-        in json.loads(messages[0].payload)["error"]
-    )
+    exp_err = "Cannot decode ui/start message, missing:"
+    assert exp_err in json.loads(messages[0].payload)["error"]
+    assert "uid" in messages[0].payload
+    assert f"ERROR: {exp_err}" in capsys.readouterr().out
 
 
 def test_valid_ui_start(message_bus, state, ui_client):

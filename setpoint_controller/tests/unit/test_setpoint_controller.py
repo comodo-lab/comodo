@@ -58,6 +58,12 @@ class Test_main:
 
     def test_parameters_pulled_from_env(self, mocks_for_main):
         mocks = mocks_for_main
+        mocks["env_values"].update(
+            {
+                "SENSOR": "A",
+                "ACTUATOR": "B",
+            }
+        )
 
         main()
 
@@ -85,8 +91,8 @@ class Test_main:
                 "MQTT_HOST": "test_host",
                 "MQTT_USER": "test_user",
                 "MQTT_PASS": "test_pass",
-                "SENSOR": "A",
-                "ACTUATOR": "B",
+                "SENSOR": "I1/A",
+                "ACTUATOR": "I2/B",
             }
         )
 
@@ -96,7 +102,7 @@ class Test_main:
             broker_address="test_host",
             user="test_user",
             password="test_pass",
-            id="publisher_pid_A__B",
+            id="publisher_pid_I1_A__I2_B",
         )
 
     def test_spc_initialized_with_correct_params(self, mocks_for_main):
@@ -199,9 +205,9 @@ class Test_SetpointController_init:
             id="pid/A__B",
             callback=spc.on_sensor_message,
             topics=[
-                "sensor/A/setpoint",
+                "instrument/A/setpoint",
                 "measurement/A",
-                # "sensor/A/setpoint_reached",
+                # "instrument/A/setpoint_reached",
                 "pid/A__B/setup",
             ],
             broker_address="test_host",
@@ -226,10 +232,10 @@ class Test_SetpointController_init:
 
 
 class Test_on_sensor_message:
-    def test_invalid_json_publishes_error(self, mock_spc, mqtt_mocks):
+    def test_invalid_json_publishes_error(self, mock_spc, mqtt_mocks, capsys):
         client = Mock()
         msg = MockMessage(
-            f"sensor/{mock_spc.pid.sensor}/setpoint",
+            f"instrument/{mock_spc.pid.sensor}/setpoint",
             "this is not valid json {",
         )
 
@@ -242,7 +248,9 @@ class Test_on_sensor_message:
         )
         assert topic == f"error/{mock_spc.pid.id}"
         assert "error" in message.keys()
-        assert "sensor/mock_sensor/setpoint message, wrong JSON:" in message["error"]
+        exp_err = f"Cannot decode instrument/mock_sensor/setpoint message, wrong JSON:"
+        assert exp_err in message["error"]
+        assert f"ERROR: {exp_err}" in capsys.readouterr().out
 
 
 class Test_on_setpoint_message:
@@ -251,7 +259,7 @@ class Test_on_setpoint_message:
         setpoint_value = 50.0
         assert mock_spc.pid.setpoint != setpoint_value
         msg = MockMessage(
-            f"sensor/{mock_spc.pid.sensor}/setpoint",
+            f"instrument/{mock_spc.pid.sensor}/setpoint",
             json.dumps({mock_spc.pid.sensor: setpoint_value}),
         )
 
@@ -270,7 +278,7 @@ class Test_on_setpoint_message:
         setpoint_value = 0.0
         assert mock_spc.pid.setpoint != setpoint_value
         msg = MockMessage(
-            f"sensor/{mock_spc.pid.sensor}/setpoint",
+            f"instrument/{mock_spc.pid.sensor}/setpoint",
             json.dumps({mock_spc.pid.sensor: setpoint_value}),
         )
 
@@ -287,7 +295,7 @@ class Test_on_setpoint_message:
     def test_ignores_other_setpoints(self, mock_spc, mqtt_mocks):
         client = Mock()
         msg = MockMessage(
-            f"sensor/{mock_spc.pid.sensor}/setpoint",
+            f"instrument/{mock_spc.pid.sensor}/setpoint",
             json.dumps({"some_other_sensor": 42.42}),
         )
 
@@ -329,7 +337,7 @@ class Test_on_measurement_message:
             measurement_value, mock_spc.pid.setpoint
         )
         mqtt_mocks["publisher_instance"].publish.assert_called_once_with(
-            f"sensor/{mock_spc.pid.actuator}/setpoint",
+            f"instrument/{mock_spc.pid.actuator}/setpoint",
             json.dumps({mock_spc.pid.actuator: 6.7}),
         )
 
@@ -340,7 +348,7 @@ class Test_on_setpoint_reached_message:
         client = Mock()
         mock_spc.pid.setpoint = 50.0
         msg = MockMessage(
-            f"sensor/{mock_spc.pid.sensor}/setpoint_reached",
+            f"instrument/{mock_spc.pid.sensor}/setpoint_reached",
             json.dumps({mock_spc.pid.sensor: True}),
         )
 

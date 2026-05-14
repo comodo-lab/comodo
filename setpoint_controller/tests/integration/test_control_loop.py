@@ -142,7 +142,7 @@ class MockActuator:
         self.setpoint = None
         self.thread = None
         # Subscribe to setpoint messages
-        self.bus.subscribe(f"sensor/{self.name}/setpoint", self.on_setpoint)
+        self.bus.subscribe(f"instrument/{self.name}/setpoint", self.on_setpoint)
 
     def on_setpoint(self, topic: str, msg):
         """
@@ -216,7 +216,7 @@ class TestMessagingBasics:
         actuator = MockActuator("heater", message_bus, sensor)
 
         # Publish a setpoint to the actuator
-        bus.publish("sensor/heater/setpoint", json.dumps({"heater": 50.0}))
+        bus.publish("instrument/heater/setpoint", json.dumps({"heater": 50.0}))
 
         # Allow some time for the message to be processed
         time.sleep(0.1)
@@ -237,7 +237,7 @@ class TestMessagingBasics:
 
         # Publish a setpoint
         setpoint_payload = json.dumps({"temperature": 50.0})
-        bus.publish("sensor/temperature/setpoint", setpoint_payload)
+        bus.publish("instrument/temperature/setpoint", setpoint_payload)
 
         # Allow some time for the message to be processed
         time.sleep(0.1)
@@ -274,7 +274,7 @@ class TestMessagingBasics:
 
         # Publish a setpoint
         setpoint_payload = json.dumps({"temperature": 50.0})
-        bus.publish("sensor/temperature/setpoint", setpoint_payload)
+        bus.publish("instrument/temperature/setpoint", setpoint_payload)
 
         # Allow some time for the message to be processed
         time.sleep(0.1)
@@ -301,7 +301,7 @@ class TestMessagingBasics:
         time.sleep(0.1)
 
         # Check that actuator setpoint was published
-        messages = bus.get_messages("sensor/heater/setpoint")
+        messages = bus.get_messages("instrument/heater/setpoint")
         assert len(messages) >= 1, "Controller should publish actuator setpoint"
 
 
@@ -346,7 +346,7 @@ class TestControlLoop:
         target = 50.0
 
         # Set sensor setpoint
-        bus.publish("sensor/temperature/setpoint", json.dumps({"temperature": target}))
+        bus.publish("instrument/temperature/setpoint", json.dumps({"temperature": target}))
 
         reached = wait_for_equilibrium(sensor, target, tolerance=0.01, timeout=2.0)
 
@@ -364,21 +364,21 @@ class TestControlLoop:
 
         # First setpoint
         t1 = 30.0
-        bus.publish("sensor/temperature/setpoint", json.dumps({"temperature": t1}))
+        bus.publish("instrument/temperature/setpoint", json.dumps({"temperature": t1}))
         reached_t1 = wait_for_equilibrium(
             sensor, t1, tolerance=1.0, timeout=1.0, stop=False
         )
 
         # Second setpoint
         t2 = 50.0
-        bus.publish("sensor/temperature/setpoint", json.dumps({"temperature": t2}))
+        bus.publish("instrument/temperature/setpoint", json.dumps({"temperature": t2}))
         reached_t2 = wait_for_equilibrium(
             sensor, t2, tolerance=1.0, timeout=1.0, stop=False
         )
 
         # Third setpoint
         t3 = 10.0
-        bus.publish("sensor/temperature/setpoint", json.dumps({"temperature": t3}))
+        bus.publish("instrument/temperature/setpoint", json.dumps({"temperature": t3}))
         reached_t3 = wait_for_equilibrium(
             sensor, t3, tolerance=1.0, timeout=1.0, stop=False
         )
@@ -399,8 +399,8 @@ class TestControlLoop:
         # Set different setpoints
         target1 = 40.0
         target2 = 60.0
-        message_bus.publish("sensor/temp1/setpoint", json.dumps({"temp1": target1}))
-        message_bus.publish("sensor/temp2/setpoint", json.dumps({"temp2": target2}))
+        message_bus.publish("instrument/temp1/setpoint", json.dumps({"temp1": target1}))
+        message_bus.publish("instrument/temp2/setpoint", json.dumps({"temp2": target2}))
 
         reached = wait_for_equilibrium(
             [sensor1, sensor2],
@@ -441,8 +441,8 @@ class TestControlLoop:
 
         # Set same setpoint for both
         target = 40.0
-        message_bus.publish("sensor/temp1/setpoint", json.dumps({"temp1": target}))
-        message_bus.publish("sensor/temp2/setpoint", json.dumps({"temp2": target}))
+        message_bus.publish("instrument/temp1/setpoint", json.dumps({"temp1": target}))
+        message_bus.publish("instrument/temp2/setpoint", json.dumps({"temp2": target}))
 
         reached1 = wait_for_equilibrium(sensor1, target, tolerance=0.01, timeout=2.0)
         reached2 = wait_for_equilibrium(sensor2, target, tolerance=0.01, timeout=2.0)

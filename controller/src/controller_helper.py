@@ -63,8 +63,8 @@ def dump_database_for_experiment(obj):
     influx_org = os.getenv("INFLUX_ORG", "comodo")
     influx_token = get_env_or_secret("INFLUX_TOKEN", "INFLUX_TOKEN_FILE", None)
     if influx_token is None:
-        print("INFLUX_TOKEN environment variable not set. Cannot dump influx database.")
-        error = f"Error dumping database. INFLUX_TOKEN not set."
+        error = f"Cannot dump influx database. INFLUX_TOKEN not set."
+        print(f"ERROR: {error}")
         mqtt.MQTTPublisher.get_instance().publish(
             f"error/controller",
             json.dumps({"error": error}),
@@ -73,23 +73,33 @@ def dump_database_for_experiment(obj):
 
     t0 = obj.experiment_start_time
     tf = datetime.now()
-    # get everything from influx database
-    client = influxdb_client.InfluxDBClient(
-        url=influx_url,
-        token=influx_token,
-        org=influx_org,
-    )
-    query_api = client.query_api()
-    exp_dir_path = obj.exp_file.replace(".json", "")
-    if not os.path.exists(exp_dir_path):
-        os.makedirs(exp_dir_path)
-    for bucket in influx_buckets:
-        query = f'from(bucket: "{bucket}") |> range(start: {t0.isoformat()}Z, stop: {tf.isoformat()}Z)'
-        data = query_api.query_csv(org=influx_org, query=query)
-        values = data.to_values()
-        with open(f"{exp_dir_path}/{bucket}.csv", "w", newline="") as myfile:
-            wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
-            wr.writerows(values)
-    print(
-        f"  Influx database for experiment {obj.experiment_uid} saved at {exp_dir_path}."
-    )
+
+    try:
+        # get everything from influx database
+        client = influxdb_client.InfluxDBClient(
+            url=influx_url,
+            token=influx_token,
+            org=influx_org,
+        )
+        query_api = client.query_api()
+        exp_dir_path = obj.exp_file.replace(".json", "")
+
+        if not os.path.exists(exp_dir_path):
+            os.makedirs(exp_dir_path)
+        for bucket in influx_buckets:
+            query = f'from(bucket: "{bucket}") |> range(start: {t0.isoformat()}Z, stop: {tf.isoformat()}Z)'
+            data = query_api.query_csv(org=influx_org, query=query)
+            values = data.to_values()
+            with open(f"{exp_dir_path}/{bucket}.csv", "w", newline="") as myfile:
+                wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
+                wr.writerows(values)
+        print(
+            f"  Influx database for experiment {obj.experiment_uid} saved at {exp_dir_path}."
+        )
+    except Exception as e:
+        error = f"Could not dump influx database: {e}"
+        print(f"ERROR: {error}")
+        mqtt.MQTTPublisher.get_instance().publish(
+            f"error/controller",
+            json.dumps({"error": error}),
+        )

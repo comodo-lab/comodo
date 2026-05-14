@@ -7,7 +7,7 @@ from dash import Dash, html
 import top_matter as tm
 import main_window as mw
 import control_window as cw
-import sensor_setup as ss
+import instrument_setup as ss
 import graph_view as gv
 import experiment_config as ec
 import workflow_ui as wf
@@ -49,24 +49,17 @@ LONG_INTERVAL = 5000  # milliseconds
 
 # Params to read / actuate
 PARAMS = [
-    "temp_left",
-    "temp_main",
-    "temp_right",
-    "pressure_downstream",
-    "pressure_upstream",
-    "massflow_temp",
-    "massflow_pressure_upstream",
-    "massflow_pressure_downstream",
-    "massflow_fluid_temp",
-    "massflow",
-    # 'mass_spec'
+    "furnace/temperature",
+    "pressure_downstream/pressure",
+    "pressure_upstream/pressure",
+    "massflow/massflow"
 ]
 
 PARAM_DICT = [
-    {"name": "temp_left", "min": 0, "max": 1000, "step": 1},
-    {"name": "temp_main", "min": 0, "max": 1000, "step": 1},
-    {"name": "temp_right", "min": 0, "max": 1000, "step": 1},
-    {"name": "massflow", "min": 0, "max": 100, "step": 0.1},
+    {"name": "furnace/temperature", "min": 0, "max": 1000, "step": 1},
+    {"name": "pressure_downstream/pressure", "min": 0, "max": 1000, "step": 1},
+    {"name": "ressure_upstream/pressure", "min": 0, "max": 1000, "step": 1},
+    {"name": "massflow/massflow", "min": 0, "max": 100, "step": 1},
 ]
 
 INI_EXPERIMENT_CONFIG = [
@@ -77,48 +70,46 @@ INI_EXPERIMENT_CONFIG = [
 INI_DATA_DICT = [
     {
         "time": 0,
-        "temp_left": 20.0,
-        "temp_left_profile": "linear",
-        "temp_main": 20.0,
-        "temp_main_profile": "linear",
-        "temp_right": 20.0,
-        "temp_right_profile": "linear",
-        "pressure_upstream": 20.0,
-        "pressure_upstream_profile": "linear",
+        "furnace/temperature": 20.0,
+        "furnace/temperature_profile": "linear",
+        "pressure_downstream/pressure": 20.0,
+        "pressure_downstream/pressure_profile": "linear",
+        "pressure_upstream/pressure": 20.0,
+        "pressure_upstream/pressure_profile": "linear",
+        "massflow/massflow": 20.0,
+        "massflow/massflow_profile": "linear",
+    },
+    {
+        "time": 30,
+        "furnace/temperature": 200.0,
+        "furnace/temperature_profile": "linear",
+        "pressure_downstream/pressure": 40.0,
+        "pressure_downstream/pressure_profile": "linear",
+        "pressure_upstream/pressure": 30.0,
+        "pressure_upstream/pressure_profile": "linear",
+        "massflow/massflow": 25.0,
+        "massflow/massflow_profile": "linear",
     },
     {
         "time": 60,
-        "temp_left": 150.0,
-        "temp_left_profile": "linear",
-        "temp_main": 200.0,
-        "temp_main_profile": "linear",
-        "temp_right": 150.0,
-        "temp_right_profile": "linear",
-        "pressure_upstream": 5.0,
-        "pressure_upstream_profile": "linear",
-    },
-    {
-        "time": 120,
-        "temp_left": 150.0,
-        "temp_left_profile": "linear",
-        "temp_main": 200.0,
-        "temp_main_profile": "linear",
-        "temp_right": 150.0,
-        "temp_right_profile": "linear",
-        "pressure_upstream": 5.0,
-        "pressure_upstream_profile": "linear",
+        "furnace/temperature": 20.0,
+        "furnace/temperature_profile": "linear",
+        "pressure_downstream/pressure": 30.0,
+        "pressure_downstream/pressure_profile": "linear",
+        "pressure_upstream/pressure": 20.0,
+        "pressure_upstream/pressure_profile": "linear",
+        "massflow/massflow": 20.0,
+        "massflow/massflow_profile": "linear",
+
     }
 ]
 
-INI_SENSOR_DICT = [
+INI_INSTRUMENT_DICT = [
     {
-        "name": sensor,
-        "p": 0.21,
-        "i": 0.31,
-        "d": 0.41,
+        "name": instrument,
         "tolerance": 1.0,  # Default tolerance, can be edited
     }
-    for sensor in PARAMS
+    for instrument in PARAMS
 ]
 
 
@@ -157,34 +148,34 @@ def initialize_experiment_store(pathname, current_data):
 
 
 # ---------------------------------------------------
-# SENSOR SETUP
+# INSTRUMENT SETUP
 # ---------------------------------------------------
 
 
-def get_sensor_window(row_data):
-    sensor_layout = ss.get_sensor_setup(data=row_data)
-    return sensor_layout
+def get_instrument_window(row_data):
+    instrument_layout = ss.get_instrument_setup(data=row_data)
+    return instrument_layout
 
 
 @app.callback(
-    Output("sensor-wrapper", "children"),
-    Input("sensor-store", "data"),
+    Output("instrument-wrapper", "children"),
+    Input("instrument-store", "data"),
 )
-def update_sensor_page(data):
+def update_instrument_page(data):
     if data is None:
         raise PreventUpdate  # Wait for initialization
-    return get_sensor_window(row_data=data)
+    return get_instrument_window(row_data=data)
 
 
 @app.callback(
-    Output("sensor-store", "data", allow_duplicate=True),
+    Output("instrument-store", "data", allow_duplicate=True),
     Input("url", "pathname"),
-    State("sensor-store", "data"),
+    State("instrument-store", "data"),
     prevent_initial_call=True,
 )
 def initialize_experiment_store(pathname, current_data):
-    if pathname == "/sensor" and not current_data:
-        return INI_SENSOR_DICT
+    if pathname == "/instrument" and not current_data:
+        return INI_INSTRUMENT_DICT
     return no_update
 
 
@@ -194,8 +185,8 @@ def initialize_experiment_store(pathname, current_data):
 
 
 def get_experiment_config_window(row_data):
-    sensor_layout = ec.get_experiment_config(data=row_data)
-    return sensor_layout
+    instrument_layout = ec.get_experiment_config(data=row_data)
+    return instrument_layout
 
 
 @app.callback(
@@ -232,8 +223,8 @@ wf.register_workflow_callbacks(app)
 def render_page(pathname):
     if pathname in ["/", None]:
         return dcc.Location(href="/designer", id="redirect")
-    elif pathname == "/sensor":
-        return dcc.Loading(html.Div(id="sensor-wrapper"))
+    elif pathname == "/instrument":
+        return dcc.Loading(html.Div(id="instrument-wrapper"))
     elif pathname == "/designer":
         return dcc.Loading(html.Div(id="designer-wrapper"))
     elif pathname == "/metadata":
@@ -258,7 +249,7 @@ app.layout = dbc.Container(
         dcc.Location(id="url", refresh=False),
         dcc.Store(id="timezone-store"),
         dcc.Store(id="experiment-designer-store"),
-        dcc.Store(id="sensor-store"),
+        dcc.Store(id="instrument-store"),
         dcc.Store(id="experiment-config-store"),
         html.Div(id="hidden-div", style={"display": "none"}),
         tm.get_header_bar(),
@@ -271,7 +262,7 @@ app.layout = dbc.Container(
                     className="me-0",
                 ),
                 dbc.NavItem(
-                    dbc.NavLink("Sensor Setup", href="/sensor", active="exact"),
+                    dbc.NavLink("Instrument Setup", href="/instrument", active="exact"),
                     className="me-0",
                 ),
                 dbc.NavItem(

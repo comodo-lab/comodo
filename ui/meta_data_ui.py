@@ -28,7 +28,7 @@ def get_metadata_layout():
 
     
     def rdf_to_top_level_elements(rdf_filename):
-        """Parse RDF and extract sensor etc for ROOT type experiment nodes"""
+        """Parse RDF and extract instrument etc for ROOT type experiment nodes"""
         g = Graph()
         rdf_path = os.path.join(nt_FOLDER, rdf_filename)
         
@@ -76,7 +76,7 @@ def get_metadata_layout():
             str(EX.globel_set),
         ]
 
-        # Track instruments to get their sensors later
+        # Track instruments to get their instruments later
         instrument_nodes = []
 
         # Find direct connections from experiment
@@ -164,7 +164,7 @@ def get_metadata_layout():
                             }
                         })
                         
-                        # Track instruments for sensor extraction
+                        # Track instruments for instrument extraction
                         if category == 'instrument':
                             instrument_nodes.append(child['id'])
                 # After adding workflow nodes
@@ -208,35 +208,35 @@ def get_metadata_layout():
                             break  
                     break  
 
-        #find sensors for each instrument
+        #find instruments for each instrument
         for instrument_id in instrument_nodes:
-            #find the blank node that connects to sensors
+            #find the blank node that connects to instruments
             for s, p, o in g:
-                if str(s) == instrument_id and str(p) == str(EX.sensors):
-                    sensors_blank = str(o)
+                if str(s) == instrument_id and str(p) == str(EX.instruments):
+                    instruments_blank = str(o)
                     
-                    #find all sensors connected to this blank node
+                    #find all instruments connected to this blank node
                     for s2, p2, o2 in g:
-                        if str(s2) == sensors_blank and isinstance(o2, URIRef):
-                            sensor_id = str(o2)
-                            sensor_label = get_local_name(sensor_id)
+                        if str(s2) == instruments_blank and isinstance(o2, URIRef):
+                            instrument_id = str(o2)
+                            instrument_label = get_local_name(instrument_id)
                             
-                            #add sensor node
-                            nodes[sensor_id] = {
+                            #add instrument node
+                            nodes[instrument_id] = {
                                 'data': {
-                                    'id': sensor_id,
-                                    'label': sensor_label,
-                                    'type': 'sensor',
-                                    'category': 'sensor'
+                                    'id': instrument_id,
+                                    'label': instrument_label,
+                                    'type': 'instrument',
+                                    'category': 'instrument'
                                 }
                             }
                             
-                            #connect sensor to instrument
+                            #connect instrument to instrument
                             edges.append({
                                 'data': {
                                     'source': instrument_id,
-                                    'target': sensor_id,
-                                    'label': 'has_sensor'
+                                    'target': instrument_id,
+                                    'label': 'has_instrument'
                                 }
                             })
 
@@ -246,7 +246,7 @@ def get_metadata_layout():
     initial_elements = rdf_to_top_level_elements(rdf_files[0]) if rdf_files else []
     layout = html.Div([
         html.H2("Experiment Overview"),
-        html.P("Top-level view showing experiment connections to instruments, workflows, visualizations, and sensors"),
+        html.P("Top-level view showing experiment connections to instruments, workflows, visualizations, and instruments"),
         
         dcc.Dropdown(
             id='nt-dropdown',
@@ -333,9 +333,9 @@ def get_metadata_layout():
                         'font-size': '11px'
                     }
                 },
-                # Sensor nodes (smaller, purple)
+                # Instrument nodes (smaller, purple)
                 {
-                    'selector': '[category="sensor"]',
+                    'selector': '[category="instrument"]',
                     'style': {
                         'background-color': '#B10DC9',
                         'width': 60,

@@ -31,7 +31,7 @@ def main():
         ["INFLUX_HOST"],
         ["INFLUX_ORG"],
         ["INFLUX_TOKEN", "INFLUX_TOKEN_FILE"],
-        ["SENSOR_SETUP_WAIT"],
+        ["INSTRUMENT_SETUP_WAIT"],
     ]
     env_vars = list(os.environ.keys())
 
@@ -75,7 +75,7 @@ def main():
     watchdog = mqtt.MQTTClient(
         id="watchdog",
         callback=on_watchdog_message,
-        topics=["watchdog/#", "heartbeat/controller", "ERROR/exception"],
+        topics=["watchdog/#", "heartbeat/controller", "error/exception"],
         obj=wdog,
         broker_address=mqtt_host,
         user=mqtt_user,
@@ -125,7 +125,7 @@ def main():
     heartbeat = mqtt.MQTTClient(
         id="heartbeat",
         callback=on_heartbeat_message,
-        topics="heartbeat/sensor/#",
+        topics="heartbeat/instrument/#",
         obj=state,
         broker_address=mqtt_host,
         user=mqtt_user,

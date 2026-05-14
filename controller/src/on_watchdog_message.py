@@ -10,7 +10,7 @@ def on_watchdog_message(client, msg, obj):
     The watchdog makes sure that the controller is alive and healthy.
     It does so by listening to three topics:
     - heartbeat/controller: to check if the controller is alive
-    - ERROR/exception: to check if the controller is healthy
+    - error/exception: to check if the controller is healthy
     - watchdog/restart: to take action if needed
     Every heartbeat triggers a timer that, if not reset, will trigger an error.
     The watchdog can also be used to reset the controller.
@@ -24,10 +24,10 @@ def on_watchdog_message(client, msg, obj):
     if msg.topic == "heartbeat/controller":
         obj["timer"] = obj["timeout"]
         return
-    elif msg.topic == "ERROR/exception":
+    elif msg.topic == "error/exception":
         # {"error": f"Unhandled exception in {name}: {str(e)}"}
         error = mqtt.load_message(msg)["error"]
-        print(f"WATCHDOG: Received ERROR: {error}")
+        print(f"WATCHDOG: Received error: {error}")
         mqtt.MQTTPublisher.get_instance().publish(
             "watchdog/restart", json.dumps({"message": "Restarting controller..."})
         )

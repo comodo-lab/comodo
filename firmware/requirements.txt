@@ -6,7 +6,7 @@ pytest
 pytest-rerunfailures
 coverage
 
-#Sensors
+# Instruments
 pymodbus # Furnace
 
 pyserial # Pressure Gauge

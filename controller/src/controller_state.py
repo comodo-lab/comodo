@@ -12,7 +12,7 @@ class cstate:
         "idle",
         "validating",
         "starting",
-        "awaiting_sensors",
+        "awaiting_instruments",
         "ready",
         "running",
         "stopping",
@@ -28,10 +28,10 @@ class cstate:
         "_setpoints",
         "_current_setpoint",
         "_past_setpoints",
-        "_sensors",
+        "_instruments",
         "_adjusting",
         "schema_path",
-        "schema_sensor_heartbeat_path",
+        "schema_instrument_heartbeat_path",
     ]
 
     def __init__(self) -> None:
@@ -46,10 +46,10 @@ class cstate:
         self.setpoints: List[Dict[str, Any]] = []
         self.current_setpoint: Dict[str, Any] = None
         self.past_setpoints: List[Dict[str, Any]] = []
-        self.sensors: Dict[str, Any] = {"configured": False}
+        self.instruments: Dict[str, Any] = {"configured": False}
         self.adjusting: AdjustingDict = AdjustingDict()
         self.schema_path: str = "schemas/schema_experiment.json"
-        self.schema_sensor_heartbeat_path: str = "schemas/schema_sensor_heartbeat.json"
+        self.schema_instrument_heartbeat_path: str = "schemas/schema_instrument_heartbeat.json"
 
     def heartbeat(self) -> Dict[str, Any]:
         """
@@ -80,7 +80,7 @@ class cstate:
         self.setpoints = []
         self.current_setpoint = None
         self.past_setpoints = []
-        self.sensors = {"configured": False}
+        self.instruments = {"configured": False}
         self.adjusting = AdjustingDict()
 
     @property
@@ -252,25 +252,25 @@ class cstate:
         self._past_setpoints = value
 
     @property
-    def sensors(self) -> Dict[str, Any]:
-        return self._sensors
+    def instruments(self) -> Dict[str, Any]:
+        return self._instruments
 
-    @sensors.setter
-    def sensors(self, value: Dict[str, Any]) -> None:
+    @instruments.setter
+    def instruments(self, value: Dict[str, Any]) -> None:
         """
-        Sets the sensors dictionary.
+        Sets the instruments dictionary.
 
         Args:
-            value: The new value for the entire sensors dictionary.
+            value: The new value for the entire instruments dictionary.
 
         Raises:
-            TypeError: If the provided sensors dictionary is not a dictionary.
+            TypeError: If the provided instruments dictionary is not a dictionary.
         """
         if not isinstance(value, dict):
             raise TypeError(
-                f"Sensors must be a dictionary, cannot accept {type(value)}."
+                f"Instruments must be a dictionary, cannot accept {type(value)}."
             )
-        self._sensors = value
+        self._instruments = value
 
     @property
     def adjusting(self):

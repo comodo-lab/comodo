@@ -10,8 +10,8 @@ WORKDIR /app
 
 # Copy the application code
 
-COPY ./firmware/*.py ./
-COPY ./firmware/sensors ./sensors
+COPY ./firmware/main.py ./
+COPY ./firmware/src ./src
 
 # Copy the uitls
 COPY utils ./utils

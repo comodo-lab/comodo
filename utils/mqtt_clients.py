@@ -43,7 +43,7 @@ def on_client_message(client, msg, obj):
 def mqtt_publish_exceptions(name, func):
     """
     A decorator to catch unhandled exceptions in the callback functions of the MQTT clients.
-    It publishes the exception message to the "ERROR/exception" topic.
+    It publishes the exception message to the "error/exception" topic.
     It also prints the exception and traceback to the console.
     """
 
@@ -71,7 +71,7 @@ def mqtt_publish_exceptions(name, func):
 
             try:
                 MQTTPublisher.get_instance().publish(
-                    "ERROR/exception",
+                    "error/mqtt",
                     json.dumps({"error": f"Unhandled exception in {name}: {str(e)}"}),
                 )
             except Exception as e:

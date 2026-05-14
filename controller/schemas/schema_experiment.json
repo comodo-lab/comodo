@@ -6,7 +6,7 @@
       "config": {
         "type": "object",
         "properties": {
-          "sensors": {
+          "instruments": {
             "type": "array",
             "items": {
               "type": "object",
@@ -19,7 +19,7 @@
           },
           "resolution": { "type": "number" }
         },
-        "required": ["sensors", "resolution"]
+        "required": ["instruments", "resolution"]
       },
       "experiment": {
         "type": "array",
@@ -27,12 +27,10 @@
           "type": "object",
           "properties": {
             "time": { "type": "number", "minimum": 0 },
-            "temp_right": { "type": "number"},
-            "temp_main": { "type": "number" },
-            "temp_left": { "type": "number" },
-            "pressure_upstream": { "type": "number" }
+            "furnace": { "type": "number" },
+            "pressure_downstream": { "type": "number" }
           },
-          "required": ["time", "temp_main", "temp_left", "temp_right", "pressure_upstream"]
+          "required": ["time", "furnace", "pressure_downstream"]
         }
       }
     },

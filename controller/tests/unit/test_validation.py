@@ -70,7 +70,7 @@ class TestValidateFile:
         with pytest.raises(ValidationException) as e:
             validate_file("some_file.json", "non_existent_schema.json")
 
-        assert "Error: File not found - non_existent_schema.json" in e.value.args
+        assert "ERROR: File not found - non_existent_schema.json" in e.value.args
         vf_mocks["json_load"].assert_not_called()
         vf_mocks["jsonschema_validate"].assert_not_called()
 
@@ -81,7 +81,7 @@ class TestValidateFile:
         with pytest.raises(ValidationException) as e:
             validate_file("some_file.json", "invalid_schema.json")
 
-        assert "Error decoding JSON: invalid_schema.json" in e.value.args[0]
+        assert "ERROR: Cannot decode JSON: invalid_schema.json" in e.value.args[0]
         # Should have tried to load schema only
         vf_mocks["json_load"].assert_called_once()
         assert vf_mocks["json_load_calls"][0] == "{ invalid json "
@@ -95,7 +95,7 @@ class TestValidateFile:
         with pytest.raises(ValidationException) as e:
             validate_file("non_existent_file.json", "some_schema.json")
 
-        assert "Error: File not found - non_existent_file.json" in e.value.args[0]
+        assert "ERROR: File not found - non_existent_file.json" in e.value.args[0]
         # Should have loaded schema, but not the file
         vf_mocks["json_load"].assert_called_once()
         assert vf_mocks["json_load_calls"][0] == '{"s": "s"}'
@@ -109,7 +109,7 @@ class TestValidateFile:
         with pytest.raises(ValidationException) as e:
             validate_file("invalid_file.json", "some_schema.json")
 
-        assert "Error decoding JSON: invalid_file.json" in e.value.args[0]
+        assert "ERROR: Cannot decode JSON: invalid_file.json" in e.value.args[0]
         # Should have loaded schema, and tried to load the file
         vf_mocks["json_load"].call_count == 2
         assert vf_mocks["json_load_calls"][0] == '{"s": "s"}'
@@ -216,7 +216,7 @@ class TestValidateDict:
         with pytest.raises(ValidationException) as e:
             validate_dict({"some": "d", "to": "val"}, "non_existent_schema.json")
 
-        assert "Error: File not found - non_existent_schema.json" in e.value.args
+        assert "ERROR: File not found - non_existent_schema.json" in e.value.args
         validate_mocks["json_load"].assert_not_called()
         validate_mocks["jsonschema_validate"].assert_not_called()
 
@@ -227,7 +227,7 @@ class TestValidateDict:
         with pytest.raises(ValidationException) as e:
             validate_dict({"some": "d", "to": "val"}, "invalid_schema.json")
 
-        assert "Error decoding JSON: invalid_schema.json" in e.value.args[0]
+        assert "ERROR: Cannot decode JSON: invalid_schema.json" in e.value.args[0]
         # Should have tried to load schema
         validate_mocks["json_load"].assert_called_once()
         assert validate_mocks["json_load_calls"][0] == "{ invalid json "

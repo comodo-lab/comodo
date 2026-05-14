@@ -3,10 +3,11 @@ Pfeiffer MPT 200 Pressure Gauge interface.
 https://www.idealvac.com/files/manuals/Pfeiffer_DigiLine_MPT_200_Digital_Pirani_and_Cold_Cathode_Gauge_Operating_Instructions.pdf?srsltid=AfmBOooqAOLpdE1_6SxWnc5I48YBapWUSsZtYP3KCMQqCVCheb-VDX_3
 """
 
-from sensor import BaseSensor
+from src.instrument import BaseInstrument
 
 import serial
 import sys
+import os
 
 ERROR_TIMEOUT = 10  # Seconds to wait before retrying after an error
 REPETITION_TIME = 2  # Seconds to wait before requesting another datapoint
@@ -127,37 +128,25 @@ def get_pressure(device):
     return float(pressure)
 
 
-@BaseSensor.register_sensor("pressure_downstream")
-class PressureDownstream(BaseSensor):
+class Instrument(BaseInstrument):
 
     def __init__(self):
         pass
 
-    def go_to_setpoint(self, setpoint):
-        print(f"Setting downstream pressure to {setpoint} - not supported!")
-
-    def set_config(self, config):
-        pass
-
-    def get_measurement(self, state):
-        measurement = get_pressure("/dev/ttyUSB0")
-        state.measurement = measurement
-        return measurement
-
-
-@BaseSensor.register_sensor("pressure_upstream")
-class PressureUpstream(BaseSensor):
-
-    def __init__(self):
-        pass
-
-    def go_to_setpoint(self, setpoint):
+    def go_to_setpoint(self, state):
         print(f"Setting upstream pressure to {setpoint} - not supported!")
 
     def set_config(self, config):
         pass
 
     def get_measurement(self, state):
-        measurement = get_pressure("/dev/ttyUSB1")
+        # Get device address from environment
+        device = os.getenv("DEVICE_ADDRESS", None)
+        if device is None:
+            print("DEVICE_ADDRESS environment variable not set, using default /dev/ttyUSB0")
+            device = "/dev/ttyUSB0"
+
+        # Get the pressure
+        measurement = get_pressure(device)
         state.measurement = measurement
         return measurement

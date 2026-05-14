@@ -9,7 +9,8 @@ def wrong_json(msg, e, source="controller"):
     Publishes an error message when a JSON message cannot be decoded.
     """
     source = source.lower()
-    error = f"Error decoding {msg.topic} message, wrong JSON: \n{textwrap.indent(str(e), '   ')}"
+    error = f"Cannot decode {msg.topic} message, wrong JSON: \n{textwrap.indent(str(e), '   ')}"
+    print(f"ERROR: {error}")
     mqtt.MQTTPublisher.get_instance().publish(
         f"error/{source}",
         json.dumps({"error": error}),
@@ -21,7 +22,8 @@ def missing_keys(msg, e, source="controller"):
     Publishes an error message when the key trying to be accessed is missing.
     """
     source = source.lower()
-    error = f"Error decoding {msg.topic} message, missing: \n{textwrap.indent(str(e), '   ')}"
+    error = f"Cannot decode {msg.topic} message, missing: \n{textwrap.indent(str(e), '   ')}"
+    print(f"ERROR: {error}")
     mqtt.MQTTPublisher.get_instance().publish(
         f"error/{source}",
         json.dumps({"error": error}),
@@ -74,26 +76,27 @@ def experiment_validation_error(error, uid):
 
 def heartbeat_validation_error(msg, error):
     """
-    Publishes an error message when a validation error occurs on a sensor's heartbeat.
+    Publishes an error message when a validation error occurs on a instrument's heartbeat.
     """
     p = msg.payload.decode("utf-8")
-    t = msg.topic.split("heartbeat/sensor/")[1]
+    t = msg.topic.split("heartbeat/instrument/")[1]
+    error = f"Invalid heartbeat from {t}: {p}. {error.args[0]}"
+    print(f"ERROR: {error}")
     mqtt.MQTTPublisher.get_instance().publish(
         f"error/heartbeat/validation",
-        json.dumps(
-            {"error": f"Error validating heartbeat from {t}: {p}. {error.args[0]}"}
-        ),
+        json.dumps({"error": error}),
     )
 
 
-def unconfigured_sensor(msg, sensor_name):
+def unconfigured_instrument(msg, instrument_name):
     """
-    Publishes an error message when a sensor heartbeat is received and the sensor is not configured.
+    Publishes a warning message when a instrument heartbeat is received and the instrument is not configured.
     """
-    error = f"Sensor {sensor_name} is not configured. Unexpected heartbeat message:\n    {msg.topic}  {msg.payload.decode('utf-8')}"
+    error = f"Instrument {instrument_name} is not configured. Unexpected heartbeat message:\n    {msg.topic}  {msg.payload.decode('utf-8')}"
+    print(f"WARNING: {error}")
     mqtt.MQTTPublisher.get_instance().publish(
-        "error/heartbeat",
-        json.dumps({"error": error}),
+        "warning/heartbeat",
+        json.dumps({"warn": error}),
     )
 
 

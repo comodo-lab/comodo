@@ -74,7 +74,7 @@ class InstrumentId(extended_str):
     pass
 
 
-class SensorId(extended_str):
+class InstrumentId(extended_str):
     pass
 
 
@@ -161,7 +161,7 @@ class Instrument(YAMLRoot):
     class_model_uri: ClassVar[URIRef] = EX.Instrument
 
     id: Union[str, InstrumentId] = None
-    sensors: Optional[Union[dict[Union[str, SensorId], Union[dict, "Sensor"]], list[Union[dict, "Sensor"]]]] = empty_dict()
+    instruments: Optional[Union[dict[Union[str, InstrumentId], Union[dict, "Instrument"]], list[Union[dict, "Instrument"]]]] = empty_dict()
 
     def __post_init__(self, *_: str, **kwargs: Any):
         if self._is_empty(self.id):
@@ -169,31 +169,31 @@ class Instrument(YAMLRoot):
         if not isinstance(self.id, InstrumentId):
             self.id = InstrumentId(self.id)
 
-        self._normalize_inlined_as_dict(slot_name="sensors", slot_type=Sensor, key_name="id", keyed=True)
+        self._normalize_inlined_as_dict(slot_name="instruments", slot_type=Instrument, key_name="id", keyed=True)
 
         super().__post_init__(**kwargs)
 
 
 @dataclass(repr=False)
-class Sensor(YAMLRoot):
+class Instrument(YAMLRoot):
     _inherited_slots: ClassVar[list[str]] = []
 
-    class_class_uri: ClassVar[URIRef] = EX["Sensor"]
-    class_class_curie: ClassVar[str] = "ex:Sensor"
-    class_name: ClassVar[str] = "Sensor"
-    class_model_uri: ClassVar[URIRef] = EX.Sensor
+    class_class_uri: ClassVar[URIRef] = EX["Instrument"]
+    class_class_curie: ClassVar[str] = "ex:Instrument"
+    class_name: ClassVar[str] = "Instrument"
+    class_model_uri: ClassVar[URIRef] = EX.Instrument
 
-    id: Union[str, SensorId] = None
+    id: Union[str, InstrumentId] = None
     address: Optional[str] = None
     measurement_interval: Optional[str] = None
-    sensor: Optional[Union[dict, "SensorConfig"]] = None
+    instrument: Optional[Union[dict, "InstrumentConfig"]] = None
     actuator: Optional[Union[dict, "ActuatorConfig"]] = None
 
     def __post_init__(self, *_: str, **kwargs: Any):
         if self._is_empty(self.id):
             self.MissingRequiredField("id")
-        if not isinstance(self.id, SensorId):
-            self.id = SensorId(self.id)
+        if not isinstance(self.id, InstrumentId):
+            self.id = InstrumentId(self.id)
 
         if self.address is not None and not isinstance(self.address, str):
             self.address = str(self.address)
@@ -201,8 +201,8 @@ class Sensor(YAMLRoot):
         if self.measurement_interval is not None and not isinstance(self.measurement_interval, str):
             self.measurement_interval = str(self.measurement_interval)
 
-        if self.sensor is not None and not isinstance(self.sensor, SensorConfig):
-            self.sensor = SensorConfig(**as_dict(self.sensor))
+        if self.instrument is not None and not isinstance(self.instrument, InstrumentConfig):
+            self.instrument = InstrumentConfig(**as_dict(self.instrument))
 
         if self.actuator is not None and not isinstance(self.actuator, ActuatorConfig):
             self.actuator = ActuatorConfig(**as_dict(self.actuator))
@@ -211,13 +211,13 @@ class Sensor(YAMLRoot):
 
 
 @dataclass(repr=False)
-class SensorConfig(YAMLRoot):
+class InstrumentConfig(YAMLRoot):
     _inherited_slots: ClassVar[list[str]] = []
 
-    class_class_uri: ClassVar[URIRef] = EX["SensorConfig"]
-    class_class_curie: ClassVar[str] = "ex:SensorConfig"
-    class_name: ClassVar[str] = "SensorConfig"
-    class_model_uri: ClassVar[URIRef] = EX.SensorConfig
+    class_class_uri: ClassVar[URIRef] = EX["InstrumentConfig"]
+    class_class_curie: ClassVar[str] = "ex:InstrumentConfig"
+    class_name: ClassVar[str] = "InstrumentConfig"
+    class_model_uri: ClassVar[URIRef] = EX.InstrumentConfig
 
     type: Optional[str] = None
     min: Optional[float] = None
@@ -543,11 +543,11 @@ slots.version = Slot(uri=EX.version, name="version", curie=EX.curie('version'),
 slots.instruments = Slot(uri=EX.instruments, name="instruments", curie=EX.curie('instruments'),
                    model_uri=EX.instruments, domain=None, range=Optional[Union[dict[Union[str, InstrumentId], Union[dict, Instrument]], list[Union[dict, Instrument]]]])
 
-slots.sensors = Slot(uri=EX.sensors, name="sensors", curie=EX.curie('sensors'),
-                   model_uri=EX.sensors, domain=None, range=Optional[Union[dict[Union[str, SensorId], Union[dict, Sensor]], list[Union[dict, Sensor]]]])
+slots.instruments = Slot(uri=EX.instruments, name="instruments", curie=EX.curie('instruments'),
+                   model_uri=EX.instruments, domain=None, range=Optional[Union[dict[Union[str, InstrumentId], Union[dict, Instrument]], list[Union[dict, Instrument]]]])
 
-slots.sensor = Slot(uri=EX.sensor, name="sensor", curie=EX.curie('sensor'),
-                   model_uri=EX.sensor, domain=None, range=Optional[Union[dict, SensorConfig]])
+slots.instrument = Slot(uri=EX.instrument, name="instrument", curie=EX.curie('instrument'),
+                   model_uri=EX.instrument, domain=None, range=Optional[Union[dict, InstrumentConfig]])
 
 slots.actuator = Slot(uri=EX.actuator, name="actuator", curie=EX.curie('actuator'),
                    model_uri=EX.actuator, domain=None, range=Optional[Union[dict, ActuatorConfig]])

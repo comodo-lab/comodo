@@ -26,7 +26,7 @@ def wd_state():
 def watchdog_client(mqtt_mocks):
     mqtt_mocks["client_class"](
         id="watchdog",
-        topics=["watchdog/#", "heartbeat/controller", "ERROR/exception"],
+        topics=["watchdog/#", "heartbeat/controller", "error/exception"],
         callback=on_watchdog_message,
     )
     return mqtt_mocks["client_instance"]
@@ -35,17 +35,16 @@ def watchdog_client(mqtt_mocks):
 # ========================================
 
 
-def test_wrong_json(message_bus, watchdog_client, wd_state):
+def test_wrong_json(message_bus, watchdog_client, wd_state, capsys):
     msg = MockMessage(topic="heartbeat/controller", payload="not json")
     on_watchdog_message(watchdog_client, msg, wd_state)
 
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
     assert messages[0].topic == "error/watchdog"
-    assert (
-        "Error decoding heartbeat/controller message, wrong JSON:"
-        in messages[0].payload
-    )
+    exp_err = "Cannot decode heartbeat/controller message, wrong JSON:"
+    assert exp_err in messages[0].payload
+    assert f"ERROR: {exp_err}" in capsys.readouterr().out
 
 
 def test_incompatible_request(message_bus, watchdog_client, wd_state):
@@ -70,12 +69,12 @@ def test_updates_timer_on_heartbeat(message_bus, watchdog_client, wd_state):
 
 
 def test_handles_error_exception(message_bus, watchdog_client, wd_state, capsys):
-    msg = MockMessage(topic="ERROR/exception", payload=json.dumps({"error": "Test"}))
+    msg = MockMessage(topic="error/exception", payload=json.dumps({"error": "Test"}))
     on_watchdog_message(watchdog_client, msg, wd_state)
 
     # Printed error
     captured = capsys.readouterr()
-    assert "WATCHDOG: Received ERROR: Test" in captured.out
+    assert "WATCHDOG: Received error: Test" in captured.out
 
     # MQTT message
     messages = message_bus.get_messages(decoded=True)

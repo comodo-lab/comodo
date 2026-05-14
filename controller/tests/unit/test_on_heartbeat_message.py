@@ -8,7 +8,7 @@ from tests.conftest import (
     mock_state,
     mock_experiment_dict,
     mock_setpoints,
-    sensor_heartbeat_msg,
+    instrument_heartbeat_msg,
 )
 
 from src.on_heartbeat_message import on_heartbeat_message
@@ -19,7 +19,7 @@ from src.on_heartbeat_message import on_heartbeat_message
 
 @pytest.fixture
 def state(mock_experiment_dict, mock_setpoints):
-    return mock_state("awaiting_sensors", mock_experiment_dict, mock_setpoints)
+    return mock_state("awaiting_instruments", mock_experiment_dict, mock_setpoints)
 
 
 @pytest.fixture
@@ -49,9 +49,9 @@ def test_incompatible_request(message_bus, heartbeat_client, state):
     assert "Heartbeat cannot act on heartbeat/something_else" in messages[0].payload
 
 
-def test_wrong_json(message_bus, state):
+def test_wrong_json(message_bus, state, capsys):
     msg = MockMessage(
-        topic="heartbeat/sensor/sensor_1",
+        topic="heartbeat/instrument/instrument_1",
         payload="not a json",
     )
     on_heartbeat_message(heartbeat_client, msg, state)
@@ -59,15 +59,14 @@ def test_wrong_json(message_bus, state):
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
     assert messages[0].topic == "error/heartbeat"
-    assert (
-        "Error decoding heartbeat/sensor/sensor_1 message, wrong JSON"
-        in messages[0].payload
-    )
+    exp_err = "Cannot decode heartbeat/instrument/instrument_1 message, wrong JSON:"
+    assert exp_err in messages[0].payload
+    assert f"ERROR: {exp_err}" in capsys.readouterr().out
 
 
 def test_validation_exception(message_bus, state):
     msg = MockMessage(
-        topic="heartbeat/sensor/sensor_1",
+        topic="heartbeat/instrument/instrument_1",
         payload=json.dumps({"hello": "world"}),
     )
     on_heartbeat_message(heartbeat_client, msg, state)
@@ -76,7 +75,7 @@ def test_validation_exception(message_bus, state):
     assert len(messages) == 1
     assert messages[0].topic == "error/heartbeat/validation"
     m = messages[0].payload
-    assert "Error validating heartbeat from sensor_1:" in m
+    assert "Invalid heartbeat from instrument_1:" in m
     assert "Validation errors:" in m
     assert "'name' is a required property" in m
     assert "'status' is a required property" in m
@@ -84,16 +83,16 @@ def test_validation_exception(message_bus, state):
     assert "'config' is a required property" in m
 
 
-def test_unconfigured_sensor(message_bus, state):
+def test_unconfigured_instrument(message_bus, state):
     assert state.experiment_uid == "123"
-    assert state.status == "awaiting_sensors"
-    assert "sensor_1" not in state.sensors
+    assert state.status == "awaiting_instruments"
+    assert "instrument_1" not in state.instruments
 
     msg = MockMessage(
-        topic="heartbeat/sensor/sensor_1",
+        topic="heartbeat/instrument/instrument_1",
         payload=json.dumps(
             {
-                "name": "sensor_1",
+                "name": "instrument_1",
                 "status": "ready",
                 "setpoint": 1,
                 "config": {"p": 1, "i": 1, "d": 1, "tolerance": 1},
@@ -104,20 +103,20 @@ def test_unconfigured_sensor(message_bus, state):
 
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
-    assert messages[0].topic == "error/heartbeat"
-    assert "Sensor sensor_1 is not configured" in messages[0].payload
+    assert messages[0].topic == "warning/heartbeat"
+    assert "Instrument instrument_1 is not configured" in messages[0].payload
 
 
-def test_unconfigured_sensor_idle(message_bus, state, heartbeat_client):
+def test_unconfigured_instrument_idle(message_bus, state, heartbeat_client):
     assert state.experiment_uid == "123"
     state.status = "idle"
-    assert "sensor_1" not in state.sensors
+    assert "instrument_1" not in state.instruments
 
     msg = MockMessage(
-        topic="heartbeat/sensor/sensor_1",
+        topic="heartbeat/instrument/instrument_1",
         payload=json.dumps(
             {
-                "name": "sensor_1",
+                "name": "instrument_1",
                 "status": "awaiting_config",
                 "setpoint": None,
                 "config": {"p": None, "i": None, "d": None, "tolerance": None},
@@ -130,133 +129,146 @@ def test_unconfigured_sensor_idle(message_bus, state, heartbeat_client):
     assert len(messages) == 0, "No messages should be published in idle state"
 
 
-def test_awaiting_sensors_wrong_config(
+def test_awaiting_instruments_wrong_config(
     message_bus,
     state,
     heartbeat_client,
     mock_experiment_dict,
+    capsys,
 ):
-    assert state.sensors["configured"] == False
+    assert state.instruments["configured"] == False
 
-    sensors = mock_experiment_dict["config"]["sensors"]
-    first_sensor_name = sensors[0]["name"]
-    first_sensor_config = {k: v for k, v in sensors[0].items() if k != "name"}
-    assert state.sensors[first_sensor_name]["status"] == None
-    assert state.sensors[first_sensor_name]["setpoint"] == None
-    assert state.sensors[first_sensor_name]["config"] == first_sensor_config
+    instruments = mock_experiment_dict["config"]["instruments"]
+    first_instrument_name = instruments[0]["name"]
+    first_instrument_config = {k: v for k, v in instruments[0].items() if k != "name"}
+    assert state.instruments[first_instrument_name]["status"] == None
+    assert state.instruments[first_instrument_name]["setpoint"] == None
+    assert state.instruments[first_instrument_name]["config"] == first_instrument_config
 
-    # Incorrect heartbeat for first sensor
-    wrong_config = sensors[0].copy()
-    wrong_config["p"] = wrong_config["p"] + 1
-    msg = sensor_heartbeat_msg(sensor=wrong_config, status="no_setpoint", setpoint=0)
-    with pytest.raises(RuntimeError, match="Sensor misconfigured"):
-        on_heartbeat_message(heartbeat_client, msg, state)
-
-    # Should not have updated sensor
-    assert state.sensors[first_sensor_name]["status"] == None
-    assert state.sensors[first_sensor_name]["setpoint"] == None
-    assert state.sensors[first_sensor_name]["config"] == first_sensor_config
-    assert state.sensors["configured"] == False
-
-    messages = message_bus.get_messages(decoded=True)
-    assert len(messages) == 0, "Should only publish if ready"
-
-
-def test_awaiting_sensors_racing_heartbeat(
-    message_bus,
-    state,
-    heartbeat_client,
-    mock_experiment_dict,
-):
-    assert state.sensors["configured"] == False
-
-    sensors = mock_experiment_dict["config"]["sensors"]
-    first_sensor_name = sensors[0]["name"]
-    first_sensor_config = {k: v for k, v in sensors[0].items() if k != "name"}
-    assert state.sensors[first_sensor_name]["status"] == None
-    assert state.sensors[first_sensor_name]["setpoint"] == None
-    assert state.sensors[first_sensor_name]["config"] == first_sensor_config
-
-    # Incorrect heartbeat for first sensor
-    wrong_config = sensors[0].copy()
-    wrong_config["p"] = wrong_config["p"] + 1
-    msg = sensor_heartbeat_msg(
-        sensor=wrong_config, status="awaiting_config", setpoint=0
+    # Incorrect heartbeat for first instrument
+    wrong_config = instruments[0].copy()
+    wrong_config["tolerance"] = wrong_config["tolerance"] + 1
+    msg = instrument_heartbeat_msg(
+        instrument=wrong_config, status="no_setpoint", setpoint=0
     )
-
-    # Should not raise, because sensor status is still awaiting_config
     on_heartbeat_message(heartbeat_client, msg, state)
 
-    # Should not have updated sensor
-    assert state.sensors[first_sensor_name]["status"] == None
-    assert state.sensors[first_sensor_name]["setpoint"] == None
-    assert state.sensors[first_sensor_name]["config"] == first_sensor_config
-    assert state.sensors["configured"] == False
+    # Should not have updated instrument
+    assert state.instruments[first_instrument_name]["status"] == None
+    assert state.instruments[first_instrument_name]["setpoint"] == None
+    assert state.instruments[first_instrument_name]["config"] == first_instrument_config
+    assert state.instruments["configured"] == False
+
+    # Should abort experiment due to wrong config
+    messages = message_bus.get_messages(decoded=True)
+    assert len(messages) == 2
+    assert messages[0].topic == "error/sensor/configuration"
+    exp_err = "Instrument 'temperature' misconfigured. Expected {'tolerance': 0.21}, received {'tolerance': 1.21}"
+    assert exp_err in messages[0].payload
+    assert f"ERROR: {exp_err}" in capsys.readouterr().out
+    assert messages[1].topic == "controller/stop"
+    assert json.loads(messages[1].payload)["uid"] == "123"
+
+
+def test_awaiting_instruments_racing_heartbeat(
+    message_bus,
+    state,
+    heartbeat_client,
+    mock_experiment_dict,
+):
+    assert state.instruments["configured"] == False
+
+    instruments = mock_experiment_dict["config"]["instruments"]
+    first_instrument_name = instruments[0]["name"]
+    first_instrument_config = {k: v for k, v in instruments[0].items() if k != "name"}
+    assert state.instruments[first_instrument_name]["status"] == None
+    assert state.instruments[first_instrument_name]["setpoint"] == None
+    assert state.instruments[first_instrument_name]["config"] == first_instrument_config
+
+    # Incorrect heartbeat for first instrument
+    wrong_config = instruments[0].copy()
+    wrong_config["tolerance"] = wrong_config["tolerance"] + 1
+    msg = instrument_heartbeat_msg(
+        instrument=wrong_config, status="awaiting_config", setpoint=0
+    )
+
+    # Should not raise, because instrument status is still awaiting_config
+    on_heartbeat_message(heartbeat_client, msg, state)
+
+    # Should not have updated instrument
+    assert state.instruments[first_instrument_name]["status"] == None
+    assert state.instruments[first_instrument_name]["setpoint"] == None
+    assert state.instruments[first_instrument_name]["config"] == first_instrument_config
+    assert state.instruments["configured"] == False
 
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 0, "Should only publish if ready"
 
 
-def test_awaiting_sensors_not_all_responded(
+def test_awaiting_instruments_not_all_responded(
     message_bus,
     state,
     heartbeat_client,
     mock_experiment_dict,
 ):
     assert state.experiment_uid == "123"
-    assert state.status == "awaiting_sensors"
-    assert state.sensors["configured"] == False
+    assert state.status == "awaiting_instruments"
+    assert state.instruments["configured"] == False
 
-    sensors = mock_experiment_dict["config"]["sensors"]
+    instruments = mock_experiment_dict["config"]["instruments"]
 
-    # Correct heartbeat for all but first sensors
-    for sensor in sensors[1:]:
-        msg = sensor_heartbeat_msg(sensor=sensor, status="no_setpoint", setpoint=None)
+    # Correct heartbeat for all but first instruments
+    for instrument in instruments[1:]:
+        msg = instrument_heartbeat_msg(
+            instrument=instrument, status="no_setpoint", setpoint=None
+        )
         on_heartbeat_message(heartbeat_client, msg, state)
 
-    # Should have updated sensors, but not be ready yet
-    for sensor in sensors[1:]:
-        assert state.sensors[sensor["name"]]["status"] == "no_setpoint"
-        assert state.sensors[sensor["name"]]["setpoint"] == None
-    assert state.status == "awaiting_sensors"
-    assert state.sensors["configured"] == False
+    # Should have updated instruments, but not be ready yet
+    for instrument in instruments[1:]:
+        assert state.instruments[instrument["name"]]["status"] == "no_setpoint"
+        assert state.instruments[instrument["name"]]["setpoint"] == None
+    assert state.status == "awaiting_instruments"
+    assert state.instruments["configured"] == False
 
-    # First sensor heartbeat with awaiting_config
-    msg = sensor_heartbeat_msg(
-        sensor=sensors[0], status="awaiting_config", setpoint=None
+    # First instrument heartbeat with awaiting_config
+    msg = instrument_heartbeat_msg(
+        instrument=instruments[0], status="awaiting_config", setpoint=None
     )
     on_heartbeat_message(heartbeat_client, msg, state)
 
     # Should still not be ready
-    assert state.sensors[sensors[0]["name"]]["status"] == None
-    assert state.sensors[sensors[0]["name"]]["setpoint"] == None
-    assert state.status == "awaiting_sensors"
-    assert state.sensors["configured"] == False
+    assert state.instruments[instruments[0]["name"]]["status"] == None
+    assert state.instruments[instruments[0]["name"]]["setpoint"] == None
+    assert state.status == "awaiting_instruments"
+    assert state.instruments["configured"] == False
 
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 0, "Should only publish if ready"
 
 
-def test_awaiting_sensors_all_responded(
+def test_awaiting_instruments_all_responded(
     message_bus,
     state,
     heartbeat_client,
     mock_experiment_dict,
 ):
     assert state.experiment_uid == "123"
-    assert state.status == "awaiting_sensors"
-    assert state.sensors["configured"] == False
+    assert state.status == "awaiting_instruments"
+    assert state.instruments["configured"] == False
 
-    sensors = mock_experiment_dict["config"]["sensors"]
+    instruments = mock_experiment_dict["config"]["instruments"]
 
-    # Correct heartbeat for all sensors
-    for sensor in sensors:
-        msg = sensor_heartbeat_msg(sensor=sensor, status="no_setpoint", setpoint=None)
+    # Correct heartbeat for all instruments
+    for instrument in instruments:
+        msg = instrument_heartbeat_msg(
+            instrument=instrument, status="no_setpoint", setpoint=None
+        )
         on_heartbeat_message(heartbeat_client, msg, state)
 
-    assert state.sensors[sensor["name"]]["status"] == "no_setpoint"
-    assert state.sensors["configured"] == True
-    assert state.status == "awaiting_sensors"
+    assert state.instruments[instrument["name"]]["status"] == "no_setpoint"
+    assert state.instruments["configured"] == True
+    assert state.status == "awaiting_instruments"
 
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
@@ -264,20 +276,22 @@ def test_awaiting_sensors_all_responded(
     assert json.loads(messages[0].payload)["uid"] == "123"
 
 
-def test_running_heartbeat_updates_sensor(
+def test_running_heartbeat_updates_instrument(
     message_bus,
     state,
     heartbeat_client,
     mock_experiment_dict,
 ):
     state.status = "running"
-    sensors = mock_experiment_dict["config"]["sensors"]
+    instruments = mock_experiment_dict["config"]["instruments"]
 
-    msg = sensor_heartbeat_msg(sensor=sensors[0], status="adjusting", setpoint=42)
+    msg = instrument_heartbeat_msg(
+        instrument=instruments[0], status="adjusting", setpoint=42
+    )
     on_heartbeat_message(heartbeat_client, msg, state)
 
-    assert state.sensors[sensors[0]["name"]]["status"] == "adjusting"
-    assert state.sensors[sensors[0]["name"]]["setpoint"] == 42
+    assert state.instruments[instruments[0]["name"]]["status"] == "adjusting"
+    assert state.instruments[instruments[0]["name"]]["setpoint"] == 42
 
     messages = message_bus.get_messages(decoded=True)
     # No new messages should be published during running heartbeats

@@ -15,19 +15,16 @@ import dash_bootstrap_components as dbc
 import dash_ag_grid as dag
 
 
-def get_sensor_setup(data=[]):
+def get_instrument_setup(data=[]):
     """
-    Creates a dash-ag-grid component for sensor setup with editing.
+    Creates a dash-ag-grid component for instrument setup with editing.
 
-    Should just be a table with sensor names and tolerances.
+    Should just be a table with instrument names and tolerances.
     """
-    component_id = "sensor_setup"
+    component_id = "instrument_setup"
 
     column_dicts = [
-        {"headerName": "Sensor Name", "field": "name", "editable": True},
-        {"headerName": "P", "field": "p", "editable": True},
-        {"headerName": "I", "field": "i", "editable": True},
-        {"headerName": "D", "field": "d", "editable": True},
+        {"headerName": "Instrument Name", "field": "name", "editable": True},
         {"headerName": "Tolerance", "field": "tolerance", "editable": True},
     ]
 
@@ -48,18 +45,18 @@ def get_sensor_setup(data=[]):
         )
     ]
 
-    return html.Div(layout, id="sensor-setup-container")
+    return html.Div(layout, id="instrument-setup-container")
 
 
-@callback(Output("sensor_setup", "rowData"), Input("sensor-store", "data"))
+@callback(Output("instrument_setup", "rowData"), Input("instrument-store", "data"))
 def update_table(data):
     return data
 
 
 @callback(
-    Output("sensor-store", "data"),
-    Input("sensor_setup", "cellValueChanged"),
-    State("sensor_setup", "rowData"),
+    Output("instrument-store", "data"),
+    Input("instrument_setup", "cellValueChanged"),
+    State("instrument_setup", "rowData"),
     prevent_initial_call=True,
 )
 def sync_edits_to_store(cell_change, current_rows):

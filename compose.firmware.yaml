@@ -3,16 +3,19 @@ x-templates:
     MQTT_HOST: ${MQTT_HOST}
     MQTT_USER: ${MQTT_USER}
     MQTT_PASS: ${MQTT_PASS}
-  sensor-env: &sensor-env
+  instrument-env: &instrument-env
     <<: *mqtt-env
-    SIMULATE: ${SIMULATE_SENSORS:-false}
-  python-sensor-template: &python-sensor-template
+    SIMULATE: ${SIMULATE_INSTRUMENTS:-false}
+  python-instrument-template: &python-instrument-template
     build:
       context: .
       dockerfile: firmware/Dockerfile
     networks:
       comodo-firmware:
-
+    depends_on:
+      mqtt-probe-firmware:
+        condition: service_healthy
+      
 name: comodo-firmware
 services:
   mqtt-probe-firmware:
@@ -22,51 +25,62 @@ services:
     networks:
       comodo-firmware:
 
-  temp_main:
-    <<: *python-sensor-template
+  furnace:
+    <<: *python-instrument-template
     environment:
-      <<: *sensor-env
-      SENSOR_ID: temp_main
+      <<: *instrument-env
+      INSTRUMENT_ID: "furnace"
+      FIRMWARE: carbolite_gero_thermocouple
+      DEVICE_ADDRESS: 192.168.111.222
       HEARTBEAT_INTERVAL: 1000
       MEASUREMENT_INTERVAL: 1000
 
-  temp_left:
-    <<: *python-sensor-template
+  furnace_left:
+    <<: *python-instrument-template
     environment:
-      <<: *sensor-env
-      SENSOR_ID: temp_left
+      <<: *instrument-env
+      INSTRUMENT_ID: "furnace_left"
+      FIRMWARE: carbolite_gero_thermocouple
+      DEVICE_ADDRESS: 192.168.111.224
       HEARTBEAT_INTERVAL: 1000
       MEASUREMENT_INTERVAL: 1000
 
-  temp_right:
-    <<: *python-sensor-template
+  furnace_right:
+    <<: *python-instrument-template
     environment:
-      <<: *sensor-env
-      SENSOR_ID: temp_right
+      <<: *instrument-env
+      INSTRUMENT_ID: "furnace_right"
+      FIRMWARE: carbolite_gero_thermocouple
+      DEVICE_ADDRESS: 192.168.111.225
       HEARTBEAT_INTERVAL: 1000
       MEASUREMENT_INTERVAL: 1000
+
 
   pressure_downstream:
-    <<: *python-sensor-template
+    <<: *python-instrument-template
     environment:
-      <<: *sensor-env
-      SENSOR_ID: pressure_downstream
+      <<: *instrument-env
+      INSTRUMENT_ID: "pressure_downstream"
+      FIRMWARE: pfeiffer_mpt_200_pressure
       HEARTBEAT_INTERVAL: 1000
       MEASUREMENT_INTERVAL: 1000
+      DEVICE_ADDRESS: /dev/ttyUSB0
     devices:
       - "/dev/ttyUSB0:/dev/ttyUSB0"
     privileged: true
 
   pressure_upstream:
-    <<: *python-sensor-template
+    <<: *python-instrument-template
     environment:
-      <<: *sensor-env
-      SENSOR_ID: pressure_upstream
+      <<: *instrument-env
+      INSTRUMENT_ID: "pressure_upstream"
+      FIRMWARE: pfeiffer_mpt_200_pressure
+      DEVICE_ADDRESS: /dev/ttyUSB0
       HEARTBEAT_INTERVAL: 1000
       MEASUREMENT_INTERVAL: 1000
     devices:
       - "/dev/ttyUSB1:/dev/ttyUSB1"
-    privileged: true  # Optional but recommended for USB/serial access
+    privileged: true
 
   setpoint-controller:
     build:
@@ -77,8 +91,8 @@ services:
     environment:
       <<: *mqtt-env
       HEARTBEAT_INTERVAL: 1000
-      SENSOR: pressure_upstream
-      ACTUATOR: massflow
+      SENSOR: "pressure_upstream/pressure"
+      ACTUATOR: "massflow/massflow"
       K_P: 1
       K_I: 0.1
       K_D: 0.05
@@ -89,55 +103,17 @@ services:
       # OUT_MAX_R: 10
 
   massflow:
-    <<: *python-sensor-template
+    <<: *python-instrument-template
     environment:
-      <<: *sensor-env
-      SENSOR_ID: massflow
+      <<: *instrument-env
+      INSTRUMENT_ID: "massflow"
+      FIRMWARE: el_flow_select_massflow
+      DEVICE_ADDRESS: /dev/ttyUSB2
       HEARTBEAT_INTERVAL: 1000
       MEASUREMENT_INTERVAL: 1000
-    devices: # Critical this is up as all other massflow sensors read from this device
+    devices: 
       - "/dev/ttyUSB2:/dev/ttyUSB2"
-    privileged: true  # Optional but recommended for USB/serial access
-    volumes:
-      - massflow_read:/shared
-
-  massflow_pressure_upstream:
-    <<: *python-sensor-template
-    environment:
-      <<: *sensor-env
-      SENSOR_ID: massflow_pressure_upstream
-      HEARTBEAT_INTERVAL: 1000
-      MEASUREMENT_INTERVAL: 1000
-    volumes:
-      - massflow_read:/shared
-
-  massflow_pressure_downstream:
-    <<: *python-sensor-template
-    environment:
-      <<: *sensor-env
-      SENSOR_ID: massflow_pressure_downstream
-      HEARTBEAT_INTERVAL: 1000
-      MEASUREMENT_INTERVAL: 1000
-    volumes:
-      - massflow_read:/shared
-
-  massflow_fluid_temp:
-    <<: *python-sensor-template
-    environment:
-      <<: *sensor-env
-      SENSOR_ID: massflow_fluid_temp
-      HEARTBEAT_INTERVAL: 1000
-      MEASUREMENT_INTERVAL: 1000
-    volumes:
-      - massflow_read:/shared
-
-  massflow_temp:
-    <<: *python-sensor-template
-    environment:
-      <<: *sensor-env
-      SENSOR_ID: massflow_temp
-      HEARTBEAT_INTERVAL: 1000
-      MEASUREMENT_INTERVAL: 1000
+    privileged: true 
     volumes:
       - massflow_read:/shared
 

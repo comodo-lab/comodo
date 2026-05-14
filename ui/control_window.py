@@ -44,11 +44,11 @@ def get_control_panel(params=[]):
     Output("hidden-div", "children"),
     Input("submit-experiment", "n_clicks"),
     State("experiment-designer-store", "data"),
-    State("sensor-store", "data"),
+    State("instrument-store", "data"),
     State("experiment-config-store", "data"),
     prevent_initial_call=True,
 )
-def update_output(n_clicks, table_data, sensors, exp_config):
+def update_output(n_clicks, table_data, instruments, exp_config):
     if n_clicks == None:
         raise PreventUpdate
 
@@ -65,7 +65,7 @@ def update_output(n_clicks, table_data, sensors, exp_config):
 
     experiment_config = {
         "uid": experiment_id,
-        "config": {"resolution": resolution, "sensors": sensors},
+        "config": {"resolution": resolution, "instruments": instruments},
         "experiment": table_data,
     }
     json_data = json.dumps(experiment_config).encode("utf-8")
@@ -167,19 +167,19 @@ def get_control_component(param_name=None, min_val=0, max_val=100, step=1):
     Output({"type": "control-slider", "index": MATCH}, "value"),
     # Output("control-last-update", "children"),
     Input("interval", "n_intervals"),
-    State("sensor-store", "data"),
+    State("instrument-store", "data"),
     State({"type": "control-slider", "index": MATCH}, "id"),
     State("timezone-store", "data"),
 )
-def update_control_component(n_intervals, sensors, slider_id, timezone):
+def update_control_component(n_intervals, instruments, slider_id, timezone):
     """
     Updates the control component based on the selected parameter.
     """
     # Extract the parameter name from the slider's id
     param_name = slider_id["index"]
 
-    # Find the corresponding sensor data
-    sensor = next((s for s in sensors if s["name"] == param_name), None)
+    # Find the corresponding instrument data
+    instrument = next((s for s in instruments if s["name"] == param_name), None)
 
     try:
         user_tz = pytz.timezone(timezone)
@@ -188,14 +188,14 @@ def update_control_component(n_intervals, sensors, slider_id, timezone):
         print(f"Error getting current time: {e}")
         time = "N/A"
 
-    if not sensor:
+    if not instrument:
         return no_update, no_update  # , time
 
     # Query setpoint and actual value for the parameter
     try:
         setpoint = query_influxdb_params(
             fields=[param_name],
-            topics=["sensor/setpoint"],
+            topics=["instrument/setpoint"],
             start="-1m",
             aggregate="last",
         )[-1].get_value()
