@@ -107,7 +107,7 @@ services:
     environment:
       <<: *instrument-env
       INSTRUMENT_ID: "massflow"
-      FIRMWARE: el_flow_select_massflow
+      FIRMWARE: el_flow_select_mass_flow
       DEVICE_ADDRESS: /dev/ttyUSB2
       HEARTBEAT_INTERVAL: 1000
       MEASUREMENT_INTERVAL: 1000

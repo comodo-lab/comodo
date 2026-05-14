@@ -32,7 +32,9 @@ def send_heartbeat():
             f"heartbeat/instrument/{state.config['INSTRUMENT_ID']}", heartbeat_structure
         )
 
+
 ## ----------------- Publishing helper functions ----------------- ##
+
 
 def publish_measurement(measurements):
     if state.client is None:
@@ -40,11 +42,11 @@ def publish_measurement(measurements):
 
     if type(measurements) is int or type(measurements) is float:
         measurements = {"value": measurements}
-        
+
     for key, measurement in measurements.items():
-        msg = json.dumps({"value": measurement}) 
+        msg = json.dumps({"value": measurement})
         state.client.publish(f"measurement/{state.config['INSTRUMENT_ID']}/{key}", msg)
-        
+
 
 def send_measurement():
     """
@@ -129,8 +131,10 @@ async def main():
 
     ## Set the ready flag
     state.config["ready"] = True
-    print(f"Instrument {state.config['INSTRUMENT_ID']} created successfully "
-          f"using firmware {state.config['FIRMWARE']}")
+    print(
+        f"Instrument {state.config['INSTRUMENT_ID']} created successfully "
+        f"using firmware {state.config['FIRMWARE']}"
+    )
     print(f"Instrument {state.config['INSTRUMENT_ID']} awaiting configuration.")
 
     ## Setup heartbeat timer if on a pico or async timer if on linux
@@ -149,6 +153,8 @@ if __name__ == "__main__":
     except Exception as e:
         traceback.print_exc()
         try:
-            state.client.publish(f"error/instrument/{state.config['INSTRUMENT_ID']}", str(e))
+            state.client.publish(
+                f"error/instrument/{state.config['INSTRUMENT_ID']}", str(e)
+            )
         except:
             print(f"Error: {e}")

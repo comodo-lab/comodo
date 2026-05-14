@@ -49,8 +49,9 @@ class Instrument(BaseInstrument):
 
     def intialise(self, state):
         try:
-            self.clients = ModbusTcpClient(host=state.config["DEVICE_ADDRESS"],
-                                           port=MODBUS_PORT)
+            self.clients = ModbusTcpClient(
+                host=state.config["DEVICE_ADDRESS"], port=MODBUS_PORT
+            )
         except Exception as e:
             print(f"Error initializing ModbusTcpClient!\n{e}")
 

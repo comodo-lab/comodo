@@ -41,7 +41,9 @@ def on_timer_message(client, msg, obj):
         # Wait for instruments to be ready or timeout
         instrument_setup_wait = float(os.getenv("INSTRUMENT_SETUP_WAIT", 10))
         t0 = t.time()
-        while (not obj.instruments["configured"]) and obj.status == "awaiting_instruments":
+        while (
+            not obj.instruments["configured"]
+        ) and obj.status == "awaiting_instruments":
             t.sleep(timer_check_frequency)
             if t.time() - t0 > instrument_setup_wait:
                 controller_timeout(message["uid"], "instruments", "Stopping")

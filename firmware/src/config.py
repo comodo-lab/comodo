@@ -11,8 +11,9 @@ config = {
     "MQTT_HOST": "rabbitmq",
     "HEARTBEAT_INTERVAL": 1000,
     "MEASUREMENT_INTERVAL": 1000,
-    "SIMULATE": True
+    "SIMULATE": True,
 }
+
 
 def load_config():
     """Load the default configuration and override using the environmentn

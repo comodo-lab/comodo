@@ -1,6 +1,7 @@
 import importlib
 import pkgutil
 
+
 class BaseInstrument:
     """
     Base class for all instruments
@@ -16,7 +17,9 @@ class BaseInstrument:
             module = importlib.import_module(f"src.instruments.{instrument_name}")
         except ModuleNotFoundError as e:
             # List available instrument plugins
-            available_instruments = [name for _, name, _ in pkgutil.iter_modules(['instruments'])]
+            available_instruments = [
+                name for _, name, _ in pkgutil.iter_modules(["instruments"])
+            ]
             print(f"Available instruments: {available_instruments}")
 
             # Raise error
@@ -27,7 +30,9 @@ class BaseInstrument:
             cls = module.Instrument
             return cls()
         except AttributeError as e:
-            raise ValueError(f"Instrument plugin '{instrument_name}' does not have a 'Instrument' class") from e
+            raise ValueError(
+                f"Instrument plugin '{instrument_name}' does not have a 'Instrument' class"
+            ) from e
 
     def __init__(self):
         """
@@ -35,7 +40,7 @@ class BaseInstrument:
 
         To be extended by subclasses, if needed.
         """
-        
+
         pass
 
     def initialise(self, state):
@@ -61,21 +66,23 @@ class BaseInstrument:
         Get a simulated measurement, default implementation
         """
 
-        setpoint = state.status['setpoint']
+        setpoint = state.status["setpoint"]
         value = state.measurement
-        
+
         if setpoint is None:
             return 0
-        
+
         difference = setpoint - value
         half_diff = difference / 2
-            
+
         measurement = half_diff + value
-        
+
         distance = abs(measurement - state.status["setpoint"])
         if distance < state.status["config"]["tolerance"]:
-            state.client.publish(f"instrument/{state.config['INSTRUMENT_ID']}/setpoint_reached", "true")
-            
+            state.client.publish(
+                f"instrument/{state.config['INSTRUMENT_ID']}/setpoint_reached", "true"
+            )
+
         state.measurement = measurement
         return measurement
 
@@ -84,9 +91,9 @@ class BaseInstrument:
         Go to the setpoint
         """
         raise NotImplemented
-    
+
     def simulate_go_to_setpoint(self, state):
         """
-        Go to the setpoint 
+        Go to the setpoint
         """
         pass
