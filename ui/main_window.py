@@ -21,7 +21,6 @@ import plotly.graph_objects as go
 
 from plot import plot_data_plotly
 
-
 PROFILES = ["linear", "logarithmic", "exponential", "step"]
 
 # Params to actuate
@@ -29,8 +28,9 @@ PARAMS = [
     "furnace/temperature",
     "pressure_downstream/pressure",
     "pressure_upsteam/pressure",
-    "massflow/massflow"
+    "massflow/massflow",
 ]
+
 
 def get_experiment_designer(data=[]):
     """

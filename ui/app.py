@@ -52,7 +52,7 @@ PARAMS = [
     "furnace/temperature",
     "pressure_downstream/pressure",
     "pressure_upstream/pressure",
-    "massflow/massflow"
+    "massflow/massflow",
 ]
 
 PARAM_DICT = [
@@ -100,8 +100,7 @@ INI_DATA_DICT = [
         "pressure_upstream/pressure_profile": "linear",
         "massflow/massflow": 20.0,
         "massflow/massflow_profile": "linear",
-
-    }
+    },
 ]
 
 INI_INSTRUMENT_DICT = [
@@ -216,8 +215,9 @@ graph_layout = gv.get_experiment_graph()
 metadata_workflow = wf.get_workflow_layout()
 
 metadata_layout = md.get_metadata_layout()
-# Register metadata callbacks 
+# Register metadata callbacks
 wf.register_workflow_callbacks(app)
+
 
 @app.callback(Output("page-content", "children"), Input("url", "pathname"))
 def render_page(pathname):
@@ -284,8 +284,9 @@ app.layout = dbc.Container(
                     className="me-0",
                 ),
                 dbc.NavItem(
-                    dbc.NavLink("Workflow", href="/workflow", active="exact"), 
-                    className="me-0"),
+                    dbc.NavLink("Workflow", href="/workflow", active="exact"),
+                    className="me-0",
+                ),
             ],
             pills=True,
             justified=True,

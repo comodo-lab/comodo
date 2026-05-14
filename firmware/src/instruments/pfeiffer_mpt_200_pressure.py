@@ -143,7 +143,9 @@ class Instrument(BaseInstrument):
         # Get device address from environment
         device = os.getenv("DEVICE_ADDRESS", None)
         if device is None:
-            print("DEVICE_ADDRESS environment variable not set, using default /dev/ttyUSB0")
+            print(
+                "DEVICE_ADDRESS environment variable not set, using default /dev/ttyUSB0"
+            )
             device = "/dev/ttyUSB0"
 
         # Get the pressure
