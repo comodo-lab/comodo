@@ -15,4 +15,3 @@ for component in "${components[@]}"; do
     echo "Testing $component..."
     (cd "$component" && docker compose up --build --abort-on-container-exit)
 done
-
