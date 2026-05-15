@@ -22,6 +22,14 @@ on:
         required: true
         type: string
 
+      push_versioned:
+        required: false
+        type: boolean
+        default: false
+      push_latest:
+        required: false
+        type: boolean
+        default: false
       push_vb:
         required: false
         type: boolean
@@ -89,24 +97,22 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      # Push actions for push event
+      # Push actions (controlled by caller inputs)
 
       - name: Push versioned
-        if: ${{ github.event_name == 'push' }}
+        if: ${{ inputs.push_versioned }}
         run: |
           docker image tag ${{ env.CONTAINER_NAME }}:testing ${{ env.ORG_NAME }}/${{ env.CONTAINER_NAME }}:${{ steps.version.outputs.version }}
           docker push ${{ env.ORG_NAME }}/${{ env.CONTAINER_NAME }}:${{ steps.version.outputs.version }}
 
       - name: Push latest tag
-        if: ${{ github.event_name == 'push' }}
+        if: ${{ inputs.push_latest }}
         run: |
           docker image tag ${{ env.CONTAINER_NAME }}:testing ${{ env.ORG_NAME }}/${{ env.CONTAINER_NAME }}:latest
           docker push ${{ env.ORG_NAME }}/${{ env.CONTAINER_NAME }}:latest
 
-      # Push actions for workflow_dispatch event
-
       - name: Push version-branch
-        if: ${{ github.event.inputs.push_vb == 'true' }}
+        if: ${{ inputs.push_vb }}
         run: |
           if [ "${{ github.ref_name }}" != "main" ] && [ "${{ github.ref_name }}" != "dev" ]; then
             BRANCH=-$(echo "${{ github.ref_name }}" | tr '/ ' '--')
@@ -115,7 +121,7 @@ jobs:
           docker push ${{ env.ORG_NAME }}/${{ env.CONTAINER_NAME }}:${{ steps.version.outputs.version }}${BRANCH}
 
       - name: Push custom tag
-        if: ${{ github.event.inputs.custom_tag != '' }}
+        if: ${{ inputs.custom_tag != '' }}
         run: |
-          docker image tag ${{ env.CONTAINER_NAME }}:testing ${{ env.ORG_NAME }}/${{ env.CONTAINER_NAME }}:${{ github.event.inputs.custom_tag }}
-          docker push ${{ env.ORG_NAME }}/${{ env.CONTAINER_NAME }}:${{ github.event.inputs.custom_tag }}
+          docker image tag ${{ env.CONTAINER_NAME }}:testing ${{ env.ORG_NAME }}/${{ env.CONTAINER_NAME }}:${{ inputs.custom_tag }}
+          docker push ${{ env.ORG_NAME }}/${{ env.CONTAINER_NAME }}:${{ inputs.custom_tag }}
