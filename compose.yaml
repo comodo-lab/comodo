@@ -66,6 +66,15 @@ services:
     networks:
       comodo-core:
 
+  monitor:
+    build:
+      context: .
+      dockerfile: monitor/Dockerfile
+    volumes:
+      - ./messageSpec.yaml:/app/asyncapi.yaml
+    depends_on:
+      - mosquitto
+
 networks:
   comodo-core:
     name: comodo-core
