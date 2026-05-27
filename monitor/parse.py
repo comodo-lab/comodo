@@ -15,8 +15,8 @@ def resolve_refs(schema, spec):
     return schema
 
 
-def load_spec():
-    with open('/app/asyncapi.yaml') as f:
+def load_spec(path='/app/asyncapi.yaml'):
+    with open(path) as f:
         spec = yaml.safe_load(f)
 
     # Get channels object

@@ -1,0 +1,52 @@
+asyncapi: 3.0.0
+info:
+  title: Test Spec
+  version: '0.1.0'
+channels:
+  errorInvalid:
+    address: 'error/message/invalid'
+    messages:
+      validationErrorMsg:
+        payload:
+          $ref: '#/components/schemas/validationError'
+  errorMalformed:
+    address: 'error/message/malformed'
+    messages:
+      malformedPayloadMsg:
+        payload:
+          $ref: '#/components/schemas/malformedPayload'
+  errorUnexpected:
+    address: 'error/message/unexpected'
+    messages:
+      unexpectedTopicErrorMsg:
+        payload:
+          $ref: '#/components/schemas/unexpectedTopicError'
+components:
+  schemas:
+    malformedPayload:
+      type: object
+      additionalProperties: false
+      required: [topic, error, error_message]
+      properties:
+        topic:         { type: string }
+        error:         { type: string, enum: [invalid_json] }
+        error_message: { type: string }
+    validationError:
+      type: object
+      additionalProperties: false
+      required: [topic, error, message]
+      properties:
+        topic:   { type: string }
+        channel: { type: string }
+        error:   { type: string, enum: [validation_error] }
+        path:
+          type: array
+          items: { type: string }
+        message: { type: string }
+    unexpectedTopicError:
+      type: object
+      additionalProperties: false
+      required: [topic, error]
+      properties:
+        topic:   { type: string }
+        error:   { type: string, enum: [unexpected_topic] }

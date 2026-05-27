@@ -1,3 +1,5 @@
 paho-mqtt
 jsonschema
 PyYAML
+pytest
+coverage

@@ -1,6 +1,6 @@
 import json
 from jsonschema import validate, ValidationError
-from utils.mqtt_clients import MQTTPublisher
+from utils import mqtt_clients
 
 def check_payload_json_validity(topic, payload):
     try:
@@ -12,7 +12,7 @@ def check_payload_json_validity(topic, payload):
             "error": "invalid_json",
             "error_message": str(e)
         }
-        MQTTPublisher.get_instance().publish(
+        mqtt_clients.MQTTPublisher.get_instance().publish(
             "error/message/malformed",
             json.dumps(error_payload)
         )
@@ -24,7 +24,7 @@ def check_topic_expected(entry, topic):
             'topic': topic,
             'error': 'unexpected_topic'
         }
-        MQTTPublisher.get_instance().publish(
+        mqtt_clients.MQTTPublisher.get_instance().publish(
             "error/message/unexpected",
             json.dumps(error_payload)
         )
@@ -46,7 +46,7 @@ def check_message_valid(entry, topic, payload):
             "path": list(e.absolute_path) if e.absolute_path else None,
             "message": e.message,
         }
-        MQTTPublisher.get_instance().publish(
+        mqtt_clients.MQTTPublisher.get_instance().publish(
             "error/message/invalid",
             json.dumps(error_payload)
         )
