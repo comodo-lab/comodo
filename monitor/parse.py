@@ -1,3 +1,5 @@
+import yaml
+
 def resolve_refs(schema, spec):
     if isinstance(schema, dict):
         if "$ref" in schema:

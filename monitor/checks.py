@@ -1,46 +1,53 @@
-def check_payload_json_validity(client, topic):
+import json
+from jsonschema import validate, ValidationError
+from utils.mqtt_clients import MQTTPublisher
+
+def check_payload_json_validity(topic, payload):
     try:
-        payload = json.loads(msg.payload.decode())
+        json.loads(payload)
+        return True
     except json.JSONDecodeError as e:
-        self.publish_error(
-            client,
-            "error/message/validation",
-            {
-                "topic": topic,
-                "error": "invalid_json",
-                "message": str(e),
-            }
+        error_payload = {
+            "topic": topic,
+            "error": "invalid_json",
+            "error_message": str(e)
+        }
+        MQTTPublisher.get_instance().publish(
+            "error/message/malformed",
+            json.dumps(error_payload)
         )
+        return None
 
-def check_topic_expected(client, topic):
+def check_topic_expected(entry, topic):
     if entry is None:
-        self.publish_error(
-            client,
+        error_payload = {
+            'topic': topic,
+            'error': 'unexpected_topic'
+        }
+        MQTTPublisher.get_instance().publish(
             "error/message/unexpected",
-            {
-                "topic": topic,
-                "error": "unexpected_topic",
-                "payload": payload,
-            }
+            json.dumps(error_payload)
         )
+        return False
+    return True
 
-def check_message_valid(client, topic):
+def check_message_valid(entry, topic, payload):
     try:
-        validate(payload, entry["schema"])
-    except ValidationError as e:
-        self.publish_error(
-            client
-            "error/validation",
-            {
-                "topic": topic,
-                "channel": entry["name"],
-                "error": "validation_error",
-                "path": list(e.absolute_path) if e.absolute_path else None,
-                "message": e.message,
-            }
+        validate(
+            json.loads(payload),
+            entry["schema"]
         )
-        
-def publish_error(client, topic, data):
-    self.client.publish(topic, json.dumps(data))
-    print(f"  published {topic}: {data.get('error')}")
-
+        return True
+    except ValidationError as e:
+        error_payload = {
+            "topic": topic,
+            "channel": entry["name"],
+            "error": "validation_error",
+            "path": list(e.absolute_path) if e.absolute_path else None,
+            "message": e.message,
+        }
+        MQTTPublisher.get_instance().publish(
+            "error/message/invalid",
+            json.dumps(error_payload)
+        )
+        return False
