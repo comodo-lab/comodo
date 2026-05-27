@@ -72,8 +72,10 @@ services:
       dockerfile: monitor/Dockerfile
     volumes:
       - ./messageSpec.yaml:/app/asyncapi.yaml
-    depends_on:
-      - mosquitto
+    environment:
+      <<: [*mqtt-env]
+    networks:
+      comodo-core:
 
 networks:
   comodo-core:
