@@ -314,7 +314,18 @@ For convenience, there is a helper script to run the tests for all components, w
 
 ### Testing the full stack
 
-Tests for the full Comodo stack are sorely needed, but not yet implemented.
+An end-to-end integration test is available in [`integration/`](integration/).
+It starts all services — RabbitMQ, controller, monitor, firmware simulators,
+setpoint controller, and a test runner — then runs a full experiment cycle:
+
+1. **`test_services_ready`** — waits for heartbeats from all services (up to 60s)
+2. **`test_experiment_completes`** — publishes `ui/start`, waits for `controller/end` (up to 120s)
+3. **`test_no_errors`** — checks for any error messages published during the test
+
+To run:
+```
+docker compose -f integration/compose.integration.yaml up --build --attach test-runner
+```
 
 ### Temporary experiment trigger:
 
