@@ -24,7 +24,9 @@ services:
       - ./comodo.yaml.schema:/work/schema.yaml
 
   mqtt-probe-core:
-    image: comodolab/comodo-mqtt_probe:latest
+    build:
+      context: ./
+      dockerfile: mqtt_probe/Dockerfile
     environment:
       <<: *mqtt-env
     networks:
