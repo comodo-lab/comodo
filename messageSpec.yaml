@@ -1,11 +1,230 @@
 asyncapi: 3.0.0
 info:
-  title: Comodo Monitor Message Spec
-  version: '0.1.0'
+  title: Comodo Message Specification
+  version: '0.2.0'
   description: |
-    Message specification for the Comodo scientific experiment
-    automation platform monitor service.
+    Message specification for the Comodo scientific experiment automation platform.
 channels:
+  uiStart:
+    address: ui/start
+    messages:
+      experimentStart:
+        payload:
+          type: object
+          properties:
+            id:         { type: string }
+            config:     { type: object }
+            experiment: { type: object }
+
+  controllerTimerStartInstrumentSetup:
+    address: controller/timer/start/instrument_setup
+    messages:
+      instrumentSetupMsg:
+        payload:
+          type: object
+          properties:
+            experiment: { type: string }
+
+  controllerTimerStartSetpoint:
+    address: controller/timer/start/setpoint
+    messages:
+      setpointMsg:
+        payload:
+          type: object
+          properties:
+            experiment: { type: string }
+            duration:   { type: number }
+
+  controllerTimerDone:
+    address: controller/timer/done
+    messages:
+      timerDoneMsg:
+        payload: {}
+
+  controllerValidatorPassed:
+    address: controller/validator/passed
+    messages:
+      validationResultMsg:
+        payload:
+          type: object
+          properties:
+            id:    { type: string }
+            valid: { type: boolean }
+
+  controllerCommandValidate:
+    address: controller/command/validate
+    messages:
+      validateMsg:
+        payload:
+          type: object
+          properties:
+            id:   { type: string }
+            file: { type: string }
+
+  controllerCommandStart:
+    address: controller/command/start
+    messages:
+      startMsg:
+        payload:
+          type: object
+          properties:
+            id: { type: string }
+
+  controllerCommandReady:
+    address: controller/command/ready
+    messages:
+      readyMsg:
+        payload:
+          type: object
+          properties:
+            id: { type: string }
+
+  controllerCommandRun:
+    address: controller/command/run
+    messages:
+      runMsg:
+        payload:
+          type: object
+          properties:
+            experiment: { type: string }
+
+  controllerCommandEnd:
+    address: controller/command/end
+    messages:
+      endMsg:
+        payload:
+          type: object
+          properties:
+            experiment: { type: string }
+
+  controllerHeartbeat:
+    address: controller/heartbeat
+    messages:
+      controllerHeartbeatMsg:
+        payload:
+          type: object
+          properties:
+            config:
+              type: object
+              properties:
+                experiment: { type: string }
+            setpoints:
+              type: array
+              items:
+                type: object
+            state:
+              type: string
+              enum:
+                - idle
+                - validating
+                - starting
+                - awaiting_instruments
+                - ready
+                - running
+                - stopping
+                - error
+
+  setpointControllerHeartbeat:
+    address: setpoint_controller/heartbeat
+    messages:
+      spcHeartbeatMsg:
+        payload:
+          type: object
+          properties:
+            config:
+              type: object
+              properties:
+                sensor:      { type: string }
+                actuator:    { type: string }
+                active:      { type: boolean }
+                k_p:         { type: number }
+                k_i:         { type: number }
+                k_d:         { type: number }
+                k_df:        { type: number }
+                k_aw:        { type: number }
+                max:         { type: number }
+                min:         { type: number }
+                max_rate:    { type: number }
+                experiment:  { type: string }
+            setpoints:
+              type: array
+              items:
+                type: object
+            state:
+              type: string
+              enum:
+                - idle
+                - adjusting
+                - ready
+                - error
+
+  instrumentSetup:
+    address: 'instruments/{instrument_name}/setup'
+    parameters:
+      instrument_name: { type: string }
+    messages:
+      instrumentSetupMsg:
+        payload:
+          type: object
+          properties:
+            config:
+              type: object
+              properties:
+                name:       { type: string }
+                tolerance:  { type: number }
+                experiment: { type: string }
+
+  instrumentHeartbeat:
+    address: 'instruments/{instrument_name}/heartbeat'
+    parameters:
+      instrument_name: { type: string }
+    messages:
+      instrumentHeartbeatMsg:
+        payload:
+          type: object
+          properties:
+            config:
+              type: object
+              properties:
+                name:       { type: string }
+                tolerance:  { type: number }
+                experiment: { type: string }
+            setpoints:
+              type: array
+              items:
+                type: object
+            state:
+              type: string
+              enum:
+                - idle
+                - adjusting
+                - ready
+                - error
+
+  instrumentSetpoint:
+    address: 'instruments/{instrument_name}/{variable_name}/setpoint'
+    parameters:
+      instrument_name: { type: string }
+      variable_name:   { type: string }
+    messages:
+      setpointMsg:
+        payload:
+          type: object
+          properties:
+            value: { type: number }
+
+  instrumentMeasurement:
+    address: 'instruments/{instrument_name}/{variable_name}/measurement'
+    parameters:
+      instrument_name: { type: string }
+      variable_name:   { type: string }
+    messages:
+      measurementMsg:
+        payload:
+          type: object
+          properties:
+            value: { type: number }
+
   errorInvalid:
     address: 'error/message/invalid'
     messages:
