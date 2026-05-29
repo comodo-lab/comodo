@@ -33,7 +33,7 @@ services:
       MQTT_USER: ${MQTT_USER:-comodo}
       MQTT_PASS: ${MQTT_PASS:-comodo}
     volumes:
-      - ../start.json:/app/experiment.json:ro
+      - ./fixtures/start.json:/app/experiment.json:ro
     depends_on:
       rabbitmq:
         condition: service_healthy

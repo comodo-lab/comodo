@@ -1,0 +1,55 @@
+{
+  "uid": "b31754e0",
+  "config": {
+    "resolution": 1,
+    "instruments": [
+      {
+        "name": "furnace",
+        "tolerance": 1
+      },
+      {
+        "name": "furnace_left",
+        "tolerance": 1
+      },
+      {
+        "name": "furnace_right",
+        "tolerance": 1
+      },
+      {
+        "name": "pressure_downstream",
+        "tolerance": 1
+      },
+      {
+        "name": "pressure_upstream",
+        "tolerance": 1
+      },
+      {
+        "name": "massflow",
+        "tolerance": 1
+      }
+    ]
+  },
+  "experiment": [
+    {
+      "time": 0,
+      "furnace": 20,
+      "furnace_profile": "linear",
+      "pressure_downstream": 20,
+      "pressure_downstream_profile": "linear"
+    },
+    {
+      "time": 3,
+      "furnace": 200,
+      "furnace_profile": "linear",
+      "pressure_downstream": 40,
+      "pressure_downstream_profile": "linear"
+    },
+    {
+      "time": 6,
+      "furnace": 20,
+      "furnace_profile": "linear",
+      "pressure_downstream": 30,
+      "pressure_downstream_profile": "linear"
+    }
+  ]
+}
