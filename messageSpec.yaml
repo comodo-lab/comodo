@@ -355,6 +355,19 @@ channels:
             value:
               type: number
               
+  errorMqtt:
+    address: error/mqtt
+    messages:
+      genericError:
+        payload:
+          type: object
+          additionalProperties: false
+          required:
+            - error
+          properties:
+            error:
+              type: string
+
   errorInvalid:
     address: error/message/invalid
     messages:
