@@ -20,8 +20,8 @@ EXPECTED_HEARTBEATS = [
     "heartbeat/pid/pressure_upstream/pressure__massflow/massflow",
 ]
 
-HEARTBEAT_TIMEOUT = 60
-EXPERIMENT_TIMEOUT = 120
+HEARTBEAT_TIMEOUT = int(os.environ.get("HEARTBEAT_TIMEOUT", 60))
+EXPERIMENT_TIMEOUT = int(os.environ.get("EXPERIMENT_TIMEOUT", 120))
 
 
 @pytest.fixture(scope="module")

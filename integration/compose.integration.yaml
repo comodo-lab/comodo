@@ -32,6 +32,8 @@ services:
       MQTT_HOST: ${MQTT_HOST:-rabbitmq}
       MQTT_USER: ${MQTT_USER:-comodo}
       MQTT_PASS: ${MQTT_PASS:-comodo}
+      HEARTBEAT_TIMEOUT: ${HEARTBEAT_TIMEOUT:-60}
+      EXPERIMENT_TIMEOUT: ${EXPERIMENT_TIMEOUT:-120}
     volumes:
       - ./fixtures/start.json:/app/experiment.json:ro
     depends_on:
