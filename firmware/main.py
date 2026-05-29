@@ -29,7 +29,7 @@ def send_heartbeat():
     if state.client is not None and "ready" in state.config:
         heartbeat_structure = state.get_status()
         state.client.publish(
-            f"heartbeat/instrument/{state.config['INSTRUMENT_ID']}", heartbeat_structure
+            f"instruments/{state.config['INSTRUMENT_ID']}/heartbeat", heartbeat_structure
         )
 
 
@@ -45,7 +45,7 @@ def publish_measurement(measurements):
 
     for key, measurement in measurements.items():
         msg = json.dumps({"value": measurement})
-        state.client.publish(f"measurement/{state.config['INSTRUMENT_ID']}/{key}", msg)
+        state.client.publish(f"instruments/{state.config['INSTRUMENT_ID']}/{key}/measurement", msg)
 
 
 def send_measurement():
@@ -99,19 +99,17 @@ async def main():
 
     ## Load the configuration file
     state.config = cfg.load_config()
-    state.status["name"] = state.config["INSTRUMENT_ID"]
 
     ## Create client
     topics = [
-        f"instrument/{state.config['INSTRUMENT_ID']}/setup",
-        f"instrument/{state.config['INSTRUMENT_ID']}/setpoint_reached",
-        f"instrument/{state.config['INSTRUMENT_ID']}/setpoint",
-        f"controller/end",
-        f"controller/stop",
+        f"instruments/{state.config['INSTRUMENT_ID']}/setup",
+        f"instruments/{state.config['INSTRUMENT_ID']}/+/setpoint",
+        f"controller/event/end",
+        f"controller/command/stop",
     ]
     state.client = mqtt.MQTTClient(
-        id=state.status["name"],
-        callback=state.awaiting_config_cb,
+        id=state.config["INSTRUMENT_ID"],
+        callback=state.idle_cb,
         topics=topics,
         broker_address=state.config["MQTT_HOST"],
         user=state.config["MQTT_USER"],
@@ -120,7 +118,6 @@ async def main():
     )
 
     # Create the instrument
-    state.status["name"] = state.config["INSTRUMENT_ID"]
     state.instrument = BaseInstrument.create_instrument(state.config["FIRMWARE"])
 
     # Initialise the instrument
@@ -154,7 +151,8 @@ if __name__ == "__main__":
         traceback.print_exc()
         try:
             state.client.publish(
-                f"error/instrument/{state.config['INSTRUMENT_ID']}", str(e)
+                f"error/instrument/{state.config['INSTRUMENT_ID']}",
+                json.dumps({"error": str(e)}),
             )
         except:
             print(f"Error: {e}")

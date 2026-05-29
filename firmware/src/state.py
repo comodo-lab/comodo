@@ -15,9 +15,8 @@ class InstrumentState(object):
         """
 
         self.status = {
-            "name": None,
-            "status": "awaiting_config",
-            "setpoint": None,
+            "state": "idle",
+            "setpoints": {},
             "config": {"tolerance": None},
         }
 
@@ -49,11 +48,11 @@ class InstrumentState(object):
 
         self.config = config
 
-    def awaiting_config_cb(self, _client, msg, _obj=None):
-        """The callback function for the mqtt client when the instrument is awaiting config
-        Can move to the ready state if the setpoint is set
+    def idle_cb(self, _client, msg, _obj=None):
+        """The callback function for the mqtt client when the instrument is idle
+        Can move to the ready state if the instrument is configured
 
-        Listens to: instrument/{INSTRUMENT_ID}/setup
+        Listens to: instruments/{INSTRUMENT_ID}/setup
         Next states: ready
 
         Args:
@@ -63,41 +62,17 @@ class InstrumentState(object):
         Returns:
             None
         """
-        if msg.topic == f"instrument/{self.config['INSTRUMENT_ID']}/setup":
+        if msg.topic == f"instruments/{self.config['INSTRUMENT_ID']}/setup":
             self._apply_config(mqtt.load_message(msg))
-            self.client.callback = self.no_setpoint_cb
-            self.status["status"] = "no_setpoint"
+            self.client.callback = self.ready_cb
+            self.status["state"] = "ready"
             print(f"Instrument configured: {self.status['config']}")
-
-    def no_setpoint_cb(self, _client, msg, _obj=None):
-        """The callback function for the mqtt client when the instrument is awaiting setpoint
-        Can move to the adjusting state if the setpoint is set
-
-        Listens to: instrument/{INSTRUMENT_ID}/setpoint
-        Next states: adjusting
-
-        Args:
-            topic: str: The topic of the message
-            msg: str: The message
-
-        Returns:
-            None
-        """
-        # If a new config is recieved, apply it
-        self.awaiting_config_cb(_client, msg, _obj)
-
-        # If setpoint is recieved and valid, go to it
-        self._parse_and_go_to_setpoint(msg)
-
-        # if controller/end is received, move to the awaiting_config state
-        self._end_experiment(msg.topic)
 
     def adjusting_cb(self, _client, msg, _obj=None):
         """The callback function for the mqtt client when the instrument is adjusting
         Can move to the ready state if the instrument is ready
 
-        Listens to: instrument/{INSTRUMENT_ID}/setpoint
-                    instrument/{INSTRUMENT_ID}/setpoint_reached
+        Listens to: instruments/{INSTRUMENT_ID}/+/setpoint
         Next states: ready, adjusting
 
         Args:
@@ -108,16 +83,12 @@ class InstrumentState(object):
             None
         """
         # If a new config is recieved, apply it
-        self.awaiting_config_cb(_client, msg, _obj)
+        self.idle_cb(_client, msg, _obj)
 
         # If setpoint is recieved and valid, go to it
         self._parse_and_go_to_setpoint(msg)
 
-        if msg.topic == f"instrument/{self.config['INSTRUMENT_ID']}/setpoint_reached":
-            self.client.callback = self.ready_cb
-            self.status["status"] = "ready"
-
-        # if controller/end is received, move to the awaiting_config state
+        # if controller/event/end is received, move to the idle state
         self._end_experiment(msg.topic)
 
     def ready_cb(self, _client, msg, _obj=None):
@@ -131,12 +102,12 @@ class InstrumentState(object):
             None
         """
         # If a new config is recieved, apply it
-        self.awaiting_config_cb(_client, msg, _obj)
+        self.idle_cb(_client, msg, _obj)
 
         # If setpoint is recieved and valid, go to it
         self._parse_and_go_to_setpoint(msg)
 
-        # if controller/end is received, move to the awaiting_config state
+        # if controller/event/end is received, move to the idle state
         self._end_experiment(msg.topic)
 
     def _apply_config(self, params):
@@ -148,35 +119,31 @@ class InstrumentState(object):
         Returns:
             None
         """
-        config = {k: v for k, v in params.items() if k != "name"}
+        config = params.get("config", {})
         print(f"Instrument configuration received: {config}")
-        if config["tolerance"] == None:
-            print("Invalid instrument configuration received: tolerance is required.")
-            return
         for key in config:
             self.status["config"][key] = config[key]
 
     def _parse_and_go_to_setpoint(self, msg):
-        if msg.topic != f"instrument/{self.config['INSTRUMENT_ID']}/setpoint":
-            print("Not a setpoint message.")
+        if not msg.topic.endswith("setpoint"):
             return
 
-        if self.client.callback == self.no_setpoint_cb:
-            print(f"Instrument {self.config['INSTRUMENT_ID']} active.")
+        # Extract variable name from topic: instruments/{name}/{variable}/setpoint
+        _, _, variable, _ = msg.topic.split("/")
 
         # Parse incoming setpoint
         params = mqtt.load_message(msg)
-        setpoint = params[self.config["INSTRUMENT_ID"]]
+        setpoint = params.get("value")
 
         # Check setpoint validity and store
         if not isinstance(setpoint, (int, float)) or setpoint == None:
             print(f"Invalid setpoint received: {setpoint}")
             return
-        self.status["setpoint"] = setpoint
+        self.status["setpoints"][variable] = setpoint
 
         # Set state
         self.client.callback = self.adjusting_cb
-        self.status["status"] = "adjusting"
+        self.status["state"] = "adjusting"
 
         # Trigger go to setpoint
         if self.config["SIMULATE"]:
@@ -187,9 +154,9 @@ class InstrumentState(object):
         return
 
     def _end_experiment(self, topic):
-        if topic in ["controller/end", "controller/stop"]:
-            self.client.callback = self.awaiting_config_cb
-            self.status["status"] = "awaiting_config"
+        if topic in ["controller/event/end", "controller/command/stop"]:
+            self.client.callback = self.idle_cb
+            self.status["state"] = "idle"
             print(f"Instrument {self.config['INSTRUMENT_ID']} awaiting configuration.")
 
         return

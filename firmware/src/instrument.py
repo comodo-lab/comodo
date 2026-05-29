@@ -66,22 +66,22 @@ class BaseInstrument:
         Get a simulated measurement, default implementation
         """
 
-        setpoint = state.status["setpoint"]
         value = state.measurement
 
-        if setpoint is None:
+        if not state.status["setpoints"]:
             return 0
+
+        _, setpoint = next(iter(state.status["setpoints"].items()))
 
         difference = setpoint - value
         half_diff = difference / 2
 
         measurement = half_diff + value
 
-        distance = abs(measurement - state.status["setpoint"])
+        distance = abs(measurement - setpoint)
         if distance < state.status["config"]["tolerance"]:
-            state.client.publish(
-                f"instrument/{state.config['INSTRUMENT_ID']}/setpoint_reached", "true"
-            )
+            state.client.callback = state.ready_cb
+            state.status["state"] = "ready"
 
         state.measurement = measurement
         return measurement
