@@ -56,6 +56,7 @@ def bus():
     if not collected["connected"]:
         pytest.fail("Could not connect to MQTT broker")
 
+    collected["c"] = c
     yield collected
     c.loop_stop()
 
@@ -82,11 +83,7 @@ def test_experiment_completes(bus):
     with open("/app/experiment.json") as f:
         experiment = json.load(f)
 
-    c = mqtt.Client()
-    c.username_pw_set(MQTT_USER, MQTT_PASS)
-    c.connect(MQTT_HOST, 1883, 10)
-    c.publish("ui/start", json.dumps(experiment))
-    c.disconnect()
+    bus["c"].publish("ui/start", json.dumps(experiment))
     print(f"  → ui/start published")
 
     deadline = time.time() + EXPERIMENT_TIMEOUT
