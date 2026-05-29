@@ -1,117 +1,180 @@
 asyncapi: 3.0.0
 info:
   title: Comodo Message Specification
-  version: '0.2.0'
-  description: |
-    Message specification for the Comodo scientific experiment automation platform.
+  version: "0.3.0"
+  description: >
+    Minimal strict protocol contract for the Comodo experiment automation platform.
+
 channels:
+
   uiStart:
     address: ui/start
     messages:
       experimentStart:
         payload:
           type: object
+          additionalProperties: false
+          required:
+            - id
+            - config
+            - experiment_definition
           properties:
-            id:         { type: string }
-            config:     { type: object }
-            experiment: { type: object }
+            id:
+              type: string
+            config:
+              type: object
+              additionalProperties: true
+            experiment_definition:
+              type: object
+              additionalProperties: true
 
   controllerTimerStartInstrumentSetup:
     address: controller/timer/start/instrument_setup
     messages:
-      instrumentSetupMsg:
+      timerStartInstrumentSetup:
         payload:
           type: object
+          additionalProperties: false
+          required:
+            - experiment_id
           properties:
-            experiment: { type: string }
+            experiment_id:
+              type: string
 
   controllerTimerStartSetpoint:
     address: controller/timer/start/setpoint
     messages:
-      setpointMsg:
+      setpointTimerStart:
         payload:
           type: object
+          additionalProperties: false
+          required:
+            - experiment_id
+            - duration
           properties:
-            experiment: { type: string }
-            duration:   { type: number }
+            experiment_id:
+              type: string
+            duration:
+              type: number
 
   controllerTimerDone:
     address: controller/timer/done
     messages:
-      timerDoneMsg:
-        payload: {}
+      timerDone:
+        payload:
+          type: object
+          additionalProperties: false
 
   controllerValidatorPassed:
     address: controller/validator/passed
     messages:
-      validationResultMsg:
+      validatorPassed:
         payload:
           type: object
+          additionalProperties: false
+          required:
+            - id
+            - valid
           properties:
-            id:    { type: string }
-            valid: { type: boolean }
+            id:
+              type: string
+            valid:
+              type: boolean
 
   controllerCommandValidate:
     address: controller/command/validate
     messages:
-      validateMsg:
+      validateCommand:
         payload:
           type: object
+          additionalProperties: false
+          required:
+            - id
+            - file
           properties:
-            id:   { type: string }
-            file: { type: string }
+            id:
+              type: string
+            file:
+              type: string
 
   controllerCommandStart:
     address: controller/command/start
     messages:
-      startMsg:
+      startCommand:
         payload:
           type: object
+          additionalProperties: false
+          required:
+            - id
           properties:
-            id: { type: string }
-
-  controllerCommandReady:
-    address: controller/command/ready
-    messages:
-      readyMsg:
-        payload:
-          type: object
-          properties:
-            id: { type: string }
+            id:
+              type: string
 
   controllerCommandRun:
     address: controller/command/run
     messages:
-      runMsg:
+      runCommand:
         payload:
           type: object
+          additionalProperties: false
+          required:
+            - experiment_id
           properties:
-            experiment: { type: string }
+            experiment_id:
+              type: string
 
-  controllerCommandEnd:
-    address: controller/command/end
+  controllerEventReady:
+    address: controller/event/ready
     messages:
-      endMsg:
+      readyEvent:
         payload:
           type: object
+          additionalProperties: false
+          required:
+            - experiment_id
           properties:
-            experiment: { type: string }
+            experiment_id:
+              type: string
+
+  controllerEventEnd:
+    address: controller/event/end
+    messages:
+      endEvent:
+        payload:
+          type: object
+          additionalProperties: false
+          required:
+            - experiment_id
+          properties:
+            experiment_id:
+              type: string
 
   controllerHeartbeat:
     address: controller/heartbeat
     messages:
-      controllerHeartbeatMsg:
+      controllerHeartbeat:
         payload:
           type: object
+          additionalProperties: false
+          required:
+            - config
+            - setpoints
+            - state
           properties:
             config:
               type: object
+              additionalProperties: false
+              required:
+                - experiment_id
               properties:
-                experiment: { type: string }
+                experiment_id:
+                  type: string
+
             setpoints:
-              type: array
-              items:
-                type: object
+              type: object
+              additionalProperties:
+                type: number
+
             state:
               type: string
               enum:
@@ -127,29 +190,62 @@ channels:
   setpointControllerHeartbeat:
     address: setpoint_controller/heartbeat
     messages:
-      spcHeartbeatMsg:
+      setpointControllerHeartbeat:
         payload:
           type: object
+          additionalProperties: false
+          required:
+            - config
+            - setpoints
+            - state
           properties:
             config:
               type: object
+              additionalProperties: false
+              required:
+                - sensor
+                - actuator
+                - active
+                - k_p
+                - k_i
+                - k_d
+                - k_df
+                - k_aw
+                - max
+                - min
+                - max_rate
+                - experiment_id
               properties:
-                sensor:      { type: string }
-                actuator:    { type: string }
-                active:      { type: boolean }
-                k_p:         { type: number }
-                k_i:         { type: number }
-                k_d:         { type: number }
-                k_df:        { type: number }
-                k_aw:        { type: number }
-                max:         { type: number }
-                min:         { type: number }
-                max_rate:    { type: number }
-                experiment:  { type: string }
+                sensor:
+                  type: string
+                actuator:
+                  type: string
+                active:
+                  type: boolean
+                k_p:
+                  type: number
+                k_i:
+                  type: number
+                k_d:
+                  type: number
+                k_df:
+                  type: number
+                k_aw:
+                  type: number
+                max:
+                  type: number
+                min:
+                  type: number
+                max_rate:
+                  type: number
+                experiment_id:
+                  type: string
+
             setpoints:
-              type: array
-              items:
-                type: object
+              type: object
+              additionalProperties:
+                type: number
+
             state:
               type: string
               enum:
@@ -159,40 +255,62 @@ channels:
                 - error
 
   instrumentSetup:
-    address: 'instruments/{instrument_name}/setup'
+    address: instruments/{instrument_name}/setup
     parameters:
-      instrument_name: { type: string }
+      instrument_name:
+        type: string
     messages:
-      instrumentSetupMsg:
+      instrumentSetup:
         payload:
           type: object
+          additionalProperties: false
+          required:
+            - config
           properties:
             config:
               type: object
+              additionalProperties: false
+              required:
+                - tolerance
+                - experiment_id
               properties:
-                name:       { type: string }
-                tolerance:  { type: number }
-                experiment: { type: string }
+                tolerance:
+                  type: number
+                experiment_id:
+                  type: string
 
   instrumentHeartbeat:
-    address: 'instruments/{instrument_name}/heartbeat'
+    address: instruments/{instrument_name}/heartbeat
     parameters:
-      instrument_name: { type: string }
+      instrument_name:
+        type: string
     messages:
-      instrumentHeartbeatMsg:
+      instrumentHeartbeat:
         payload:
           type: object
+          additionalProperties: false
+          required:
+            - config
+            - setpoints
+            - state
           properties:
             config:
               type: object
+              additionalProperties: false
+              required:
+                - tolerance
+                - experiment_id
               properties:
-                name:       { type: string }
-                tolerance:  { type: number }
-                experiment: { type: string }
+                tolerance:
+                  type: number
+                experiment_id:
+                  type: string
+
             setpoints:
-              type: array
-              items:
-                type: object
+              type: object
+              additionalProperties:
+                type: number
+
             state:
               type: string
               enum:
@@ -202,67 +320,103 @@ channels:
                 - error
 
   instrumentSetpoint:
-    address: 'instruments/{instrument_name}/{variable_name}/setpoint'
+    address: instruments/{instrument_name}/{variable_name}/setpoint
     parameters:
-      instrument_name: { type: string }
-      variable_name:   { type: string }
+      instrument_name:
+        type: string
+      variable_name:
+        type: string
     messages:
-      setpointMsg:
+      instrumentSetpoint:
         payload:
           type: object
+          additionalProperties: false
+          required:
+            - value
           properties:
-            value: { type: number }
+            value:
+              type: number
 
   instrumentMeasurement:
-    address: 'instruments/{instrument_name}/{variable_name}/measurement'
+    address: instruments/{instrument_name}/{variable_name}/measurement
     parameters:
-      instrument_name: { type: string }
-      variable_name:   { type: string }
+      instrument_name:
+        type: string
+      variable_name:
+        type: string
     messages:
-      measurementMsg:
+      instrumentMeasurement:
         payload:
           type: object
+          additionalProperties: false
+          required:
+            - value
           properties:
-            value: { type: number }
-
+            value:
+              type: number
+              
   errorInvalid:
-    address: 'error/message/invalid'
+    address: error/message/invalid
     messages:
       validationErrorMsg:
         payload:
           type: object
           additionalProperties: false
-          required: [topic, error, message]
+          required:
+            - topic
+            - error
+            - message
           properties:
-            topic:   { type: string }
-            channel: { type: string }
-            error:   { type: string, enum: [validation_error] }
+            topic:
+              type: string
+            channel:
+              type: string
+            error:
+              type: string
+              enum:
+                - validation_error
             path:
               type: array
-              items: { type: string }
-            message: { type: string }
+              items:
+                type: string
+            message:
+              type: string
 
   errorMalformed:
-    address: 'error/message/malformed'
+    address: error/message/malformed
     messages:
       malformedPayloadMsg:
         payload:
           type: object
           additionalProperties: false
-          required: [topic, error, error_message]
+          required:
+            - topic
+            - error
+            - error_message
           properties:
-            topic:         { type: string }
-            error:         { type: string, enum: [invalid_json] }
-            error_message: { type: string }
+            topic:
+              type: string
+            error:
+              type: string
+              enum:
+                - invalid_json
+            error_message:
+              type: string
 
   errorUnexpected:
-    address: 'error/message/unexpected'
+    address: error/message/unexpected
     messages:
       unexpectedTopicErrorMsg:
         payload:
           type: object
           additionalProperties: false
-          required: [topic, error]
+          required:
+            - topic
+            - error
           properties:
-            topic:   { type: string }
-            error:   { type: string, enum: [unexpected_topic] }
+            topic:
+              type: string
+            error:
+              type: string
+              enum:
+                - unexpected_topic
