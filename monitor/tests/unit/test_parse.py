@@ -1,5 +1,5 @@
 import pytest
-from parse import load_spec
+from utils.message_spec import load_spec
 
 
 class TestLoadSpec:

@@ -11,6 +11,7 @@ COPY controller/schemas /controller/schemas
 COPY controller/pytest.ini /controller/pytest.ini
 COPY controller/README.md /controller/README.md
 COPY utils/mqtt_clients.py /controller/utils/mqtt_clients.py
+COPY utils/message_spec.py /controller/utils/message_spec.py
 COPY utils/tests/mocks/mock_mqtt_clients.py /controller/utils/tests/mocks/mock_mqtt_clients.py
 COPY utils/interpolation.py /controller/utils/interpolation.py
 

@@ -11,7 +11,7 @@ from utils import mqtt_clients as mqtt
 
 # Local imports
 import checks
-import parse
+from utils import message_spec
 
 def on_message(client, msg, topic_map):
     # Get the entry from the spec
@@ -42,7 +42,7 @@ async def main():
     )
 
     # Load the AsyncAPI specification 
-    topic_map = parse.load_spec()
+    topic_map = message_spec.load_spec()
 
     # Create the MQTT client for subscription
     client = mqtt.MQTTClient(

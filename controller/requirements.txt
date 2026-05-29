@@ -2,6 +2,7 @@ jsonschema
 paho-mqtt
 numpy
 influxdb-client
+pyyaml
 
 pytest
 pytest-rerunfailures
