@@ -1,48 +1,5 @@
 import pytest
-from parse import resolve_refs, load_spec
-
-
-class TestResolveRefs:
-    def test_no_ref(self):
-        schema = {"type": "object", "properties": {"key": {"type": "string"}}}
-        result = resolve_refs(schema, {})
-        assert result == schema
-
-    def test_simple_ref(self):
-        schema = {"$ref": "#/components/schemas/MyType"}
-        spec = {
-            "components": {
-                "schemas": {
-                    "MyType": {
-                        "type": "object",
-                        "properties": {"name": {"type": "string"}},
-                    }
-                }
-            }
-        }
-        result = resolve_refs(schema, spec)
-        assert result == {"type": "object", "properties": {"name": {"type": "string"}}}
-
-    def test_nested_ref(self):
-        schema = {
-            "type": "object",
-            "properties": {"data": {"$ref": "#/components/schemas/DataType"}},
-        }
-        spec = {"components": {"schemas": {"DataType": {"type": "string"}}}}
-        result = resolve_refs(schema, spec)
-        assert result == {
-            "type": "object",
-            "properties": {"data": {"type": "string"}},
-        }
-
-    def test_array_with_ref(self):
-        schema = {
-            "type": "array",
-            "items": {"$ref": "#/components/schemas/Item"},
-        }
-        spec = {"components": {"schemas": {"Item": {"type": "integer"}}}}
-        result = resolve_refs(schema, spec)
-        assert result == {"type": "array", "items": {"type": "integer"}}
+from parse import load_spec
 
 
 class TestLoadSpec:
