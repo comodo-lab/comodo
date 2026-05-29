@@ -19,14 +19,14 @@ def on_heartbeat_message(client, msg, obj):
     It expects a message compliant with the schema defined in the schema_instrument_heartbeat.json file.
     """
     if "instruments/" not in (msg.topic) or "/heartbeat" not in msg.topic:
-        incompatible_request(obj, msg, source="heartbeat")
+        incompatible_request(obj, msg)
         return
 
     try:
         p = mqtt.load_message(msg)
         instrument = validate_dict(p, obj.schema_instrument_heartbeat_path)
     except json.JSONDecodeError as e:
-        wrong_json(msg, e, source="heartbeat")
+        wrong_json(msg, e)
         return
     except ValidationException as e:
         heartbeat_validation_error(msg, e)

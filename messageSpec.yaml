@@ -162,6 +162,87 @@ channels:
             experiment_id:
               type: string
 
+  controllerErrorMalformedJson:
+    address: error/controller/malformed_json
+    messages:
+      controllerMalformedJson:
+        payload:
+          type: object
+          additionalProperties: false
+          required:
+            - topic
+            - error
+            - error_message
+          properties:
+            topic:
+              type: string
+            error:
+              type: string
+              enum:
+                - invalid_json
+            error_message:
+              type: string
+
+  controllerErrorMissingKey:
+    address: error/controller/missing_key
+    messages:
+      controllerMissingKey:
+        payload:
+          type: object
+          additionalProperties: false
+          required:
+            - topic
+            - error
+            - message
+          properties:
+            topic:
+              type: string
+            error:
+              type: string
+              enum:
+                - missing_key
+            message:
+              type: string
+
+  controllerErrorIncompatibleRequest:
+    address: error/controller/incompatible_request
+    messages:
+      controllerIncompatibleRequest:
+        payload:
+          type: object
+          additionalProperties: false
+          required:
+            - topic
+            - error
+          properties:
+            topic:
+              type: string
+            error:
+              type: string
+              enum:
+                - incompatible_request
+
+  controllerErrorIncompatibleUid:
+    address: error/controller/incompatible_uid
+    messages:
+      controllerIncompatibleUid:
+        payload:
+          type: object
+          additionalProperties: false
+          required:
+            - topic
+            - error
+            - message
+          properties:
+            topic:
+              type: string
+            error:
+              type: string
+              enum:
+                - incompatible_uid
+            message:
+              type: string
+
   controllerHeartbeat:
     address: controller/heartbeat
     messages:

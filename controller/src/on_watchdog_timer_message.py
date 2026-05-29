@@ -18,7 +18,7 @@ def on_wd_timer_message(client, msg, obj):
     try:
         message = mqtt.load_message(msg)
     except json.JSONDecodeError as e:
-        wrong_json(msg, e, source="wd_timer")
+        wrong_json(msg, e)
         if msg.topic == "wd_timer/start":
             print("ERROR: Watchdog timer failed to start.")
             print(f"  Wrong json: {e}")
@@ -46,7 +46,7 @@ def on_wd_timer_message(client, msg, obj):
             obj["healthy"] = False
             return
         except KeyError as e:
-            missing_keys(msg, e, source="wd_timer")
+            missing_keys(msg, e)
             print("ERROR: Watchdog timer failed to start.")
             print(f"Missing keys: {e}")
             obj["healthy"] = False

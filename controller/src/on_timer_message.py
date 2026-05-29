@@ -28,13 +28,13 @@ def on_timer_message(client, msg, obj):
     try:
         message = mqtt.load_message(msg)
         if message["experiment_id"] != obj.experiment_uid:
-            incompatible_uid(obj, msg, message["experiment_id"], source="timer")
+            incompatible_uid(obj, msg, message["experiment_id"])
             return
     except json.JSONDecodeError as e:
         wrong_json(msg, e)
         return
     except KeyError as e:
-        missing_keys(msg, e, source="timer")
+        missing_keys(msg, e)
         return
 
     if msg.topic == "controller/timer/start/instrument_setup":
@@ -66,7 +66,7 @@ def on_timer_message(client, msg, obj):
         try:
             duration = message["duration"]
         except KeyError as e:
-            missing_keys(msg, e, source="timer")
+            missing_keys(msg, e)
             return
         # Start timer for setpoint
         t0 = t.time()
@@ -90,4 +90,4 @@ def on_timer_message(client, msg, obj):
     elif msg.topic.startswith("controller/timer/done/"):
         return
     else:
-        incompatible_request(obj, msg, source="timer")
+        incompatible_request(obj, msg)

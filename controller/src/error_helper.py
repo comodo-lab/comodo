@@ -4,56 +4,49 @@ import textwrap
 from utils import mqtt_clients as mqtt
 
 
-def wrong_json(msg, e, source="controller"):
+def wrong_json(msg, e):
     """
     Publishes an error message when a JSON message cannot be decoded.
     """
-    source = source.lower()
     error = f"Cannot decode {msg.topic} message, wrong JSON: \n{textwrap.indent(str(e), '   ')}"
     print(f"ERROR: {error}")
     mqtt.MQTTPublisher.get_instance().publish(
-        f"error/{source}",
-        json.dumps({"error": error}),
+        "error/controller/malformed_json",
+        json.dumps({"topic": msg.topic, "error": "invalid_json", "error_message": str(e)}),
     )
 
 
-def missing_keys(msg, e, source="controller"):
+def missing_keys(msg, e):
     """
     Publishes an error message when the key trying to be accessed is missing.
     """
-    source = source.lower()
     error = f"Cannot decode {msg.topic} message, missing: \n{textwrap.indent(str(e), '   ')}"
     print(f"ERROR: {error}")
     mqtt.MQTTPublisher.get_instance().publish(
-        f"error/{source}",
-        json.dumps({"error": error}),
+        "error/controller/missing_key",
+        json.dumps({"topic": msg.topic, "error": "missing_key", "message": str(e)}),
     )
 
 
-def incompatible_request(obj, msg, source="controller"):
+def incompatible_request(obj, msg):
     """
-    Publishes an error message when the mqtt request is incompatible with the current controller* status.
-    * When called from another source (other than the controller), this can be passed as a string.
+    Publishes an error message when the mqtt request is incompatible with the current controller status.
     """
-    if source == "controller":
-        cant = "Cannot"
-    else:
-        cant = f"{source.capitalize()} cannot"
-    error = f"Controller is {obj.status}. {cant} act on {msg.topic}"
+    error = f"Controller is {obj.status}. Cannot act on {msg.topic}"
     mqtt.MQTTPublisher.get_instance().publish(
-        "error/" + source,
-        json.dumps({"error": error}),
+        "error/controller/incompatible_request",
+        json.dumps({"topic": msg.topic, "error": "incompatible_request"}),
     )
 
 
-def incompatible_uid(obj, msg, msg_uid, source="controller"):
+def incompatible_uid(obj, msg, msg_uid):
     """
     Publishes an error message when the experiment uid in the mqtt request does not match the current experiment's uid.
     """
     error = f"Current experiment is {obj.experiment_uid}. Cannot act on {msg.topic} for experiment {msg_uid}."
     mqtt.MQTTPublisher.get_instance().publish(
-        "error/" + source,
-        json.dumps({"error": error}),
+        "error/controller/incompatible_uid",
+        json.dumps({"topic": msg.topic, "error": "incompatible_uid", "message": error}),
     )
 
 

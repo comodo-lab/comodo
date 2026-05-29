@@ -18,7 +18,7 @@ def on_watchdog_message(client, msg, obj):
     try:
         message = mqtt.load_message(msg)
     except json.JSONDecodeError as e:
-        wrong_json(msg, e, source="watchdog")
+        wrong_json(msg, e)
         return
 
     if msg.topic == "controller/heartbeat":
