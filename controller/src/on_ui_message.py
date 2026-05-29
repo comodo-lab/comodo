@@ -1,7 +1,10 @@
 import json
 import os
 
+import jsonschema
+
 from utils import mqtt_clients as mqtt
+from utils.message_spec import load_spec as load_message_spec
 
 from src.controller_helper import data_path
 from src.error_helper import (
@@ -10,6 +13,8 @@ from src.error_helper import (
     incompatible_request,
     incompatible_uid,
 )
+
+UI_START_SCHEMA = load_message_spec("/app/messageSpec.yaml")["ui/start"]["schema"]
 
 
 def on_ui_message(client, msg, obj):
@@ -34,10 +39,19 @@ def on_ui_message(client, msg, obj):
 
     try:
         experiment = mqtt.load_message(msg)
-        uid = experiment["uid"]
     except json.JSONDecodeError as e:
         wrong_json(msg, e)
         return
+
+    if msg.topic == "ui/start":
+        try:
+            jsonschema.validate(experiment, UI_START_SCHEMA)
+        except jsonschema.ValidationError as e:
+            print(f"Invalid ui/start payload: {e}")
+            return
+
+    try:
+        uid = experiment["id"]
     except KeyError as e:
         missing_keys(msg, e)
         return
