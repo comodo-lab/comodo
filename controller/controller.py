@@ -75,7 +75,7 @@ def main():
     watchdog = mqtt.MQTTClient(
         id="watchdog",
         callback=on_watchdog_message,
-        topics=["watchdog/#", "heartbeat/controller", "error/exception"],
+        topics=["watchdog/#", "controller/heartbeat", "error/exception"],
         obj=wdog,
         broker_address=mqtt_host,
         user=mqtt_user,
@@ -115,7 +115,7 @@ def main():
     timer = mqtt.MQTTClient(
         id="timer",
         callback=on_timer_message,
-        topics="timer/#",
+        topics="controller/timer/#",
         obj=state,
         broker_address=mqtt_host,
         user=mqtt_user,
@@ -125,7 +125,7 @@ def main():
     heartbeat = mqtt.MQTTClient(
         id="heartbeat",
         callback=on_heartbeat_message,
-        topics="heartbeat/instrument/#",
+        topics="instruments/+/heartbeat",
         obj=state,
         broker_address=mqtt_host,
         user=mqtt_user,
@@ -141,7 +141,7 @@ def main():
     else:
         print(f"Controller failed to start. watchdog unhealthy.")
     while wdog["healthy"]:
-        controller.publish("heartbeat/controller", f"{state}")
+        controller.publish("controller/heartbeat", f"{state}")
         t.sleep(wdog["interval"])
 
     print(f"Exiting...")

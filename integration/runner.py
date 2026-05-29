@@ -10,13 +10,13 @@ MQTT_USER = os.environ["MQTT_USER"]
 MQTT_PASS = os.environ["MQTT_PASS"]
 
 EXPECTED_HEARTBEATS = [
-    "heartbeat/controller",
-    "heartbeat/instrument/furnace",
-    "heartbeat/instrument/furnace_left",
-    "heartbeat/instrument/furnace_right",
-    "heartbeat/instrument/pressure_downstream",
-    "heartbeat/instrument/pressure_upstream",
-    "heartbeat/instrument/massflow",
+    "controller/heartbeat",
+    "instruments/furnace/heartbeat",
+    "instruments/furnace_left/heartbeat",
+    "instruments/furnace_right/heartbeat",
+    "instruments/pressure_downstream/heartbeat",
+    "instruments/pressure_upstream/heartbeat",
+    "instruments/massflow/heartbeat",
     "heartbeat/pid/pressure_upstream/pressure__massflow/massflow",
 ]
 
@@ -35,11 +35,11 @@ def bus():
     def on_message(c, userdata, msg):
         t = msg.topic
         p = msg.payload.decode(errors="replace")
-        if t.startswith("heartbeat/"):
+        if "/heartbeat" in t:
             collected["heartbeats"][t] = time.time()
         elif t.startswith("error/"):
             collected["errors"].append((t, p))
-        elif t == "controller/end":
+        elif t == "controller/event/end":
             collected["end"] = p
 
     c = mqtt.Client()
@@ -90,15 +90,15 @@ def test_experiment_completes(bus):
     last_report = 0.0
     while time.time() < deadline:
         if bus["end"] is not None:
-            print(f"  ← controller/end received")
+            print(f"  ← controller/event/end received")
             return
         now = time.time()
         elapsed = int(now - (deadline - EXPERIMENT_TIMEOUT))
         if now - last_report >= 10:
-            print(f"  waiting for controller/end... ({elapsed}s)")
+            print(f"  waiting for controller/event/end... ({elapsed}s)")
             last_report = now
         time.sleep(0.5)
-    pytest.fail("Experiment did not complete (no controller/end)")
+    pytest.fail("Experiment did not complete (no controller/event/end)")
 
 
 @pytest.mark.order(3)

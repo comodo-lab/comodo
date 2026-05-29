@@ -9,7 +9,7 @@ def on_watchdog_message(client, msg, obj):
     """
     The watchdog makes sure that the controller is alive and healthy.
     It does so by listening to three topics:
-    - heartbeat/controller: to check if the controller is alive
+    - controller/heartbeat: to check if the controller is alive
     - error/exception: to check if the controller is healthy
     - watchdog/restart: to take action if needed
     Every heartbeat triggers a timer that, if not reset, will trigger an error.
@@ -21,7 +21,7 @@ def on_watchdog_message(client, msg, obj):
         wrong_json(msg, e, source="watchdog")
         return
 
-    if msg.topic == "heartbeat/controller":
+    if msg.topic == "controller/heartbeat":
         obj["timer"] = obj["timeout"]
         return
     elif msg.topic == "error/exception":

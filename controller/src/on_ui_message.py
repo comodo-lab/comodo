@@ -66,8 +66,8 @@ def on_ui_message(client, msg, obj):
                 json.dump(experiment, f)
 
             mqtt.MQTTPublisher.get_instance().publish(
-                "controller/validate",
-                json.dumps({"uid": uid, "file": exp_file}),
+                "controller/command/validate",
+                json.dumps({"id": uid, "file": exp_file}),
             )
         else:
             incompatible_request(obj, msg)
@@ -75,10 +75,10 @@ def on_ui_message(client, msg, obj):
         if msg.topic == "ui/stop":
             if uid == obj.experiment_uid:
                 mqtt.MQTTPublisher.get_instance().publish(
-                    "controller/stop",
-                    json.dumps({"uid": uid}),
+                    "controller/command/stop",
+                    json.dumps({"id": uid}),
                 )
             else:
-                incompatible_uid(obj, msg)
+                incompatible_uid(obj, msg, uid)
         else:
             incompatible_request(obj, msg)

@@ -46,11 +46,10 @@ def incompatible_request(obj, msg, source="controller"):
     )
 
 
-def incompatible_uid(obj, msg, source="controller"):
+def incompatible_uid(obj, msg, msg_uid, source="controller"):
     """
     Publishes an error message when the experiment uid in the mqtt request does not match the current experiment's uid.
     """
-    msg_uid = json.loads(msg.payload.decode("utf-8"))["uid"]
     error = f"Current experiment is {obj.experiment_uid}. Cannot act on {msg.topic} for experiment {msg_uid}."
     mqtt.MQTTPublisher.get_instance().publish(
         "error/" + source,
@@ -66,7 +65,7 @@ def experiment_validation_error(error, uid):
         "error/validator/failed",
         json.dumps(
             {
-                "uid": uid,
+                "id": uid,
                 "valid": False,
                 "error": str(error.args[0]),
             }
@@ -79,7 +78,7 @@ def heartbeat_validation_error(msg, error):
     Publishes an error message when a validation error occurs on a instrument's heartbeat.
     """
     p = msg.payload.decode("utf-8")
-    t = msg.topic.split("heartbeat/instrument/")[1]
+    t = msg.topic.split("/")[1]
     error = f"Invalid heartbeat from {t}: {p}. {error.args[0]}"
     print(f"ERROR: {error}")
     mqtt.MQTTPublisher.get_instance().publish(
@@ -108,7 +107,7 @@ def controller_timeout(uid, who_timedout, consequence):
         "error/controller/timeout",
         json.dumps(
             {
-                "uid": uid,
+                "id": uid,
                 "error": f"Timed out waiting for {who_timedout}. {consequence}...",
             }
         ),
@@ -123,7 +122,7 @@ def controller_state_incompatible_with_timer(uid, source, expected_state, state)
         f"error/controller/timer/{source}",
         json.dumps(
             {
-                "uid": uid,
+                "id": uid,
                 "error": f"Timer for {source} exited unexpectedly. The controller state was found to be {state} instead of {expected_state}.",
             }
         ),

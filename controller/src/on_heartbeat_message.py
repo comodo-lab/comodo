@@ -18,7 +18,7 @@ def on_heartbeat_message(client, msg, obj):
     Callback for the controller when it receives a heartbeat message from a instrument.
     It expects a message compliant with the schema defined in the schema_instrument_heartbeat.json file.
     """
-    if "heartbeat/instrument/" not in (msg.topic):
+    if "instruments/" not in (msg.topic) or "/heartbeat" not in msg.topic:
         incompatible_request(obj, msg, source="heartbeat")
         return
 
@@ -56,7 +56,7 @@ def on_heartbeat_message(client, msg, obj):
                 json.dumps({"error": e}),
             )
             mqtt.MQTTPublisher.get_instance().publish(
-                f"controller/stop", json.dumps({"uid": obj.experiment_uid})
+                "controller/command/stop", json.dumps({"id": obj.experiment_uid})
             )
             return
 
@@ -71,7 +71,7 @@ def on_heartbeat_message(client, msg, obj):
             if not obj.instruments["configured"]:
                 obj.instruments["configured"] = True
                 mqtt.MQTTPublisher.get_instance().publish(
-                    "controller/ready", json.dumps({"uid": obj.experiment_uid})
+                    "controller/event/ready", json.dumps({"experiment_id": obj.experiment_uid})
                 )
     else:
         obj_instrument["status"] = instrument["status"]

@@ -123,6 +123,19 @@ channels:
             experiment_id:
               type: string
 
+  controllerCommandStop:
+    address: controller/command/stop
+    messages:
+      stopCommand:
+        payload:
+          type: object
+          additionalProperties: false
+          required:
+            - id
+          properties:
+            id:
+              type: string
+
   controllerEventReady:
     address: controller/event/ready
     messages:
