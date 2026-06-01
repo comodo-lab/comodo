@@ -74,8 +74,8 @@ if __name__ == "__main__":
     except Exception as e:
         traceback.print_exc()
         try:
-            state.client.publish(
-                f"error/monitor", str(e)
+            mqtt.MQTTPublisher.get_instance().publish(
+                "error/monitor", json.dumps({"code": "exception", "message": str(e)})
             )
         except:
             print(f"Error: {e}")

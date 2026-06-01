@@ -11,8 +11,8 @@ def wrong_json(msg, e):
     error = f"Cannot decode {msg.topic} message, wrong JSON: \n{textwrap.indent(str(e), '   ')}"
     print(f"ERROR: {error}")
     mqtt.MQTTPublisher.get_instance().publish(
-        "error/controller/malformed_json",
-        json.dumps({"topic": msg.topic, "error": "invalid_json", "error_message": str(e)}),
+        "error/controller",
+        json.dumps({"code": "malformed_json", "message": error}),
     )
 
 
@@ -23,8 +23,8 @@ def missing_keys(msg, e):
     error = f"Cannot decode {msg.topic} message, missing: \n{textwrap.indent(str(e), '   ')}"
     print(f"ERROR: {error}")
     mqtt.MQTTPublisher.get_instance().publish(
-        "error/controller/missing_key",
-        json.dumps({"topic": msg.topic, "error": "missing_key", "message": str(e)}),
+        "error/controller",
+        json.dumps({"code": "missing_key", "message": error}),
     )
 
 
@@ -34,8 +34,8 @@ def incompatible_request(obj, msg):
     """
     error = f"Controller is {obj.status}. Cannot act on {msg.topic}"
     mqtt.MQTTPublisher.get_instance().publish(
-        "error/controller/incompatible_request",
-        json.dumps({"topic": msg.topic, "error": "incompatible_request"}),
+        "error/controller",
+        json.dumps({"code": "incompatible_request", "message": error}),
     )
 
 
@@ -45,8 +45,8 @@ def incompatible_uid(obj, msg, msg_uid):
     """
     error = f"Current experiment is {obj.experiment_uid}. Cannot act on {msg.topic} for experiment {msg_uid}."
     mqtt.MQTTPublisher.get_instance().publish(
-        "error/controller/incompatible_uid",
-        json.dumps({"topic": msg.topic, "error": "incompatible_uid", "message": error}),
+        "error/controller",
+        json.dumps({"code": "incompatible_uid", "message": error}),
     )
 
 
@@ -55,14 +55,8 @@ def experiment_validation_error(error, uid):
     Publishes an error message when the experiment configuration received from the ui fails validation.
     """
     mqtt.MQTTPublisher.get_instance().publish(
-        "error/validator/failed",
-        json.dumps(
-            {
-                "id": uid,
-                "valid": False,
-                "error": str(error.args[0]),
-            }
-        ),
+        "error/validator",
+        json.dumps({"code": "failed", "message": str(error.args[0])}),
     )
 
 
@@ -75,8 +69,8 @@ def heartbeat_validation_error(msg, error):
     error = f"Invalid heartbeat from {t}: {p}. {error.args[0]}"
     print(f"ERROR: {error}")
     mqtt.MQTTPublisher.get_instance().publish(
-        f"error/heartbeat/validation",
-        json.dumps({"error": error}),
+        "error/heartbeat",
+        json.dumps({"code": "validation", "message": error}),
     )
 
 
@@ -87,8 +81,8 @@ def unconfigured_instrument(msg, instrument_name):
     error = f"Instrument {instrument_name} is not configured. Unexpected heartbeat message:\n    {msg.topic}  {msg.payload.decode('utf-8')}"
     print(f"WARNING: {error}")
     mqtt.MQTTPublisher.get_instance().publish(
-        "warning/heartbeat",
-        json.dumps({"warn": error}),
+        "error/heartbeat",
+        json.dumps({"code": "unconfigured", "message": error}),
     )
 
 
@@ -97,13 +91,8 @@ def controller_timeout(uid, who_timedout, consequence):
     Publishes an error message when a timeout occurs.
     """
     mqtt.MQTTPublisher.get_instance().publish(
-        "error/controller/timeout",
-        json.dumps(
-            {
-                "id": uid,
-                "error": f"Timed out waiting for {who_timedout}. {consequence}...",
-            }
-        ),
+        "error/controller",
+        json.dumps({"code": "timeout", "message": f"Timed out waiting for {who_timedout}. {consequence}..."}),
     )
 
 
@@ -112,11 +101,6 @@ def controller_state_incompatible_with_timer(uid, source, expected_state, state)
     Publishes an error message when the state of the controller is not compatible with the current timer.
     """
     mqtt.MQTTPublisher.get_instance().publish(
-        f"error/controller/timer/{source}",
-        json.dumps(
-            {
-                "id": uid,
-                "error": f"Timer for {source} exited unexpectedly. The controller state was found to be {state} instead of {expected_state}.",
-            }
-        ),
+        "error/controller",
+        json.dumps({"code": "timer", "message": f"Timer for {source} exited unexpectedly. The controller state was found to be {state} instead of {expected_state}."}),
     )

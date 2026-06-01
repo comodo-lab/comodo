@@ -204,97 +204,19 @@ channels:
             error:
               type: string
 
-  errorWatchdog:
-    address: error/watchdog
+  error:
+    address: error/+
     messages:
-      watchdogError:
+      errorMessage:
         payload:
           type: object
           additionalProperties: false
           required:
-            - error
-          properties:
-            error:
-              type: string
-
-  controllerErrorMalformedJson:
-    address: error/controller/malformed_json
-    messages:
-      controllerMalformedJson:
-        payload:
-          type: object
-          additionalProperties: false
-          required:
-            - topic
-            - error
-            - error_message
-          properties:
-            topic:
-              type: string
-            error:
-              type: string
-              enum:
-                - invalid_json
-            error_message:
-              type: string
-
-  controllerErrorMissingKey:
-    address: error/controller/missing_key
-    messages:
-      controllerMissingKey:
-        payload:
-          type: object
-          additionalProperties: false
-          required:
-            - topic
-            - error
+            - code
             - message
           properties:
-            topic:
+            code:
               type: string
-            error:
-              type: string
-              enum:
-                - missing_key
-            message:
-              type: string
-
-  controllerErrorIncompatibleRequest:
-    address: error/controller/incompatible_request
-    messages:
-      controllerIncompatibleRequest:
-        payload:
-          type: object
-          additionalProperties: false
-          required:
-            - topic
-            - error
-          properties:
-            topic:
-              type: string
-            error:
-              type: string
-              enum:
-                - incompatible_request
-
-  controllerErrorIncompatibleUid:
-    address: error/controller/incompatible_uid
-    messages:
-      controllerIncompatibleUid:
-        payload:
-          type: object
-          additionalProperties: false
-          required:
-            - topic
-            - error
-            - message
-          properties:
-            topic:
-              type: string
-            error:
-              type: string
-              enum:
-                - incompatible_uid
             message:
               type: string
 
@@ -494,94 +416,4 @@ channels:
             value:
               type: number
 
-  errorInstrument:
-    address: error/instrument/+
-    messages:
-      instrumentError:
-        payload:
-          type: object
-          additionalProperties: false
-          required:
-            - error
-          properties:
-            error:
-              type: string
 
-  errorMqtt:
-    address: error/mqtt
-    messages:
-      genericError:
-        payload:
-          type: object
-          additionalProperties: false
-          required:
-            - error
-          properties:
-            error:
-              type: string
-
-  errorInvalid:
-    address: error/message/invalid
-    messages:
-      validationErrorMsg:
-        payload:
-          type: object
-          additionalProperties: false
-          required:
-            - topic
-            - error
-            - message
-          properties:
-            topic:
-              type: string
-            channel:
-              type: string
-            error:
-              type: string
-              enum:
-                - validation_error
-            path:
-              type: array
-              items:
-                type: string
-            message:
-              type: string
-
-  errorMalformed:
-    address: error/message/malformed
-    messages:
-      malformedPayloadMsg:
-        payload:
-          type: object
-          additionalProperties: false
-          required:
-            - topic
-            - error
-            - error_message
-          properties:
-            topic:
-              type: string
-            error:
-              type: string
-              enum:
-                - invalid_json
-            error_message:
-              type: string
-
-  errorUnexpected:
-    address: error/message/unexpected
-    messages:
-      unexpectedTopicErrorMsg:
-        payload:
-          type: object
-          additionalProperties: false
-          required:
-            - topic
-            - error
-          properties:
-            topic:
-              type: string
-            error:
-              type: string
-              enum:
-                - unexpected_topic

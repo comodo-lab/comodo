@@ -151,8 +151,8 @@ if __name__ == "__main__":
         traceback.print_exc()
         try:
             state.client.publish(
-                f"error/instrument/{state.config['INSTRUMENT_ID']}",
-                json.dumps({"error": str(e)}),
+                "error/instrument",
+                json.dumps({"code": "exception", "message": f"[{state.config['INSTRUMENT_ID']}] {e}"}),
             )
         except:
             print(f"Error: {e}")

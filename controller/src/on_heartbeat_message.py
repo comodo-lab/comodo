@@ -57,8 +57,8 @@ def on_heartbeat_message(client, msg, obj):
             )
             print(f"ERROR: {e} Stopping experiment.")
             mqtt.MQTTPublisher.get_instance().publish(
-                f"error/sensor/configuration",
-                json.dumps({"error": e}),
+                "error/sensor",
+                json.dumps({"code": "configuration", "message": e}),
             )
             mqtt.MQTTPublisher.get_instance().publish(
                 "controller/command/stop", json.dumps({"id": obj.experiment_uid})

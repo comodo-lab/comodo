@@ -72,7 +72,7 @@ def mqtt_publish_exceptions(name, func):
             try:
                 MQTTPublisher.get_instance().publish(
                     "error/mqtt",
-                    json.dumps({"error": f"Unhandled exception in {name}: {str(e)}"}),
+                    json.dumps({"code": "unhandled_exception", "message": f"Unhandled exception in {name}: {str(e)}"}),
                 )
             except Exception as e:
                 print(f"Error while reporting error! {e}")

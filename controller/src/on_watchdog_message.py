@@ -37,7 +37,7 @@ def on_watchdog_message(client, msg, obj):
 
     if msg.topic.startswith("watchdog/event/"):
         if msg.topic == "watchdog/event/timeout":
-            error = mqtt.load_message(msg)["error"]
+            error = mqtt.load_message(msg)["message"]
             print(f"WATCHDOG: Timed out waiting for controller heartbeat. {error}")
             mqtt.MQTTPublisher.get_instance().publish(
                 "watchdog/event/restart",

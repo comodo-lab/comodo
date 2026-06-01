@@ -39,7 +39,7 @@ def on_wd_timer_message(client, msg, obj):
             error = f"WATCHDOG_TIMER incompatible values: {e}"
             mqtt.MQTTPublisher.get_instance().publish(
                 "error/watchdog",
-                json.dumps({"error": error}),
+                json.dumps({"code": "incompatible_values", "message": error}),
             )
             print("ERROR: Watchdog timer failed to start.")
             print(f"Values do not match: {e}")
@@ -71,5 +71,5 @@ def on_wd_timer_message(client, msg, obj):
         error = f"WATCHDOG_TIMER: Unexpected message received: {msg.topic}"
         mqtt.MQTTPublisher.get_instance().publish(
             "error/watchdog",
-            json.dumps({"error": error}),
+            json.dumps({"code": "unexpected_message", "message": error}),
         )

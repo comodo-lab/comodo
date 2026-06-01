@@ -153,8 +153,8 @@ class SetpointController:
             error = f"Cannot decode {msg.topic} message, wrong JSON: \n{textwrap.indent(str(e), '   ')}"
             print(f"ERROR: {error}")
             mqtt.MQTTPublisher.get_instance().publish(
-                f"error/setpoint_controller/{spc.spc_id}",
-                json.dumps({"error": error}),
+                "error/setpoint_controller",
+                json.dumps({"code": "json_decode_error", "message": error}),
             )
             spc.status["state"] = "error"
             spc.publish_heartbeat()
@@ -188,8 +188,8 @@ class SetpointController:
                 e = ", ".join(not_configurable)
                 error = f"Cannot configure PID parameter: {e}. Aborting setup."
                 mqtt.MQTTPublisher.get_instance().publish(
-                    f"error/setpoint_controller/{spc.spc_id}",
-                    json.dumps({"error": error}),
+                    "error/setpoint_controller",
+                    json.dumps({"code": "configuration_error", "message": error}),
                 )
             else:
                 for k, v in message.items():
