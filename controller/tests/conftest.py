@@ -81,7 +81,6 @@ def mock_state(status, mock_experiment_dict={}, mock_setpoints=[]):
     state_obj.instruments = {"configured": False}
     state_obj.adjusting = MagicMock(spec=AdjustingDict)
     state_obj.schema_path = "schemas/schema_experiment.json"
-    state_obj.schema_instrument_heartbeat_path = "schemas/schema_instrument_heartbeat.json"
 
     if status == "idle":
         return state_obj
