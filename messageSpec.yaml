@@ -25,45 +25,54 @@ channels:
               type: object
               additionalProperties: true
             experiment_definition:
-              type: object
-              additionalProperties: true
+              type: array
+              items:
+                type: object
+                additionalProperties: true
 
-  controllerTimerStartInstrumentSetup:
-    address: controller/timer/start/instrument_setup
+  controllerTimerCommandStart:
+    address: controller/timer/command/start
     messages:
-      timerStartInstrumentSetup:
+      timerStartCommand:
         payload:
           type: object
           additionalProperties: false
           required:
+            - source
             - experiment_id
           properties:
-            experiment_id:
+            source:
               type: string
-
-  controllerTimerStartSetpoint:
-    address: controller/timer/start/setpoint
-    messages:
-      setpointTimerStart:
-        payload:
-          type: object
-          additionalProperties: false
-          required:
-            - experiment_id
-            - duration
-          properties:
+              enum:
+                - instrument_setup
+                - setpoint
             experiment_id:
               type: string
             duration:
               type: number
 
-  controllerTimerDone:
-    address: controller/timer/done
+  controllerTimerEventDone:
+    address: controller/timer/event/done
     messages:
-      timerDone:
+      timerDoneEvent:
         payload:
           type: object
           additionalProperties: false
+          required:
+            - source
+            - experiment_id
+          properties:
+            source:
+              type: string
+              enum:
+                - instrument_setup
+                - setpoint
+            experiment_id:
+              type: string
+            controller_status:
+              type: string
+            instruments_configured:
+              type: boolean
 
   controllerValidatorPassed:
     address: controller/validator/passed

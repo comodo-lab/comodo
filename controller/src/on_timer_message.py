@@ -37,7 +37,7 @@ def on_timer_message(client, msg, obj):
         missing_keys(msg, e)
         return
 
-    if msg.topic == "controller/timer/start/instrument_setup":
+    if msg.topic == "controller/timer/command/start" and message.get("source") == "instrument_setup":
         # Wait for instruments to be ready or timeout
         instrument_setup_wait = float(os.getenv("INSTRUMENT_SETUP_WAIT", 10))
         t0 = t.time()
@@ -52,9 +52,10 @@ def on_timer_message(client, msg, obj):
                 )
                 return
         mqtt.MQTTPublisher.get_instance().publish(
-            "controller/timer/done/instrument_setup",
+            "controller/timer/event/done",
             json.dumps(
                 {
+                    "source": "instrument_setup",
                     # experiment uid changes when all instruments get configured, so have to use obj.experiment_uid, not message["experiment_id"]
                     "experiment_id": obj.experiment_uid,
                     "instruments_configured": obj.instruments["configured"],
@@ -62,7 +63,7 @@ def on_timer_message(client, msg, obj):
                 }
             ),
         )
-    elif msg.topic == "controller/timer/start/setpoint":
+    elif msg.topic == "controller/timer/command/start" and message.get("source") == "setpoint":
         try:
             duration = message["duration"]
         except KeyError as e:
@@ -84,10 +85,10 @@ def on_timer_message(client, msg, obj):
             )
         else:
             mqtt.MQTTPublisher.get_instance().publish(
-                "controller/timer/done/setpoint",
-                json.dumps({"experiment_id": message["experiment_id"], "controller_status": obj.status}),
+                "controller/timer/event/done",
+                json.dumps({"source": "setpoint", "experiment_id": message["experiment_id"], "controller_status": obj.status}),
             )
-    elif msg.topic.startswith("controller/timer/done/"):
+    elif msg.topic == "controller/timer/event/done":
         return
     else:
         incompatible_request(obj, msg)
