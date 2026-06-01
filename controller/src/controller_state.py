@@ -53,12 +53,11 @@ class cstate:
         """
         Generates a dictionary with the attributes that will get added to the heartbeat mqtt messages.
         """
-        heartbeat = {
-            "experiment": self.experiment_uid,
-            "status": self.status,
-            "adjusting": self.adjusting,
+        return {
+            "config": {"experiment_id": self.experiment_uid},
+            "setpoints": {},
+            "state": self.status,
         }
-        return heartbeat
 
     def __str__(self) -> str:
         """

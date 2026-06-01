@@ -262,7 +262,9 @@ channels:
                 - experiment_id
               properties:
                 experiment_id:
-                  type: string
+                  oneOf:
+                    - type: string
+                    - type: "null"
 
             setpoints:
               type: object
