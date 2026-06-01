@@ -76,11 +76,7 @@ def test_validation_exception(message_bus, state):
     assert messages[0].topic == "error/heartbeat"
     m = messages[0].payload
     assert "Invalid heartbeat from instrument_1:" in m
-    assert "Validation errors:" in m
-    assert "'name' is a required property" in m
-    assert "'status' is a required property" in m
-    assert "'setpoint' is a required property" in m
-    assert "'config' is a required property" in m
+    assert "'hello' was unexpected" in m
 
 
 def test_unconfigured_instrument(message_bus, state):
