@@ -390,9 +390,13 @@ channels:
                 - experiment_id
               properties:
                 tolerance:
-                  type: number
+                  oneOf:
+                    - type: number
+                    - type: "null"
                 experiment_id:
-                  type: string
+                  oneOf:
+                    - type: string
+                    - type: "null"
 
             setpoints:
               type: object
