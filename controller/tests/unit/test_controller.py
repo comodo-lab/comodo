@@ -154,7 +154,7 @@ class TestMain:
             call(
                 id="watchdog",
                 callback=mocks["callbacks"]["on_watchdog_message"],
-                topics=["watchdog/#", "heartbeat/controller", "error/exception"],
+                topics=["watchdog/event/+", "watchdog/command/+", "controller/heartbeat", "error/exception"],
                 obj=wdog,
                 broker_address="test_host",
                 user="test_user",
@@ -164,7 +164,7 @@ class TestMain:
             call(
                 id="wd_timer",
                 callback=mocks["callbacks"]["on_wd_timer_message"],
-                topics="wd_timer/#",
+                topics="watchdog/command/start",
                 obj=wdog,
                 broker_address="test_host",
                 user="test_user",
@@ -194,7 +194,7 @@ class TestMain:
             call(
                 id="timer",
                 callback=mocks["callbacks"]["on_timer_message"],
-                topics="timer/#",
+                topics="controller/timer/#",
                 obj=state,
                 broker_address="test_host",
                 user="test_user",
@@ -204,7 +204,7 @@ class TestMain:
             call(
                 id="heartbeat",
                 callback=mocks["callbacks"]["on_heartbeat_message"],
-                topics="heartbeat/instrument/#",
+                topics="instruments/+/heartbeat",
                 obj=state,
                 broker_address="test_host",
                 user="test_user",
@@ -215,8 +215,8 @@ class TestMain:
 
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 1
-        assert messages[0].topic == "wd_timer/start"
-        assert messages[0].payload == json.dumps(wdog)
+        assert messages[0].topic == "watchdog/command/start"
+        assert json.loads(messages[0].payload) == {"timeout": 6, "interval": 2}
 
     def test_watchdog_loop_not_started_if_unhealthy(
         self, main_mocks, message_bus, capsys
@@ -228,7 +228,8 @@ class TestMain:
 
         mocks["sleep"].assert_called_once_with(1)  # Only initial sleep before wd starts
         messages = message_bus.get_messages(decoded=True)
-        assert len(messages) == 1  # Only the initial wd_timer/start message
+        assert messages[0].topic == "watchdog/command/start"
+        assert json.loads(messages[0].payload) == {"timeout": 5, "interval": 1}
         captured = capsys.readouterr()
         assert "Creating clients..." in captured.out
         assert "Controller failed to start. watchdog unhealthy." in captured.out
@@ -256,10 +257,10 @@ class TestMain:
         ]
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 4
-        assert messages[0].topic == "wd_timer/start"
-        assert messages[1].topic == "heartbeat/controller"
-        assert messages[2].topic == "heartbeat/controller"
-        assert messages[3].topic == "heartbeat/controller"
+        assert messages[0].topic == "watchdog/command/start"
+        assert messages[1].topic == "controller/heartbeat"
+        assert messages[2].topic == "controller/heartbeat"
+        assert messages[3].topic == "controller/heartbeat"
         captured = capsys.readouterr()
         assert "Creating clients..." in captured.out
         assert "Controller started successfully." in captured.out
@@ -275,7 +276,7 @@ class TestMain:
             obj["healthy"] = True
 
         def wd_side_effect(client, msg, obj):
-            if mocks["callbacks"]["on_watchdog_message"].call_count >= 3:
+            if mocks["callbacks"]["on_watchdog_message"].call_count >= 4:
                 obj["healthy"] = False
 
         mocks["callbacks"]["on_wd_timer_message"].side_effect = wd_timer_side_effect
@@ -294,10 +295,10 @@ class TestMain:
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) >= 4  # >= Setting healthy to false takes some time
         assert len(messages) <= 6  # <= But it shouldn't take that much time
-        assert messages[0].topic == "wd_timer/start"
-        assert messages[1].topic == "heartbeat/controller"
-        assert messages[2].topic == "heartbeat/controller"
-        assert messages[3].topic == "heartbeat/controller"
+        assert messages[0].topic == "watchdog/command/start"
+        assert messages[1].topic == "controller/heartbeat"
+        assert messages[2].topic == "controller/heartbeat"
+        assert messages[3].topic == "controller/heartbeat"
         captured = capsys.readouterr()
         assert "Creating clients..." in captured.out
         assert "Controller started successfully." in captured.out

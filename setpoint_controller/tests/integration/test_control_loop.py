@@ -85,7 +85,7 @@ class MockSensor:
         self.thread = None
 
         # Subscribe to setpoint messages (trigger measurement publishing)
-        self.bus.subscribe(f"instruments/{self.name}/*/setpoint", self.publish_measurement)
+        self.bus.subscribe(f"instruments/{self.name}/+/setpoint", self.publish_measurement)
 
     def stop(self):
         """Stop reacting to setpoint changes."""

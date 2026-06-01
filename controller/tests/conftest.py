@@ -89,7 +89,7 @@ def mock_state(status, mock_experiment_dict={}, mock_setpoints=[]):
     # ------------------------------- starting
     state_obj.experiment_start_time = datetime.now()
     state_obj.exp_config = mock_experiment_dict
-    state_obj.experiment_uid = mock_experiment_dict["uid"]
+    state_obj.experiment_uid = mock_experiment_dict["id"]
     state_obj.status = "validating"
     state_obj._status_history = []
     if status == "starting":
@@ -101,9 +101,12 @@ def mock_state(status, mock_experiment_dict={}, mock_setpoints=[]):
     for instrument in state_obj.exp_config["config"]["instruments"]:
         state_obj.instruments[instrument["name"]] = {
             "last_contact": None,
-            "config": {k: v for k, v in instrument.items() if k != "name"},
-            "status": None,
-            "setpoint": None,
+            "config": {
+                **{k: v for k, v in instrument.items() if k != "name"},
+                "experiment_id": state_obj.experiment_uid,
+            },
+            "state": None,
+            "setpoints": None,
         }
     if status == "awaiting_instruments":
         return state_obj
@@ -111,7 +114,8 @@ def mock_state(status, mock_experiment_dict={}, mock_setpoints=[]):
     state_obj.setpoints = mock_setpoints
     for instrument in state_obj.exp_config["config"]["instruments"]:
         state_obj.instruments[instrument["name"]]["last_contact"] = t.time() - 1
-        state_obj.instruments[instrument["name"]]["status"] = "no_setpoint"
+        state_obj.instruments[instrument["name"]]["state"] = "idle"
+        state_obj.instruments[instrument["name"]]["setpoints"] = None
     state_obj.instruments = {"configured": True}
     if status == "ready":
         return state_obj
@@ -156,16 +160,17 @@ def mock_c_stopping():
         yield mock_c_stopping
 
 
-def instrument_heartbeat_msg(instrument, status, setpoint):
+def instrument_heartbeat_msg(instrument, state, setpoints, experiment_id=None):
     """Helper function to create a instrument heartbeat mock message."""
+    config = {k: v for k, v in instrument.items() if k != "name"}
+    config.setdefault("experiment_id", experiment_id)
     return MockMessage(
-        topic=f"heartbeat/instrument/{instrument['name']}",
+        topic=f"instruments/{instrument['name']}/heartbeat",
         payload=json.dumps(
             {
-                "name": instrument["name"],
-                "status": status,
-                "setpoint": setpoint,
-                "config": {k: v for k, v in instrument.items() if k != "name"},
+                "state": state,
+                "setpoints": setpoints,
+                "config": config,
             }
         ),
     )

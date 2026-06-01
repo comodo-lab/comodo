@@ -23,7 +23,6 @@ def test_cstate_initialization():
     assert state.instruments == {"configured": False}
     assert state.adjusting == AdjustingDict()
     assert state.schema_path == "schemas/schema_experiment.json"
-    assert state.schema_instrument_heartbeat_path == "schemas/schema_instrument_heartbeat.json"
 
 
 def test_cannot_add_new_attribute(state):
@@ -37,9 +36,9 @@ def test_cannot_add_new_attribute(state):
 
 def test_cstate_heartbeat(state):
     assert state.heartbeat() == {
-        "experiment": None,
-        "status": "idle",
-        "adjusting": AdjustingDict(),
+        "config": {"experiment_id": None},
+        "setpoints": {},
+        "state": "idle",
     }
 
 
@@ -47,7 +46,7 @@ def test_str(state):
     state.experiment_uid = "123"
     assert (
         str(state)
-        == '{"experiment": "123", "status": "idle", "adjusting": {"T": 0, "P": 0, "D1": 0, "D2": 0}}'
+        == '{"config": {"experiment_id": "123"}, "setpoints": {}, "state": "idle"}'
     )
 
 

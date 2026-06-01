@@ -43,7 +43,7 @@ def controller_client(mqtt_mocks, state):
 def heartbeat_client(mqtt_mocks, state):
     mqtt_mocks["client_class"](
         id="heartbeat",
-        topics="heartbeat/#",
+        topics="instruments/+/heartbeat",
         callback=on_heartbeat_message,
         obj=state,
     )
@@ -103,8 +103,8 @@ def test_control_loop(
 
     # Start an experiment
     message_bus.publish(
-        topic="controller/validate",
-        payload=json.dumps({"file": "some_file", "uid": "123"}),
+        topic="controller/command/validate",
+        payload=json.dumps({"file": "some_file", "id": "123"}),
     )
     t.sleep(0.1)
 
@@ -119,15 +119,16 @@ def test_control_loop(
     # expected_messages = validate + passed + start + timer + instrument setups
     expected_messages = 4 + len(instrument_names)
     assert len(messages) == expected_messages
-    assert messages[0].topic == "controller/validate"
-    assert messages[1].topic == "validator/passed"
-    assert messages[2].topic == "controller/start"
-    assert messages[3].topic == "timer/start/instrument_setup"
+    assert messages[0].topic == "controller/command/validate"
+    assert messages[1].topic == "controller/validator/passed"
+    assert messages[2].topic == "controller/command/start"
+    assert messages[3].topic == "controller/timer/command/start"
+    assert json.loads(messages[3].payload) == {"source": "instrument_setup", "experiment_id": "123"}
     setup_instruments = []
     for msg in messages[4:]:
         topic_parts = msg.topic.split("/")
         assert len(topic_parts) == 3
-        assert topic_parts[0] == "instrument"
+        assert topic_parts[0] == "instruments"
         setup_instruments.append(topic_parts[1])
         assert topic_parts[2] == "setup"
     assert sorted(setup_instruments) == instrument_names
@@ -141,8 +142,8 @@ def test_control_loop(
     for instrument in instrument_names:
         msg = instrument_heartbeat_msg(
             instrument={"name": instrument} | state.instruments[instrument]["config"],
-            status="no_setpoint",
-            setpoint=None,
+            state="ready",
+            setpoints={},
         )
         message_bus.publish(msg.topic, msg.payload.decode())
     t.sleep(0.1)
@@ -163,55 +164,61 @@ def test_control_loop(
     for i, msg in enumerate(messages[: len(instrument_names)]):
         topic_parts = msg.topic.split("/")
         assert len(topic_parts) == 3
-        assert topic_parts[0] == "heartbeat"
-        assert topic_parts[1] == "instrument"
-        heartbeat_instruments.append(topic_parts[2])
+        assert topic_parts[0] == "instruments"
+        heartbeat_instruments.append(topic_parts[1])
+        assert topic_parts[2] == "heartbeat"
     assert sorted(heartbeat_instruments) == instrument_names
-    assert messages[len(instrument_names)].topic == "controller/ready"
-    assert messages[len(instrument_names) + 1].topic == "controller/run"
+    assert messages[len(instrument_names)].topic == "controller/event/ready"
+    assert messages[len(instrument_names) + 1].topic == "controller/command/run"
+    assert json.loads(messages[len(instrument_names) + 1].payload) == {"experiment_id": "D123-456"}
+    # Setpoint messages (for each instrument) then timer
+    setpoint_start = len(instrument_names) + 2
     setpoint_instruments = []
-    for i, msg in enumerate(messages[len(instrument_names) + 2 : -1]):
+    for i, msg in enumerate(messages[setpoint_start : -1]):
         topic_parts = msg.topic.split("/")
-        assert len(topic_parts) == 3
-        assert topic_parts[0] == "instrument"
+        assert len(topic_parts) == 4
+        assert topic_parts[0] == "instruments"
         setpoint_instruments.append(topic_parts[1])
-        assert topic_parts[2] == "setpoint"
+        assert topic_parts[3] == "setpoint"
     assert sorted(setpoint_instruments) == instrument_names
-    assert messages[-1].topic == "timer/start/setpoint"
+    assert messages[-1].topic == "controller/timer/command/start"
+    assert json.loads(messages[-1].payload)["source"] == "setpoint"
+    assert json.loads(messages[-1].payload)["experiment_id"] == "D123-456"
     checked_messages += expected_messages
 
     # Simulate setpoint timer ticks
     n_setpoints = len(state.setpoints)
     past_setpoints = len(state.past_setpoints)
-    message_bus.publish("controller/run", json.dumps({"uid": "D123-456"}))
+    message_bus.publish("controller/command/run", json.dumps({"experiment_id": "D123-456"}))
     t.sleep(0.1)
     messages = message_bus.get_messages()[checked_messages:]
     # expected_messages = run + setpoints + timer
     expected_messages = 1 + len(instrument_names) + 1
     assert len(messages) == expected_messages
-    assert messages[0].topic == "controller/run"
+    assert messages[0].topic == "controller/command/run"
     setpoint_instruments = []
     for i, msg in enumerate(messages[1:-1]):
         topic_parts = msg.topic.split("/")
-        assert len(topic_parts) == 3
-        assert topic_parts[0] == "instrument"
+        assert len(topic_parts) == 4
         setpoint_instruments.append(topic_parts[1])
-        assert topic_parts[2] == "setpoint"
+        assert topic_parts[3] == "setpoint"
     assert sorted(setpoint_instruments) == instrument_names
-    assert messages[-1].topic == "timer/start/setpoint"
+    assert messages[-1].topic == "controller/timer/command/start"
+    assert json.loads(messages[-1].payload)["source"] == "setpoint"
+    assert json.loads(messages[-1].payload)["experiment_id"] == "D123-456"
     checked_messages += expected_messages
     assert len(state.setpoints) == n_setpoints - 1
     assert len(state.past_setpoints) == past_setpoints + 1
     # Continue simulating setpoint timer ticks until done
     for _ in range(n_setpoints - 1):
-        message_bus.publish("controller/run", json.dumps({"uid": "D123-456"}))
+        message_bus.publish("controller/command/run", json.dumps({"experiment_id": "D123-456"}))
         t.sleep(0.01)
     assert state.setpoints == []
     assert len(state.past_setpoints) == n_setpoints
     checked_messages += (n_setpoints - 1) * (1 + len(instrument_names) + 1)
 
     # Final timer tick to end experiment
-    message_bus.publish("controller/run", json.dumps({"uid": "D123-456"}))
+    message_bus.publish("controller/command/run", json.dumps({"experiment_id": "D123-456"}))
     t.sleep(2)
 
     # Should go from c_running to c_stopping
@@ -222,8 +229,9 @@ def test_control_loop(
     # expected_messages = run + end
     expected_messages = 2
     assert len(messages) == expected_messages
-    assert messages[0].topic == "controller/run"
-    assert messages[1].topic == "controller/end"
+    assert messages[0].topic == "controller/command/run"
+    assert messages[1].topic == "controller/event/end"
+    assert json.loads(messages[1].payload) == {"experiment_id": "D123-456"}
     checked_messages += expected_messages
     mock_dump.assert_called_once()
     state.reset.assert_called_once()

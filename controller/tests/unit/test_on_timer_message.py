@@ -26,7 +26,7 @@ def state(mock_experiment_dict, mock_setpoints):
 def timer_client(mqtt_mocks):
     mqtt_mocks["client_class"](
         id="timer",
-        topics="timer/#",
+        topics="controller/timer/#",
         callback=on_timer_message,
     )
     return mqtt_mocks["client_instance"]
@@ -37,7 +37,7 @@ def timer_client(mqtt_mocks):
 
 def test_wrong_json(message_bus, state, capsys):
     msg = MockMessage(
-        topic="timer/start/instrument_setup",
+        topic="controller/timer/command/start",
         payload="not a json",
     )
     on_timer_message(timer_client, msg, state)
@@ -45,41 +45,41 @@ def test_wrong_json(message_bus, state, capsys):
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
     assert messages[0].topic == "error/controller"
-    exp_err = "Cannot decode timer/start/instrument_setup message, wrong JSON:"
+    exp_err = "Cannot decode controller/timer/command/start message, wrong JSON:"
     assert exp_err in messages[0].payload
     assert f"ERROR: {exp_err}" in capsys.readouterr().out
 
 
-def test_missing_uid(timer_client, message_bus, state, capsys):
+def test_missing_experiment_id(timer_client, message_bus, state, capsys):
     msg = MockMessage(
-        topic="timer/start/instrument_setup",
-        payload=json.dumps({"some": "json"}),
+        topic="controller/timer/command/start",
+        payload=json.dumps({"source": "instrument_setup"}),
     )
     on_timer_message(timer_client, msg, state)
 
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
-    assert messages[0].topic == "error/timer"
-    exp_err = "Cannot decode timer/start/instrument_setup message, missing:"
+    assert messages[0].topic == "error/controller"
+    exp_err = "Cannot decode controller/timer/command/start message, missing:"
     assert exp_err in messages[0].payload
-    assert "uid" in messages[0].payload
+    assert "experiment_id" in messages[0].payload
     assert f"ERROR: {exp_err}" in capsys.readouterr().out
 
 
-def test_incorrect_uid(timer_client, message_bus, state):
+def test_incorrect_experiment_id(timer_client, message_bus, state):
     assert state.experiment_uid == "123"
 
     msg = MockMessage(
-        topic="timer/start/instrument_setup",
-        payload=json.dumps({"uid": "999"}),
+        topic="controller/timer/command/start",
+        payload=json.dumps({"source": "instrument_setup", "experiment_id": "999"}),
     )
     on_timer_message(timer_client, msg, state)
 
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
-    assert messages[0].topic == "error/timer"
+    assert messages[0].topic == "error/controller"
     assert (
-        "Current experiment is 123. Cannot act on timer/start/instrument_setup for experiment 999."
+        "Current experiment is 123. Cannot act on controller/timer/command/start for experiment 999."
         in messages[0].payload
     )
 
@@ -88,15 +88,15 @@ def test_incompatible_request(timer_client, message_bus, state):
     assert state.experiment_uid == "123"
 
     msg = MockMessage(
-        topic="timer/something_else",
-        payload=json.dumps({"uid": "123"}),
+        topic="controller/timer/something_else",
+        payload=json.dumps({"experiment_id": "123"}),
     )
     on_timer_message(timer_client, msg, state)
 
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
-    assert messages[0].topic == "error/timer"
-    assert "Timer cannot act on timer/something_else" in messages[0].payload
+    assert messages[0].topic == "error/controller"
+    assert "Controller is awaiting_instruments. Cannot act on controller/timer/something_else" in messages[0].payload
 
 
 def test_timeout(timer_client, message_bus, state):
@@ -108,18 +108,18 @@ def test_timeout(timer_client, message_bus, state):
         "src.on_timer_message.timer_check_frequency", 0.01
     ):
         msg = MockMessage(
-            topic="timer/start/instrument_setup",
-            payload=json.dumps({"uid": "123"}),
+            topic="controller/timer/command/start",
+            payload=json.dumps({"source": "instrument_setup", "experiment_id": "123"}),
         )
         on_timer_message(timer_client, msg, state)
 
     mock_getenv.assert_called_once_with("INSTRUMENT_SETUP_WAIT", 10)
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 2
-    assert messages[0].topic == "error/controller/timeout"
+    assert messages[0].topic == "error/controller"
     assert "Timed out waiting for instruments. Stopping..." in messages[0].payload
-    assert messages[1].topic == "controller/stop"
-    assert '{"uid": "123"' in messages[1].payload
+    assert messages[1].topic == "controller/command/stop"
+    assert '{"id": "123"' in messages[1].payload
 
 
 def test_stops_when_configured(message_bus, state, timer_client):
@@ -128,16 +128,17 @@ def test_stops_when_configured(message_bus, state, timer_client):
     state.instruments["configured"] = True
 
     msg = MockMessage(
-        topic="timer/start/instrument_setup",
-        payload=json.dumps({"uid": "123"}),
+        topic="controller/timer/command/start",
+        payload=json.dumps({"source": "instrument_setup", "experiment_id": "123"}),
     )
     on_timer_message(timer_client, msg, state)
 
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
-    assert messages[0].topic == "timer/done/instrument_setup"
+    assert messages[0].topic == "controller/timer/event/done"
     assert json.loads(messages[0].payload) == {
-        "uid": "123",
+        "source": "instrument_setup",
+        "experiment_id": "123",
         "instruments_configured": True,
         "controller_status": "awaiting_instruments",
     }
@@ -149,16 +150,17 @@ def test_stops_when_not_awaiting_instruments(message_bus, state, timer_client):
     state.status = "ready"
 
     msg = MockMessage(
-        topic="timer/start/instrument_setup",
-        payload=json.dumps({"uid": "123"}),
+        topic="controller/timer/command/start",
+        payload=json.dumps({"source": "instrument_setup", "experiment_id": "123"}),
     )
     on_timer_message(timer_client, msg, state)
 
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
-    assert messages[0].topic == "timer/done/instrument_setup"
+    assert messages[0].topic == "controller/timer/event/done"
     assert json.loads(messages[0].payload) == {
-        "uid": "123",
+        "source": "instrument_setup",
+        "experiment_id": "123",
         "instruments_configured": False,
         "controller_status": "ready",
     }
@@ -178,16 +180,17 @@ def test_done_instrument_setup_uses_obj_uid(message_bus, state, timer_client):
         mock_time.side_effect = change_uid
 
         msg = MockMessage(
-            topic="timer/start/instrument_setup",
-            payload=json.dumps({"uid": "123"}),
+            topic="controller/timer/command/start",
+            payload=json.dumps({"source": "instrument_setup", "experiment_id": "123"}),
         )
         on_timer_message(timer_client, msg, state)
 
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
-    assert messages[0].topic == "timer/done/instrument_setup"
+    assert messages[0].topic == "controller/timer/event/done"
     assert json.loads(messages[0].payload) == {
-        "uid": "D25-123",
+        "source": "instrument_setup",
+        "experiment_id": "D25-123",
         "instruments_configured": False,
         "controller_status": "ready",
     }
@@ -198,15 +201,15 @@ def test_timer_setpoint(message_bus, state, timer_client):
     state.status = "running"
 
     msg = MockMessage(
-        topic="timer/start/setpoint",
-        payload=json.dumps({"uid": "123", "duration": 0.1}),
+        topic="controller/timer/command/start",
+        payload=json.dumps({"source": "setpoint", "experiment_id": "123", "duration": 0.1}),
     )
     on_timer_message(timer_client, msg, state)
 
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
-    assert messages[0].topic == "controller/run"
-    assert messages[0].payload == '{"uid": "123"}'
+    assert messages[0].topic == "controller/command/run"
+    assert messages[0].payload == '{"experiment_id": "123"}'
 
 
 def test_timer_setpoint_missing_duration(timer_client, message_bus, state, capsys):
@@ -214,15 +217,15 @@ def test_timer_setpoint_missing_duration(timer_client, message_bus, state, capsy
     state.status = "running"
 
     msg = MockMessage(
-        topic="timer/start/setpoint",
-        payload=json.dumps({"uid": "123"}),
+        topic="controller/timer/command/start",
+        payload=json.dumps({"source": "setpoint", "experiment_id": "123"}),
     )
     on_timer_message(timer_client, msg, state)
 
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
-    assert messages[0].topic == "error/timer"
-    exp_err = "Cannot decode timer/start/setpoint message, missing:"
+    assert messages[0].topic == "error/controller"
+    exp_err = "Cannot decode controller/timer/command/start message, missing:"
     assert exp_err in messages[0].payload
     assert "duration" in messages[0].payload
     assert f"ERROR: {exp_err}" in capsys.readouterr().out
@@ -233,18 +236,18 @@ def test_timer_setpoint_incompatible_controller_state(timer_client, message_bus,
     state.status = "ready"
 
     msg = MockMessage(
-        topic="timer/start/setpoint",
-        payload=json.dumps({"uid": "123", "duration": 0.1}),
+        topic="controller/timer/command/start",
+        payload=json.dumps({"source": "setpoint", "experiment_id": "123", "duration": 0.1}),
     )
     on_timer_message(timer_client, msg, state)
 
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
-    assert messages[0].topic == "error/controller/timer/setpoint"
+    assert messages[0].topic == "error/controller"
     m = json.loads(messages[0].payload)
-    assert m["uid"] == "123"
-    assert "Timer for setpoint exited unexpectedly."
-    assert "ready instead of running" in m["error"]
+    assert m["code"] == "timer"
+    assert "Timer for setpoint exited unexpectedly." in m["message"]
+    assert "ready instead of running" in m["message"]
 
 
 def test_timer_setpoint_stopping(message_bus, state, timer_client):
@@ -252,16 +255,17 @@ def test_timer_setpoint_stopping(message_bus, state, timer_client):
     state.status = "stopping"
 
     msg = MockMessage(
-        topic="timer/start/setpoint",
-        payload=json.dumps({"uid": "123", "duration": 0.1}),
+        topic="controller/timer/command/start",
+        payload=json.dumps({"source": "setpoint", "experiment_id": "123", "duration": 0.1}),
     )
     on_timer_message(timer_client, msg, state)
 
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
-    assert messages[0].topic == "timer/done/setpoint"
+    assert messages[0].topic == "controller/timer/event/done"
     assert json.loads(messages[0].payload) == {
-        "uid": "123",
+        "source": "setpoint",
+        "experiment_id": "123",
         "controller_status": "stopping",
     }
 
@@ -271,15 +275,16 @@ def test_timer_done_topic(message_bus, state, timer_client):
     state.status = "running"
 
     msg = MockMessage(
-        topic="timer/done/setpoint",
-        payload=json.dumps({"uid": "123", "controller_status": "stopping"}),
+        topic="controller/timer/event/done",
+        payload=json.dumps({"source": "setpoint", "experiment_id": "123", "controller_status": "stopping"}),
     )
     on_timer_message(timer_client, msg, state)
     msg = MockMessage(
-        topic="timer/done/setpoint",
+        topic="controller/timer/event/done",
         payload=json.dumps(
             {
-                "uid": "123",
+                "source": "instrument_setup",
+                "experiment_id": "123",
                 "instruments_configured": False,
                 "controller_status": "ready",
             }
@@ -288,4 +293,4 @@ def test_timer_done_topic(message_bus, state, timer_client):
     on_timer_message(timer_client, msg, state)
 
     messages = message_bus.get_messages(decoded=True)
-    assert len(messages) == 0, "No messages should be published for timer/done topics"
+    assert len(messages) == 0, "No messages should be published for timer/event/done topics"

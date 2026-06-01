@@ -1,5 +1,5 @@
 {
-    "uid": "123",
+    "id": "123",
     "config":{
         "instruments":[
             {"name":"temperature",    "tolerance":0.21},
@@ -9,7 +9,7 @@
         ],
         "resolution":0.1
     },
-    "experiment":[
+    "experiment_definition":[
         { "time":0,     "pressure":0,    "temperature":0,    "displacement 1":0,   "displacement 2":0   },
         { "time":3,     "pressure":5000, "temperature":0,    "displacement 1":0,   "displacement 2":0   },
         { "time":3.5,   "pressure":5000, "temperature":1000, "displacement 1":0,   "displacement 2":0   },
