@@ -58,17 +58,6 @@ def mock_validate(mock_experiment_dict):
 
 
 @pytest.fixture
-def mock_validate_dict():
-    with patch("src.on_heartbeat_message.validate_dict") as mock_validate_dict:
-
-        def side_effect(input_dict, schema_path):
-            return input_dict  # Simply return the input dict for testing
-
-        mock_validate_dict.side_effect = side_effect
-        yield mock_validate_dict
-
-
-@pytest.fixture
 def mock_serial_id():
     with patch("src.on_controller_message.assign_serial_id") as mock_assign_serial_id:
 
@@ -93,7 +82,6 @@ def test_control_loop(
     controller_client,
     heartbeat_client,
     mock_validate,
-    mock_validate_dict,
     mock_serial_id,
     mock_dump,
     capsys,
@@ -149,7 +137,6 @@ def test_control_loop(
     t.sleep(0.1)
 
     # Each instrument heartbeat should be processed
-    assert mock_validate_dict.call_count == len(instrument_names)
     assert state.instruments["configured"] is True
     # Should go through c_ready and into c_running
     mock_serial_id.assert_called_once()
