@@ -43,7 +43,7 @@ def check_message_valid(entry, topic, payload):
             "topic": topic,
             "channel": entry["name"],
             "error": "validation_error",
-            "path": list(e.absolute_path) if e.absolute_path else None,
+            "path": list(e.absolute_path) if e.absolute_path else [],
             "message": e.message,
         }
         mqtt_clients.MQTTPublisher.get_instance().publish(
