@@ -35,10 +35,10 @@ def base_SPC():
             "mqtt_host": "test_host",
             "mqtt_user": "test_user",
             "mqtt_pass": "test_pass",
-            "sensor": "test_sensor",
-            "actuator": "test_actuator",
-            "sensor": "A",
-            "actuator": "B",
+            "sensor_name": "I1",
+            "sensor_var": "A",
+            "actuator_name": "I2",
+            "actuator_var": "B",
             "heartbeat_interval": 1,
         }
         d_kwargs.update(kwargs)
@@ -80,14 +80,24 @@ def base_PID(**kwargs):
 def mock_spc(mock_pid):
     """SetpointController with default parameters."""
     spc = MagicMock(spec=SetpointController)
-    spc.state = {
-        "name": f"pid_A__B",
-        "status": "no_setpoint",
-        "setpoint": None,
-        "config": {"mock": "config"},
+    spc.status = {
+        "state": "idle",
+        "setpoints": {},
+        "config": {
+            "mock": "config",
+            "experiment_id": None,
+            "sensor": "I1/A",
+            "actuator": "I2/B",
+            "active": True,
+        },
     }
-    spc.start_heartbeat_loop = MagicMock()
+    spc.sensor_name = "I1"
+    spc.sensor_var = "A"
+    spc.actuator_name = "I2"
+    spc.actuator_var = "B"
+    spc.spc_id = "I1/A__I2/B"
     spc.pid = mock_pid
+    spc.publish_heartbeat = MagicMock()
     return spc
 
 
@@ -95,13 +105,13 @@ def mock_spc(mock_pid):
 def mock_pid():
     """PID with default parameters."""
     pid = MagicMock(spec=PID)
-    pid.id = "pid/mock_sensor__mock_actuator"
-    pid.sensor = "mock_sensor"
-    pid.actuator = "mock_actuator"
+    pid.id = "I1/A__I2/B"
+    pid.sensor = "I1/A"
+    pid.actuator = "I2/B"
     pid.k_p = 1.0
     pid.k_i = 0.5
     pid.setpoint = None
-    pid.configurable = ["mock", "configurable", "params"]
+    pid.configurable = ["k_p", "k_i"]
     pid.get_state.return_value = {"mock": "state"}
     pid.step = MagicMock(return_value=5.0)
 
