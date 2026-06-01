@@ -4,9 +4,9 @@ import pytest
 
 import json
 import threading
-import fnmatch
 from typing import Dict
 from unittest.mock import patch, MagicMock
+from paho.mqtt.client import topic_matches_sub
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
@@ -33,25 +33,6 @@ class MockMessage:
         self.payload = payload.encode("utf-8") if isinstance(payload, str) else payload
 
 
-def _mqtt_pattern_match(topic: str, pattern: str) -> bool:
-    """
-    Check if a topic matches an MQTT pattern.
-    Supports:
-    - * for single-level wildcard (e.g., "a/*/c")
-    - # for multi-level wildcard (e.g., "a/#")
-    """
-    if "#" in pattern:
-        # # must be at the end and represents all remaining levels
-        if pattern.endswith("/#"):
-            prefix = pattern[:-2]  # Remove "/#"
-            return topic.startswith(prefix + "/") or topic == prefix
-        elif pattern == "#":
-            return True
-        else:
-            return False
-    return fnmatch.fnmatch(topic, pattern)
-
-
 class InMemoryMessageBus:
     """
     A thread-safe in-memory message bus that simulates MQTT publish/subscribe behaviour.
@@ -66,7 +47,7 @@ class InMemoryMessageBus:
     def subscribe(self, topic_pattern: str, callback: callable):
         """
         Subscribe a callback to a topic pattern.
-        Supports single level and multi-level wildcards (e.g., "a/*/c" or "a/#").
+        Supports single level and multi-level wildcards (e.g., "a/+/c" or "a/#").
         """
         with self.lock:
             if topic_pattern not in self.subscribers:
@@ -85,7 +66,7 @@ class InMemoryMessageBus:
 
             # Notify all subscribers whose patterns match this topic
             for pattern, callbacks in self.subscribers.items():
-                if _mqtt_pattern_match(topic, pattern):
+                if topic_matches_sub(pattern, topic):
                     for callback in callbacks:
                         # Call callback in a separate thread to simulate async behaviour
                         threading.Thread(
@@ -101,7 +82,7 @@ class InMemoryMessageBus:
                 history = [
                     m
                     for m in self.message_history
-                    if _mqtt_pattern_match(m.topic, topic)
+                    if topic_matches_sub(topic, m.topic)
                 ]
             else:
                 history = [m for m in self.message_history if m.topic == topic]
