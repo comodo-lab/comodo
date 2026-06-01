@@ -49,9 +49,9 @@ def c_idle(client, msg, obj):
         exp_config = validate_file(obj.exp_file, obj.schema_path)
         # Compute intermediate setpoints
         obj.setpoints = split_setpoints(
-            exp_config["experiment"], exp_config["config"]["resolution"]
+            exp_config["experiment_definition"], exp_config["config"]["resolution"]
         )
-        obj.experiment_uid = exp_config["uid"]
+        obj.experiment_uid = exp_config["id"]
         m = {
             "id": obj.experiment_uid,
             "valid": True,
@@ -93,11 +93,15 @@ def c_starting(client, msg, obj):
     # Create list of instruments dicts with expected config values
     obj.instruments = {"configured": False}
     for instrument in obj.exp_config["config"]["instruments"]:
+        instrument_config = {
+            "tolerance": instrument["tolerance"],
+            "experiment_id": obj.experiment_uid,
+        }
         obj.instruments[instrument["name"]] = {
             "last_contact": None,
-            "config": {k: v for k, v in instrument.items() if k != "name"},
-            "status": None,
-            "setpoint": None,
+            "config": instrument_config,
+            "state": None,
+            "setpoints": None,
         }
     # Update state and callback of controller
     obj.status = "awaiting_instruments"
@@ -107,10 +111,15 @@ def c_starting(client, msg, obj):
     )
     # Send instrument config
     for instrument in obj.exp_config["config"]["instruments"]:
+        instrument_config = {
+            "tolerance": instrument["tolerance"],
+            "experiment_id": obj.experiment_uid,
+        }
         mqtt.MQTTPublisher.get_instance().publish(
-            f"instruments/{instrument['name']}/setup", json.dumps(instrument)
+            f"instruments/{instrument['name']}/setup",
+            json.dumps({"config": instrument_config}),
         )
-        print(f"Instrument configuration sent: {json.dumps(instrument)}")
+        print(f"Instrument configuration sent: {json.dumps(instrument_config)}")
 
 
 def c_ready(client, msg, obj):
@@ -178,14 +187,12 @@ def c_running(client, msg, obj):
     obj.current_setpoint = next_setpoint
     print(f"Next setpoint: {next_setpoint}")
     duration = next_setpoint.get("duration")
-    for instrument, setpoint in next_setpoint.items():
-        if instrument == "duration":
+    for instrument_name, value in next_setpoint.items():
+        if instrument_name == "duration":
             continue
-        sp = {instrument: setpoint}
-        if duration is not None:
-            sp["duration"] = duration
         mqtt.MQTTPublisher.get_instance().publish(
-            f"instruments/{instrument}/setpoint", json.dumps(sp)
+            f"instruments/{instrument_name}/{instrument_name}/setpoint",
+            json.dumps({"value": value}),
         )
     mqtt.MQTTPublisher.get_instance().publish(
         "controller/timer/start/setpoint",

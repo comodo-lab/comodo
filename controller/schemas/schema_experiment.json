@@ -2,7 +2,7 @@
     "$schema": "http://json-schema.org/draft-07/schema#",
     "type": "object",
     "properties": {
-      "uid": { "type": "string" },
+      "id": { "type": "string" },
       "config": {
         "type": "object",
         "properties": {
@@ -21,7 +21,7 @@
         },
         "required": ["instruments", "resolution"]
       },
-      "experiment": {
+      "experiment_definition": {
         "type": "array",
         "items": {
           "type": "object",
@@ -34,5 +34,5 @@
         }
       }
     },
-    "required": ["uid", "config", "experiment"]
+    "required": ["id", "config", "experiment_definition"]
   }

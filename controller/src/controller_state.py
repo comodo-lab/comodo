@@ -31,7 +31,6 @@ class cstate:
         "_instruments",
         "_adjusting",
         "schema_path",
-        "schema_instrument_heartbeat_path",
     ]
 
     def __init__(self) -> None:
@@ -49,9 +48,6 @@ class cstate:
         self.instruments: Dict[str, Any] = {"configured": False}
         self.adjusting: AdjustingDict = AdjustingDict()
         self.schema_path: str = "schemas/schema_experiment.json"
-        self.schema_instrument_heartbeat_path: str = (
-            "schemas/schema_instrument_heartbeat.json"
-        )
 
     def heartbeat(self) -> Dict[str, Any]:
         """
