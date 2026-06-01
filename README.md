@@ -324,7 +324,7 @@ setpoint controller, and a test runner — then runs a full experiment cycle:
 
 To run:
 ```
-docker compose -f integration/compose.integration.yaml up --build --attach test-runner --quiet-build
+docker compose -f integration/compose.integration.yaml up --build --attach test-runner --quiet-build --force-recreate
 ```
 
 ### Temporary experiment trigger:
