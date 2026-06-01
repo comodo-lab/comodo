@@ -28,7 +28,8 @@ def c_idle(client, msg, obj):
     Otherwise, it resets to the idle state and publishes an error.
     """
     if msg.topic != "controller/command/validate":
-        incompatible_request(obj, msg)
+        if msg.topic.startswith("controller/command/"):
+            incompatible_request(obj, msg)
         return
 
     # Load and decode experiment file
@@ -85,7 +86,7 @@ def c_starting(client, msg, obj):
     if msg.topic != "controller/command/start":
         if msg.topic == "controller/command/stop":
             c_stopping(client, msg, obj)
-        else:
+        elif msg.topic.startswith("controller/command/"):
             incompatible_request(obj, msg)
         return
 
@@ -107,7 +108,7 @@ def c_starting(client, msg, obj):
     obj.status = "awaiting_instruments"
     client.callback = c_ready
     mqtt.MQTTPublisher.get_instance().publish(
-        "controller/timer/start/instrument_setup", json.dumps({"experiment_id": obj.experiment_uid})
+        "controller/timer/command/start", json.dumps({"source": "instrument_setup", "experiment_id": obj.experiment_uid})
     )
     # Send instrument config
     for instrument in obj.exp_config["config"]["instruments"]:
@@ -136,7 +137,7 @@ def c_ready(client, msg, obj):
     if msg.topic != "controller/event/ready":
         if msg.topic == "controller/command/stop":
             c_stopping(client, msg, obj)
-        else:
+        elif msg.topic.startswith("controller/command/"):
             incompatible_request(obj, msg)
         return
 
@@ -165,7 +166,7 @@ def c_running(client, msg, obj):
     if msg.topic != "controller/command/run":
         if msg.topic == "controller/command/stop":
             c_stopping(client, msg, obj)
-        else:
+        elif msg.topic.startswith("controller/command/"):
             incompatible_request(obj, msg)
         return
 
@@ -195,8 +196,8 @@ def c_running(client, msg, obj):
             json.dumps({"value": value}),
         )
     mqtt.MQTTPublisher.get_instance().publish(
-        "controller/timer/start/setpoint",
-        json.dumps({"experiment_id": obj.experiment_uid, "duration": next_setpoint["duration"]}),
+        "controller/timer/command/start",
+        json.dumps({"source": "setpoint", "experiment_id": obj.experiment_uid, "duration": next_setpoint["duration"]}),
     )
 
 
@@ -214,7 +215,8 @@ def c_stopping(client, msg, obj):
         "controller/command/stop",
         "controller/event/end",
     ]:
-        incompatible_request(obj, msg)
+        if msg.topic.startswith("controller/command/"):
+            incompatible_request(obj, msg)
         return
     message = mqtt.load_message(msg)
     msg_id = message.get("experiment_id") or message.get("id")
