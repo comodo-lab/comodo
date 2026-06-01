@@ -438,7 +438,20 @@ channels:
           properties:
             value:
               type: number
-              
+
+  errorInstrument:
+    address: error/instrument/+
+    messages:
+      instrumentError:
+        payload:
+          type: object
+          additionalProperties: false
+          required:
+            - error
+          properties:
+            error:
+              type: string
+
   errorMqtt:
     address: error/mqtt
     messages:
