@@ -162,6 +162,48 @@ channels:
             experiment_id:
               type: string
 
+  watchdogCommandStart:
+    address: watchdog/command/start
+    messages:
+      watchdogStart:
+        payload:
+          type: object
+          additionalProperties: false
+          required:
+            - timeout
+            - interval
+          properties:
+            timeout:
+              type: number
+            interval:
+              type: number
+
+  watchdogEventTimeout:
+    address: watchdog/event/timeout
+    messages:
+      watchdogTimeout:
+        payload:
+          type: object
+          additionalProperties: false
+          required:
+            - error
+          properties:
+            error:
+              type: string
+
+  errorWatchdog:
+    address: error/watchdog
+    messages:
+      watchdogError:
+        payload:
+          type: object
+          additionalProperties: false
+          required:
+            - error
+          properties:
+            error:
+              type: string
+
   controllerErrorMalformedJson:
     address: error/controller/malformed_json
     messages:

@@ -19,13 +19,13 @@ def on_wd_timer_message(client, msg, obj):
         message = mqtt.load_message(msg)
     except json.JSONDecodeError as e:
         wrong_json(msg, e)
-        if msg.topic == "wd_timer/start":
+        if msg.topic == "watchdog/command/start":
             print("ERROR: Watchdog timer failed to start.")
             print(f"  Wrong json: {e}")
             obj["healthy"] = False
         return
 
-    if msg.topic == "wd_timer/start":
+    if msg.topic == "watchdog/command/start":
         try:
             assert (
                 message["timeout"] == obj["timeout"]
@@ -38,7 +38,7 @@ def on_wd_timer_message(client, msg, obj):
         except AssertionError as e:
             error = f"WATCHDOG_TIMER incompatible values: {e}"
             mqtt.MQTTPublisher.get_instance().publish(
-                "error/wd_timer",
+                "error/watchdog",
                 json.dumps({"error": error}),
             )
             print("ERROR: Watchdog timer failed to start.")
@@ -59,7 +59,7 @@ def on_wd_timer_message(client, msg, obj):
             obj["timer"] = obj["timer"] - timer_interval
             if obj["timer"] <= 0:
                 mqtt.MQTTPublisher.get_instance().publish(
-                    "watchdog/timeout",
+                    "watchdog/event/timeout",
                     json.dumps(
                         {
                             "error": f'No heartbeat received in {obj["timeout"]} seconds. Expected every {obj["interval"]}s.'
@@ -70,6 +70,6 @@ def on_wd_timer_message(client, msg, obj):
     else:
         error = f"WATCHDOG_TIMER: Unexpected message received: {msg.topic}"
         mqtt.MQTTPublisher.get_instance().publish(
-            "error/wd_timer",
+            "error/watchdog",
             json.dumps({"error": error}),
         )
