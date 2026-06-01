@@ -349,10 +349,7 @@ channels:
                 - error
 
   instrumentSetup:
-    address: instruments/{instrument_name}/setup
-    parameters:
-      instrument_name:
-        type: string
+    address: instruments/+/setup
     messages:
       instrumentSetup:
         payload:
@@ -374,10 +371,7 @@ channels:
                   type: string
 
   instrumentHeartbeat:
-    address: instruments/{instrument_name}/heartbeat
-    parameters:
-      instrument_name:
-        type: string
+    address: instruments/+/heartbeat
     messages:
       instrumentHeartbeat:
         payload:
@@ -414,12 +408,7 @@ channels:
                 - error
 
   instrumentSetpoint:
-    address: instruments/{instrument_name}/{variable_name}/setpoint
-    parameters:
-      instrument_name:
-        type: string
-      variable_name:
-        type: string
+    address: instruments/+/+/setpoint
     messages:
       instrumentSetpoint:
         payload:
@@ -432,12 +421,7 @@ channels:
               type: number
 
   instrumentMeasurement:
-    address: instruments/{instrument_name}/{variable_name}/measurement
-    parameters:
-      instrument_name:
-        type: string
-      variable_name:
-        type: string
+    address: instruments/+/+/measurement
     messages:
       instrumentMeasurement:
         payload:

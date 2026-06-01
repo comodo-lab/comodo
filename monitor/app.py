@@ -5,6 +5,7 @@ from pathlib import Path
 
 import traceback
 import asyncio
+from paho.mqtt.client import topic_matches_sub
 
 # Shared utils imports
 from utils import mqtt_clients as mqtt
@@ -13,9 +14,15 @@ from utils import mqtt_clients as mqtt
 import checks
 from utils import message_spec
 
+def match_topic(topic, topic_map):
+    for address, entry in topic_map.items():
+        if topic_matches_sub(address, topic):
+            return entry
+    return None
+
 def on_message(client, msg, topic_map):
     # Get the entry from the spec
-    entry = topic_map.get(msg.topic)
+    entry = match_topic(msg.topic, topic_map)
     payload = msg.payload
     topic = msg.topic
     
