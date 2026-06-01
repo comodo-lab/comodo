@@ -18,18 +18,20 @@ def main():
         mqtt_user = os.getenv("MQTT_USER")
         mqtt_pass = os.getenv("MQTT_PASS")
 
-        sensor = os.getenv("SENSOR").replace("/", "_")
-        actuator = os.getenv("ACTUATOR").replace("/", "_")
+        sensor_name, sensor_var = os.getenv("SENSOR").split("/", 1)
+        actuator_name, actuator_var = os.getenv("ACTUATOR").split("/", 1)
     except KeyError as e:
         print(f"Missing required environment variable: {e}")
         exit(1)
+
+    spc_id = f"{sensor_name}/{sensor_var}__{actuator_name}/{actuator_var}"
 
     # Initialise publisher singleton
     publisher = mqtt.MQTTPublisher.get_instance(
         broker_address=mqtt_host,
         user=mqtt_user,
         password=mqtt_pass,
-        id=f"publisher_pid_{sensor}__{actuator}",
+        id=f"publisher_spc_{sensor_name}_{sensor_var}__{actuator_name}_{actuator_var}",
     )
 
     k_p = os.getenv("K_P", None)
@@ -63,9 +65,12 @@ def main():
         mqtt_user=mqtt_user,
         mqtt_pass=mqtt_pass,
         heartbeat_interval=heartbeat_interval,
-        sensor=sensor,
-        actuator=actuator,
-        **pid_params,  # unpack PID parameters
+        spc_id=spc_id,
+        sensor_name=sensor_name,
+        sensor_var=sensor_var,
+        actuator_name=actuator_name,
+        actuator_var=actuator_var,
+        **pid_params,
     )
 
     controller.start_heartbeat_loop()
@@ -82,29 +87,36 @@ class SetpointController:
         mqtt_user: str,
         mqtt_pass: str,
         heartbeat_interval: int,
-        sensor: str,
-        actuator: str,
+        spc_id: str,
+        sensor_name: str,
+        sensor_var: str,
+        actuator_name: str,
+        actuator_var: str,
         **pid_params,
     ):
         self.heartbeat_interval = heartbeat_interval
+        self.sensor_name = sensor_name
+        self.sensor_var = sensor_var
+        self.actuator_name = actuator_name
+        self.actuator_var = actuator_var
+        self.spc_id = spc_id
 
         # Initialize PID controller
         self.pid = PID(
-            id=f"pid/{sensor}__{actuator}",
-            sensor=sensor,
-            actuator=actuator,
-            **pid_params,  # unpack PID parameters
+            id=spc_id,
+            sensor=f"{sensor_name}/{sensor_var}",
+            actuator=f"{actuator_name}/{actuator_var}",
+            **pid_params,
         )
 
         # Initialize MQTT client
         self.pid_client = mqtt.MQTTClient(
-            id=self.pid.id,
-            callback=SetpointController.on_sensor_message,
+            id=spc_id,
+            callback=SetpointController.on_message,
             topics=[
-                f"instrument/{sensor}/setpoint",
-                f"measurement/{sensor}",
-                # f"sensor/{sensor}/setpoint_reached",
-                f"{self.pid.id}/setup",
+                f"instruments/{sensor_name}/{sensor_var}/setpoint",
+                f"instruments/{sensor_name}/{sensor_var}/measurement",
+                f"setpoint_controller/{spc_id}/setup",
             ],
             broker_address=mqtt_host,
             user=mqtt_user,
@@ -112,26 +124,28 @@ class SetpointController:
             obj=self,
         )
 
-        # no_setpoint
-        # adjusting
-        # ready
-        # awaiting_config
-        # Initialise status dictionary
-        self.state = {
-            "name": f"pid_{sensor}__{actuator}",
-            "status": "no_setpoint",
-            "setpoint": None,
-            "config": self.pid.get_config(),
+        # Initialise status dictionary (spec format)
+        self.status = {
+            "state": "idle",
+            "setpoints": {},
+            "config": {
+                "sensor": f"{sensor_name}/{sensor_var}",
+                "actuator": f"{actuator_name}/{actuator_var}",
+                "active": True,
+                "k_p": self.pid.k_p,
+                "k_i": self.pid.k_i,
+                "k_d": self.pid.k_d,
+                "k_aw": self.pid.k_aw,
+                "k_df": self.pid.k_df,
+                "max": self.pid.max,
+                "min": self.pid.min,
+                "max_rate": self.pid.max_rate,
+                "experiment_id": None,
+            },
         }
 
-        # Publish initial setpoint as None
-        mqtt.MQTTPublisher.get_instance().publish(
-            f"{self.pid.id}/setpoint",
-            json.dumps({self.pid.sensor: None}),
-        )
-
-    @staticmethod  # Prevents passing 'self' as first argument, conflicting with MQTTClient callback signature
-    def on_sensor_message(client, msg, spc):
+    @staticmethod
+    def on_message(client, msg, spc):
         """Callback function for handling sensor messages."""
         try:
             message = mqtt.load_message(msg)
@@ -139,62 +153,54 @@ class SetpointController:
             error = f"Cannot decode {msg.topic} message, wrong JSON: \n{textwrap.indent(str(e), '   ')}"
             print(f"ERROR: {error}")
             mqtt.MQTTPublisher.get_instance().publish(
-                f"error/{spc.pid.id}",
+                f"error/setpoint_controller/{spc.spc_id}",
                 json.dumps({"error": error}),
             )
-            spc.state["status"] = "error"
+            spc.status["state"] = "error"
             spc.publish_heartbeat()
             return
 
-        if msg.topic == f"instrument/{spc.pid.sensor}/setpoint":
-            setpoint = message.get(spc.pid.sensor)
-            if setpoint is not None:
-                spc.state["status"] = "adjusting"
-                spc.pid.setpoint = setpoint
-                mqtt.MQTTPublisher.get_instance().publish(
-                    f"{spc.pid.id}/setpoint",
-                    json.dumps({spc.pid.sensor: setpoint}),
-                )
+        if msg.topic == f"instruments/{spc.sensor_name}/{spc.sensor_var}/setpoint":
+            value = message.get("value")
+            if value is not None:
+                spc.status["state"] = "adjusting"
+                spc.status["setpoints"][spc.sensor_var] = value
+                spc.pid.setpoint = value
             return
-        elif msg.topic == f"measurement/{spc.pid.sensor}":
+
+        elif msg.topic == f"instruments/{spc.sensor_name}/{spc.sensor_var}/measurement":
             if spc.pid.setpoint is not None:
-                spc.state["status"] = "adjusting"
-                setpoint = spc.pid.step(message["value"], spc.pid.setpoint)
+                spc.status["state"] = "adjusting"
+                output = spc.pid.step(message["value"], spc.pid.setpoint)
                 mqtt.MQTTPublisher.get_instance().publish(
-                    f"instrument/{spc.pid.actuator}/setpoint",
-                    json.dumps({spc.pid.actuator: setpoint}),
+                    f"instruments/{spc.actuator_name}/{spc.actuator_var}/setpoint",
+                    json.dumps({"value": output}),
                 )
             return
-        elif msg.topic == f"instrument/{spc.pid.sensor}/setpoint_reached":
-            spc.state["status"] = "ready"
-            spc.pid.setpoint = None
-            mqtt.MQTTPublisher.get_instance().publish(
-                f"{spc.pid.id}/setpoint_reached",
-                json.dumps({spc.pid.sensor: True}),
-            )
-            return
-        elif msg.topic == f"{spc.pid.id}/setup":
+
+        elif msg.topic == f"setpoint_controller/{spc.spc_id}/setup":
             not_configurable = []
             for k, v in message.items():
                 if k not in spc.pid.configurable:
                     not_configurable.append(k)
             if not_configurable:
-                spc.state["status"] = "error"
+                spc.status["state"] = "error"
                 e = ", ".join(not_configurable)
                 error = f"Cannot configure PID parameter: {e}. Aborting setup."
                 mqtt.MQTTPublisher.get_instance().publish(
-                    f"error/{spc.pid.id}",
+                    f"error/setpoint_controller/{spc.spc_id}",
                     json.dumps({"error": error}),
                 )
             else:
                 for k, v in message.items():
                     setattr(spc.pid, k, v)
-                spc.state["status"] = "reconfigured"
-                spc.state["config"] = spc.pid.get_config()
-                mqtt.MQTTPublisher.get_instance().publish(
-                    f"heartbeat/{spc.pid.id}",
-                    f"{spc.pid.get_state(1)}",
-                )
+                spc.status["state"] = "idle"
+                config = spc.pid.get_config()
+                config["experiment_id"] = spc.status["config"]["experiment_id"]
+                config["sensor"] = spc.status["config"]["sensor"]
+                config["actuator"] = spc.status["config"]["actuator"]
+                config["active"] = spc.status["config"]["active"]
+                spc.status["config"] = config
             spc.publish_heartbeat()
             return
 
@@ -207,11 +213,6 @@ class SetpointController:
     def publish_heartbeat(self):
         """Publish the current state of the SPC, including controller config."""
         mqtt.MQTTPublisher.get_instance().publish(
-            f"heartbeat/{self.pid.id}",
-            f"{json.dumps(self.state)}",
+            f"setpoint_controller/heartbeat",
+            json.dumps(self.status),
         )
-
-
-if __name__ == "__main__":
-
-    main()  # pragma: no cover
