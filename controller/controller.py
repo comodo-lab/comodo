@@ -75,7 +75,7 @@ def main():
     watchdog = mqtt.MQTTClient(
         id="watchdog",
         callback=on_watchdog_message,
-        topics=["watchdog/#", "controller/heartbeat", "error/exception"],
+        topics=["watchdog/event/+", "watchdog/command/+", "controller/heartbeat", "error/exception"],
         obj=wdog,
         broker_address=mqtt_host,
         user=mqtt_user,
