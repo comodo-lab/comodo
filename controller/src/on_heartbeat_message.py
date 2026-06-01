@@ -28,7 +28,7 @@ def on_heartbeat_message(client, msg, obj):
 
     try:
         instrument = mqtt.load_message(msg)
-        jsonschema.validate(intsrument, INSTRUMENT_HEARTBEAT_SCHEMA)
+        jsonschema.validate(instrument, INSTRUMENT_HEARTBEAT_SCHEMA)
     except json.JSONDecodeError as e:
         wrong_json(msg, e)
         return
