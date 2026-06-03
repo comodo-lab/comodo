@@ -123,51 +123,6 @@ def test_unconfigured_instrument_idle(message_bus, state, heartbeat_client):
     assert len(messages) == 0, "No messages should be published in idle state"
 
 
-def test_awaiting_instruments_wrong_config(
-    message_bus,
-    state,
-    heartbeat_client,
-    mock_experiment_dict,
-    capsys,
-):
-    assert state.instruments["configured"] == False
-
-    instruments = mock_experiment_dict["config"]["instruments"]
-    first_instrument_name = instruments[0]["name"]
-    first_instrument_config = {
-        **{k: v for k, v in instruments[0].items() if k != "name"},
-        "experiment_id": state.experiment_uid,
-    }
-    assert state.instruments[first_instrument_name]["state"] == None
-    assert state.instruments[first_instrument_name]["setpoints"] == None
-    assert state.instruments[first_instrument_name]["config"] == first_instrument_config
-
-    # Incorrect heartbeat for first instrument
-    wrong_config = instruments[0].copy()
-    wrong_config["tolerance"] = wrong_config["tolerance"] + 1
-    msg = instrument_heartbeat_msg(
-        instrument=wrong_config, state="ready", setpoints={}, experiment_id="123"
-    )
-    on_heartbeat_message(heartbeat_client, msg, state)
-
-    # Should not have updated instrument
-    assert state.instruments[first_instrument_name]["state"] == None
-    assert state.instruments[first_instrument_name]["setpoints"] == None
-    assert state.instruments[first_instrument_name]["config"] == first_instrument_config
-    assert state.instruments["configured"] == False
-
-    # Should abort experiment due to wrong config
-    messages = message_bus.get_messages(decoded=True)
-    assert len(messages) == 2
-    assert messages[0].topic == "error/sensor"
-    m0 = json.loads(messages[0].payload)
-    assert m0["code"] == "configuration"
-    exp_err = "Instrument 'temperature' misconfigured. Expected {'tolerance': 0.21, 'experiment_id': '123'}, received {'tolerance': 1.21, 'experiment_id': '123'}"
-    assert exp_err in m0["message"]
-    assert f"ERROR: {exp_err}" in capsys.readouterr().out
-    assert messages[1].topic == "controller/command/stop"
-    assert json.loads(messages[1].payload)["id"] == "123"
-
 
 def test_awaiting_instruments_racing_heartbeat(
     message_bus,

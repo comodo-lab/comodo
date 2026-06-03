@@ -336,28 +336,6 @@ channels:
                 - ready
                 - error
 
-  instrumentSetup:
-    address: instruments/+/setup
-    messages:
-      instrumentSetup:
-        payload:
-          type: object
-          additionalProperties: false
-          required:
-            - config
-          properties:
-            config:
-              type: object
-              additionalProperties: false
-              required:
-                - tolerance
-                - experiment_id
-              properties:
-                tolerance:
-                  type: number
-                experiment_id:
-                  type: string
-
   instrumentHeartbeat:
     address: instruments/+/heartbeat
     messages:
@@ -372,19 +350,6 @@ channels:
           properties:
             config:
               type: object
-              additionalProperties: false
-              required:
-                - tolerance
-                - experiment_id
-              properties:
-                tolerance:
-                  oneOf:
-                    - type: number
-                    - type: "null"
-                experiment_id:
-                  oneOf:
-                    - type: string
-                    - type: "null"
 
             setpoints:
               type: object

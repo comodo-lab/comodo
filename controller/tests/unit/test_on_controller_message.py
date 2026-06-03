@@ -340,16 +340,9 @@ class TestStarting:
                 assert instrument["setpoints"] is None
         # Timer message sent
         messages = message_bus.get_messages(decoded=True)
-        assert len(messages) == 1 + len(instruments)
+        assert len(messages) == 1
         assert messages[0].topic == "controller/timer/command/start"
         assert messages[0].payload == json.dumps({"source": "instrument_setup", "experiment_id": "123"})
-        # Instrument setup messages sent
-        for i, instrument in enumerate(instruments):
-            assert messages[i + 1].topic == f"instruments/{instrument['name']}/setup"
-            assert messages[i + 1].payload == json.dumps({"config": {
-                "tolerance": instrument["tolerance"],
-                "experiment_id": "123",
-            }})
 
 
 class TestReady:

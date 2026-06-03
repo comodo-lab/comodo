@@ -94,13 +94,9 @@ def c_starting(client, msg, obj):
     # Create list of instruments dicts with expected config values
     obj.instruments = {"configured": False}
     for instrument in obj.exp_config["config"]["instruments"]:
-        instrument_config = {
-            "tolerance": instrument["tolerance"],
-            "experiment_id": obj.experiment_uid,
-        }
         obj.instruments[instrument["name"]] = {
             "last_contact": None,
-            "config": instrument_config,
+            "config": {},
             "state": None,
             "setpoints": None,
         }
@@ -110,17 +106,6 @@ def c_starting(client, msg, obj):
     mqtt.MQTTPublisher.get_instance().publish(
         "controller/timer/command/start", json.dumps({"source": "instrument_setup", "experiment_id": obj.experiment_uid})
     )
-    # Send instrument config
-    for instrument in obj.exp_config["config"]["instruments"]:
-        instrument_config = {
-            "tolerance": instrument["tolerance"],
-            "experiment_id": obj.experiment_uid,
-        }
-        mqtt.MQTTPublisher.get_instance().publish(
-            f"instruments/{instrument['name']}/setup",
-            json.dumps({"config": instrument_config}),
-        )
-        print(f"Instrument configuration sent: {json.dumps(instrument_config)}")
 
 
 def c_ready(client, msg, obj):

@@ -104,22 +104,14 @@ def test_control_loop(
         [instrument for instrument in state.instruments.keys() if instrument != "configured"]
     )
     messages = message_bus.get_messages()
-    # expected_messages = validate + passed + start + timer + instrument setups
-    expected_messages = 4 + len(instrument_names)
+    # expected_messages = validate + passed + start + timer
+    expected_messages = 4
     assert len(messages) == expected_messages
     assert messages[0].topic == "controller/command/validate"
     assert messages[1].topic == "controller/validator/passed"
     assert messages[2].topic == "controller/command/start"
     assert messages[3].topic == "controller/timer/command/start"
     assert json.loads(messages[3].payload) == {"source": "instrument_setup", "experiment_id": "123"}
-    setup_instruments = []
-    for msg in messages[4:]:
-        topic_parts = msg.topic.split("/")
-        assert len(topic_parts) == 3
-        assert topic_parts[0] == "instruments"
-        setup_instruments.append(topic_parts[1])
-        assert topic_parts[2] == "setup"
-    assert sorted(setup_instruments) == instrument_names
     checked_messages += expected_messages
     assert state.instruments["configured"] is False
     assert state.status == "awaiting_instruments"
