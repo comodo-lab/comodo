@@ -47,7 +47,7 @@ class Instrument(BaseInstrument):
     def __init__(self):
         self.client = {}
 
-    def intialise(self, state):
+    def initialise(self, state):
         try:
             self.clients = ModbusTcpClient(
                 host=state.config["DEVICE_ADDRESS"], port=MODBUS_PORT

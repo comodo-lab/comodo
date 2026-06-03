@@ -7,7 +7,6 @@ from src.instrument import BaseInstrument
 
 import propar
 import json
-import os
 
 ERROR_TIMEOUT = 10  # Seconds to wait before retrying after an error
 REPETITION_TIME = 2  # Seconds to wait before requesting another datapoint
@@ -261,17 +260,10 @@ class Instrument(BaseInstrument):
         self.simulated_setpoint = 0.0
         self.simulated_measurement = 0.0
 
-    def initialise(self):
+    def initialise(self, state):
         try:
-            # Get device address from environment
-            device = os.getenv("DEVICE_ADDRESS", None)
-            if device is None:
-                print(
-                    "DEVICE_ADDRESS environment variable not set, using default /dev/ttyUSB2"
-                )
-                device = "/dev/ttyUSB2"
-
-            self.instrument = propar.instrument(device)
+            self.device = state.config["DEVICE_ADDRESS"]
+            self.instrument = propar.instrument(self.device)
         except Exception as e:
             print(f"Error initializing propar.Instrument!\n{e}")
             self.instrument = None

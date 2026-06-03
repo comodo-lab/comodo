@@ -163,10 +163,17 @@ class MMSP:
 class MassSpec(BaseInstrument):
 
     def __init__(self):
-        self.mmsp = MMSP(TARGET_IP_ADDR)
+        self.mmsp = None
+        self._device_address = TARGET_IP_ADDR
         return
 
+    def initialise(self, state):
+        self._device_address = state.config.get("DEVICE_ADDRESS", TARGET_IP_ADDR)
+        self.mmsp = MMSP(self._device_address)
+
     def set_config(self, config):
+        if self.mmsp is None:
+            return
         self.mmsp.configure()
         return
 

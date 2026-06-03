@@ -7,7 +7,6 @@ from src.instrument import BaseInstrument
 
 import serial
 import sys
-import os
 
 ERROR_TIMEOUT = 10  # Seconds to wait before retrying after an error
 REPETITION_TIME = 2  # Seconds to wait before requesting another datapoint
@@ -131,7 +130,10 @@ def get_pressure(device):
 class Instrument(BaseInstrument):
 
     def __init__(self):
-        pass
+        self.device = None
+
+    def initialise(self, state):
+        self.device = state.config["DEVICE_ADDRESS"]
 
     def go_to_setpoint(self, state):
         print(f"Setting upstream pressure to {setpoint} - not supported!")
@@ -140,15 +142,6 @@ class Instrument(BaseInstrument):
         pass
 
     def get_measurement(self, state):
-        # Get device address from environment
-        device = os.getenv("DEVICE_ADDRESS", None)
-        if device is None:
-            print(
-                "DEVICE_ADDRESS environment variable not set, using default /dev/ttyUSB0"
-            )
-            device = "/dev/ttyUSB0"
-
-        # Get the pressure
-        measurement = get_pressure(device)
+        measurement = get_pressure(self.device)
         state.measurement = measurement
         return measurement
