@@ -322,9 +322,9 @@ setpoint controller, and a test runner — then runs a full experiment cycle:
 2. **`test_experiment_completes`** — publishes `ui/start`, waits for `controller/end`
 3. **`test_no_errors`** — checks for any error messages published during the test
 
-To run:
+To run (in `./integration`):
 ```
-docker compose -f integration/compose.integration.yaml up --build --attach test-runner --quiet-build --force-recreate
+docker compose up --build --attach test-runner --quiet-build --force-recreate
 ```
 
 ### Temporary experiment trigger:
