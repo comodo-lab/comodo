@@ -64,6 +64,8 @@ services:
         condition: service_completed_successfully
     ports:
       - '8501:8050'
+    volumes:
+      - ./comodo.yaml:/app/comodo.yaml:ro
     environment:
       <<: [*mqtt-env, *influx-env, *grafana-env]
     networks:
