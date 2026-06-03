@@ -33,56 +33,24 @@ def send_heartbeat():
         )
 
 
-## ----------------- Publishing helper functions ----------------- ##
-
-
-def publish_measurement(measurements):
-    if state.client is None:
-        return
-
-    if type(measurements) is int or type(measurements) is float:
-        measurements = {"value": measurements}
-
-    for key, measurement in measurements.items():
-        msg = json.dumps({"value": measurement})
-        state.client.publish(f"instruments/{state.config['INSTRUMENT_ID']}/{key}/measurement", msg)
-
-
-def send_measurement():
-    """
-    Send the measurement
-
-    Returns:
-        None
-    """
-
-    # Return if the client or instrument is not ready
-    if (state.client is None) or (state.instrument is None):
-        return
-
-    # Retrieve the measurement
-    if state.config["SIMULATE"]:
-        measurements = state.instrument.simulate_get_measurement(state)
-    else:
-        measurements = state.instrument.get_measurement(state)
-
-    # Publish the measurement (break lists into individual messages)
-    publish_measurement(measurements)
-
-
 ## ----------------- Timer functions ----------------- ##
 
 
-async def heartbeat_tick(timer):
+async def heartbeat_tick():
     while True:
         send_heartbeat()
         await asyncio.sleep(int(state.config["HEARTBEAT_INTERVAL"]) / 1000)
 
 
-async def measurement_tick(timer):
+async def measurement_tick(variable):
     while True:
-        send_measurement()
-        await asyncio.sleep(int(state.config["MEASUREMENT_INTERVAL"]) / 1000)
+        interval = int(state.config.get(f"INTERVAL_{variable.upper()}", 1000))
+        value = state.instrument.get_measurement(state, variable)
+        state.client.publish(
+            f"instruments/{state.config['INSTRUMENT_ID']}/{variable}/measurement",
+            json.dumps({"value": value}),
+        )
+        await asyncio.sleep(interval / 1000)
 
 
 # ----------------- Main function ----------------- ##
@@ -102,7 +70,6 @@ async def main():
 
     ## Create client
     topics = [
-        f"instruments/{state.config['INSTRUMENT_ID']}/setup",
         f"instruments/{state.config['INSTRUMENT_ID']}/+/setpoint",
         f"controller/event/end",
         f"controller/command/stop",
@@ -117,26 +84,41 @@ async def main():
         connection_timeout=60,
     )
 
-    # Create the instrument
+    # Create and initialise the instrument
     state.instrument = BaseInstrument.create_instrument(state.config["FIRMWARE"])
+    state.instrument.initialise(state)
 
-    # Initialise the instrument
-    if not state.config["SIMULATE"]:
-        state.instrument.initialise(state)
+    # Self-test: read each sensor variable once
+    all_ok = True
+    for var, var_config in state.instrument.variables.items():
+        if "sensor_param" not in var_config:
+            continue
+        try:
+            val = state.instrument.get_measurement(state, var)
+            if val is None:
+                all_ok = False
+        except Exception:
+            all_ok = False
+
+    if all_ok and state.instrument.variables:
+        state.status["state"] = "ready"
+        state.client.callback = state.ready_cb
+        print(f"Instrument {state.config['INSTRUMENT_ID']} ready")
     else:
-        print(f" ### Simulating {state.config['INSTRUMENT_ID']} ### ")
+        print(f"Instrument {state.config['INSTRUMENT_ID']} self-test failed, staying idle")
 
-    ## Set the ready flag
     state.config["ready"] = True
+
     print(
         f"Instrument {state.config['INSTRUMENT_ID']} created successfully "
         f"using firmware {state.config['FIRMWARE']}"
     )
-    print(f"Instrument {state.config['INSTRUMENT_ID']} awaiting configuration.")
 
-    ## Setup heartbeat timer if on a pico or async timer if on linux
-    asyncio.create_task(heartbeat_tick(None))
-    asyncio.create_task(measurement_tick(None))
+    ## Setup heartbeat and per-variable measurement tasks
+    asyncio.create_task(heartbeat_tick())
+    for var, var_config in state.instrument.variables.items():
+        if "sensor_param" in var_config:
+            asyncio.create_task(measurement_tick(var))
 
     # Keep running forever
     await asyncio.Event().wait()

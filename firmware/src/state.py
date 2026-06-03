@@ -146,10 +146,7 @@ class InstrumentState(object):
         self.status["state"] = "adjusting"
 
         # Trigger go to setpoint
-        if self.config["SIMULATE"]:
-            self.instrument.simulate_go_to_setpoint(self)
-        else:
-            self.instrument.go_to_setpoint(self)
+        self.instrument.go_to_setpoint(self, variable)
 
         return
 
@@ -157,6 +154,7 @@ class InstrumentState(object):
         if topic in ["controller/event/end", "controller/command/stop"]:
             self.client.callback = self.idle_cb
             self.status["state"] = "idle"
-            print(f"Instrument {self.config['INSTRUMENT_ID']} awaiting configuration.")
+            self.status["setpoints"] = {}
+            print(f"Instrument {self.config['INSTRUMENT_ID']} idle.")
 
         return
