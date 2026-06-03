@@ -4,7 +4,7 @@ paho-mqtt
 dash
 pandas
 dash-bootstrap-components
-# pyyaml
+pyyaml
 dash-ag-grid
 dash-daq
 dash-cytoscape

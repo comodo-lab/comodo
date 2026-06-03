@@ -14,6 +14,7 @@ import workflow_ui as wf
 import meta_data_ui as md
 
 from utils.mqtt_clients import MQTTPublisher
+from config_loader import ComodoConfig
 import os
 import random
 
@@ -47,69 +48,12 @@ CONTROL_INTERVAL = 5000  # milliseconds
 SHORT_INTERVAL = 1000  # milliseconds
 LONG_INTERVAL = 5000  # milliseconds
 
-# Params to read / actuate
-PARAMS = [
-    "furnace/temperature",
-    "pressure_downstream/pressure",
-    "pressure_upstream/pressure",
-    "massflow/massflow",
-]
-
-PARAM_DICT = [
-    {"name": "furnace/temperature", "min": 0, "max": 1000, "step": 1},
-    {"name": "pressure_downstream/pressure", "min": 0, "max": 1000, "step": 1},
-    {"name": "ressure_upstream/pressure", "min": 0, "max": 1000, "step": 1},
-    {"name": "massflow/massflow", "min": 0, "max": 100, "step": 1},
-]
-
-INI_EXPERIMENT_CONFIG = [
-    {"name": "resolution", "display_name": "Simulation Resolution (s)", "value": 1},
-]
-
-
-INI_DATA_DICT = [
-    {
-        "time": 0,
-        "furnace/temperature": 20.0,
-        "furnace/temperature_profile": "linear",
-        "pressure_downstream/pressure": 20.0,
-        "pressure_downstream/pressure_profile": "linear",
-        "pressure_upstream/pressure": 20.0,
-        "pressure_upstream/pressure_profile": "linear",
-        "massflow/massflow": 20.0,
-        "massflow/massflow_profile": "linear",
-    },
-    {
-        "time": 30,
-        "furnace/temperature": 200.0,
-        "furnace/temperature_profile": "linear",
-        "pressure_downstream/pressure": 40.0,
-        "pressure_downstream/pressure_profile": "linear",
-        "pressure_upstream/pressure": 30.0,
-        "pressure_upstream/pressure_profile": "linear",
-        "massflow/massflow": 25.0,
-        "massflow/massflow_profile": "linear",
-    },
-    {
-        "time": 60,
-        "furnace/temperature": 20.0,
-        "furnace/temperature_profile": "linear",
-        "pressure_downstream/pressure": 30.0,
-        "pressure_downstream/pressure_profile": "linear",
-        "pressure_upstream/pressure": 20.0,
-        "pressure_upstream/pressure_profile": "linear",
-        "massflow/massflow": 20.0,
-        "massflow/massflow_profile": "linear",
-    },
-]
-
-INI_INSTRUMENT_DICT = [
-    {
-        "name": instrument,
-        "tolerance": 1.0,  # Default tolerance, can be edited
-    }
-    for instrument in PARAMS
-]
+config = ComodoConfig()
+PARAMS = config.params
+PARAM_DICT = config.param_dicts
+INI_EXPERIMENT_CONFIG = config.ini_experiment_config
+INI_DATA_DICT = config.ini_data_dict
+INI_INSTRUMENT_DICT = config.ini_instrument_dict
 
 
 # ---------------------------------------------------
@@ -118,7 +62,7 @@ INI_INSTRUMENT_DICT = [
 
 
 def get_main_window(row_data):
-    designer_layout = mw.get_experiment_designer(data=row_data)
+    designer_layout = mw.get_experiment_designer(data=row_data, params=PARAMS)
     graph_layout = mw.get_experiment_graph()
 
     return html.Div([designer_layout, graph_layout])
