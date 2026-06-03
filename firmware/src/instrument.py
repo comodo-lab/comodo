@@ -8,7 +8,10 @@ class BaseInstrument:
     This class is used to register all instruments and create them based on the input name.
 
     Attributes:
+        variables: dict of variable names and parameters
     """
+
+    variables = {}
 
     def create_instrument(instrument_name):
         try:
@@ -31,7 +34,6 @@ class BaseInstrument:
 
         To be extended by subclasses, if needed.
         """
-
         pass
 
     def initialise(self, state):
@@ -40,51 +42,29 @@ class BaseInstrument:
         """
         pass
 
-    def simulate_initialise(self, state):
+    def _default_sim(self, state, variable):
         """
-        Initialisations that are only safe when simulation is used
+        Default simulation: converge the simulated value toward the setpoint
+        by half the difference each tick.
         """
-        pass
+        current = self._simulated.get(variable, 0)
+        target = state.status["setpoints"].get(variable)
+        if target is not None:
+            current += (target - current) / 2
+            self._simulated[variable] = current
+        return current
 
-    def get_measurement(self, state):
+    def get_measurement(self, state, variable):
         """
-        Get a measurement from the instrument
-        """
-        raise NotImplemented
+        Get a single measurement from the instrument for a given variable
 
-    def simulate_get_measurement(self, state):
-        """
-        Get a simulated measurement, default implementation
-        """
-
-        value = state.measurement
-
-        if not state.status["setpoints"]:
-            return 0
-
-        _, setpoint = next(iter(state.status["setpoints"].items()))
-
-        difference = setpoint - value
-        half_diff = difference / 2
-
-        measurement = half_diff + value
-
-        distance = abs(measurement - setpoint)
-        if distance < state.status["config"]["tolerance"]:
-            state.client.callback = state.ready_cb
-            state.status["state"] = "ready"
-
-        state.measurement = measurement
-        return measurement
-
-    def go_to_setpoint(self, state):
-        """
-        Go to the setpoint
+        Returns:
+            float: The measurement value
         """
         raise NotImplemented
 
-    def simulate_go_to_setpoint(self, state):
+    def go_to_setpoint(self, state, variable):
         """
-        Go to the setpoint
+        Set the setpoint for a given variable on the instrument
         """
-        pass
+        raise NotImplemented
