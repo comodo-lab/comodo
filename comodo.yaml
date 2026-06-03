@@ -8,7 +8,7 @@ global:
 instruments:
   furnace_centre:
     firmware: carbolite_gero.tg3
-    address: "192.168.111.222:502"
+    address: "192.168.111.222"
     variables:
       temperature:
         measurement:
@@ -25,7 +25,7 @@ instruments:
           unit: °C
   furnace_left:
     firmware: carbolite_gero.tg3
-    address: "192.168.111.224:502"
+    address: "192.168.111.224"
     variables:
       temperature:
         measurement:
@@ -37,7 +37,7 @@ instruments:
           unit: °C
   furnace_right:
     firmware: carbolite_gero.tg3
-    address: "192.168.111.225:502"
+    address: "192.168.111.225"
     variables:
       temperature:
         measurement:
