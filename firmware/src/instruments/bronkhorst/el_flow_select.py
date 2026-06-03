@@ -256,6 +256,15 @@ def read_all(instrument):
 
 
 class Instrument(BaseInstrument):
+    variables = {
+        "mass_flow": {
+            "sensor_param": "Flow_Rate_Measured",
+            "actuator_param": "Flow_Rate_Setpoint",
+        },
+        "temperature": {"sensor_param": "Temperature"},
+        "pressure_upstream": {"sensor_param": "Inlet_Pressure"},
+        "pressure_downstream": {"sensor_param": "Outlet_Pressure"},
+    }
     def __init__(self):
         self.simulated_setpoint = 0.0
         self.simulated_measurement = 0.0

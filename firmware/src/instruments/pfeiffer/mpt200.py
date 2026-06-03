@@ -128,6 +128,7 @@ def get_pressure(device):
 
 
 class Instrument(BaseInstrument):
+    variables = {"pressure": {"sensor_param": "740"}}
 
     def __init__(self):
         self.device = None

@@ -66,5 +66,11 @@ class BaseInstrument:
     def go_to_setpoint(self, state, variable):
         """
         Set the setpoint for a given variable on the instrument
+
+        Default implementation gates on actuator_param in the variables dict.
+        Instruments that support writing should override this method.
         """
+        var = self.variables.get(variable)
+        if not var or "actuator_param" not in var:
+            return
         raise NotImplemented

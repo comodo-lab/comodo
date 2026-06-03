@@ -43,7 +43,15 @@ def write_temperature(host, setpoint):
         pass
 
 
+# ------------------------------------------------------------------------------
+# Instrument Class
+
+
 class Instrument(BaseInstrument):
+    variables = {
+        "temperature": {"sensor_param": 1, "actuator_param": 2},
+    }
+
     def __init__(self):
         self.client = {}
 
