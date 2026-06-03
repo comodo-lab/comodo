@@ -1,6 +1,9 @@
 global:
-  error_timeout: 1s
-  measurement_interval: 1s
+  heartbeat:
+    interval: 1s
+  watchdog:
+    timeout: 5s
+    interval: 1s
 
 instruments:
   furnace_centre:
@@ -8,6 +11,8 @@ instruments:
     address: "192.168.111.222:502"
     variables:
       temperature:
+        measurement:
+          interval: 1s
         sensor:
           type: float
           min: 0
@@ -23,6 +28,8 @@ instruments:
     address: "192.168.111.224:502"
     variables:
       temperature:
+        measurement:
+          interval: 1s
         sensor:
           type: float
           min: 0
@@ -33,6 +40,8 @@ instruments:
     address: "192.168.111.225:502"
     variables:
       temperature:
+        measurement:
+          interval: 1s
         sensor:
           type: float
           min: 0
@@ -43,6 +52,8 @@ instruments:
     address: "/dev/ttyUSB0"
     variables:
       pressure:
+        measurement:
+          interval: 1s
         sensor:
           type: float
           min: 0
@@ -51,9 +62,10 @@ instruments:
   pressure_upstream:
     firmware: pfeiffer/mpt200
     address: "/dev/ttyUSB1"
-    measurement_interval: 0.5s
     variables:
       pressure:
+        measurement:
+          interval: 0.5s
         sensor:
           type: float
           min: 0
@@ -64,6 +76,8 @@ instruments:
     address: "/dev/ttyUSB2"
     variables:
       mass_flow:
+        measurement:
+          interval: 1s
         sensor:
           type: float
           min: 0
@@ -81,18 +95,24 @@ instruments:
           D: 0.1
           output_function: "sigma"
       temperature:
+        measurement:
+          interval: 1s
         sensor:
           type: float
           min: 0
           max: 100
           unit: °C
       pressure_upstream:
+        measurement:
+          interval: 1s
         sensor:
           type: float
           min: 0
           max: 10
           unit: bar
       pressure_downstream:
+        measurement:
+          interval: 1s
         sensor:
           type: float
           min: 0
@@ -103,6 +123,8 @@ instruments:
     address: "192.168.1.100"
     variables:
       mass_spec:
+        measurement:
+          interval: 1s
         sensor:
           type: array
 

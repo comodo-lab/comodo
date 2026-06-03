@@ -17,23 +17,50 @@ classes:
 
   GlobalSettings:
     slots:
-      - error_timeout
-      - measurement_interval
+      - heartbeat
+      - watchdog
+
+  MeasurementConfig:
+    slots:
+      - interval
+    slot_usage:
+      interval:
+        required: true
+
+  HeartbeatConfig:
+    slots:
+      - interval
+    slot_usage:
+      interval:
+        required: true
+
+  WatchdogConfig:
+    slots:
+      - timeout
+      - interval
+    slot_usage:
+      timeout:
+        required: true
+      interval:
+        required: true
 
   Instrument:
     slots:
       - firmware
       - address
-      - measurement_interval
       - id
       - variables
 
   Variable:
     slots:
       - id
+      - measurement
       - sensor
       - actuator
       - setpoint_controller
+    slot_usage:
+      measurement:
+        required: true
 
   SensorConfig:
     slots:
@@ -106,16 +133,28 @@ slots:
     range: SetpointControllerConfig
     inlined: true
 
-  error_timeout:
+  heartbeat:
+    range: HeartbeatConfig
+    inlined: true
+
+  watchdog:
+    range: WatchdogConfig
+    inlined: true
+
+  timeout:
     range: string
+
+  interval:
+    range: string
+
+  measurement:
+    range: MeasurementConfig
+    inlined: true
 
   firmware:
     range: string
 
   address:
-    range: string
-
-  measurement_interval:
     range: string
 
   type:

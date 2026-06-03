@@ -8,8 +8,11 @@ def sample_config_yaml(tmp_path):
     """Minimal comodo.yaml with one sensor-only and one actuator variable."""
     content = """\
 global:
-  error_timeout: 1s
-  measurement_interval: 1s
+  heartbeat:
+    interval: 1s
+  watchdog:
+    timeout: 5s
+    interval: 1s
 
 instruments:
   test_sensor:
@@ -17,6 +20,8 @@ instruments:
     address: "localhost:1234"
     variables:
       reading:
+        measurement:
+          interval: 1s
         sensor:
           type: float
           min: 0
@@ -27,6 +32,8 @@ instruments:
     address: "localhost:5678"
     variables:
       output:
+        measurement:
+          interval: 1s
         sensor:
           type: float
           min: 0
@@ -48,7 +55,11 @@ def sample_config_with_pid(tmp_path):
     """comodo.yaml with a PID setpoint_controller referencing an external sensor."""
     content = """\
 global:
-  error_timeout: 1s
+  heartbeat:
+    interval: 1s
+  watchdog:
+    timeout: 5s
+    interval: 1s
 
 instruments:
   pressure:
@@ -56,6 +67,8 @@ instruments:
     address: "localhost:1111"
     variables:
       value:
+        measurement:
+          interval: 1s
         sensor:
           type: float
           min: 0
@@ -66,6 +79,8 @@ instruments:
     address: "localhost:2222"
     variables:
       rate:
+        measurement:
+          interval: 1s
         sensor:
           type: float
           min: 0
