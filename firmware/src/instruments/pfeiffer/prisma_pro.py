@@ -160,15 +160,18 @@ class MMSP:
         return scan_dict
 
 
-class MassSpec(BaseInstrument):
+class Instrument(BaseInstrument):
     variables = {"mass_spec": {}}
 
     def __init__(self):
         self.mmsp = None
         self._device_address = TARGET_IP_ADDR
-        return
+        self._simulated = {}
 
     def initialise(self, state):
+        if state.config.get("SIMULATE"):
+            self._simulated = {"mass_spec": {}}
+            return
         self._device_address = state.config.get("DEVICE_ADDRESS", TARGET_IP_ADDR)
         self.mmsp = MMSP(self._device_address)
 
@@ -176,15 +179,9 @@ class MassSpec(BaseInstrument):
         if self.mmsp is None:
             return
         self.mmsp.configure()
-        return
 
-    def get_measurement(self, state):
-        """Get the measurement
-
-        Returns:
-            float: A random temperature value for testing purposes
-        """
+    def get_measurement(self, state, variable):
+        if state.config.get("SIMULATE"):
+            return self._simulated.get("mass_spec", {})
         scan = self.mmsp.run_and_get_scan()
-
-        state.measurement = scan
-        return state.measurement
+        return scan

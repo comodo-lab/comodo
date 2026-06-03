@@ -265,67 +265,51 @@ class Instrument(BaseInstrument):
         "pressure_upstream": {"sensor_param": "Inlet_Pressure"},
         "pressure_downstream": {"sensor_param": "Outlet_Pressure"},
     }
+
     def __init__(self):
-        self.simulated_setpoint = 0.0
-        self.simulated_measurement = 0.0
+        self.instrument = None
+        self._simulated = {}
 
     def initialise(self, state):
-        try:
-            self.device = state.config["DEVICE_ADDRESS"]
-            self.instrument = propar.instrument(self.device)
-        except Exception as e:
-            print(f"Error initializing propar.Instrument!\n{e}")
-            self.instrument = None
+        if state.config.get("SIMULATE"):
+            self._simulated = {v: 0 for v in self.variables}
+            return
+        self.device = state.config["DEVICE_ADDRESS"]
+        self.instrument = propar.instrument(self.device)
+
+    def go_to_setpoint(self, state, variable):
+        var = self.variables.get(variable)
+        if not var or "actuator_param" not in var:
+            print(f"'{variable}' does not support setpoints")
+            return
+
+        target = state.status["setpoints"][variable]
+        if state.config.get("SIMULATE"):
+            self._simulated[variable] = target
+            return
+
+        if not (0 <= target <= 100):
+            print("Setpoint must be between 0 and 100%.")
+            return
+
+        instrument_setpoint = (target / 100) * 32000
+        result = write_general(
+            self.instrument, var["actuator_param"], int(instrument_setpoint)
+        )
+        if result is None:
+            print(f"Failed to write {var['actuator_param']}.")
+
+    def get_measurement(self, state, variable):
+        if state.config.get("SIMULATE"):
+            current = self._simulated.get(variable, 0)
+            target = state.status["setpoints"].get(variable)
+            if target is not None:
+                current += (target - current) * 0.01
+                self._simulated[variable] = current
+            return current
+
+        data = read_all(self.instrument)
+        return data.get(self.variables[variable]["sensor_param"])
 
     def set_config(self, config):
         pass
-
-    def get_measurement(self, state):
-        if self.instrument is None:
-            print("Instrument not initialized.")
-            return None
-
-        data = read_all(self.instrument)
-        return data
-
-    def go_to_setpoint(self, state):
-        if self.instrument is None:
-            print("Instrument not initialized.")
-            return None
-
-        setpoint = state.status["setpoint"]
-        if not (0 <= setpoint <= 100):
-            print("Setpoint must be between 0 and 100%.")
-            return None
-
-        # Convert percentage to instrument scale (0-32000)
-        instrument_setpoint = (setpoint / 100) * 32000
-        result = write_general(
-            self.instrument, "Flow_Rate_Setpoint", int(instrument_setpoint)
-        )
-        if result is None:
-            print("Failed to write Flow_Rate_Setpoint.")
-            return None
-
-        print(
-            f"Set Flow_Rate_Setpoint to {setpoint}% ({int(instrument_setpoint)} in instrument scale)."
-        )
-        return result
-
-    def simulate_go_to_setpoint(self, state):
-        setpoint = state.status["setpoint"]
-        if not (0 <= setpoint <= 100):
-            print("Setpoint must be between 0 and 100%.")
-            return None
-
-        self.simulated_setpoint = setpoint
-        print(f"(Simulated) Setting Flow_Rate_Setpoint to {setpoint}%.")
-
-    def simulate_get_measurement(self, state):
-        # Simple simulation: measurement approaches setpoint
-        if self.simulated_measurement < self.simulated_setpoint:
-            self.simulated_measurement += 0.1
-        elif self.simulated_measurement > self.simulated_setpoint:
-            self.simulated_measurement -= 0.1
-        state.measurement = self.simulated_measurement
-        return self.simulated_measurement

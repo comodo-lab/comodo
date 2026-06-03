@@ -30,6 +30,10 @@ def validate_pressure_read_command(full_msg):
 
 
 def get_pressure_read_command():
+    """
+    Build the command string to read pressure from the MPT 200.
+    Format: {addr}{action}{parameter}{data_length}{data_type}{checksum}\\r
+    """
     addr = "001"
     action = "00"
     parameter = "740"
@@ -132,17 +136,18 @@ class Instrument(BaseInstrument):
 
     def __init__(self):
         self.device = None
+        self._simulated = {}
 
     def initialise(self, state):
+        if state.config.get("SIMULATE"):
+            self._simulated = {"pressure": 0}
+            return
         self.device = state.config["DEVICE_ADDRESS"]
 
-    def go_to_setpoint(self, state):
-        print(f"Setting upstream pressure to {setpoint} - not supported!")
+    def get_measurement(self, state, variable):
+        if state.config.get("SIMULATE"):
+            return self._default_sim(state, variable)
+        return float(get_pressure(self.device))
 
     def set_config(self, config):
         pass
-
-    def get_measurement(self, state):
-        measurement = get_pressure(self.device)
-        state.measurement = measurement
-        return measurement
