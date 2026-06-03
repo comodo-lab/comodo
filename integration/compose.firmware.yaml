@@ -18,7 +18,7 @@ services:
     environment:
       <<: *sim-env
       INSTRUMENT_ID: "furnace"
-      FIRMWARE: carbolite_gero_thermocouple
+      FIRMWARE: carbolite_gero.tg3
       DEVICE_ADDRESS: 192.168.111.222
     depends_on:
       <<: *rabbitmq-dep
@@ -30,7 +30,7 @@ services:
     environment:
       <<: *sim-env
       INSTRUMENT_ID: "furnace_left"
-      FIRMWARE: carbolite_gero_thermocouple
+      FIRMWARE: carbolite_gero.tg3
       DEVICE_ADDRESS: 192.168.111.224
     depends_on:
       <<: *rabbitmq-dep
@@ -42,7 +42,7 @@ services:
     environment:
       <<: *sim-env
       INSTRUMENT_ID: "furnace_right"
-      FIRMWARE: carbolite_gero_thermocouple
+      FIRMWARE: carbolite_gero.tg3
       DEVICE_ADDRESS: 192.168.111.225
     depends_on:
       <<: *rabbitmq-dep
@@ -54,7 +54,7 @@ services:
     environment:
       <<: *sim-env
       INSTRUMENT_ID: "pressure_downstream"
-      FIRMWARE: pfeiffer_mpt_200_pressure
+      FIRMWARE: pfeiffer.mpt200
     depends_on:
       <<: *rabbitmq-dep
 
@@ -65,7 +65,7 @@ services:
     environment:
       <<: *sim-env
       INSTRUMENT_ID: "pressure_upstream"
-      FIRMWARE: pfeiffer_mpt_200_pressure
+      FIRMWARE: pfeiffer.mpt200
     depends_on:
       <<: *rabbitmq-dep
 
@@ -76,7 +76,7 @@ services:
     environment:
       <<: *sim-env
       INSTRUMENT_ID: "massflow"
-      FIRMWARE: el_flow_select_mass_flow
+      FIRMWARE: bronkhorst.el_flow_select
     depends_on:
       <<: *rabbitmq-dep
 
