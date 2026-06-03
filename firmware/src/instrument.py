@@ -1,5 +1,4 @@
 import importlib
-import pkgutil
 
 
 class BaseInstrument:
@@ -12,17 +11,9 @@ class BaseInstrument:
     """
 
     def create_instrument(instrument_name):
-        # Dynamically import the instrument module based on the instrument_name (if it exists)
         try:
             module = importlib.import_module(f"src.instruments.{instrument_name}")
         except ModuleNotFoundError as e:
-            # List available instrument plugins
-            available_instruments = [
-                name for _, name, _ in pkgutil.iter_modules(["instruments"])
-            ]
-            print(f"Available instruments: {available_instruments}")
-
-            # Raise error
             raise ValueError(f"Unknown instrument plugin: {instrument_name}") from e
 
         # Instantiate the instrument class from the imported module

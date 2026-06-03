@@ -30,7 +30,7 @@ services:
     environment:
       <<: *instrument-env
       INSTRUMENT_ID: "furnace"
-      FIRMWARE: carbolite_gero_thermocouple
+      FIRMWARE: carbolite_gero.tg3
       DEVICE_ADDRESS: 192.168.111.222
       HEARTBEAT_INTERVAL: 1000
       MEASUREMENT_INTERVAL: 1000
@@ -40,7 +40,7 @@ services:
     environment:
       <<: *instrument-env
       INSTRUMENT_ID: "furnace_left"
-      FIRMWARE: carbolite_gero_thermocouple
+      FIRMWARE: carbolite_gero.tg3
       DEVICE_ADDRESS: 192.168.111.224
       HEARTBEAT_INTERVAL: 1000
       MEASUREMENT_INTERVAL: 1000
@@ -50,7 +50,7 @@ services:
     environment:
       <<: *instrument-env
       INSTRUMENT_ID: "furnace_right"
-      FIRMWARE: carbolite_gero_thermocouple
+      FIRMWARE: carbolite_gero.tg3
       DEVICE_ADDRESS: 192.168.111.225
       HEARTBEAT_INTERVAL: 1000
       MEASUREMENT_INTERVAL: 1000
@@ -61,7 +61,7 @@ services:
     environment:
       <<: *instrument-env
       INSTRUMENT_ID: "pressure_downstream"
-      FIRMWARE: pfeiffer_mpt_200_pressure
+      FIRMWARE: pfeiffer.mpt200
       HEARTBEAT_INTERVAL: 1000
       MEASUREMENT_INTERVAL: 1000
       DEVICE_ADDRESS: /dev/ttyUSB0
@@ -74,7 +74,7 @@ services:
     environment:
       <<: *instrument-env
       INSTRUMENT_ID: "pressure_upstream"
-      FIRMWARE: pfeiffer_mpt_200_pressure
+      FIRMWARE: pfeiffer.mpt200
       DEVICE_ADDRESS: /dev/ttyUSB0
       HEARTBEAT_INTERVAL: 1000
       MEASUREMENT_INTERVAL: 1000
@@ -107,7 +107,7 @@ services:
     environment:
       <<: *instrument-env
       INSTRUMENT_ID: "massflow"
-      FIRMWARE: el_flow_select_mass_flow
+      FIRMWARE: bronkhorst.el_flow_select
       DEVICE_ADDRESS: /dev/ttyUSB2
       HEARTBEAT_INTERVAL: 1000
       MEASUREMENT_INTERVAL: 1000

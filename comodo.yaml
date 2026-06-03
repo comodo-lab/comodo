@@ -7,7 +7,7 @@ global:
 
 instruments:
   furnace_centre:
-    firmware: carbolite_gero/tg3
+    firmware: carbolite_gero.tg3
     address: "192.168.111.222:502"
     variables:
       temperature:
@@ -24,7 +24,7 @@ instruments:
           max: 1000
           unit: °C
   furnace_left:
-    firmware: carbolite_gero/tg3
+    firmware: carbolite_gero.tg3
     address: "192.168.111.224:502"
     variables:
       temperature:
@@ -36,7 +36,7 @@ instruments:
           max: 1000
           unit: °C
   furnace_right:
-    firmware: carbolite_gero/tg3
+    firmware: carbolite_gero.tg3
     address: "192.168.111.225:502"
     variables:
       temperature:
@@ -48,7 +48,7 @@ instruments:
           max: 1000
           unit: °C
   pressure_downstream:
-    firmware: pfeiffer/mpt200
+    firmware: pfeiffer.mpt200
     address: "/dev/ttyUSB0"
     variables:
       pressure:
@@ -60,7 +60,7 @@ instruments:
           max: 10
           unit: bar
   pressure_upstream:
-    firmware: pfeiffer/mpt200
+    firmware: pfeiffer.mpt200
     address: "/dev/ttyUSB1"
     variables:
       pressure:
@@ -72,7 +72,7 @@ instruments:
           max: 10
           unit: bar
   mass_flow:
-    firmware: bronkhorst/el_flow_select
+    firmware: bronkhorst.el_flow_select
     address: "/dev/ttyUSB2"
     variables:
       mass_flow:
@@ -119,7 +119,7 @@ instruments:
           max: 10
           unit: bar
   mass_spec:
-    firmware: pfeiffer/prisma_pro
+    firmware: pfeiffer.prisma_pro
     address: "192.168.1.100"
     variables:
       mass_spec:
