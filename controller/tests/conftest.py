@@ -80,6 +80,24 @@ def mock_state(status, mock_experiment_dict={}, mock_setpoints=[]):
     state_obj.past_setpoints = []
     state_obj.instruments = {"configured": False}
     state_obj.actuator_variables = {"furnace_centre/temperature", "mass_flow/mass_flow"}
+    av_set = state_obj.actuator_variables
+    sv_set = {
+        "furnace_centre/temperature",
+        "furnace_left/temperature",
+        "furnace_right/temperature",
+        "pressure_downstream/pressure",
+        "pressure_upstream/pressure",
+        "mass_flow/mass_flow",
+        "mass_flow/temperature",
+        "mass_flow/pressure_upstream",
+        "mass_flow/pressure_downstream",
+        "mass_spec/mass_spec",
+    }
+    sensor_inst = {sv.split("/", 1)[0] for sv in sv_set}
+    actuator_inst = {av.split("/", 1)[0] for av in av_set}
+    expected_sensor_instruments = sensor_inst - actuator_inst
+    type(state_obj).sensor_instruments = PropertyMock(return_value=expected_sensor_instruments)
+    state_obj.sensor_variables = sv_set
 
     if status == "idle":
         return state_obj

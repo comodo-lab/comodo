@@ -28,6 +28,15 @@ def test_cstate_with_actuator_variables():
     av_set = {"furnace_centre/temperature", "mass_flow/mass_flow"}
     state = cstate(actuator_variables=av_set)
     assert state.actuator_variables == av_set
+    assert state.actuator_instruments == {"furnace_centre", "mass_flow"}
+
+
+def test_cstate_with_sensor_variables():
+    av_set = {"furnace_centre/temperature"}
+    sv_set = {"furnace_centre/temperature", "furnace_left/temperature", "pressure_upstream/pressure"}
+    state = cstate(actuator_variables=av_set, sensor_variables=sv_set)
+    assert state.sensor_variables == sv_set
+    assert state.sensor_instruments == {"furnace_left", "pressure_upstream"}
 
 
 def test_cannot_add_new_attribute(state):

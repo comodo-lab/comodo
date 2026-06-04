@@ -106,6 +106,35 @@ def test_unconfigured_instrument(message_bus, state):
     assert "Instrument instrument_1 is not configured" in messages[0].payload
 
 
+def test_sensor_only_heartbeat_awaiting_instruments(message_bus, state):
+    assert state.status == "awaiting_instruments"
+    assert "furnace_left" not in state.instruments
+    assert "furnace_left" in state.sensor_instruments
+
+    msg = MockMessage(
+        topic="instruments/furnace_left/heartbeat",
+        payload=json.dumps({"state": "ready", "setpoints": {}, "config": {"experiment_id": None}}),
+    )
+    on_heartbeat_message(heartbeat_client, msg, state)
+
+    messages = message_bus.get_messages(decoded=True)
+    assert len(messages) == 0, "Sensor-only heartbeats should not publish errors"
+
+
+def test_sensor_only_heartbeat_running(message_bus, state):
+    state.status = "running"
+    assert "furnace_left" in state.sensor_instruments
+
+    msg = MockMessage(
+        topic="instruments/furnace_left/heartbeat",
+        payload=json.dumps({"state": "ready", "setpoints": {}, "config": {"experiment_id": None}}),
+    )
+    on_heartbeat_message(heartbeat_client, msg, state)
+
+    messages = message_bus.get_messages(decoded=True)
+    assert len(messages) == 0, "Sensor-only heartbeats should not publish errors"
+
+
 def test_unconfigured_instrument_idle(message_bus, state, heartbeat_client):
     assert state.experiment_uid == "123"
     state.status = "idle"
