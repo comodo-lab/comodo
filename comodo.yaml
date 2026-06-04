@@ -90,10 +90,11 @@ instruments:
           unit: \%
         setpoint_controller:
           external_sensor: pressure_upstream.pressure
-          P: 10.0
-          I: 1.0
-          D: 0.1
-          output_function: "sigma"
+          K_P: 10.0
+          K_I: 1.0
+          K_D: 0.1
+          K_AW: 0.05
+          K_DF: 0.01
       temperature:
         measurement:
           interval: 1s
