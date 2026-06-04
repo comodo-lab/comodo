@@ -31,15 +31,10 @@ class cstate:
         "_instruments",
         "instrument_setup_wait",
         "actuator_variables",
+        "sensor_variables",
     ]
 
-    def __init__(self, actuator_variables: Set[str] = None) -> None:
-        """
-        Initializes a new instance of the cstate class.
-
-        Args:
-            actuator_variables: Set of actuator variable identifiers (e.g. "furnace_centre/temperature").
-        """
+    def __init__(self, actuator_variables: Set[str] = None, sensor_variables: Set[str] = None) -> None:
         self.experiment_start_time: datetime = None
         self.experiment_uid: str = None
         self.exp_file: str = None
@@ -51,6 +46,16 @@ class cstate:
         self.instruments: Dict[str, Any] = {"configured": False}
         self.instrument_setup_wait: float = 10.0
         self.actuator_variables: Set[str] = actuator_variables or set()
+        self.sensor_variables: Set[str] = sensor_variables or set()
+
+    @property
+    def actuator_instruments(self) -> set[str]:
+        return {av.split("/", 1)[0] for av in self.actuator_variables}
+
+    @property
+    def sensor_instruments(self) -> set[str]:
+        sensors = {sv.split("/", 1)[0] for sv in self.sensor_variables}
+        return sensors - self.actuator_instruments
 
     def heartbeat(self) -> Dict[str, Any]:
         """

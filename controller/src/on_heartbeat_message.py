@@ -40,17 +40,21 @@ def on_heartbeat_message(client, msg, obj):
         return
 
     instrument_name = msg.topic.split("/")[1]
-    if instrument_name not in obj.instruments:
+    if instrument_name in obj.instruments:
+        _handle_actuator_heartbeat(obj, instrument, instrument_name)
+    elif instrument_name in obj.sensor_instruments:
+        return
+    else:
         unconfigured_instrument(msg, instrument_name)
         return
 
-    obj_instrument = obj.instruments[instrument_name]
 
+def _handle_actuator_heartbeat(obj, instrument, instrument_name):
+    obj_instrument = obj.instruments[instrument_name]
     obj_instrument["last_contact"] = t.time()
     if obj.status == "awaiting_instruments":
         if instrument["state"] == "idle":
             return
-
         obj_instrument["state"] = instrument["state"]
         obj_instrument["setpoints"] = instrument["setpoints"]
         obj_instrument["config"] = instrument["config"]

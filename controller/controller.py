@@ -72,15 +72,18 @@ def main():
         "healthy": False,
     }
 
-    # Compute actuator variables from instrument config
+    # Compute actuator and sensor variables from instrument config
     actuator_variables = set()
+    sensor_variables = set()
     for instr_name, instr_cfg in config.get("instruments", {}).items():
         for var_name, var_cfg in instr_cfg.get("variables", {}).items():
             if "actuator" in var_cfg:
                 actuator_variables.add(f"{instr_name}/{var_name}")
+            if "sensor" in var_cfg:
+                sensor_variables.add(f"{instr_name}/{var_name}")
 
     # Initialize controller state
-    state = cstate(actuator_variables=actuator_variables)
+    state = cstate(actuator_variables=actuator_variables, sensor_variables=sensor_variables)
     state.instrument_setup_wait = instrument_setup_wait
 
     print(f"  Creating clients...")
