@@ -12,6 +12,7 @@ config = {
     "HEARTBEAT_INTERVAL": 1000,
     "MEASUREMENT_INTERVAL": 1000,
     "SIMULATE": True,
+    "DEVICE_ADDRESS": "",
 }
 
 
