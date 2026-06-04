@@ -48,6 +48,7 @@ services:
     volumes:
       - ./controller/data:/controller/data
       - ./messageSpec.yaml:/app/messageSpec.yaml:ro
+      - ./comodo.yaml:/app/comodo.yaml:ro
     networks:
       comodo-core:
 

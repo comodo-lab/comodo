@@ -37,8 +37,8 @@ services:
       INSTRUMENT_ID: "{{ name }}"
       FIRMWARE: {{ instr.firmware }}
       DEVICE_ADDRESS: "{{ instr.address }}"
-      HEARTBEAT_INTERVAL: {{ (global.heartbeat.interval | default('1s') | replace('s', '') | float * 1000) | int }}{% for v_name, v_cfg in instr.variables.items() %}{% if v_cfg.measurement and v_cfg.measurement.interval %}
-      INTERVAL_{{ v_name | upper }}: {{ (v_cfg.measurement.interval | replace('s', '') | float * 1000) | int }}{% endif %}{% endfor %}
+      HEARTBEAT_INTERVAL: {{ (global.heartbeat.interval | default(1) | float * 1000) | int }}{% for v_name, v_cfg in instr.variables.items() %}{% if v_cfg.measurement and v_cfg.measurement.interval %}
+      INTERVAL_{{ v_name | upper }}: {{ (v_cfg.measurement.interval | float * 1000) | int }}{% endif %}{% endfor %}
 {%- if instr.address.startswith('/dev/') %}
     devices:
       - "{{ instr.address }}:{{ instr.address }}"
@@ -59,7 +59,7 @@ services:
         condition: service_healthy
     environment:
       <<: *mqtt-env
-      HEARTBEAT_INTERVAL: {{ (global.heartbeat.interval | default('1s') | replace('s', '') | float * 1000) | int }}
+      HEARTBEAT_INTERVAL: {{ (global.heartbeat.interval | default(1) | float * 1000) | int }}
       SENSOR: "{{ v_cfg.setpoint_controller.external_sensor }}"
       ACTUATOR: "{{ name }}.{{ v_name }}"
       K_P: {{ v_cfg.setpoint_controller.K_P }}
