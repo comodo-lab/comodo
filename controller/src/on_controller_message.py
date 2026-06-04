@@ -13,7 +13,7 @@ from src.error_helper import (
     wrong_json,
     experiment_validation_error,
 )
-from src.validation import validate_file, ValidationException
+from src.validation import validate_experiment_file, ValidationException
 
 
 def c_idle(client, msg, obj):
@@ -47,7 +47,7 @@ def c_idle(client, msg, obj):
     obj.status = "validating"
     # Validate experiment configuration
     try:
-        exp_config = validate_file(obj.exp_file, obj.schema_path)
+        exp_config = validate_experiment_file(obj.exp_file, obj.actuator_variables)
         # Compute intermediate setpoints
         obj.setpoints = split_setpoints(
             exp_config["experiment_definition"], exp_config["config"]["resolution"]
@@ -91,15 +91,17 @@ def c_starting(client, msg, obj):
         return
 
     obj.status = "starting"
-    # Create list of instruments dicts with expected config values
+    # Create list of instruments dicts from actuator variables
     obj.instruments = {"configured": False}
-    for instrument in obj.exp_config["config"]["instruments"]:
-        obj.instruments[instrument["name"]] = {
-            "last_contact": None,
-            "config": {},
-            "state": None,
-            "setpoints": None,
-        }
+    for av in obj.actuator_variables:
+        instrument_name = av.split("/", 1)[0]
+        if instrument_name not in obj.instruments:
+            obj.instruments[instrument_name] = {
+                "last_contact": None,
+                "config": {},
+                "state": None,
+                "setpoints": None,
+            }
     # Update state and callback of controller
     obj.status = "awaiting_instruments"
     client.callback = c_ready
@@ -173,11 +175,12 @@ def c_running(client, msg, obj):
     obj.current_setpoint = next_setpoint
     print(f"Next setpoint: {next_setpoint}")
     duration = next_setpoint.get("duration")
-    for instrument_name, value in next_setpoint.items():
-        if instrument_name == "duration":
+    for column_name, value in next_setpoint.items():
+        if column_name == "duration":
             continue
+        instrument, variable = column_name.split("/", 1)
         mqtt.MQTTPublisher.get_instance().publish(
-            f"instruments/{instrument_name}/{instrument_name}/setpoint",
+            f"instruments/{instrument}/{variable}/setpoint",
             json.dumps({"value": value}),
         )
     mqtt.MQTTPublisher.get_instance().publish(

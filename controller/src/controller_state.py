@@ -1,5 +1,5 @@
 from json import dumps
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Set
 from datetime import datetime
 
 
@@ -30,12 +30,15 @@ class cstate:
         "_past_setpoints",
         "_instruments",
         "instrument_setup_wait",
-        "schema_path",
+        "actuator_variables",
     ]
 
-    def __init__(self) -> None:
+    def __init__(self, actuator_variables: Set[str] = None) -> None:
         """
         Initializes a new instance of the cstate class.
+
+        Args:
+            actuator_variables: Set of actuator variable identifiers (e.g. "furnace_centre/temperature").
         """
         self.experiment_start_time: datetime = None
         self.experiment_uid: str = None
@@ -47,7 +50,7 @@ class cstate:
         self.past_setpoints: List[Dict[str, Any]] = []
         self.instruments: Dict[str, Any] = {"configured": False}
         self.instrument_setup_wait: float = 10.0
-        self.schema_path: str = "schemas/schema_experiment.json"
+        self.actuator_variables: Set[str] = actuator_variables or set()
 
     def heartbeat(self) -> Dict[str, Any]:
         """
