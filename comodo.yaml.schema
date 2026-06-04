@@ -27,6 +27,7 @@ classes:
     slot_usage:
       interval:
         required: true
+        range: float
 
   HeartbeatConfig:
     slots:
@@ -34,6 +35,7 @@ classes:
     slot_usage:
       interval:
         required: true
+        range: float
 
   InstrumentSetupConfig:
     slots:
@@ -50,8 +52,10 @@ classes:
     slot_usage:
       timeout:
         required: true
+        range: float
       interval:
         required: true
+        range: float
 
   Instrument:
     slots:
@@ -146,15 +150,19 @@ slots:
     range: HeartbeatConfig
     inlined: true
 
+  instrument_setup:
+    range: InstrumentSetupConfig
+    inlined: true
+
   watchdog:
     range: WatchdogConfig
     inlined: true
 
   timeout:
-    range: string
+    range: float
 
   interval:
-    range: string
+    range: float
 
   measurement:
     range: MeasurementConfig

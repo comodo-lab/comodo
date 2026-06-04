@@ -1,11 +1,11 @@
 global:
   heartbeat:
-    interval: 1s
+    interval: 1
   instrument_setup:
     wait: 10
   watchdog:
-    timeout: 5s
-    interval: 1s
+    timeout: 5
+    interval: 1
 
 instruments:
   furnace_centre:
@@ -14,7 +14,7 @@ instruments:
     variables:
       temperature:
         measurement:
-          interval: 1s
+          interval: 1
         sensor:
           type: float
           min: 0
@@ -31,7 +31,7 @@ instruments:
     variables:
       temperature:
         measurement:
-          interval: 1s
+          interval: 1
         sensor:
           type: float
           min: 0
@@ -43,7 +43,7 @@ instruments:
     variables:
       temperature:
         measurement:
-          interval: 1s
+          interval: 1
         sensor:
           type: float
           min: 0
@@ -55,7 +55,7 @@ instruments:
     variables:
       pressure:
         measurement:
-          interval: 1s
+          interval: 1
         sensor:
           type: float
           min: 0
@@ -67,7 +67,7 @@ instruments:
     variables:
       pressure:
         measurement:
-          interval: 0.5s
+          interval: 0.5
         sensor:
           type: float
           min: 0
@@ -79,7 +79,7 @@ instruments:
     variables:
       mass_flow:
         measurement:
-          interval: 1s
+          interval: 1
         sensor:
           type: float
           min: 0
@@ -99,7 +99,7 @@ instruments:
           K_DF: 0.01
       temperature:
         measurement:
-          interval: 1s
+          interval: 1
         sensor:
           type: float
           min: 0
@@ -107,7 +107,7 @@ instruments:
           unit: °C
       pressure_upstream:
         measurement:
-          interval: 1s
+          interval: 1
         sensor:
           type: float
           min: 0
@@ -115,7 +115,7 @@ instruments:
           unit: bar
       pressure_downstream:
         measurement:
-          interval: 1s
+          interval: 1
         sensor:
           type: float
           min: 0
@@ -127,7 +127,7 @@ instruments:
     variables:
       mass_spec:
         measurement:
-          interval: 1s
+          interval: 1
         sensor:
           type: array
 
