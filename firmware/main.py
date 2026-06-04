@@ -107,6 +107,19 @@ async def main():
     else:
         print(f"Instrument {state.config['INSTRUMENT_ID']} self-test failed, staying idle")
 
+    simulate = state.config.get("SIMULATE", False)
+    if isinstance(simulate, str):
+        simulate = simulate.lower() in ("true", "1", "yes")
+    state.status["config"] = {
+        "firmware": state.config.get("FIRMWARE"),
+        "device_address": state.config.get("DEVICE_ADDRESS"),
+        "simulate": simulate,
+        "intervals": {
+            var: int(state.config.get(f"INTERVAL_{var.upper()}", 1000))
+            for var in state.instrument.variables
+        },
+        "variables": state.instrument.variables,
+    }
     state.config["ready"] = True
 
     print(

@@ -350,6 +350,21 @@ channels:
           properties:
             config:
               type: object
+              properties:
+                firmware:
+                  type: string
+                device_address:
+                  type: string
+                simulate:
+                  type: boolean
+                intervals:
+                  type: object
+                  additionalProperties:
+                    type: number
+                variables:
+                  type: object
+                  additionalProperties:
+                    type: object
 
             setpoints:
               type: object
