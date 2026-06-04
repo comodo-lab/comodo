@@ -7,7 +7,6 @@ WORKDIR /controller
 COPY controller/controller.py /controller/controller.py
 COPY controller/src /controller/src
 COPY controller/tests /controller/tests
-COPY controller/schemas /controller/schemas
 COPY controller/pytest.ini /controller/pytest.ini
 COPY controller/README.md /controller/README.md
 COPY utils/mqtt_clients.py /controller/utils/mqtt_clients.py
