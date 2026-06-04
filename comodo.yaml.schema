@@ -92,10 +92,11 @@ classes:
   SetpointControllerConfig:
     slots:
       - external_sensor
-      - P
-      - I
-      - D
-      - output_function
+      - K_P
+      - K_I
+      - K_D
+      - K_DF
+      - K_AW
 
   Visualisation:
     abstract: true
@@ -164,6 +165,9 @@ slots:
   interval:
     range: float
 
+  wait:
+    range: float
+
   measurement:
     range: MeasurementConfig
     inlined: true
@@ -185,15 +189,16 @@ slots:
 
   external_sensor:
     range: string
-  P:
+  K_P:
     range: float
-  I:
+  K_I:
     range: float
-  D:
+  K_D:
     range: float
-  output_function:
-    range: string
-
+  K_DF:
+    range: float
+  K_AW:
+    range: float
 
   visualisations:
     range: Visualisation
