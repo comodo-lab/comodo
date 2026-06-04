@@ -63,6 +63,7 @@ class Test_main:
                 "SENSOR": "A/B",
                 "ACTUATOR": "C/D",
             }
+        )
 
         main()
 
