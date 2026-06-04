@@ -11,13 +11,13 @@ x-rabbitmq-dep: &rabbitmq-dep
     condition: service_healthy
 
 services:
-  furnace:
+  furnace_centre:
     build:
       context: ..
       dockerfile: firmware/Dockerfile
     environment:
       <<: *sim-env
-      INSTRUMENT_ID: "furnace"
+      INSTRUMENT_ID: "furnace_centre"
       FIRMWARE: carbolite_gero.tg3
       DEVICE_ADDRESS: 192.168.111.222
     depends_on:
@@ -69,13 +69,13 @@ services:
     depends_on:
       <<: *rabbitmq-dep
 
-  massflow:
+  mass_flow:
     build:
       context: ..
       dockerfile: firmware/Dockerfile
     environment:
       <<: *sim-env
-      INSTRUMENT_ID: "massflow"
+      INSTRUMENT_ID: "mass_flow"
       FIRMWARE: bronkhorst.el_flow_select
     depends_on:
       <<: *rabbitmq-dep

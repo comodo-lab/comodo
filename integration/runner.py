@@ -11,12 +11,12 @@ MQTT_PASS = os.environ["MQTT_PASS"]
 
 EXPECTED_HEARTBEATS = [
     "controller/heartbeat",
-    "instruments/furnace/heartbeat",
+    "instruments/furnace_centre/heartbeat",
     "instruments/furnace_left/heartbeat",
     "instruments/furnace_right/heartbeat",
     "instruments/pressure_downstream/heartbeat",
     "instruments/pressure_upstream/heartbeat",
-    "instruments/massflow/heartbeat",
+    "instruments/mass_flow/heartbeat",
 ]
 
 HEARTBEAT_TIMEOUT = int(os.environ.get("HEARTBEAT_TIMEOUT", 60))
