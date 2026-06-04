@@ -18,6 +18,7 @@ classes:
   GlobalSettings:
     slots:
       - heartbeat
+      - instrument_setup
       - watchdog
 
   MeasurementConfig:
@@ -33,6 +34,14 @@ classes:
     slot_usage:
       interval:
         required: true
+
+  InstrumentSetupConfig:
+    slots:
+      - wait
+    slot_usage:
+      wait:
+        required: true
+        range: float
 
   WatchdogConfig:
     slots:

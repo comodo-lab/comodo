@@ -1,6 +1,8 @@
 global:
   heartbeat:
     interval: 1s
+  instrument_setup:
+    wait: 10
   watchdog:
     timeout: 5s
     interval: 1s
