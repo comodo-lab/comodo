@@ -61,7 +61,7 @@ services:
       <<: *mqtt-env
       HEARTBEAT_INTERVAL: {{ (global.heartbeat.interval | default(1) | float * 1000) | int }}
       SENSOR: "{{ v_cfg.setpoint_controller.external_sensor }}"
-      ACTUATOR: "{{ name }}.{{ v_name }}"
+      ACTUATOR: "{{ name }}/{{ v_name }}"
       K_P: {{ v_cfg.setpoint_controller.K_P }}
       K_I: {{ v_cfg.setpoint_controller.K_I }}
       K_D: {{ v_cfg.setpoint_controller.K_D }}{% if v_cfg.setpoint_controller.K_AW is defined %}

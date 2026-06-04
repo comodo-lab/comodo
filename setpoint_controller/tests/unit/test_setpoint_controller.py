@@ -60,10 +60,9 @@ class Test_main:
         mocks = mocks_for_main
         mocks["env_values"].update(
             {
-                "SENSOR": "A.B",
-                "ACTUATOR": "C.D",
+                "SENSOR": "A/B",
+                "ACTUATOR": "C/D",
             }
-        )
 
         main()
 
@@ -91,8 +90,8 @@ class Test_main:
                 "MQTT_HOST": "test_host",
                 "MQTT_USER": "test_user",
                 "MQTT_PASS": "test_pass",
-                "SENSOR": "I1.A",
-                "ACTUATOR": "I2.B",
+                "SENSOR": "I1/A",
+                "ACTUATOR": "I2/B",
             }
         )
 
@@ -114,8 +113,8 @@ class Test_main:
                 "MQTT_HOST": "test_host",
                 "MQTT_USER": "test_user",
                 "MQTT_PASS": "test_pass",
-                "SENSOR": "A.B",
-                "ACTUATOR": "C.D",
+                "SENSOR": "A/B",
+                "ACTUATOR": "C/D",
                 "K_P": 1.0,
                 "K_I": 0.1,
                 "K_D": 0.01,

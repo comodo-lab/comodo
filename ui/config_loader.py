@@ -76,7 +76,7 @@ class ComodoConfig:
                 sc = var_config.get("setpoint_controller")
                 if sc and "external_sensor" in sc:
                     ref = sc["external_sensor"]
-                    targets.add(ref.replace(".", "/"))
+                    targets.add(ref)
         return targets
 
     @property
@@ -87,7 +87,7 @@ class ComodoConfig:
             for var_name, var_config in variables.items():
                 sc = var_config.get("setpoint_controller")
                 if sc and "external_sensor" in sc:
-                    sensor = sc["external_sensor"].replace(".", "/")
+                    sensor = sc["external_sensor"]
                     actuator = f"{inst_name}/{var_name}"
                     pairs.append({"sensor": sensor, "actuator": actuator})
         return pairs

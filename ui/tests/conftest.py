@@ -92,7 +92,7 @@ instruments:
           max: 100
           unit: "%"
         setpoint_controller:
-          external_sensor: pressure.value
+          external_sensor: pressure/value
           P: 10.0
           I: 1.0
           D: 0.1

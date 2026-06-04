@@ -91,7 +91,7 @@ instruments:
           max: 100
           unit: \%
         setpoint_controller:
-          external_sensor: pressure_upstream.pressure
+          external_sensor: pressure_upstream/pressure
           K_P: 10.0
           K_I: 1.0
           K_D: 0.1
