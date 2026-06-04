@@ -9,7 +9,27 @@ from src.validation import (
     validate_file_print_errors,
     validate_file_soft,
     validate_dict,
+    validate_experiment_dict,
+    validate_experiment_file,
 )
+
+
+EXPERIMENT_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["id", "config", "experiment_definition"],
+    "properties": {
+        "id": {"type": "string"},
+        "config": {"type": "object", "additionalProperties": True},
+        "experiment_definition": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": True,
+            },
+        },
+    },
+}
 
 
 # =============== Fixtures ===============
@@ -271,3 +291,139 @@ class TestValidateDict:
         validate_mocks["jsonschema_validate"].assert_called_once_with(
             instance={"some": "d", "to": "val"}, schema={"s": "s"}
         )
+
+
+class TestValidateExperimentDict:
+    VALID_ACTUATORS = {"furnace_centre/temperature", "mass_flow/mass_flow"}
+    VALID_EXPERIMENT = {
+        "id": "123",
+        "config": {"resolution": 0.1},
+        "experiment_definition": [
+            {"time": 0, "furnace_centre/temperature": 0, "mass_flow/mass_flow": 0},
+            {"time": 3, "furnace_centre/temperature": 100, "mass_flow/mass_flow": 50},
+        ],
+    }
+
+    @pytest.fixture(autouse=True)
+    def mock_schema(self):
+        with patch("src.validation._get_experiment_schema", return_value=EXPERIMENT_SCHEMA):
+            yield
+
+    def test_valid_experiment(self):
+        result = validate_experiment_dict(self.VALID_EXPERIMENT, self.VALID_ACTUATORS)
+        assert result == self.VALID_EXPERIMENT
+
+    def test_missing_id(self):
+        data = {"config": {}, "experiment_definition": [{"time": 0}]}
+        with pytest.raises(ValidationException, match="'id' is a required property"):
+            validate_experiment_dict(data, self.VALID_ACTUATORS)
+
+    def test_non_string_id(self):
+        data = {"id": 123, "config": {}, "experiment_definition": [{"time": 0}]}
+        with pytest.raises(ValidationException, match="not of type 'string'"):
+            validate_experiment_dict(data, self.VALID_ACTUATORS)
+
+    def test_missing_config(self):
+        data = {"id": "123", "experiment_definition": [{"time": 0}]}
+        with pytest.raises(ValidationException, match="'config' is a required property"):
+            validate_experiment_dict(data, self.VALID_ACTUATORS)
+
+    def test_missing_experiment_definition(self):
+        data = {"id": "123", "config": {}}
+        with pytest.raises(ValidationException, match="'experiment_definition' is a required property"):
+            validate_experiment_dict(data, self.VALID_ACTUATORS)
+
+    def test_empty_experiment_definition(self):
+        data = {"id": "123", "config": {}, "experiment_definition": []}
+        with pytest.raises(ValidationException, match="non-empty 'experiment_definition'"):
+            validate_experiment_dict(data, self.VALID_ACTUATORS)
+
+    def test_row_missing_time(self):
+        data = {
+            "id": "123",
+            "config": {},
+            "experiment_definition": [{"furnace_centre/temperature": 0}],
+        }
+        with pytest.raises(ValidationException, match="must have a numeric 'time' key"):
+            validate_experiment_dict(data, self.VALID_ACTUATORS)
+
+    def test_row_non_numeric_time(self):
+        data = {
+            "id": "123",
+            "config": {},
+            "experiment_definition": [{"time": "now", "furnace_centre/temperature": 0}],
+        }
+        with pytest.raises(ValidationException, match="must have a numeric 'time' key"):
+            validate_experiment_dict(data, self.VALID_ACTUATORS)
+
+    def test_negative_time(self):
+        data = {
+            "id": "123",
+            "config": {},
+            "experiment_definition": [{"time": -1, "furnace_centre/temperature": 0}],
+        }
+        with pytest.raises(ValidationException, match="negative 'time'"):
+            validate_experiment_dict(data, self.VALID_ACTUATORS)
+
+    def test_unknown_actuator_column(self):
+        data = {
+            "id": "123",
+            "config": {},
+            "experiment_definition": [{"time": 0, "unknown/var": 100}],
+        }
+        with pytest.raises(ValidationException, match="not a known actuator variable"):
+            validate_experiment_dict(data, self.VALID_ACTUATORS)
+
+    def test_missing_required_actuator(self):
+        data = {
+            "id": "123",
+            "config": {},
+            "experiment_definition": [
+                {"time": 0, "furnace_centre/temperature": 0},
+            ],
+        }
+        with pytest.raises(ValidationException, match="Actuator.*missing.*mass_flow/mass_flow"):
+            validate_experiment_dict(data, self.VALID_ACTUATORS)
+
+    def test_row_is_not_dict(self):
+        data = {
+            "id": "123",
+            "config": {},
+            "experiment_definition": ["not a dict"],
+        }
+        with pytest.raises(ValidationException, match="not of type 'object'"):
+            validate_experiment_dict(data, self.VALID_ACTUATORS)
+
+
+class TestValidateExperimentFile:
+    VALID_ACTUATORS = {"furnace_centre/temperature", "mass_flow/mass_flow"}
+
+    @pytest.fixture(autouse=True)
+    def mock_schema(self):
+        with patch("src.validation._get_experiment_schema", return_value=EXPERIMENT_SCHEMA):
+            yield
+
+    def test_file_not_found(self):
+        with patch("builtins.open", side_effect=FileNotFoundError):
+            with pytest.raises(ValidationException, match="File not found"):
+                validate_experiment_file("nonexistent.json", self.VALID_ACTUATORS)
+
+    def test_invalid_json(self):
+        m = mock_open(read_data="{ invalid json")
+        m.return_value.__enter__.return_value.read.return_value = "{ invalid json"
+        with patch("builtins.open", return_value=m.return_value):
+            with pytest.raises(ValidationException, match="Cannot decode JSON"):
+                validate_experiment_file("bad.json", self.VALID_ACTUATORS)
+
+    def test_valid_file(self):
+        data = {
+            "id": "123",
+            "config": {"resolution": 0.1},
+            "experiment_definition": [
+                {"time": 0, "furnace_centre/temperature": 0, "mass_flow/mass_flow": 0},
+            ],
+        }
+        m = mock_open(read_data=json.dumps(data))
+        with patch("builtins.open", return_value=m.return_value):
+            result = validate_experiment_file("valid.json", self.VALID_ACTUATORS)
+        assert result == data
