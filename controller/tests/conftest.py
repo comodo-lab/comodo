@@ -7,7 +7,7 @@ from random import uniform as rand
 import time as t
 from datetime import datetime
 
-from src.controller_state import cstate, AdjustingDict
+from src.controller_state import cstate
 
 from utils.tests.mocks.mock_mqtt_clients import (
     pytest_runtest_makereport,
@@ -79,7 +79,6 @@ def mock_state(status, mock_experiment_dict={}, mock_setpoints=[]):
     state_obj.current_setpoint = None
     state_obj.past_setpoints = []
     state_obj.instruments = {"configured": False}
-    state_obj.adjusting = MagicMock(spec=AdjustingDict)
     state_obj.schema_path = "schemas/schema_experiment.json"
 
     if status == "idle":

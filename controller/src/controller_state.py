@@ -5,7 +5,7 @@ from datetime import datetime
 
 class cstate:
     """
-    Represents the state of the controller, including the status, values being adjusted, and experiment configuration.
+    Represents the state of the controller, including the status and experiment configuration.
     """
 
     allowed_status = [
@@ -29,7 +29,6 @@ class cstate:
         "_current_setpoint",
         "_past_setpoints",
         "_instruments",
-        "_adjusting",
         "instrument_setup_wait",
         "schema_path",
     ]
@@ -47,7 +46,6 @@ class cstate:
         self.current_setpoint: Dict[str, Any] = None
         self.past_setpoints: List[Dict[str, Any]] = []
         self.instruments: Dict[str, Any] = {"configured": False}
-        self.adjusting: AdjustingDict = AdjustingDict()
         self.instrument_setup_wait: float = 10.0
         self.schema_path: str = "schemas/schema_experiment.json"
 
@@ -80,7 +78,6 @@ class cstate:
         self.current_setpoint = None
         self.past_setpoints = []
         self.instruments = {"configured": False}
-        self.adjusting = AdjustingDict()
 
     @property
     def experiment_start_time(self) -> datetime:
@@ -270,77 +267,3 @@ class cstate:
                 f"Instruments must be a dictionary, cannot accept {type(value)}."
             )
         self._instruments = value
-
-    @property
-    def adjusting(self):
-        return self._adjusting
-
-    @adjusting.setter
-    def adjusting(self, value: Dict[str, int]) -> None:
-        """
-        Sets the adjusting dictionary.
-        It converts a plain dict to an AdjustingDict, to protect from unwanted elements or values.
-
-        Args:
-            value: The new value for the entire adjusting dictionary.
-
-        Raises:
-            ValueError: If the provided adjusting dictionary is incomplete or contains invalid keys.
-        """
-        self._adjusting = AdjustingDict(value)
-
-
-class AdjustingDict(dict):
-    """
-    Represents a dictionary of adjusting values.
-    The purpose of this class is to protect the adjusting dictionary from unwanted elements or values.
-    """
-
-    required_adjusting = [
-        "T",
-        "P",
-        "D1",
-        "D2",
-    ]
-
-    def __init__(self, *args, **kwargs) -> None:
-        """
-        Initializes a new instance of the AdjustingDict class.
-
-        Raises:
-            ValueError: If the provided adjusting dictionary is incomplete or contains invalid keys.
-        """
-        super().__init__({key: 0 for key in self.required_adjusting})
-        if args or kwargs:
-            tmp = dict(*args, **kwargs)
-            if not all(key in tmp for key in self.required_adjusting):
-                raise ValueError(
-                    f"Incomplete adjusting keys. Adjusting must contain all of {self.required_adjusting}."
-                )
-            for key, value in tmp.items():
-                self.__setitem__(key, value)
-
-    def __setitem__(self, key: str, value: int) -> None:
-        """
-        Sets the value for the specified adjusting key.
-
-        Args:
-            key: The adjusting key.
-            value: The adjusting value.
-
-        Raises:
-            ValueError: If the provided adjusting key is invalid or the value is not 0 or 1.
-        """
-        if key not in self.required_adjusting:
-            raise ValueError(
-                f"Invalid adjusting key: {key}. Adjusting must be one of {self.required_adjusting}."
-            )
-        elif value not in [0, 1]:
-            raise ValueError(f"Invalid value for {key}: {value}. It must be 0 or 1.")
-        super().__setitem__(key, value)
-
-    def __delitem__(self, *args, **kwargs) -> None:
-        """
-        Raises a runtime error when attempting to delete items from the adjusting dictionary.
-        """
-        raise RuntimeError("Cannot delete items from the adjusting dict.")
