@@ -1,7 +1,7 @@
 asyncapi: 3.0.0
 info:
   title: Comodo Message Specification
-  version: "0.3.0"
+  version: "0.4.0"
   description: >
     Minimal strict protocol contract for the Comodo experiment automation platform.
 
@@ -270,7 +270,7 @@ channels:
                 - error
 
   setpointControllerHeartbeat:
-    address: setpoint_controller/heartbeat
+    address: setpoint_controller/+/heartbeat
     messages:
       setpointControllerHeartbeat:
         payload:

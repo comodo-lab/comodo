@@ -40,6 +40,8 @@ def base_SPC():
             "actuator_name": "I2",
             "actuator_var": "B",
             "heartbeat_interval": 1,
+            "spc_id": "I1/A__I2/B",
+            "topic_id": "spc-I1.A-I2.B",
         }
         d_kwargs.update(kwargs)
 
@@ -96,6 +98,7 @@ def mock_spc(mock_pid):
     spc.actuator_name = "I2"
     spc.actuator_var = "B"
     spc.spc_id = "I1/A__I2/B"
+    spc.topic_id = "spc-I1.A-I2.B"
     spc.pid = mock_pid
     spc.publish_heartbeat = MagicMock()
     return spc

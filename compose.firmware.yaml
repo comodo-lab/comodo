@@ -113,6 +113,27 @@ services:
       INTERVAL_MASS_SPEC: 1000
 
 
+  spc-mass_flow-mass_flow:
+    build:
+      context: .
+      dockerfile: setpoint_controller/Dockerfile
+    networks:
+      comodo-firmware:
+    depends_on:
+      mqtt-probe-firmware:
+        condition: service_healthy
+    environment:
+      <<: *mqtt-env
+      HEARTBEAT_INTERVAL: 1000
+      SENSOR: "pressure_upstream.pressure"
+      ACTUATOR: "mass_flow.mass_flow"
+      K_P: 10.0
+      K_I: 1.0
+      K_D: 0.1
+      K_AW: 0.05
+      K_DF: 0.01
+      OUT_MIN: 0
+      OUT_MAX: 100
 networks:
   comodo-firmware:
     name: comodo-firmware

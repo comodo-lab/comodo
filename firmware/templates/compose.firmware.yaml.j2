@@ -44,8 +44,35 @@ services:
       - "{{ instr.address }}:{{ instr.address }}"
     privileged: true
 {%- endif %}
-{% endfor %}
+{% endfor %}{% for name, instr in instruments.items() %}
+{%- for v_name, v_cfg in instr.variables.items() %}
+{%- if v_cfg.setpoint_controller %}
 
+  spc-{{ name }}-{{ v_name }}:
+    build:
+      context: .
+      dockerfile: setpoint_controller/Dockerfile
+    networks:
+      comodo-firmware:
+    depends_on:
+      mqtt-probe-firmware:
+        condition: service_healthy
+    environment:
+      <<: *mqtt-env
+      HEARTBEAT_INTERVAL: {{ (global.heartbeat.interval | default('1s') | replace('s', '') | float * 1000) | int }}
+      SENSOR: "{{ v_cfg.setpoint_controller.external_sensor }}"
+      ACTUATOR: "{{ name }}.{{ v_name }}"
+      K_P: {{ v_cfg.setpoint_controller.K_P }}
+      K_I: {{ v_cfg.setpoint_controller.K_I }}
+      K_D: {{ v_cfg.setpoint_controller.K_D }}{% if v_cfg.setpoint_controller.K_AW is defined %}
+      K_AW: {{ v_cfg.setpoint_controller.K_AW }}{% endif %}{% if v_cfg.setpoint_controller.K_DF is defined %}
+      K_DF: {{ v_cfg.setpoint_controller.K_DF }}{% endif %}{% if v_cfg.setpoint_controller.OUT_MAX_R is defined %}
+      OUT_MAX_R: {{ v_cfg.setpoint_controller.OUT_MAX_R }}{% endif %}
+      OUT_MIN: {{ v_cfg.actuator.min | default(v_cfg.sensor.min | default(0)) }}
+      OUT_MAX: {{ v_cfg.actuator.max | default(v_cfg.sensor.max | default(100)) }}
+{%- endif %}
+{%- endfor -%}
+{% endfor %}
 networks:
   comodo-firmware:
     name: comodo-firmware
