@@ -21,7 +21,13 @@ def test_cstate_initialization():
     assert state.current_setpoint == None
     assert state.past_setpoints == []
     assert state.instruments == {"configured": False}
-    assert state.schema_path == "schemas/schema_experiment.json"
+    assert state.actuator_variables == set()
+
+
+def test_cstate_with_actuator_variables():
+    av_set = {"furnace_centre/temperature", "mass_flow/mass_flow"}
+    state = cstate(actuator_variables=av_set)
+    assert state.actuator_variables == av_set
 
 
 def test_cannot_add_new_attribute(state):

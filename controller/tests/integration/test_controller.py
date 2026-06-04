@@ -52,7 +52,7 @@ def heartbeat_client(mqtt_mocks, state):
 
 @pytest.fixture
 def mock_validate(mock_experiment_dict):
-    with patch("src.on_controller_message.validate_file") as mock_validate:
+    with patch("src.on_controller_message.validate_experiment_file") as mock_validate:
         mock_validate.return_value = mock_experiment_dict
         yield mock_validate
 
@@ -96,7 +96,7 @@ def test_control_loop(
     )
     t.sleep(0.1)
 
-    mock_validate.assert_called_once_with("some_file", state.schema_path)
+    mock_validate.assert_called_once_with("some_file", state.actuator_variables)
     # Should go through c_idle and c_starting, then expect instruments to respond
     assert state._status_history == ["validating", "starting", "awaiting_instruments"]
     assert state.experiment_uid == "123"

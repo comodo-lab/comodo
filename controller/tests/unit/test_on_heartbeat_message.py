@@ -13,6 +13,10 @@ from tests.conftest import (
 
 from src.on_heartbeat_message import on_heartbeat_message
 
+INSTRUMENTS = [
+    {"name": "furnace_centre", "tolerance": 1},
+    {"name": "mass_flow", "tolerance": 1},
+]
 
 # =============== Fixtures ===============
 
@@ -128,11 +132,10 @@ def test_awaiting_instruments_racing_heartbeat(
     message_bus,
     state,
     heartbeat_client,
-    mock_experiment_dict,
 ):
     assert state.instruments["configured"] == False
 
-    instruments = mock_experiment_dict["config"]["instruments"]
+    instruments = INSTRUMENTS
     first_instrument_name = instruments[0]["name"]
     first_instrument_config = {
         **{k: v for k, v in instruments[0].items() if k != "name"},
@@ -166,13 +169,12 @@ def test_awaiting_instruments_not_all_responded(
     message_bus,
     state,
     heartbeat_client,
-    mock_experiment_dict,
 ):
     assert state.experiment_uid == "123"
     assert state.status == "awaiting_instruments"
     assert state.instruments["configured"] == False
 
-    instruments = mock_experiment_dict["config"]["instruments"]
+    instruments = INSTRUMENTS
 
     # Correct heartbeat for all but first instruments
     for instrument in instruments[1:]:
@@ -195,8 +197,8 @@ def test_awaiting_instruments_not_all_responded(
     on_heartbeat_message(heartbeat_client, msg, state)
 
     # Should still not be ready
-    assert state.instruments[instruments[0]["name"]]["state"] == None
-    assert state.instruments[instruments[0]["name"]]["setpoints"] == None
+    assert state.instruments[instruments[0]["name"]]["state"] is None
+    assert state.instruments[instruments[0]["name"]]["setpoints"] is None
     assert state.status == "awaiting_instruments"
     assert state.instruments["configured"] == False
 
@@ -208,13 +210,12 @@ def test_awaiting_instruments_all_responded(
     message_bus,
     state,
     heartbeat_client,
-    mock_experiment_dict,
 ):
     assert state.experiment_uid == "123"
     assert state.status == "awaiting_instruments"
     assert state.instruments["configured"] == False
 
-    instruments = mock_experiment_dict["config"]["instruments"]
+    instruments = INSTRUMENTS
 
     # Correct heartbeat for all instruments
     for instrument in instruments:
@@ -237,10 +238,9 @@ def test_running_heartbeat_updates_instrument(
     message_bus,
     state,
     heartbeat_client,
-    mock_experiment_dict,
 ):
     state.status = "running"
-    instruments = mock_experiment_dict["config"]["instruments"]
+    instruments = INSTRUMENTS
 
     msg = instrument_heartbeat_msg(
         instrument=instruments[0], state="adjusting", setpoints={"temperature": 42}

@@ -79,7 +79,7 @@ def mock_state(status, mock_experiment_dict={}, mock_setpoints=[]):
     state_obj.current_setpoint = None
     state_obj.past_setpoints = []
     state_obj.instruments = {"configured": False}
-    state_obj.schema_path = "schemas/schema_experiment.json"
+    state_obj.actuator_variables = {"furnace_centre/temperature", "mass_flow/mass_flow"}
 
     if status == "idle":
         return state_obj
@@ -96,24 +96,25 @@ def mock_state(status, mock_experiment_dict={}, mock_setpoints=[]):
     # ------------------------------- awaiting_instruments
     state_obj.status = "awaiting_instruments"
     state_obj._status_history = []
-    for instrument in state_obj.exp_config["config"]["instruments"]:
-        state_obj.instruments[instrument["name"]] = {
-            "last_contact": None,
-            "config": {
-                **{k: v for k, v in instrument.items() if k != "name"},
-                "experiment_id": state_obj.experiment_uid,
-            },
-            "state": None,
-            "setpoints": None,
-        }
+    for av in state_obj.actuator_variables:
+        instrument_name = av.split("/", 1)[0]
+        if instrument_name not in state_obj.instruments:
+            state_obj.instruments[instrument_name] = {
+                "last_contact": None,
+                "config": {"tolerance": 1, "experiment_id": state_obj.experiment_uid},
+                "state": None,
+                "setpoints": None,
+            }
     if status == "awaiting_instruments":
         return state_obj
 
     state_obj.setpoints = mock_setpoints
-    for instrument in state_obj.exp_config["config"]["instruments"]:
-        state_obj.instruments[instrument["name"]]["last_contact"] = t.time() - 1
-        state_obj.instruments[instrument["name"]]["state"] = "idle"
-        state_obj.instruments[instrument["name"]]["setpoints"] = None
+    for av in state_obj.actuator_variables:
+        instrument_name = av.split("/", 1)[0]
+        if instrument_name in state_obj.instruments:
+            state_obj.instruments[instrument_name]["last_contact"] = t.time() - 1
+            state_obj.instruments[instrument_name]["state"] = "idle"
+            state_obj.instruments[instrument_name]["setpoints"] = None
     state_obj.instruments = {"configured": True}
     if status == "ready":
         return state_obj
@@ -143,10 +144,10 @@ def mock_experiment_dict():
 def mock_setpoints():
     """Fixture that returns a list of setpoints as expected from split_setpoints."""
     return [
-        {"duration": 9, "temperature": 20, "pressure": 200},
-        {"duration": 5, "temperature": 80, "pressure": 800},
-        {"duration": 7, "temperature": 50, "pressure": 500},
-        {"duration": 4, "temperature": 30, "pressure": 300},
+        {"duration": 9, "furnace_centre/temperature": 20, "mass_flow/mass_flow": 200},
+        {"duration": 5, "furnace_centre/temperature": 80, "mass_flow/mass_flow": 800},
+        {"duration": 7, "furnace_centre/temperature": 50, "mass_flow/mass_flow": 500},
+        {"duration": 4, "furnace_centre/temperature": 30, "mass_flow/mass_flow": 300},
     ]
 
 

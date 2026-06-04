@@ -20,7 +20,7 @@ from src.on_controller_message import (
     c_stopping,
     assign_serial_id,
 )
-from src.validation import ValidationException
+from src.validation import ValidationException, validate_experiment_file
 
 
 class TestIdle:
@@ -113,14 +113,14 @@ class TestIdle:
             topic="controller/command/validate",
             payload=json.dumps({"id": "123", "file": "missing_file.json"}),
         )
-        with patch("src.on_controller_message.validate_file") as mock_validate_file:
-            mock_validate_file.side_effect = ValidationException(
-                f"ERROR: File not found - {state.schema_path}"
+        with patch("src.on_controller_message.validate_experiment_file") as mock_validate:
+            mock_validate.side_effect = ValidationException(
+                "ERROR: File not found - missing_file.json"
             )
             c_idle(controller_client, msg, state)
 
-            mock_validate_file.assert_called_once_with(
-                "missing_file.json", state.schema_path
+            mock_validate.assert_called_once_with(
+                "missing_file.json", state.actuator_variables
             )
 
         assert state._status_history == ["validating", "idle"]
@@ -142,9 +142,9 @@ class TestIdle:
         assert state.experiment_uid == None
         assert state.status == "idle"
 
-        with patch("src.on_controller_message.validate_file") as mock_validate_file:
-            mock_validate_file.side_effect = ValidationException(
-                f"Test validation error"
+        with patch("src.on_controller_message.validate_experiment_file") as mock_validate:
+            mock_validate.side_effect = ValidationException(
+                "Test validation error"
             )
             msg = MockMessage(
                 topic="controller/command/validate",
@@ -176,8 +176,8 @@ class TestIdle:
         assert state.experiment_start_time == None
         assert state.status == "idle"
 
-        with patch("src.on_controller_message.validate_file") as mock_validate_file:
-            mock_validate_file.return_value = {
+        with patch("src.on_controller_message.validate_experiment_file") as mock_validate:
+            mock_validate.return_value = {
                 "id": "123",
                 "experiment_definition": ["some data"],
                 "config": {"resolution": 42},
@@ -189,8 +189,8 @@ class TestIdle:
             )
             c_idle(controller_client, msg, state)
 
-            mock_validate_file.assert_called_once_with(
-                "valid_file.json", state.schema_path
+            mock_validate.assert_called_once_with(
+                "valid_file.json", state.actuator_variables
             )
             # Split setpoints called
             mock_split_setpoints.assert_called_once_with(["some data"], 42)
@@ -218,8 +218,8 @@ class TestIdle:
         assert state.experiment_start_time == None
         assert state.status == "idle"
 
-        with patch("src.on_controller_message.validate_file") as mock_validate_file:
-            mock_validate_file.return_value = {
+        with patch("src.on_controller_message.validate_experiment_file") as mock_validate:
+            mock_validate.return_value = {
                 "id": "123",
                 "experiment_definition": ["some data"],
                 "config": {"resolution": 42},
@@ -230,8 +230,8 @@ class TestIdle:
             )
             c_idle(controller_client, msg, state)
 
-            mock_validate_file.assert_called_once_with(
-                "valid_file.json", state.schema_path
+            mock_validate.assert_called_once_with(
+                "valid_file.json", state.actuator_variables
             )
             # Split setpoints called
             mock_split_setpoints.assert_called_once_with(["some data"], 42)
@@ -310,8 +310,9 @@ class TestStarting:
         assert state.status == "validating"
         assert controller_client.callback == c_starting
 
-        instruments = mock_experiment_dict["config"]["instruments"]
-        instrument_names = [instrument["name"] for instrument in instruments]
+        instrument_names = sorted(set(
+            av.split("/", 1)[0] for av in state.actuator_variables
+        ))
 
         msg = MockMessage(topic="controller/command/start", payload=json.dumps({"id": "123"}))
         c_starting(controller_client, msg, state)
@@ -324,7 +325,7 @@ class TestStarting:
         assert state.status == "awaiting_instruments"
         assert controller_client.callback == mock_c_ready
         # Instrument config list updated correctly
-        assert len(state.instruments) == len(instruments) + 1
+        assert len(state.instruments) == len(instrument_names) + 1
         assert state.instruments["configured"] == False
         for instrument_key in state.instruments.keys():
             if instrument_key != "configured":
@@ -443,13 +444,6 @@ class TestRunning:
             obj=state,
         )
         return mqtt_mocks["client_instance"]
-
-    @pytest.fixture
-    def mock_c_end(self, autouse=True):
-        with patch("src.on_controller_message.c_end") as mock_c_end:
-            mock_c_end.return_value = None
-            mock_c_end.__name__ = "mock_c_end"
-            yield mock_c_end
 
     # ========================================
 
@@ -590,10 +584,11 @@ class TestRunning:
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 1 + len(instruments)
 
-        for i, instrument in enumerate(instruments):
-            assert messages[i].topic == f"instruments/{instrument}/{instrument}/setpoint"
+        for i, column in enumerate(instruments):
+            instr_name, var_name = column.split("/", 1)
+            assert messages[i].topic == f"instruments/{instr_name}/{var_name}/setpoint"
             assert json.loads(messages[i].payload) == {
-                "value": first_sp[instrument],
+                "value": first_sp[column],
             }
 
     def test_starts_setpoint_timer(

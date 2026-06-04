@@ -1,21 +1,13 @@
 {
     "id": "123",
     "config":{
-        "instruments":[
-            {"name":"temperature",    "tolerance":0.21},
-            {"name":"pressure",       "tolerance":0.22},
-            {"name":"displacement 1", "tolerance":0.23},
-            {"name":"displacement 2", "tolerance":0.24}
-        ],
         "resolution":0.1
     },
     "experiment_definition":[
-        { "time":0,     "pressure":0,    "temperature":0,    "displacement 1":0,   "displacement 2":0   },
-        { "time":3,     "pressure":5000, "temperature":0,    "displacement 1":0,   "displacement 2":0   },
-        { "time":3.5,   "pressure":5000, "temperature":1000, "displacement 1":0,   "displacement 2":0   },
-        { "time":4,     "pressure":5000, "temperature":1000, "displacement 1":0,   "displacement 2":0   },
-        { "time":18,    "pressure":5000, "temperature":1000, "displacement 1":0.4, "displacement 2":0.4 },
-        { "time":18.1,  "pressure":5000, "temperature":0,    "displacement 1":0.4, "displacement 2":0.4 },
-        { "time":24,    "pressure":0,    "temperature":0,    "displacement 1":0.4, "displacement 2":0.4 }
+        { "time":0,     "furnace_centre/temperature":0,   "mass_flow/mass_flow":0   },
+        { "time":3,     "furnace_centre/temperature":0,   "mass_flow/mass_flow":50  },
+        { "time":6,     "furnace_centre/temperature":500, "mass_flow/mass_flow":50  },
+        { "time":9,     "furnace_centre/temperature":500, "mass_flow/mass_flow":0   },
+        { "time":12,    "furnace_centre/temperature":0,   "mass_flow/mass_flow":0   }
     ]
 }
