@@ -27,12 +27,17 @@ def on_timer_message(client, msg, obj):
     """
     try:
         message = mqtt.load_message(msg)
-        if message["experiment_id"] != obj.experiment_uid:
-            incompatible_uid(obj, msg, message["experiment_id"])
-            return
     except json.JSONDecodeError as e:
         wrong_json(msg, e)
         return
+
+    if msg.topic == "controller/timer/event/done":
+        return
+
+    try:
+        if message["experiment_id"] != obj.experiment_uid:
+            incompatible_uid(obj, msg, message["experiment_id"])
+            return
     except KeyError as e:
         missing_keys(msg, e)
         return
@@ -88,7 +93,5 @@ def on_timer_message(client, msg, obj):
                 "controller/timer/event/done",
                 json.dumps({"source": "setpoint", "experiment_id": message["experiment_id"], "controller_status": obj.status}),
             )
-    elif msg.topic == "controller/timer/event/done":
-        return
     else:
         incompatible_request(obj, msg)
