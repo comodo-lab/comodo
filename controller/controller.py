@@ -4,6 +4,7 @@ import os
 import time as t
 import json
 import textwrap
+import yaml
 
 from utils import mqtt_clients as mqtt
 
@@ -25,13 +26,10 @@ def main():
         ["MQTT_USER"],
         ["MQTT_PASS", "MQTT_PASS_FILE"],
         ["MQTT_CONNECTION_TIMEOUT"],
-        ["WATCHDOG_INTERVAL"],
-        ["WATCHDOG_TIMEOUT"],
         ["INFLUX_BUCKET"],
         ["INFLUX_HOST"],
         ["INFLUX_ORG"],
         ["INFLUX_TOKEN", "INFLUX_TOKEN_FILE"],
-        ["INSTRUMENT_SETUP_WAIT"],
     ]
     env_vars = list(os.environ.keys())
 
@@ -45,8 +43,25 @@ def main():
     mqtt_user = os.getenv("MQTT_USER", None)
     mqtt_pass = get_env_or_secret("MQTT_PASS", "MQTT_PASS_FILE", None)
     connection_timeout = os.getenv("MQTT_CONNECTION_TIMEOUT", 10)
-    wdog_interval = os.getenv("WATCHDOG_INTERVAL", 1)
-    wdog_timeout = os.getenv("WATCHDOG_TIMEOUT", 5)
+
+    # Load comodo.yaml 
+    try:
+        with open("/app/comodo.yaml") as f:
+            config = yaml.safe_load(f) or {}
+    except (FileNotFoundError, yaml.YAMLError):
+        config = {}
+
+    global_config = config.get("global", {})
+
+    wdog_interval = float(
+        global_config.get("heartbeat", {}).get("interval", 1)
+    )
+    wdog_timeout = float(
+        global_config.get("watchdog", {}).get("timeout", 5)
+    )
+    instrument_setup_wait = float(
+        global_config.get("instrument_setup", {}).get("wait", 10)
+    )
 
     assert wdog_interval > 0
     assert wdog_timeout > 2 * wdog_interval
@@ -59,6 +74,7 @@ def main():
 
     # Initialize controller state
     state = cstate()
+    state.instrument_setup_wait = instrument_setup_wait
 
     print(f"  Creating clients...")
 

@@ -1,4 +1,3 @@
-import os
 import time as t
 import json
 
@@ -44,7 +43,7 @@ def on_timer_message(client, msg, obj):
 
     if msg.topic == "controller/timer/command/start" and message.get("source") == "instrument_setup":
         # Wait for instruments to be ready or timeout
-        instrument_setup_wait = float(os.getenv("INSTRUMENT_SETUP_WAIT", 10))
+        instrument_setup_wait = obj.instrument_setup_wait
         t0 = t.time()
         while (
             not obj.instruments["configured"]
