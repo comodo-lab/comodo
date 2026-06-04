@@ -15,11 +15,22 @@ from controller import main
 class TestMain:
     @pytest.fixture
     def main_mocks(self, mqtt_mocks):
+        DEFAULT_CONFIG = {
+            "global": {
+                "heartbeat": {"interval": 1},
+                "watchdog": {"timeout": 5, "interval": 1},
+                "instrument_setup": {"wait": 10},
+            }
+        }
         with patch("os.environ") as mock_environ, patch(
             "os.getenv"
         ) as mock_getenv, patch(
             "controller.get_env_or_secret"
         ) as mock_get_secret, patch(
+            "builtins.open"
+        ) as mock_open, patch(
+            "controller.yaml.safe_load"
+        ) as mock_yaml_load, patch(
             "controller.cstate"
         ) as mock_cstate, patch(
             "controller.t.sleep"
@@ -44,12 +55,14 @@ class TestMain:
             mock_get_secret.side_effect = (
                 lambda var, file_var=None, default=None: env_values.get(var, default)
             )
+            mock_yaml_load.return_value = DEFAULT_CONFIG
             mock_cstate.return_value = mock_state("idle")
 
             yield {
                 "env_values": env_values,
                 "getenv": mock_getenv,
                 "get_secret": mock_get_secret,
+                "yaml_load": mock_yaml_load,
                 "cstate": mock_cstate,
                 "sleep": mock_sleep,
                 "callbacks": {
@@ -75,13 +88,10 @@ class TestMain:
             ["MQTT_USER"],
             ["MQTT_PASS", "MQTT_PASS_FILE"],
             ["MQTT_CONNECTION_TIMEOUT"],
-            ["WATCHDOG_INTERVAL"],
-            ["WATCHDOG_TIMEOUT"],
             ["INFLUX_BUCKET"],
             ["INFLUX_HOST"],
             ["INFLUX_ORG"],
             ["INFLUX_TOKEN", "INFLUX_TOKEN_FILE"],
-            ["INSTRUMENT_SETUP_WAIT"],
         ]
         for var_group in expected_env_vars:
             assert (
@@ -103,8 +113,6 @@ class TestMain:
             call("MQTT_HOST", "rabbitmq"),
             call("MQTT_USER", None),
             call("MQTT_CONNECTION_TIMEOUT", 10),
-            call("WATCHDOG_INTERVAL", 1),
-            call("WATCHDOG_TIMEOUT", 5),
         ]
         mocks["get_secret"].assert_called_with("MQTT_PASS", "MQTT_PASS_FILE", None)
 
@@ -115,8 +123,13 @@ class TestMain:
 
     def test_wdog_vars_validated(self, main_mocks, message_bus):
         mocks = main_mocks
-        mocks["env_values"]["WATCHDOG_INTERVAL"] = 5
-        mocks["env_values"]["WATCHDOG_TIMEOUT"] = 8  # Invalid: not > 2 * interval
+        mocks["yaml_load"].return_value = {
+            "global": {
+                "heartbeat": {"interval": 5},
+                "watchdog": {"timeout": 8, "interval": 1},
+                "instrument_setup": {"wait": 10},
+            }
+        }
 
         with pytest.raises(AssertionError):
             main()
@@ -132,10 +145,15 @@ class TestMain:
                 "MQTT_USER": "test_user",
                 "MQTT_PASS": "test_pass",
                 "MQTT_CONNECTION_TIMEOUT": 15,
-                "WATCHDOG_INTERVAL": 2,
-                "WATCHDOG_TIMEOUT": 6,
             }
         )
+        mocks["yaml_load"].return_value = {
+            "global": {
+                "heartbeat": {"interval": 2},
+                "watchdog": {"timeout": 6, "interval": 1},
+                "instrument_setup": {"wait": 10},
+            }
+        }
         wdog = {"interval": 2, "timeout": 6, "timer": 6, "healthy": False}
         state = mocks["cstate"].return_value
         mocks["sleep"].side_effect = SystemExit  # Exit early
@@ -237,7 +255,13 @@ class TestMain:
 
     def test_watchdog_loop(self, main_mocks, mqtt_mocks, message_bus, capsys):
         mocks = main_mocks
-        mocks["env_values"].update({"WATCHDOG_INTERVAL": 2})
+        mocks["yaml_load"].return_value = {
+            "global": {
+                "heartbeat": {"interval": 2},
+                "watchdog": {"timeout": 6, "interval": 1},
+                "instrument_setup": {"wait": 10},
+            }
+        }
 
         def wd_timer_side_effect(client, msg, obj):
             obj["healthy"] = True
@@ -270,7 +294,13 @@ class TestMain:
         self, main_mocks, mqtt_mocks, message_bus, capsys
     ):
         mocks = main_mocks
-        mocks["env_values"].update({"WATCHDOG_INTERVAL": 2})
+        mocks["yaml_load"].return_value = {
+            "global": {
+                "heartbeat": {"interval": 2},
+                "watchdog": {"timeout": 6, "interval": 1},
+                "instrument_setup": {"wait": 10},
+            }
+        }
 
         def wd_timer_side_effect(client, msg, obj):
             obj["healthy"] = True
