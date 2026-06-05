@@ -55,21 +55,7 @@ services:
       comodo-data:
 
   grafana:
-    build:
-      context: .
-      dockerfile_inline: |
-        FROM grafana/grafana
-        USER root
-        RUN apk add envsubst
-        ARG INFLUX_ADDR=http://influxdb:8086
-        ARG INFLUX_TOKEN=${INFLUX_TOKEN}
-        ARG INFLUX_BUCKET=${INFLUX_BUCKET}
-        ARG INFLUX_ORG=${INFLUX_ORG}
-        COPY ./grafana/provisioning/ /etc/grafana/provisioning/
-        RUN envsubst < /etc/grafana/provisioning/datasources/datasource.yml.template > /etc/grafana/provisioning/datasources/datasource.yml.temp
-        RUN cp /etc/grafana/provisioning/datasources/datasource.yml.temp /etc/grafana/provisioning/datasources/datasource.yml
-        RUN /sbin/reboot
-        USER grafana
+    image: comodolab/comodo-grafana:latest
     container_name: comodo-grafana
     restart: unless-stopped
     environment:
@@ -77,6 +63,10 @@ services:
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
       - GF_SECURITY_ALLOW_EMBEDDING=true
       - GF_AUTH_ANONYMOUS_ORG_NAME=Main Org.
+      - INFLUX_ADDR=http://influxdb:8086
+      - INFLUX_TOKEN=${INFLUX_TOKEN}
+      - INFLUX_BUCKET=${INFLUX_BUCKET}
+      - INFLUX_ORG=${INFLUX_ORG}
     ports:
       - 3000:3000
     volumes:
