@@ -17,6 +17,7 @@ on:
     paths:
       - "controller/**"
       - "utils/**"
+      - "messageSpec.yaml"
   pull_request:
     branches: ["main", "dev"]
 
