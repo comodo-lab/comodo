@@ -25,7 +25,7 @@ class TestOnMessage:
     def test_valid_message(self, message_bus, monitor_client, mock_topic_map):
         msg = MockMessage(
             topic="error/message/unexpected",
-            payload='{"topic": "test", "error": "unexpected_topic"}',
+            payload='{"code": "unexpected_topic", "message": "something"}',
         )
         on_message(monitor_client, msg, mock_topic_map)
 
@@ -51,12 +51,12 @@ class TestOnMessage:
         assert len(messages) == 1
         assert messages[0].topic == "error/message/malformed"
         payload = json.loads(messages[0].payload)
-        assert payload["error"] == "invalid_json"
+        assert payload["code"] == "invalid_json"
 
     def test_schema_mismatch(self, message_bus, monitor_client, mock_topic_map):
         msg = MockMessage(
             topic="error/message/unexpected",
-            payload='{"topic": "test", "error": "unknown_error"}',
+            payload='{"code": "unexpected_topic", "extra_field": "bad"}',
         )
         on_message(monitor_client, msg, mock_topic_map)
 
@@ -64,4 +64,4 @@ class TestOnMessage:
         assert len(messages) == 1
         assert messages[0].topic == "error/message/invalid"
         payload = json.loads(messages[0].payload)
-        assert payload["error"] == "validation_error"
+        assert payload["code"] == "validation_error"
