@@ -9,4 +9,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY monitor/*.py ./
 COPY monitor/tests /app/tests
 COPY monitor/pytest.ini /app/pytest.ini
+COPY messageSpec.yaml /app/asyncapi.yaml
 CMD ["python", "app.py"]
