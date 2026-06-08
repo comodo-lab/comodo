@@ -71,7 +71,7 @@ services:
       - 3000:3000
     volumes:
       - grafana-storage:/var/lib/grafana
-      - ./grafana/dashboards:/var/lib/grafana/dashboards
+      - ./grafana/dashboards/dashboard.json:/var/lib/grafana/dashboards/dashboard.json:ro
       - ./grafana/dashboard.yaml:/etc/grafana/provisioning/dashboards/main.yaml
     networks:
       comodo-data:
