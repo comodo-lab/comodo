@@ -27,7 +27,7 @@ EXPERIMENT_TIMEOUT = int(os.environ.get("EXPERIMENT_TIMEOUT", 120))
 def bus():
     collected = {"heartbeats": {}, "errors": [], "end": None, "connected": False}
 
-    def on_connect(c, userdata, flags, rc):
+    def on_connect(c, userdata, flags, reason_code, properties):
         c.subscribe("#")
         collected["connected"] = True
 
@@ -41,7 +41,7 @@ def bus():
         elif t == "controller/event/end":
             collected["end"] = p
 
-    c = mqtt.Client()
+    c = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     c.username_pw_set(MQTT_USER, MQTT_PASS)
     c.on_connect = on_connect
     c.on_message = on_message

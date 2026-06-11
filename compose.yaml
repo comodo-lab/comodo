@@ -76,6 +76,10 @@ services:
     build:
       context: .
       dockerfile: monitor/Dockerfile
+    depends_on:
+      mqtt-probe-core:
+        condition: service_healthy
+    restart: unless-stopped
     volumes:
       - ./messageSpec.yaml:/app/asyncapi.yaml
     environment:

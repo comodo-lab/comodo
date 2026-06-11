@@ -314,7 +314,7 @@ For convenience, there is a helper script to run the tests for all components, w
 
 ### Testing the full stack
 
-An end-to-end integration test is available in [`integration/`](integration/).
+An end-to-end integration test is available in [`integration_tests/`](integration_tests/).
 It starts all services — RabbitMQ, controller, monitor, firmware simulators,
 setpoint controller, and a test runner — then runs a full experiment cycle:
 
@@ -322,9 +322,9 @@ setpoint controller, and a test runner — then runs a full experiment cycle:
 2. **`test_experiment_completes`** — publishes `ui/start`, waits for `controller/end`
 3. **`test_no_errors`** — checks for any error messages published during the test
 
-To run (in `./integration`):
+To run, move into the integration_tests directory and execute:
 ```
-docker compose up --build --attach test-runner --quiet-build --force-recreate
+docker compose --env-file ../.env up --build --attach test-runner --force-recreate
 ```
 
 ### Temporary experiment trigger:
