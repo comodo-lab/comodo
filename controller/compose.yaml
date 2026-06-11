@@ -15,7 +15,6 @@ services:
     container_name: controller-test
     volumes:
       - memory:/memory  # Used to persist pytest cache between runs
-      - ../messageSpec.yaml:/app/messageSpec.yaml:ro
       - ../comodo.yaml:/app/comodo.yaml:ro
 
     command: bash -c "coverage run --source=. --omit='tests/*,*/__*,utils/*' -m pytest

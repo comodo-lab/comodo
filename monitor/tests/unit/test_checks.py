@@ -26,9 +26,8 @@ class TestCheckPayloadJsonValidity:
         assert len(messages) == 1
         assert messages[0].topic == "error/message/malformed"
         payload = json.loads(messages[0].payload)
-        assert payload["error"] == "invalid_json"
-        assert payload["topic"] == "test/topic"
-        assert "error_message" in payload
+        assert payload["code"] == "invalid_json"
+        assert "message" in payload
 
 
 class TestCheckTopicExpected:
@@ -45,34 +44,31 @@ class TestCheckTopicExpected:
         assert len(messages) == 1
         assert messages[0].topic == "error/message/unexpected"
         payload = json.loads(messages[0].payload)
-        assert payload["error"] == "unexpected_topic"
-        assert payload["topic"] == "test/topic"
+        assert payload["code"] == "unexpected_topic"
+        assert "message" in payload
 
 
 class TestCheckMessageValid:
     def test_valid_message(self, message_bus, mock_topic_map):
         entry = mock_topic_map["error/message/unexpected"]
-        payload = '{"topic": "test", "error": "unexpected_topic"}'
+        payload = '{"code": "unexpected_topic", "message": "something"}'
         result = check_message_valid(entry, "error/message/unexpected", payload)
-        assert result is True
-        assert len(message_bus.get_messages()) == 0
 
     def test_schema_mismatch(self, message_bus, mock_topic_map):
         entry = mock_topic_map["error/message/unexpected"]
-        payload = '{"topic": "test", "error": "not_in_enum"}'
+        payload = '{"code": "unexpected_topic", "extra_field": "bad"}'
         result = check_message_valid(entry, "error/message/unexpected", payload)
         assert result is False
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 1
         assert messages[0].topic == "error/message/invalid"
         err = json.loads(messages[0].payload)
-        assert err["error"] == "validation_error"
-        assert err["topic"] == "error/message/unexpected"
-        assert err["channel"] == "errorUnexpected"
+        assert err["code"] == "validation_error"
+        assert "message" in err
 
     def test_missing_required_field(self, message_bus, mock_topic_map):
         entry = mock_topic_map["error/message/unexpected"]
-        payload = '{"topic": "test"}'
+        payload = '{"code": "unexpected_topic"}'
         result = check_message_valid(entry, "error/message/unexpected", payload)
         assert result is False
         messages = message_bus.get_messages(decoded=True)

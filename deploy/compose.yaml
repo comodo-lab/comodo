@@ -1,0 +1,65 @@
+x-templates:
+  mqtt-env: &mqtt-env
+    MQTT_HOST: ${MQTT_HOST}
+    MQTT_USER: ${MQTT_USER}
+    MQTT_PASS: ${MQTT_PASS}
+  influx-env: &influx-env
+    INFLUX_HOST: ${DATA_HOST}
+    INFLUX_TOKEN: ${INFLUX_TOKEN}
+    INFLUX_BUCKET: ${INFLUX_BUCKET}
+    INFLUX_ORG: ${INFLUX_ORG}
+  grafana-env: &grafana-env
+    GRAFANA_HOST: ${DATA_HOST}
+    GRAFANA_DASHBOARD_URL: ${GRAFANA_DASHBOARD_URL:-}
+
+name: comodo-core
+
+services:
+  mqtt-probe-core:
+    image: comodolab/comodo-mqtt_probe:latest
+    environment:
+      <<: *mqtt-env
+    networks:
+      comodo-core:
+
+  controller:
+    image: comodolab/comodo-controller:latest
+    environment:
+      <<: [*mqtt-env, *influx-env]
+    container_name: comodo-controller
+    restart: unless-stopped
+    depends_on:
+      mqtt-probe-core:
+        condition: service_healthy
+    volumes:
+      - ./data:/controller/data
+      - ./comodo.yaml:/app/comodo.yaml:ro
+    networks:
+      comodo-core:
+
+  ui:
+    image: comodolab/comodo-ui:latest
+    container_name: comodo-ui
+    restart: unless-stopped
+    depends_on:
+      mqtt-probe-core:
+        condition: service_healthy
+    ports:
+      - '8501:8050'
+    volumes:
+      - ./comodo.yaml:/app/comodo.yaml:ro
+    environment:
+      <<: [*mqtt-env, *influx-env, *grafana-env]
+    networks:
+      comodo-core:
+
+  monitor:
+    image: comodolab/comodo-monitor:latest
+    environment:
+      <<: [*mqtt-env]
+    networks:
+      comodo-core:
+
+networks:
+  comodo-core:
+    name: comodo-core

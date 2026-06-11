@@ -47,7 +47,6 @@ services:
         condition: service_completed_successfully
     volumes:
       - ./controller/data:/controller/data
-      - ./messageSpec.yaml:/app/messageSpec.yaml:ro
       - ./comodo.yaml:/app/comodo.yaml:ro
     networks:
       comodo-core:
@@ -76,8 +75,6 @@ services:
     build:
       context: .
       dockerfile: monitor/Dockerfile
-    volumes:
-      - ./messageSpec.yaml:/app/asyncapi.yaml
     environment:
       <<: [*mqtt-env]
     networks:

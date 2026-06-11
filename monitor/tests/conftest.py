@@ -15,45 +15,26 @@ from utils.tests.mocks.mock_mqtt_clients import (
 @pytest.fixture
 def mock_topic_map():
     """Fixture that returns a topic map matching the current messageSpec.yaml structure."""
+    schema = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["code", "message"],
+        "properties": {
+            "code": {"type": "string"},
+            "message": {"type": "string"},
+        },
+    }
     return {
         "error/message/malformed": {
             "name": "errorMalformed",
-            "schema": {
-                "type": "object",
-                "additionalProperties": False,
-                "required": ["topic", "error", "error_message"],
-                "properties": {
-                    "topic": {"type": "string"},
-                    "error": {"type": "string", "enum": ["invalid_json"]},
-                    "error_message": {"type": "string"},
-                },
-            },
+            "schema": schema,
         },
         "error/message/invalid": {
             "name": "errorInvalid",
-            "schema": {
-                "type": "object",
-                "additionalProperties": False,
-                "required": ["topic", "error", "message"],
-                "properties": {
-                    "topic": {"type": "string"},
-                    "channel": {"type": "string"},
-                    "error": {"type": "string", "enum": ["validation_error"]},
-                    "path": {"type": "array", "items": {"type": "string"}},
-                    "message": {"type": "string"},
-                },
-            },
+            "schema": schema,
         },
         "error/message/unexpected": {
             "name": "errorUnexpected",
-            "schema": {
-                "type": "object",
-                "additionalProperties": False,
-                "required": ["topic", "error"],
-                "properties": {
-                    "topic": {"type": "string"},
-                    "error": {"type": "string", "enum": ["unexpected_topic"]},
-                },
-            },
+            "schema": schema,
         },
     }

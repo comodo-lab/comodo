@@ -8,7 +8,7 @@ def check_payload_json_validity(topic, payload):
         return True
     except json.JSONDecodeError as e:
         mqtt_clients.MQTTPublisher.get_instance().publish(
-            "error/message",
+            "error/message/malformed",
             json.dumps({"code": "invalid_json", "message": str(e)})
         )
         return None
@@ -16,7 +16,7 @@ def check_payload_json_validity(topic, payload):
 def check_topic_expected(entry, topic):
     if entry is None:
         mqtt_clients.MQTTPublisher.get_instance().publish(
-            "error/message",
+            "error/message/unexpected",
             json.dumps({"code": "unexpected_topic", "message": f"Unexpected topic: {topic}"})
         )
         return False
@@ -31,7 +31,7 @@ def check_message_valid(entry, topic, payload):
         return True
     except ValidationError as e:
         mqtt_clients.MQTTPublisher.get_instance().publish(
-            "error/message",
+            "error/message/invalid",
             json.dumps({"code": "validation_error", "message": e.message})
         )
         return False

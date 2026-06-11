@@ -1,0 +1,47 @@
+name: build-test-push monitor
+
+on:
+  workflow_dispatch:
+    inputs:
+      push_vb:
+        description: "Push versioned '-branch_name' tag? ('-main' and '-dev' omitted)"
+        required: false
+        type: boolean
+        default: true
+      custom_tag:
+        description: "Push custom tag? (leave blank to skip)"
+        required: false
+        type: string
+        default: ""
+  push:
+    paths:
+      - "monitor/**"
+      - "utils/**"
+      - "messageSpec.yaml"
+  pull_request:
+    branches: ["main", "dev"]
+
+# --------------------------------------------------------------------------------- #
+
+jobs:
+  build-test-push:
+    uses: ./.github/workflows/build-test-push.yml
+    with:
+      container_name: comodo-monitor
+      org_name: comodolab
+      build_context: "."
+      dockerfile: "./monitor/Dockerfile"
+      test_script: |
+        set -eo pipefail
+        cd ./monitor
+        docker compose up --abort-on-container-exit --exit-code-from monitor
+      push_versioned: ${{ github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'dev') }}
+      push_latest: ${{ github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'dev') }}
+      push_vb: ${{ github.event.inputs.push_vb == 'true' }}
+      custom_tag: ${{ github.event.inputs.custom_tag || '' }}
+    secrets:
+      docker_username: ${{ secrets.DOCKER_USERNAME }}
+      docker_password: ${{ secrets.DOCKER_PASSWORD }}
+    permissions:
+      contents: read
+      packages: write
