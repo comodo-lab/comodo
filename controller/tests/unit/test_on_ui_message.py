@@ -58,13 +58,13 @@ def test_invalid_ui_message(message_bus, state, ui_client, capsys):
 def test_missing_id(message_bus, state, ui_client, capsys):
     assert state.experiment_uid == None
 
-    msg = MockMessage(topic="ui/stop", payload=json.dumps({"no": "id"}))
+    msg = MockMessage(topic="ui/start", payload=json.dumps({"no": "id"}))
     on_ui_message(ui_client, msg, state)
 
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
     assert messages[0].topic == "error/controller"
-    exp_err = "Cannot decode ui/stop message, missing:"
+    exp_err = "Cannot decode ui/start message, missing:"
     assert exp_err in messages[0].payload
     assert "id" in messages[0].payload
     assert f"ERROR: {exp_err}" in capsys.readouterr().out
