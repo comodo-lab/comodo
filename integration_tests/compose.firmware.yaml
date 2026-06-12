@@ -86,8 +86,8 @@ services:
       dockerfile: setpoint_controller/Dockerfile
     environment:
       <<: *sim-env
-      SENSOR: "pressure_upstream.pressure"
-      ACTUATOR: "massflow.massflow"
+      SENSOR: "pressure_upstream/pressure"
+      ACTUATOR: "massflow/massflow"
       K_P: 1
       K_I: 0.1
       K_D: 0.05

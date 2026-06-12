@@ -17,6 +17,7 @@ EXPECTED_HEARTBEATS = [
     "instruments/pressure_downstream/heartbeat",
     "instruments/pressure_upstream/heartbeat",
     "instruments/mass_flow/heartbeat",
+    "setpoint_controller/pressure_upstream-pressure--massflow-massflow/heartbeat",
 ]
 
 HEARTBEAT_TIMEOUT = int(os.environ.get("HEARTBEAT_TIMEOUT", 60))
