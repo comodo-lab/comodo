@@ -24,15 +24,14 @@ def main():
         print(f"Missing required environment variable: {e}")
         exit(1)
 
-    spc_id = f"{sensor_name}/{sensor_var}__{actuator_name}/{actuator_var}"
-    topic_id = f"spc-{sensor_name}.{sensor_var}-{actuator_name}.{actuator_var}"
+    spc_id = f"{sensor_name}-{sensor_var}--{actuator_name}-{actuator_var}"
 
     # Initialise publisher singleton
     publisher = mqtt.MQTTPublisher.get_instance(
         broker_address=mqtt_host,
         user=mqtt_user,
         password=mqtt_pass,
-        id=f"publisher_spc_{sensor_name}_{sensor_var}__{actuator_name}_{actuator_var}",
+        id=f"publisher_{spc_id}",
     )
 
     k_p = os.getenv("K_P", None)
@@ -67,7 +66,6 @@ def main():
         mqtt_pass=mqtt_pass,
         heartbeat_interval=heartbeat_interval,
         spc_id=spc_id,
-        topic_id=topic_id,
         sensor_name=sensor_name,
         sensor_var=sensor_var,
         actuator_name=actuator_name,
@@ -90,7 +88,6 @@ class SetpointController:
         mqtt_pass: str,
         heartbeat_interval: int,
         spc_id: str,
-        topic_id: str,
         sensor_name: str,
         sensor_var: str,
         actuator_name: str,
@@ -103,7 +100,6 @@ class SetpointController:
         self.actuator_name = actuator_name
         self.actuator_var = actuator_var
         self.spc_id = spc_id
-        self.topic_id = topic_id
 
         # Initialize PID controller
         self.pid = PID(
@@ -216,8 +212,9 @@ class SetpointController:
 
     def publish_heartbeat(self):
         """Publish the current state of the SPC, including controller config."""
+        print(f"Heartbeat from {self.spc_id}...")
         mqtt.MQTTPublisher.get_instance().publish(
-            f"setpoint_controller/{self.topic_id}/heartbeat",
+            f"setpoint_controller/{self.spc_id}/heartbeat",
             json.dumps(self.status),
         )
 

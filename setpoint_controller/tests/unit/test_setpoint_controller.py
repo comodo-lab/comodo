@@ -102,7 +102,7 @@ class Test_main:
             broker_address="test_host",
             user="test_user",
             password="test_pass",
-            id="publisher_spc_I1_A__I2_B",
+            id="publisher_I1-A--I2-B",
         )
 
     def test_spc_initialized_with_correct_params(self, mocks_for_main):
@@ -131,8 +131,7 @@ class Test_main:
             mqtt_user="test_user",
             mqtt_pass="test_pass",
             heartbeat_interval=2,
-            spc_id="A/B__C/D",
-            topic_id="spc-A.B-C.D",
+            spc_id="A-B--C-D",
             sensor_name="A",
             sensor_var="B",
             actuator_name="C",
@@ -159,7 +158,7 @@ class Test_SetpointController_init:
             mock_pid_instance.healthy = True
             mock_pid_instance.sensor = "I1/A"
             mock_pid_instance.actuator = "I2/B"
-            mock_pid_instance.id = "I1/A__I2/B"
+            mock_pid_instance.id = "I1-A--I2-B"
             mock_pid_class.return_value = mock_pid_instance
 
             mock_sleep.side_effect = lambda *args, **kwargs: setattr(
@@ -179,7 +178,6 @@ class Test_SetpointController_init:
         mocks = mocks_for_spc_init
 
         spc = base_SPC(
-            spc_id="I1/A__I2/B",
             k_p=1.0,
             k_i=0.1,
             k_d=0.01,
@@ -188,7 +186,7 @@ class Test_SetpointController_init:
         )
 
         mocks["pid_class"].assert_called_once_with(
-            id="I1/A__I2/B",
+            id="I1-A--I2-B",
             sensor="I1/A",
             actuator="I2/B",
             k_p=1.0,
@@ -203,15 +201,15 @@ class Test_SetpointController_init:
     ):
         mocks = mocks_for_spc_init
 
-        spc = base_SPC(spc_id="I1/A__I2/B")
+        spc = base_SPC()
 
         mocks["client_class"].assert_called_once_with(
-            id="I1/A__I2/B",
+            id="I1-A--I2-B",
             callback=spc.on_message,
             topics=[
                 "instruments/I1/A/setpoint",
                 "instruments/I1/A/measurement",
-                "setpoint_controller/I1/A__I2/B/setup",
+                "setpoint_controller/I1-A--I2-B/setup",
             ],
             broker_address="test_host",
             user="test_user",
@@ -222,7 +220,7 @@ class Test_SetpointController_init:
     def test_heartbeat_loop_is_entered(self, mocks_for_spc_init, mqtt_mocks, base_SPC):
         mocks = mocks_for_spc_init
 
-        spc = base_SPC(spc_id="I1/A__I2/B")
+        spc = base_SPC()
         spc.start_heartbeat_loop()
 
         mocks["publish_heartbeat"].assert_called_once()
@@ -393,7 +391,7 @@ class TestPublishHeartbeat:
         spc.publish_heartbeat()
 
         assert mqtt_mocks["publisher_instance"].publish.call_args_list == [
-            call("setpoint_controller/spc-I1.A-I2.B/heartbeat", json.dumps(
+            call("setpoint_controller/I1-A--I2-B/heartbeat", json.dumps(
                 {"state": "testing_state", "setpoints": {}, "config": {}}
             )),
         ]
@@ -422,5 +420,5 @@ class TestPublishHeartbeat:
             },
         }
         assert mqtt_mocks["publisher_instance"].publish.call_args_list == [
-            call("setpoint_controller/spc-I1.A-I2.B/heartbeat", json.dumps(expected)),
+            call("setpoint_controller/I1-A--I2-B/heartbeat", json.dumps(expected)),
         ]
