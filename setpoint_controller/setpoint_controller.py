@@ -220,3 +220,7 @@ class SetpointController:
             f"setpoint_controller/{self.topic_id}/heartbeat",
             json.dumps(self.status),
         )
+
+
+if __name__ == "__main__":
+    main()  # pragma: no cover
