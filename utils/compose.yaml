@@ -1,0 +1,23 @@
+
+# This compose file runs the tests for utils and exits when done.
+# To run the tests, cd into utils/ and execute:
+#   docker compose up --build
+# To check coverage report, after tests have run, execute:
+#   xdg-open $(docker volume inspect utils-tests_memory -f '{{ .Mountpoint }}')/htmlcov/class_index.html
+
+name: utils-tests
+services:
+  utils:
+    image: comodo-utils:testing
+    build:
+      context: ../
+      dockerfile: utils/Dockerfile
+    container_name: utils-test
+    volumes:
+      - memory:/memory  # Used to persist pytest cache between runs
+    command: bash -c "coverage run --source=. --omit='utils/tests/*,*/__*' -m pytest
+      utils/tests/ --ignore=utils/tests/unit/test_mqtt_clients.py --ignore=utils/tests/unit/test_interpolation.py --ignore=utils/tests/integration/ &&
+      echo '' && coverage report && coverage html -d /memory/htmlcov"
+
+volumes:
+  memory:
