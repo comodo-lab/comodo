@@ -54,6 +54,7 @@ def test_incompatible_request(message_bus, heartbeat_client, state):
 
 
 def test_wrong_json(message_bus, state, capsys):
+    exp_err = "Cannot decode instruments/instrument_1/heartbeat message, wrong JSON:"
     msg = MockMessage(
         topic="instruments/instrument_1/heartbeat",
         payload="not a json",
@@ -61,14 +62,18 @@ def test_wrong_json(message_bus, state, capsys):
     on_heartbeat_message(heartbeat_client, msg, state)
 
     messages = message_bus.get_messages(decoded=True)
-    assert len(messages) == 1
-    assert messages[0].topic == "error/controller"
-    exp_err = "Cannot decode instruments/instrument_1/heartbeat message, wrong JSON:"
-    assert exp_err in messages[0].payload
-    assert f"ERROR: {exp_err}" in capsys.readouterr().out
-
+    assert len(messages) == 2 # triggers monitor error/message and error/controller
+    for message in messages:
+        payload_obj = json.loads(message.payload)
+        if message.topic == "error/message":
+            assert payload_obj["code"] == "invalid_json"
+        elif message.topic == "error/controller":
+            assert payload_obj["code"] == "malformed_json"
+            assert exp_err in payload_obj["message"]
+            assert f"ERROR: {exp_err}" in capsys.readouterr().out
 
 def test_validation_exception(message_bus, state):
+    exp_error = "Invalid heartbeat from instrument_1: {\"hello\": \"world\"}. Additional properties are not allowed ('hello' was unexpected)"
     msg = MockMessage(
         topic="instruments/instrument_1/heartbeat",
         payload=json.dumps({"hello": "world"}),
@@ -76,12 +81,15 @@ def test_validation_exception(message_bus, state):
     on_heartbeat_message(heartbeat_client, msg, state)
 
     messages = message_bus.get_messages(decoded=True)
-    assert len(messages) == 1
-    assert messages[0].topic == "error/heartbeat"
-    m = messages[0].payload
-    assert "Invalid heartbeat from instrument_1:" in m
-    assert "'hello' was unexpected" in m
-
+    assert len(messages) == 2 # triggers monitor error/message and error/controller
+    for message in messages:
+        payload_obj = json.loads(message.payload)
+        if message.topic == "error/message":
+            assert payload_obj["code"] == "validation_error"
+        elif message.topic == "error/controller":
+            assert payload_obj["code"] == "validation"
+            assert exp_err in payload_obj["message"]
+            assert exp_err in capsys.readouterr().out
 
 def test_unconfigured_instrument(message_bus, state):
     assert state.experiment_uid == "123"

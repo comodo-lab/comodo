@@ -1,10 +1,8 @@
-import json
 import os
-
-import jsonschema
+from json import dump, dumps, JSONDecodeError
 
 from utils import mqtt_clients as mqtt
-from utils.message_spec import load_spec as load_message_spec
+from utils.message_validator import validate_message
 
 from src.controller_helper import data_path
 from src.error_helper import (
@@ -13,9 +11,6 @@ from src.error_helper import (
     incompatible_request,
     incompatible_uid,
 )
-
-UI_START_SCHEMA = load_message_spec("/app/messageSpec.yaml")["ui/start"]["schema"]
-
 
 def on_ui_message(client, msg, obj):
     """
@@ -39,15 +34,14 @@ def on_ui_message(client, msg, obj):
 
     try:
         experiment = mqtt.load_message(msg)
-    except json.JSONDecodeError as e:
+    except JSONDecodeError as e:
         wrong_json(msg, e)
         return
 
     if msg.topic == "ui/start":
         try:
-            jsonschema.validate(experiment, UI_START_SCHEMA)
-        except jsonschema.ValidationError as e:
-            print(f"Invalid ui/start payload: {e}")
+            validate_message(msg.topic, msg.payload)
+        except Exception as e:
             return
 
     try:
@@ -63,11 +57,11 @@ def on_ui_message(client, msg, obj):
 
             exp_file = f"{data_path}/tmp/experiment_{uid}.json"
             with open(exp_file, "w") as f:
-                json.dump(experiment, f)
+                dump(experiment, f)
 
             mqtt.MQTTPublisher.get_instance().publish(
                 "controller/command/validate",
-                json.dumps({"id": uid, "file": exp_file}),
+                dumps({"id": uid, "file": exp_file}),
             )
         else:
             incompatible_request(obj, msg)
@@ -76,7 +70,7 @@ def on_ui_message(client, msg, obj):
             if uid == obj.experiment_uid:
                 mqtt.MQTTPublisher.get_instance().publish(
                     "controller/command/stop",
-                    json.dumps({"id": uid}),
+                    dumps({"id": uid}),
                 )
             else:
                 incompatible_uid(obj, msg, uid)

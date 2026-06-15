@@ -5,38 +5,16 @@ from pathlib import Path
 
 import traceback
 import asyncio
-from paho.mqtt.client import topic_matches_sub
 
 # Shared utils imports
 from utils import mqtt_clients as mqtt
+from utils.message_validator import validate_message
 
-# Local imports
-import checks
-from utils import message_spec
-
-def match_topic(topic, topic_map):
-    for address, entry in topic_map.items():
-        if topic_matches_sub(address, topic):
-            return entry
-    return None
-
-def on_message(client, msg, topic_map):
-    # Get the entry from the spec
-    entry = match_topic(msg.topic, topic_map)
-    payload = msg.payload
-    topic = msg.topic
-    
-    # Check that the topic is in the register defined by the AsyncAPI spec
-    if not checks.check_topic_expected(entry, topic):
-        return
-
-    # Check the validity of the JSON payload
-    if not checks.check_payload_json_validity(topic, payload):
-        return
-
-    # Perform message validation against the AsyncAPI schemea
-    if not checks.check_message_valid(entry, topic, payload):
-        return
+def on_message(client, msg):
+    try:
+        validate_message(msg.topic, msg.payload)
+    except Exception as e:
+        print(f"Message invalid: {e}")
 
 async def main():
     # Initialise the MQTTPublisher singleton 
@@ -48,9 +26,6 @@ async def main():
         connection_timeout=60,
     )
 
-    # Load the AsyncAPI specification 
-    topic_map = message_spec.load_spec()
-
     # Create the MQTT client for subscription
     client = mqtt.MQTTClient(
         id='mqtt-monitor',
@@ -59,8 +34,7 @@ async def main():
         broker_address=os.getenv("MQTT_HOST", "localhost"),
         user=os.getenv("MQTT_USER", "guest"),
         password=os.getenv("MQTT_PASS", "guest"),
-        connection_timeout=60,
-        obj=topic_map
+        connection_timeout=60
     )
     
     # Keep running forever

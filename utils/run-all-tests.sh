@@ -1,5 +1,4 @@
 # A bash script to test all the components of Comodo
-# Run with `./all-tests.sh`
 
 #!/bin/bash
 set -e
@@ -8,10 +7,10 @@ set -e
 echo "Running tests for Comodo"
 
 # List of components to test
-components=("controller" "firmware" "setpoint_controller" "ui")
+components=("controller" "firmware" "setpoint_controller" "ui" "utils" "monitor")
 
 # Loop through each component and run its tests
 for component in "${components[@]}"; do
     echo "Testing $component..."
-    (cd "$component" && docker compose up --build --abort-on-container-exit)
+    (cd "$component" && docker compose up --build)
 done

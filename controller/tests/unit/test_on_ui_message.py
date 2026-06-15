@@ -58,16 +58,17 @@ def test_invalid_ui_message(message_bus, state, ui_client, capsys):
 def test_missing_id(message_bus, state, ui_client, capsys):
     assert state.experiment_uid == None
 
-    msg = MockMessage(topic="ui/start", payload=json.dumps({"no": "id"}))
+    exp_err = "'id' is a required property"
+    msg = MockMessage(topic="ui/start", payload=json.dumps({"config": "foo"}))
     on_ui_message(ui_client, msg, state)
 
     messages = message_bus.get_messages(decoded=True)
+    payload_obj = json.loads(messages[0].payload)
     assert len(messages) == 1
-    assert messages[0].topic == "error/controller"
-    exp_err = "Cannot decode ui/start message, missing:"
-    assert exp_err in messages[0].payload
-    assert "id" in messages[0].payload
-    assert f"ERROR: {exp_err}" in capsys.readouterr().out
+    assert messages[0].topic == "error/message"
+    assert payload_obj["code"] == "validation_error"
+    assert payload_obj["message"] == exp_err
+    assert exp_err in capsys.readouterr().out
 
 
 def test_valid_ui_start(message_bus, state, ui_client):
@@ -78,7 +79,7 @@ def test_valid_ui_start(message_bus, state, ui_client):
     with patch("os.path.exists", return_value=False) as mock_path_exists, patch(
         "os.makedirs", return_value=True
     ) as mock_makedirs, patch("builtins.open", create=True) as mock_open, patch(
-        "src.on_ui_message.json.dump"
+        "src.on_ui_message.dump"
     ) as mock_json_dump:
         msg = MockMessage(topic="ui/start", payload=json.dumps(exp_payload))
         on_ui_message(ui_client, msg, state)
