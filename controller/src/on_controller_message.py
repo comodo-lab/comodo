@@ -13,7 +13,7 @@ from src.error_helper import (
     wrong_json,
     experiment_validation_error,
 )
-from src.validation import validate_experiment_file, ValidationException
+from src.validation import validate_experiment
 
 
 def c_idle(client, msg, obj):
@@ -34,7 +34,10 @@ def c_idle(client, msg, obj):
 
     # Load and decode experiment file
     try:
+        # Load and experiment object
         payload = mqtt.load_message(msg)
+
+        # Set experment file object and temp_uid
         obj.exp_file = payload["file"]
         temp_uid = payload["id"]
     except json.JSONDecodeError as e:
@@ -43,11 +46,14 @@ def c_idle(client, msg, obj):
     except KeyError as e:
         missing_keys(msg, e)
         return
+    
     obj.experiment_start_time = datetime.now()
     obj.status = "validating"
+    
     # Validate experiment configuration
     try:
-        exp_config = validate_experiment_file(obj.exp_file, obj.actuator_variables)
+        exp_config = validate_experiment(obj.exp_file, obj.actuator_variables)
+        
         # Compute intermediate setpoints
         obj.setpoints = split_setpoints(
             exp_config["experiment_definition"], exp_config["config"]["resolution"]
@@ -59,12 +65,13 @@ def c_idle(client, msg, obj):
         }
         mqtt.MQTTPublisher.get_instance().publish("controller/validator/passed", json.dumps(m))
         obj.exp_config = exp_config
+        
         # Update state and callback of controller
         client.callback = c_starting
         mqtt.MQTTPublisher.get_instance().publish(
             "controller/command/start", json.dumps({"id": m["id"]})
         )
-    except (ValidationException, ValueError) as e:
+    except Exception as e:
         experiment_validation_error(e, temp_uid)
         obj.experiment_uid = None
         obj.status = "idle"

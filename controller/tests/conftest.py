@@ -176,6 +176,50 @@ def mock_c_stopping():
         mock_c_stopping.__name__ = "mock_c_stopping"
         yield mock_c_stopping
 
+@pytest.fixture(autouse=True)
+def mock_asyncapi_spec():
+    topic_map = {
+        "ui/start": {
+            "name": "uiStart",
+            "schema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["id", "config", "experiment_definition"],
+                "properties": {
+                    "id": {"type": "string"},
+                    "config": {"type": "object", "additionalProperties": True},
+                    "experiment_definition": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": True,
+                        },
+                    },
+                },
+            },
+        },
+        "instruments/+/heartbeat": {
+            "name": "instrumentHeartbeat",
+            "schema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["config", "setpoints", "state"],
+                "properties": {
+                    "config": {"type": "object"},
+                    "setpoints": {
+                        "type": "object",
+                        "additionalProperties": {"type": "number"},
+                    },
+                    "state": {
+                        "type": "string",
+                        "enum": ["idle", "adjusting", "ready", "error"],
+                    },
+                },
+            },
+        }
+    }
+    with patch("utils.message_validator.load_spec", return_value=topic_map):
+        yield
 
 def instrument_heartbeat_msg(instrument, state, setpoints, experiment_id=None):
     """Helper function to create a instrument heartbeat mock message."""
