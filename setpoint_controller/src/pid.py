@@ -6,9 +6,6 @@ class PID:
 
     def __init__(
         self,
-        id,
-        sensor,
-        actuator,
         k_p=1.0,
         k_i=0.1,
         k_d=0.05,
@@ -18,11 +15,7 @@ class PID:
         min=0.0,
         max_rate=None,
     ):
-        # ID
         self.healthy = True  # Health status of the PID controller
-        self.id = id  # Name for the PID controller
-        self.sensor = sensor  # Name of the sensor to read
-        self.actuator = actuator  # Name of the actuator to control
         # PID parameters
         self.k_p = k_p  # Proportional gain
         self.k_i = k_i  # Integral gain
@@ -85,7 +78,6 @@ class PID:
         """
         state = {
             "healthy": self.healthy,
-            "id": self.id,
             "measurement": self.measurement,
             "setpoint": self.setpoint,
             "output_sat": self.output_sat,
@@ -93,8 +85,6 @@ class PID:
         if verbosity > 0:
             state.update(
                 {
-                    "sensor": self.sensor,
-                    "actuator": self.actuator,
                     "k_p": self.k_p,
                     "k_i": self.k_i,
                     "k_d": self.k_d,

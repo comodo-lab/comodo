@@ -51,32 +51,6 @@ def base_SPC():
 
 
 @pytest.fixture
-def base_PID(**kwargs):
-    """
-    Create a PID controller with default values for id, sensor and actuator.
-    Allows overriding any of these via kwargs.
-
-    Inputs:
-        **kwargs: keyword arguments to override defaults
-    Returns:
-        PID instance
-    """
-
-    def _create(**kwargs):
-        d_kwargs = {
-            "id": "test_pid",
-            "sensor": "mock_sensor",
-            "actuator": "mock_actuator",
-        }
-
-        d_kwargs.update(kwargs)
-
-        # Create and return PID instance
-        return PID(**d_kwargs)
-
-    return _create
-
-
 @pytest.fixture
 def mock_spc(mock_pid):
     """SetpointController with default parameters."""
@@ -106,9 +80,6 @@ def mock_spc(mock_pid):
 def mock_pid():
     """PID with default parameters."""
     pid = MagicMock(spec=PID)
-    pid.id = "I1-A--I2-B"
-    pid.sensor = "I1/A"
-    pid.actuator = "I2/B"
     pid.k_p = 1.0
     pid.k_i = 0.5
     pid.setpoint = None
@@ -127,9 +98,9 @@ def mock_pid():
 
 
 @pytest.fixture
-def rand_pid(base_PID):
+def rand_pid():
     """PID with random parameters."""
-    return base_PID(
+    return PID(
         k_p=rand(0.01, 10.0),
         k_i=rand(0.01, 10.0),
         k_d=rand(0.01, 10.0),
