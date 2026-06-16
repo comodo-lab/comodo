@@ -261,10 +261,10 @@ class TestMessagingBasics:
     def test_spc_receives_sensor_setpoint(self, message_bus, mqtt_mocks, base_SPC):
         bus = message_bus
         spc = base_SPC(
-            sensor_name="thermocouple",
-            sensor_var="temperature",
-            actuator_name="heater",
-            actuator_var="temperature",
+            sensor_instrument="thermocouple",
+            sensor_variable="temperature",
+            actuator_instrument="heater",
+            actuator_variable="temperature",
         )
 
         mqtt_mocks["client_class"].assert_called_once()
@@ -281,10 +281,10 @@ class TestMessagingBasics:
     def test_spc_receives_sensor_measurement(self, message_bus, base_SPC):
         bus = message_bus
         spc = base_SPC(
-            sensor_name="thermocouple",
-            sensor_var="temperature",
-            actuator_name="heater",
-            actuator_var="temperature",
+            sensor_instrument="thermocouple",
+            sensor_variable="temperature",
+            actuator_instrument="heater",
+            actuator_variable="temperature",
         )
         spc.status.sensor_setpoint = 50.0
 
@@ -301,10 +301,10 @@ class TestMessagingBasics:
     def test_spc_updates_state_on_setpoint(self, message_bus, base_SPC):
         bus = message_bus
         spc = base_SPC(
-            sensor_name="thermocouple",
-            sensor_var="temperature",
-            actuator_name="heater",
-            actuator_var="temperature",
+            sensor_instrument="thermocouple",
+            sensor_variable="temperature",
+            actuator_instrument="heater",
+            actuator_variable="temperature",
         )
 
         # Publish a setpoint
@@ -320,10 +320,10 @@ class TestMessagingBasics:
     def test_spc_publishes_actuator_setpoint(self, message_bus, base_SPC):
         bus = message_bus
         spc = base_SPC(
-            sensor_name="thermocouple",
-            sensor_var="temperature",
-            actuator_name="heater",
-            actuator_var="temperature",
+            sensor_instrument="thermocouple",
+            sensor_variable="temperature",
+            actuator_instrument="heater",
+            actuator_variable="temperature",
         )
 
         # Set a setpoint
@@ -348,10 +348,10 @@ class TestControlLoop:
     def test_heartbeat_published(self, message_bus, mock_pid_time, base_SPC):
         bus = message_bus
         spc = base_SPC(
-            sensor_name="thermocouple",
-            sensor_var="temperature",
-            actuator_name="heater",
-            actuator_var="temperature",
+            sensor_instrument="thermocouple",
+            sensor_variable="temperature",
+            actuator_instrument="heater",
+            actuator_variable="temperature",
         )
 
         spc.publish_heartbeat()
@@ -384,10 +384,10 @@ class TestControlLoop:
         )
         actuator = MockActuator("heater", "temperature", message_bus, sensor)
         spc = base_SPC(
-            sensor_name="thermocouple",
-            sensor_var="temperature",
-            actuator_name="heater",
-            actuator_var="temperature",
+            sensor_instrument="thermocouple",
+            sensor_variable="temperature",
+            actuator_instrument="heater",
+            actuator_variable="temperature",
         )
 
         # Set initial conditions
@@ -411,10 +411,10 @@ class TestControlLoop:
         )
         actuator = MockActuator("heater", "temperature", message_bus, sensor)
         spc = base_SPC(
-            sensor_name="thermocouple",
-            sensor_var="temperature",
-            actuator_name="heater",
-            actuator_var="temperature",
+            sensor_instrument="thermocouple",
+            sensor_variable="temperature",
+            actuator_instrument="heater",
+            actuator_variable="temperature",
         )
         bus = message_bus
 
@@ -459,10 +459,10 @@ class TestControlLoop:
         )
         actuator = MockActuator("heater", "temperature", message_bus, sensor)
         spc = base_SPC(
-            sensor_name="thermocouple",
-            sensor_var="temperature",
-            actuator_name="heater",
-            actuator_var="temperature",
+            sensor_instrument="thermocouple",
+            sensor_variable="temperature",
+            actuator_instrument="heater",
+            actuator_variable="temperature",
         )
         bus = message_bus
 
@@ -518,10 +518,10 @@ class TestControlLoop:
         )
         actuator1 = MockActuator("heater_1", "temperature", message_bus, sensor1)
         spc1 = base_SPC(
-            sensor_name="thermocouple_1",
-            sensor_var="temperature",
-            actuator_name="heater_1",
-            actuator_var="temperature",
+            sensor_instrument="thermocouple_1",
+            sensor_variable="temperature",
+            actuator_instrument="heater_1",
+            actuator_variable="temperature",
         )
 
         sensor2 = MockSensor(
@@ -529,10 +529,10 @@ class TestControlLoop:
         )
         actuator2 = MockActuator("heater_2", "temperature", message_bus, sensor2)
         spc2 = base_SPC(
-            sensor_name="thermocouple_2",
-            sensor_var="temperature",
-            actuator_name="heater_2",
-            actuator_var="temperature",
+            sensor_instrument="thermocouple_2",
+            sensor_variable="temperature",
+            actuator_instrument="heater_2",
+            actuator_variable="temperature",
         )
 
         # Set different setpoints
@@ -565,10 +565,10 @@ class TestControlLoop:
         )
         actuator1 = MockActuator("heater_1", "temperature", message_bus, sensor1)
         spc1 = base_SPC(
-            sensor_name="thermocouple_1",
-            sensor_var="temperature",
-            actuator_name="heater_1",
-            actuator_var="temperature",
+            sensor_instrument="thermocouple_1",
+            sensor_variable="temperature",
+            actuator_instrument="heater_1",
+            actuator_variable="temperature",
             k_p=1.0,
             k_i=0.1,
             k_d=0.0,
@@ -581,10 +581,10 @@ class TestControlLoop:
         )
         actuator2 = MockActuator("heater_2", "temperature", message_bus, sensor2)
         spc2 = base_SPC(
-            sensor_name="thermocouple_2",
-            sensor_var="temperature",
-            actuator_name="heater_2",
-            actuator_var="temperature",
+            sensor_instrument="thermocouple_2",
+            sensor_variable="temperature",
+            actuator_instrument="heater_2",
+            actuator_variable="temperature",
             k_p=5.0,
             k_i=0.5,
             k_d=0.0,

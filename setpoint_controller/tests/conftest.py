@@ -35,16 +35,16 @@ def base_SPC():
             "mqtt_host": "test_host",
             "mqtt_user": "test_user",
             "mqtt_pass": "test_pass",
-            "sensor_name": "I1",
-            "sensor_var": "A",
-            "actuator_name": "I2",
-            "actuator_var": "B",
+            "sensor_instrument": "I1",
+            "sensor_variable": "A",
+            "actuator_instrument": "I2",
+            "actuator_variable": "B",
             "heartbeat_interval": 1,
         }
         d_kwargs.update(kwargs)
         d_kwargs.update(
             {
-                "spc_id": f"{d_kwargs['sensor_name']}-{d_kwargs['sensor_var']}--{d_kwargs['actuator_name']}-{d_kwargs['actuator_var']}"
+                "spc_id": f"{d_kwargs['sensor_instrument']}-{d_kwargs['sensor_variable']}--{d_kwargs['actuator_instrument']}-{d_kwargs['actuator_variable']}"
             }
         )
 
@@ -58,10 +58,10 @@ def base_SPC():
 def mock_spc(mock_spc_status, mock_pid):
     """SetpointController with default parameters."""
     spc = MagicMock(spec=SetpointController)
-    spc.sensor_name = "I1"
-    spc.sensor_var = "A"
-    spc.actuator_name = "I2"
-    spc.actuator_var = "B"
+    spc.sensor_instrument = "I1"
+    spc.sensor_variable = "A"
+    spc.actuator_instrument = "I2"
+    spc.actuator_variable = "B"
     spc.spc_id = "I1-A--I2-B"
     spc.pid = mock_pid
     spc.status = mock_spc_status

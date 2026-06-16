@@ -18,13 +18,13 @@ def main():
         mqtt_user = os.getenv("MQTT_USER")
         mqtt_pass = os.getenv("MQTT_PASS")
 
-        sensor_name, sensor_var = os.getenv("SENSOR").split("/", 1)
-        actuator_name, actuator_var = os.getenv("ACTUATOR").split("/", 1)
+        sensor_instrument, sensor_variable = os.getenv("SENSOR").split("/", 1)
+        actuator_instrument, actuator_variable = os.getenv("ACTUATOR").split("/", 1)
     except KeyError as e:
         print(f"Missing required environment variable: {e}")
         exit(1)
 
-    spc_id = f"{sensor_name}-{sensor_var}--{actuator_name}-{actuator_var}"
+    spc_id = f"{sensor_instrument}-{sensor_variable}--{actuator_instrument}-{actuator_variable}"
 
     # Initialise publisher singleton
     publisher = mqtt.MQTTPublisher.get_instance(
@@ -66,10 +66,10 @@ def main():
         mqtt_pass=mqtt_pass,
         heartbeat_interval=heartbeat_interval,
         spc_id=spc_id,
-        sensor_name=sensor_name,
-        sensor_var=sensor_var,
-        actuator_name=actuator_name,
-        actuator_var=actuator_var,
+        sensor_instrument=sensor_instrument,
+        sensor_variable=sensor_variable,
+        actuator_instrument=actuator_instrument,
+        actuator_variable=actuator_variable,
         **pid_params,
     )
 
@@ -196,17 +196,17 @@ class SetpointController:
         mqtt_pass: str,
         heartbeat_interval: int,
         spc_id: str,
-        sensor_name: str,
-        sensor_var: str,
-        actuator_name: str,
-        actuator_var: str,
+        sensor_instrument: str,
+        sensor_variable: str,
+        actuator_instrument: str,
+        actuator_variable: str,
         **pid_params,
     ):
         self.heartbeat_interval = heartbeat_interval
-        self.sensor_name = sensor_name
-        self.sensor_var = sensor_var
-        self.actuator_name = actuator_name
-        self.actuator_var = actuator_var
+        self.sensor_instrument = sensor_instrument
+        self.sensor_variable = sensor_variable
+        self.actuator_instrument = actuator_instrument
+        self.actuator_variable = actuator_variable
         self.spc_id = spc_id
 
         # Initialize PID controller
@@ -219,8 +219,8 @@ class SetpointController:
             id=spc_id,
             callback=SetpointController.on_message,
             topics=[
-                f"instruments/{sensor_name}/{sensor_var}/setpoint",
-                f"instruments/{sensor_name}/{sensor_var}/measurement",
+                f"instruments/{sensor_instrument}/{sensor_variable}/setpoint",
+                f"instruments/{sensor_instrument}/{sensor_variable}/measurement",
                 f"setpoint_controller/{spc_id}/setup",
             ],
             broker_address=mqtt_host,
@@ -284,13 +284,16 @@ class SetpointController:
             return
 
         if spc.status.enabled is True:
-            if msg.topic == f"instruments/{spc.sensor_name}/{spc.sensor_var}/setpoint":
+            if (
+                msg.topic
+                == f"instruments/{spc.sensor_instrument}/{spc.sensor_variable}/setpoint"
+            ):
                 spc.status.sensor_setpoint = message.get("value")
                 return
 
             elif (
                 msg.topic
-                == f"instruments/{spc.sensor_name}/{spc.sensor_var}/measurement"
+                == f"instruments/{spc.sensor_instrument}/{spc.sensor_variable}/measurement"
             ):
                 spc.status.sensor_measurement = message.get("value")
                 if (
@@ -302,7 +305,7 @@ class SetpointController:
                         spc.status.sensor_measurement, spc.status.sensor_setpoint
                     )
                     mqtt.MQTTPublisher.get_instance().publish(
-                        f"instruments/{spc.actuator_name}/{spc.actuator_var}/setpoint",
+                        f"instruments/{spc.actuator_instrument}/{spc.actuator_variable}/setpoint",
                         json.dumps({"value": spc.status.actuator_setpoint}),
                     )
                 return

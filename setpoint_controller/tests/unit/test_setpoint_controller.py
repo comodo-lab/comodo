@@ -132,10 +132,10 @@ class Test_main:
             mqtt_pass="test_pass",
             heartbeat_interval=2,
             spc_id="A-B--C-D",
-            sensor_name="A",
-            sensor_var="B",
-            actuator_name="C",
-            actuator_var="D",
+            sensor_instrument="A",
+            sensor_variable="B",
+            actuator_instrument="C",
+            actuator_variable="D",
             k_p=1.0,
             k_i=0.1,
             k_d=0.01,
@@ -360,7 +360,7 @@ class Test_on_message:
     def test_invalid_json_publishes_error(self, mock_spc, mqtt_mocks, capsys):
         client = Mock()
         msg = MockMessage(
-            f"instruments/{mock_spc.sensor_name}/{mock_spc.sensor_var}/setpoint",
+            f"instruments/{mock_spc.sensor_instrument}/{mock_spc.sensor_variable}/setpoint",
             "this is not valid json {",
         )
 
@@ -373,7 +373,7 @@ class Test_on_message:
         )
         assert topic == "error/setpoint_controller"
         assert message["code"] == "json_decode_error"
-        exp_err = f"Cannot decode instruments/{mock_spc.sensor_name}/{mock_spc.sensor_var}/setpoint message, wrong JSON:"
+        exp_err = f"Cannot decode instruments/{mock_spc.sensor_instrument}/{mock_spc.sensor_variable}/setpoint message, wrong JSON:"
         assert exp_err in message["message"]
         assert f"ERROR: {exp_err}" in capsys.readouterr().out
 
@@ -386,7 +386,7 @@ class Test_on_setpoint_message:
 
         client = Mock()
         msg = MockMessage(
-            f"instruments/{mock_spc.sensor_name}/{mock_spc.sensor_var}/setpoint",
+            f"instruments/{mock_spc.sensor_instrument}/{mock_spc.sensor_variable}/setpoint",
             json.dumps({"value": 50.0}),
         )
 
@@ -401,7 +401,7 @@ class Test_on_setpoint_message:
         client = Mock()
         setpoint_value = 50.0
         msg = MockMessage(
-            f"instruments/{mock_spc.sensor_name}/{mock_spc.sensor_var}/setpoint",
+            f"instruments/{mock_spc.sensor_instrument}/{mock_spc.sensor_variable}/setpoint",
             json.dumps({"value": setpoint_value}),
         )
 
@@ -416,7 +416,7 @@ class Test_on_setpoint_message:
         setpoint_value = 0.0
         assert mock_spc.status.sensor_setpoint != setpoint_value
         msg = MockMessage(
-            f"instruments/{mock_spc.sensor_name}/{mock_spc.sensor_var}/setpoint",
+            f"instruments/{mock_spc.sensor_instrument}/{mock_spc.sensor_variable}/setpoint",
             json.dumps({"value": setpoint_value}),
         )
 
@@ -429,7 +429,7 @@ class Test_on_setpoint_message:
     def test_ignores_message_without_value(self, mock_spc, mqtt_mocks):
         client = Mock()
         msg = MockMessage(
-            f"instruments/{mock_spc.sensor_name}/{mock_spc.sensor_var}/setpoint",
+            f"instruments/{mock_spc.sensor_instrument}/{mock_spc.sensor_variable}/setpoint",
             json.dumps({"some_other_key": 42.42}),
         )
 
@@ -448,7 +448,7 @@ class Test_on_measurement_message:
 
         client = Mock()
         msg = MockMessage(
-            f"instruments/{mock_spc.sensor_name}/{mock_spc.sensor_var}/measurement",
+            f"instruments/{mock_spc.sensor_instrument}/{mock_spc.sensor_variable}/measurement",
             json.dumps({"value": 50.0}),
         )
 
@@ -462,7 +462,7 @@ class Test_on_measurement_message:
         client = Mock()
         assert mock_spc.status.sensor_setpoint == None
         msg = MockMessage(
-            f"instruments/{mock_spc.sensor_name}/{mock_spc.sensor_var}/measurement",
+            f"instruments/{mock_spc.sensor_instrument}/{mock_spc.sensor_variable}/measurement",
             json.dumps({"value": 45.0}),
         )
 
@@ -481,7 +481,7 @@ class Test_on_measurement_message:
         mock_spc.status.sensor_setpoint = setpoint_value
         measurement_value = 45.0
         msg = MockMessage(
-            f"instruments/{mock_spc.sensor_name}/{mock_spc.sensor_var}/measurement",
+            f"instruments/{mock_spc.sensor_instrument}/{mock_spc.sensor_variable}/measurement",
             json.dumps({"value": measurement_value}),
         )
         mock_spc.pid.step = MagicMock(return_value=6.7)
@@ -493,7 +493,7 @@ class Test_on_measurement_message:
         assert mock_spc.status.state == "adjusting"
         mock_spc.pid.step.assert_called_once_with(measurement_value, setpoint_value)
         mqtt_mocks["publisher_instance"].publish.assert_called_once_with(
-            f"instruments/{mock_spc.actuator_name}/{mock_spc.actuator_var}/setpoint",
+            f"instruments/{mock_spc.actuator_instrument}/{mock_spc.actuator_variable}/setpoint",
             json.dumps({"value": 6.7}),
         )
 
