@@ -65,8 +65,8 @@ def test_missing_id(message_bus, state, ui_client, capsys):
     messages = message_bus.get_messages(decoded=True)
     payload_obj = json.loads(messages[0].payload)
     assert len(messages) == 1
-    assert messages[0].topic == "error/message"
-    assert payload_obj["code"] == "validation_error"
+    assert messages[0].topic == "error/validator"
+    assert payload_obj["code"] == "failed"
     assert payload_obj["message"] == exp_err
     assert exp_err in capsys.readouterr().out
 

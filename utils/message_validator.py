@@ -75,20 +75,10 @@ def check_payload_json_validity(topic, payload):
     try:
         json.loads(payload)
     except json.JSONDecodeError as e:
-        emit_error(
-            topic="error/message",
-            code="invalid_json",
-            message=str(e)
-        )
         raise e
 
 def check_topic_expected(entry, topic):
     if entry is None:
-        emit_error(
-            topic="error/message",
-            code="unexpected_topic",
-            message=f"Unexpected topic: {topic}"
-        )
         raise UnexpectedTopicException(f"Unexpected topic: {topic}")
 
 def check_message_valid(entry, topic, payload):
@@ -98,14 +88,4 @@ def check_message_valid(entry, topic, payload):
             entry["schema"]
         )
     except ValidationError as e:
-        emit_error(
-            topic="error/message",
-            code="validation_error",
-            message=e.message
-        )
         raise e
-
-def emit_error(topic, code, message):
-    error = json.dumps({"code": code, "message": message})
-    mqtt_clients.MQTTPublisher.get_instance().publish(topic, error)
-    print(f"ERROR: {error}")

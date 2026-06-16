@@ -1,5 +1,6 @@
 import os
 from json import dump, dumps, JSONDecodeError
+from jsonschema import ValidationError
 
 from utils import mqtt_clients as mqtt
 from utils.message_validator import validate_message
@@ -10,6 +11,7 @@ from src.error_helper import (
     missing_keys,
     incompatible_request,
     incompatible_uid,
+    experiment_validation_error
 )
 
 def on_ui_message(client, msg, obj):
@@ -41,7 +43,13 @@ def on_ui_message(client, msg, obj):
     if msg.topic == "ui/start":
         try:
             validate_message(msg.topic, msg.payload)
-        except Exception as e:
+        except JSONDecodeError as e:
+            wrong_json(msg, e)
+            return
+        except ValidationError as e:
+            experiment_validation_error(e)
+            return
+        except UnexpectedTopicException as e:
             return
 
     try:

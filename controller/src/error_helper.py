@@ -50,10 +50,11 @@ def incompatible_uid(obj, msg, msg_uid):
     )
 
 
-def experiment_validation_error(error, uid):
+def experiment_validation_error(error, uid=0):
     """
     Publishes an error message when the experiment configuration received from the ui fails validation.
     """
+    print(f"ERROR: {error.args[0]}")
     mqtt.MQTTPublisher.get_instance().publish(
         "error/validator",
         json.dumps({"code": "failed", "message": str(error.args[0])}),

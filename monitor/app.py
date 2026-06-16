@@ -1,20 +1,35 @@
 # System imports
+import json
 import os
 import sys
 from pathlib import Path
+from json import JSONDecodeError
 
 import traceback
 import asyncio
+from jsonschema import ValidationError
 
 # Shared utils imports
 from utils import mqtt_clients as mqtt
-from utils.message_validator import validate_message
+from utils.message_validator import validate_message, UnexpectedTopicException
 
 def on_message(client, msg):
     try:
         validate_message(msg.topic, msg.payload)
-    except Exception as e:
-        print(f"Message invalid: {e}")
+    except UnexpectedTopicException as e:
+        mqtt.MQTTPublisher.get_instance().publish(
+            "error/message", json.dumps({"code": "unexpected_topic", "message": str(e)})
+        )
+    except JSONDecodeError as e:
+        mqtt.MQTTPublisher.get_instance().publish(
+            "error/message", json.dumps({"code": "invalid_json", "message": str(e)})
+        )
+    except ValidationError as e:
+        mqtt.MQTTPublisher.get_instance().publish(
+            "error/message", json.dumps({"code": "validation_error", "message": e.message})
+        )
+    except Exception as error:
+        print(f"Message invalid: {error}")
 
 async def main():
     # Initialise the MQTTPublisher singleton 
