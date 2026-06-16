@@ -345,12 +345,16 @@ class Test_SetpointController_State:
         spc.status.experiment_id = "exp123"
 
         expected_dict = {
-            "enabled": True,
-            "state": "ready",
-            "sensor_setpoint": 42.0,
-            "sensor_measurement": 40.0,
-            "actuator_setpoint": 5.0,
-            "experiment_id": "exp123",
+            "status": {
+                "state": "ready",
+                "enabled": True,
+                "sensor_measurement": 40.0,
+                "actuator_setpoint": 5.0,
+                "experiment_id": "exp123",
+            },
+            "setpoints": {
+                "sensor_setpoint": 42.0,
+            },
         }
         assert spc.status.as_dict() == expected_dict
 
@@ -660,8 +664,8 @@ class TestPublishHeartbeat:
         spc.status = mock_spc_status
         spc.pid = mock_pid
         spc.status.as_dict.side_effect = lambda: {
-            "state": "testing_state",
-            "enabled": True,
+            "status": {"state": "testing_state"},
+            "setpoints": {"sensor_setpoint": 42.0},
         }
         spc.pid.get_config.side_effect = lambda: {"mock": "config"}
 
@@ -672,9 +676,13 @@ class TestPublishHeartbeat:
                 "setpoint_controller/I1-A--I2-B/heartbeat",
                 json.dumps(
                     {
-                        "state": "testing_state",
-                        "enabled": True,
-                        "pid": {"mock": "config"},
+                        "status": {"state": "testing_state"},
+                        "setpoints": {"sensor_setpoint": 42.0},
+                        "config": {
+                            "sensor": "I1/A",
+                            "actuator": "I2/B",
+                            "pid": {"mock": "config"},
+                        },
                     }
                 ),
             ),

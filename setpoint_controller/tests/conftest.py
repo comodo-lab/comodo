@@ -84,12 +84,16 @@ def mock_spc_status():
 
     def get_status_as_dict():
         return {
-            "enabled": status.enabled,
-            "state": status.state,
-            "sensor_setpoint": status.sensor_setpoint,
-            "sensor_measurement": status.sensor_measurement,
-            "actuator_setpoint": status.actuator_setpoint,
-            "experiment_id": status.experiment_id,
+            "status": {
+                "state": status.state,
+                "enabled": status.enabled,
+                "sensor_measurement": status.sensor_measurement,
+                "actuator_setpoint": status.actuator_setpoint,
+                "experiment_id": status.experiment_id,
+            },
+            "setpoints": {
+                "sensor_setpoint": status.sensor_setpoint,
+            },
         }
 
     status.as_dict.side_effect = get_status_as_dict

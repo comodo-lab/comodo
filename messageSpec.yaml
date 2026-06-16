@@ -6,7 +6,6 @@ info:
     Minimal strict protocol contract for the Comodo experiment automation platform.
 
 channels:
-
   uiStart:
     address: ui/start
     messages:
@@ -277,9 +276,9 @@ channels:
           type: object
           additionalProperties: false
           required:
-            - config
+            - status
             - setpoints
-            - state
+            - config
           properties:
             config:
               type: object
@@ -287,54 +286,75 @@ channels:
               required:
                 - sensor
                 - actuator
-                - active
-                - k_p
-                - k_i
-                - k_d
-                - k_df
-                - k_aw
-                - max
-                - min
-                - max_rate
-                - experiment_id
+                - pid
               properties:
                 sensor:
                   type: string
                 actuator:
                   type: string
-                active:
-                  type: boolean
-                k_p:
-                  type: number
-                k_i:
-                  type: number
-                k_d:
-                  type: number
-                k_df:
-                  type: number
-                k_aw:
-                  type: number
-                max:
-                  type: number
-                min:
-                  type: number
-                max_rate:
-                  type: number
-                experiment_id:
-                  type: string
+                pid:
+                  type: object
+                  additionalProperties: false
+                  required:
+                    - k_p
+                    - k_i
+                    - k_d
+                    - k_df
+                    - k_aw
+                    - max
+                    - min
+                    - max_rate
+                  properties:
+                    k_p:
+                      type: number
+                    k_i:
+                      type: number
+                    k_d:
+                      type: number
+                    k_df:
+                      type: number
+                    k_aw:
+                      type: number
+                    max:
+                      type: number
+                    min:
+                      type: number
+                    max_rate:
+                      type: number
 
             setpoints:
               type: object
               additionalProperties:
                 type: number
 
-            state:
-              type: string
-              enum:
-                - idle
-                - adjusting
-                - ready
-                - error
+            status:
+              type: object
+              additionalProperties: false
+              required:
+                - state
+                - enabled
+                - sensor_measurement
+                - actuator_setpoint
+                - experiment_id
+              properties:
+                state:
+                  type: string
+                  enum:
+                    - idle
+                    - adjusting
+                    - ready
+                    - error
+                enabled:
+                  type: boolean
+                sensor_measurement:
+                  type: number
+                  nullable: true
+                actuator_setpoint:
+                  type: number
+                  nullable: true
+                experiment_id:
+                  type: string
+                  nullable: true
 
   instrumentHeartbeat:
     address: instruments/+/heartbeat
@@ -404,5 +424,3 @@ channels:
           properties:
             value:
               type: number
-
-

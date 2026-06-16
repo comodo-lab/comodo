@@ -112,12 +112,16 @@ class SetpointController:
 
         def as_dict(self):
             return {
-                "enabled": self.enabled,
-                "state": self.state,
-                "sensor_setpoint": self.sensor_setpoint,
-                "sensor_measurement": self.sensor_measurement,
-                "actuator_setpoint": self.actuator_setpoint,
-                "experiment_id": self.experiment_id,
+                "status": {
+                    "state": self.state,
+                    "enabled": self.enabled,
+                    "sensor_measurement": self.sensor_measurement,
+                    "actuator_setpoint": self.actuator_setpoint,
+                    "experiment_id": self.experiment_id,
+                },
+                "setpoints": {
+                    "sensor_setpoint": self.sensor_setpoint,
+                },
             }
 
         @property
@@ -319,7 +323,11 @@ class SetpointController:
     def publish_heartbeat(self):
         """Publish the current state of the SPC, including PID controller config."""
         heartbeat = self.status.as_dict()
-        heartbeat["pid"] = self.pid.get_config()
+        heartbeat["config"] = {
+            "sensor": f"{self.sensor_instrument}/{self.sensor_variable}",
+            "actuator": f"{self.actuator_instrument}/{self.actuator_variable}",
+            "pid": self.pid.get_config(),
+        }
         mqtt.MQTTPublisher.get_instance().publish(
             f"setpoint_controller/{self.spc_id}/heartbeat",
             json.dumps(heartbeat),

@@ -359,21 +359,27 @@ class TestControlLoop:
         messages = bus.get_messages(f"setpoint_controller/{spc.spc_id}/heartbeat")
         assert len(messages) == 1, "SPC should publish heartbeat message"
         assert json.loads(messages[0].payload) == {
-            "enabled": True,
-            "state": "idle",
-            "sensor_setpoint": None,
-            "sensor_measurement": None,
-            "actuator_setpoint": None,
-            "experiment_id": None,
-            "pid": {
-                "k_p": 1.0,
-                "k_i": 0.1,
-                "k_d": 0.05,
-                "k_aw": 0.0,
-                "k_df": 0.0,
-                "max": 100.0,
-                "min": 0.0,
-                "max_rate": None,
+            "status": {
+                "state": "idle",
+                "enabled": True,
+                "sensor_measurement": None,
+                "actuator_setpoint": None,
+                "experiment_id": None,
+            },
+            "setpoints": {"sensor_setpoint": None},
+            "config": {
+                "sensor": "thermocouple/temperature",
+                "actuator": "heater/temperature",
+                "pid": {
+                    "k_p": 1.0,
+                    "k_i": 0.1,
+                    "k_d": 0.05,
+                    "k_aw": 0.0,
+                    "k_df": 0.0,
+                    "max": 100.0,
+                    "min": 0.0,
+                    "max_rate": None,
+                },
             },
         }
 
