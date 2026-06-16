@@ -60,7 +60,7 @@ def main():
     }
 
     # Create SetpointController instance
-    controller = SetpointController(
+    spc = SetpointController(
         mqtt_host=mqtt_host,
         mqtt_user=mqtt_user,
         mqtt_pass=mqtt_pass,
@@ -73,13 +73,121 @@ def main():
         **pid_params,
     )
 
-    controller.start_heartbeat_loop()
+    spc.start_heartbeat_loop()
 
     print(f"Exiting...")
 
 
 class SetpointController:
     """Setpoint controller, which has a PID controller and its MQTT client."""
+
+    class Status:
+        """Setpoint controller orchestration status. PID values live only in the PID."""
+
+        __slots__ = [
+            "_enabled",
+            "_state",
+            "_sensor_setpoint",
+            "_sensor_measurement",
+            "_actuator_setpoint",
+            "experiment_id",
+        ]
+
+        item_keys = tuple(slot.lstrip("_") for slot in __slots__)
+
+        allowed_state = [
+            "idle",
+            "adjusting",
+            "ready",
+            "error",
+        ]
+
+        def __init__(self):
+            self._enabled = True
+            self._state = "idle"
+            self._sensor_setpoint = None
+            self._sensor_measurement = None
+            self._actuator_setpoint = None
+            self.experiment_id = None
+
+        def as_dict(self):
+            return {
+                "enabled": self.enabled,
+                "state": self.state,
+                "sensor_setpoint": self.sensor_setpoint,
+                "sensor_measurement": self.sensor_measurement,
+                "actuator_setpoint": self.actuator_setpoint,
+                "experiment_id": self.experiment_id,
+            }
+
+        @property
+        def enabled(self) -> bool:
+            return self._enabled
+
+        @enabled.setter
+        def enabled(self, value: bool):
+            if not isinstance(value, bool):
+                raise TypeError(f"Enabled must be a boolean value, got {type(value)}")
+            self._enabled = value
+            if not value:
+                self._state = "idle"
+                self._sensor_setpoint = None
+                self._sensor_measurement = None
+                self._actuator_setpoint = None
+                self.experiment_id = None
+
+        @property
+        def state(self) -> str:
+            return self._state
+
+        @state.setter
+        def state(self, value: str):
+            if value not in self.allowed_state:
+                raise ValueError(
+                    f"Invalid state: {value}. Allowed values are: {self.allowed_state}"
+                )
+            self._state = value
+            if value == "idle":
+                self._sensor_setpoint = None
+                self._sensor_measurement = None
+                self._actuator_setpoint = None
+                self.experiment_id = None
+
+        @property
+        def sensor_setpoint(self):
+            return getattr(self, "_sensor_setpoint", None)
+
+        @sensor_setpoint.setter
+        def sensor_setpoint(self, value: float):
+            if not isinstance(value, (int, float)):
+                raise TypeError(
+                    f"Sensor setpoint must be a float value, got {type(value)}"
+                )
+            self._sensor_setpoint = value
+
+        @property
+        def sensor_measurement(self):
+            return getattr(self, "_sensor_measurement", None)
+
+        @sensor_measurement.setter
+        def sensor_measurement(self, value: float):
+            if not isinstance(value, (int, float)):
+                raise TypeError(
+                    f"Sensor measurement must be a float value, got {type(value)}"
+                )
+            self._sensor_measurement = value
+
+        @property
+        def actuator_setpoint(self):
+            return getattr(self, "_actuator_setpoint", None)
+
+        @actuator_setpoint.setter
+        def actuator_setpoint(self, value: float):
+            if not isinstance(value, (int, float)):
+                raise TypeError(
+                    f"Actuator setpoint must be a float value, got {type(value)}"
+                )
+            self._actuator_setpoint = value
 
     def __init__(
         self,
@@ -103,14 +211,11 @@ class SetpointController:
 
         # Initialize PID controller
         self.pid = PID(
-            id=spc_id,
-            sensor=f"{sensor_name}/{sensor_var}",
-            actuator=f"{actuator_name}/{actuator_var}",
             **pid_params,
         )
 
         # Initialize MQTT client
-        self.pid_client = mqtt.MQTTClient(
+        self.client = mqtt.MQTTClient(
             id=spc_id,
             callback=SetpointController.on_message,
             topics=[
@@ -124,27 +229,9 @@ class SetpointController:
             obj=self,
         )
 
-        # Initialise status dictionary (spec format)
-        self.status = {
-            "state": "idle",
-            "setpoints": {},
-            "config": {
-                "sensor": f"{sensor_name}/{sensor_var}",
-                "actuator": f"{actuator_name}/{actuator_var}",
-                "active": True,
-                "k_p": self.pid.k_p,
-                "k_i": self.pid.k_i,
-                "k_d": self.pid.k_d,
-                "k_aw": self.pid.k_aw,
-                "k_df": self.pid.k_df,
-                "max": self.pid.max,
-                "min": self.pid.min,
-                "max_rate": self.pid.max_rate,
-                "experiment_id": None,
-            },
-        }
+        self.status = SetpointController.Status()
 
-    @staticmethod
+    @staticmethod  # Prevents passing 'self' as first argument, conflicting with MQTTClient callback signature
     def on_message(client, msg, spc):
         """Callback function for handling sensor messages."""
         try:
@@ -156,66 +243,83 @@ class SetpointController:
                 "error/setpoint_controller",
                 json.dumps({"code": "json_decode_error", "message": error}),
             )
-            spc.status["state"] = "error"
+            spc.status.state = "error"
             spc.publish_heartbeat()
             return
 
-        if msg.topic == f"instruments/{spc.sensor_name}/{spc.sensor_var}/setpoint":
-            value = message.get("value")
-            if value is not None:
-                spc.status["state"] = "adjusting"
-                spc.status["setpoints"][spc.sensor_var] = value
-                spc.pid.setpoint = value
-            return
-
-        elif msg.topic == f"instruments/{spc.sensor_name}/{spc.sensor_var}/measurement":
-            if spc.pid.setpoint is not None:
-                spc.status["state"] = "adjusting"
-                output = spc.pid.step(message["value"], spc.pid.setpoint)
-                mqtt.MQTTPublisher.get_instance().publish(
-                    f"instruments/{spc.actuator_name}/{spc.actuator_var}/setpoint",
-                    json.dumps({"value": output}),
-                )
-            return
-
-        elif msg.topic == f"setpoint_controller/{spc.spc_id}/setup":
-            not_configurable = []
+        if msg.topic == f"setpoint_controller/{spc.spc_id}/setup":
             for k, v in message.items():
+                if k not in ["enabled", "experiment_id", "pid"]:
+                    error = f"Cannot configure spc parameter: {k}. Aborting setup."
+                    mqtt.MQTTPublisher.get_instance().publish(
+                        "error/setpoint_controller",
+                        json.dumps(
+                            {"code": "spc_configuration_error", "message": error}
+                        ),
+                    )
+                    spc.publish_heartbeat()
+                    return
+            enabled = message.get("enabled", None)
+            experiment_id = message.get("experiment_id", None)
+            pid_config = message.get("pid", {})
+            not_configurable = []
+            for k, v in pid_config.items():
                 if k not in spc.pid.configurable:
                     not_configurable.append(k)
             if not_configurable:
-                spc.status["state"] = "error"
                 e = ", ".join(not_configurable)
                 error = f"Cannot configure PID parameter: {e}. Aborting setup."
                 mqtt.MQTTPublisher.get_instance().publish(
                     "error/setpoint_controller",
-                    json.dumps({"code": "configuration_error", "message": error}),
+                    json.dumps({"code": "pid_configuration_error", "message": error}),
                 )
             else:
-                for k, v in message.items():
+                if enabled is not None:
+                    spc.status.enabled = enabled
+                if experiment_id is not None:
+                    spc.status.experiment_id = experiment_id
+                for k, v in pid_config.items():
                     setattr(spc.pid, k, v)
-                spc.status["state"] = "idle"
-                config = spc.pid.get_config()
-                config["experiment_id"] = spc.status["config"]["experiment_id"]
-                config["sensor"] = spc.status["config"]["sensor"]
-                config["actuator"] = spc.status["config"]["actuator"]
-                config["active"] = spc.status["config"]["active"]
-                spc.status["config"] = config
             spc.publish_heartbeat()
             return
 
+        if spc.status.enabled is True:
+            if msg.topic == f"instruments/{spc.sensor_name}/{spc.sensor_var}/setpoint":
+                spc.status.sensor_setpoint = message.get("value")
+                return
+
+            elif (
+                msg.topic
+                == f"instruments/{spc.sensor_name}/{spc.sensor_var}/measurement"
+            ):
+                spc.status.sensor_measurement = message.get("value")
+                if (
+                    spc.status.sensor_setpoint is not None
+                    and spc.status.sensor_measurement is not None
+                ):
+                    spc.status.state = "adjusting"
+                    spc.status.actuator_setpoint = spc.pid.step(
+                        spc.status.sensor_measurement, spc.status.sensor_setpoint
+                    )
+                    mqtt.MQTTPublisher.get_instance().publish(
+                        f"instruments/{spc.actuator_name}/{spc.actuator_var}/setpoint",
+                        json.dumps({"value": spc.status.actuator_setpoint}),
+                    )
+                return
+
     def start_heartbeat_loop(self):
-        """Start the heartbeat loop to publish PID state at regular intervals."""
+        """Start the heartbeat loop to publish SPC state at regular intervals."""
         while self.pid.healthy:
             self.publish_heartbeat()
             t.sleep(self.heartbeat_interval)
 
     def publish_heartbeat(self):
-        """Publish the current state of the SPC, including controller config."""
-        print(f"Heartbeat from {self.spc_id}...")
+        """Publish the current state of the SPC, including PID controller config."""
+        heartbeat = self.status.as_dict()
+        heartbeat["pid"] = self.pid.get_config()
         mqtt.MQTTPublisher.get_instance().publish(
             f"setpoint_controller/{self.spc_id}/heartbeat",
-            json.dumps(self.status),
+            json.dumps(heartbeat),
         )
 
 

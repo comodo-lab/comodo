@@ -42,7 +42,11 @@ def base_SPC():
             "heartbeat_interval": 1,
         }
         d_kwargs.update(kwargs)
-        d_kwargs.update({"spc_id": f"{d_kwargs['sensor_name']}-{d_kwargs['sensor_var']}--{d_kwargs['actuator_name']}-{d_kwargs['actuator_var']}"})
+        d_kwargs.update(
+            {
+                "spc_id": f"{d_kwargs['sensor_name']}-{d_kwargs['sensor_var']}--{d_kwargs['actuator_name']}-{d_kwargs['actuator_var']}"
+            }
+        )
 
         # Create and return SetpointController instance
         return SetpointController(**d_kwargs)
@@ -51,29 +55,46 @@ def base_SPC():
 
 
 @pytest.fixture
-@pytest.fixture
-def mock_spc(mock_pid):
+def mock_spc(mock_spc_status, mock_pid):
     """SetpointController with default parameters."""
     spc = MagicMock(spec=SetpointController)
-    spc.status = {
-        "state": "idle",
-        "setpoints": {},
-        "config": {
-            "mock": "config",
-            "experiment_id": None,
-            "sensor": "I1/A",
-            "actuator": "I2/B",
-            "active": True,
-        },
-    }
     spc.sensor_name = "I1"
     spc.sensor_var = "A"
     spc.actuator_name = "I2"
     spc.actuator_var = "B"
     spc.spc_id = "I1-A--I2-B"
     spc.pid = mock_pid
+    spc.status = mock_spc_status
+    spc.start_heartbeat_loop = MagicMock()
     spc.publish_heartbeat = MagicMock()
     return spc
+
+
+@pytest.fixture
+def mock_spc_status():
+    """SetpointController.Status with default parameters."""
+    status = MagicMock(spec=SetpointController.Status)
+
+    status.enabled = True
+    status.state = "idle"
+    status.sensor_setpoint = None
+    status.sensor_measurement = None
+    status.actuator_setpoint = None
+    status.experiment_id = None
+
+    def get_status_as_dict():
+        return {
+            "enabled": status.enabled,
+            "state": status.state,
+            "sensor_setpoint": status.sensor_setpoint,
+            "sensor_measurement": status.sensor_measurement,
+            "actuator_setpoint": status.actuator_setpoint,
+            "experiment_id": status.experiment_id,
+        }
+
+    status.as_dict.side_effect = get_status_as_dict
+
+    return status
 
 
 @pytest.fixture
