@@ -101,7 +101,7 @@ def main():
     watchdog = mqtt.MQTTClient(
         id="watchdog",
         callback=on_watchdog_message,
-        topics=["watchdog/event/+", "watchdog/command/+", "controller/heartbeat", "error/exception"],
+        topics=["watchdog/timer/event/+", "watchdog/timer/command/+", "controller/heartbeat", "error/exception"],
         obj=wdog,
         broker_address=mqtt_host,
         user=mqtt_user,
@@ -111,7 +111,7 @@ def main():
     wd_timer = mqtt.MQTTClient(
         id="wd_timer",
         callback=on_wd_timer_message,
-        topics="watchdog/command/start",
+        topics="watchdog/timer/command/start",
         obj=wdog,
         broker_address=mqtt_host,
         user=mqtt_user,
@@ -160,7 +160,7 @@ def main():
     )
     # measurement = mqtt.MQTTClient("measurement", on_client_message, topics="measurement/#")
 
-    publisher.client.publish("watchdog/command/start", json.dumps({"timeout": wdog["timeout"], "interval": wdog["interval"]}))
+    publisher.client.publish("watchdog/timer/command/start", json.dumps({"timeout": wdog["timeout"], "interval": wdog["interval"]}))
     t.sleep(1)
     if wdog["healthy"]:
         print(f"Controller started successfully.")

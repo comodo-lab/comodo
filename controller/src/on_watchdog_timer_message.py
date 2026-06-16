@@ -19,13 +19,13 @@ def on_wd_timer_message(client, msg, obj):
         message = mqtt.load_message(msg)
     except json.JSONDecodeError as e:
         wrong_json(msg, e)
-        if msg.topic == "watchdog/command/start":
+        if msg.topic == "watchdog/timer/command/start":
             print("ERROR: Watchdog timer failed to start.")
             print(f"  Wrong json: {e}")
             obj["healthy"] = False
         return
 
-    if msg.topic == "watchdog/command/start":
+    if msg.topic == "watchdog/timer/command/start":
         try:
             assert (
                 message["timeout"] == obj["timeout"]
@@ -59,7 +59,7 @@ def on_wd_timer_message(client, msg, obj):
             obj["timer"] = obj["timer"] - timer_interval
             if obj["timer"] <= 0:
                 mqtt.MQTTPublisher.get_instance().publish(
-                    "watchdog/event/timeout",
+                    "watchdog/timer/event/timeout",
                     json.dumps(
                         {
                             "error": f'No heartbeat received in {obj["timeout"]} seconds. Expected every {obj["interval"]}s.'

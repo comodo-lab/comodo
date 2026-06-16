@@ -11,8 +11,8 @@ def on_watchdog_message(client, msg, obj):
     It does so by listening to:
     - controller/heartbeat: to check if the controller is alive
     - error/exception: to check if the controller is healthy
-    - watchdog/event/+: to react to watchdog events (e.g. timeout)
-    - watchdog/command/+: to react to watchdog commands (e.g. restart)
+    - watchdog/timer/event/+: to react to watchdog events (e.g. timeout)
+    - watchdog/timer/command/+: to react to watchdog commands (e.g. restart)
     Every heartbeat triggers a timer that, if not reset, will trigger an error.
     """
     try:
@@ -29,22 +29,22 @@ def on_watchdog_message(client, msg, obj):
         error = mqtt.load_message(msg)["error"]
         print(f"WATCHDOG: Received error: {error}")
         mqtt.MQTTPublisher.get_instance().publish(
-            "watchdog/event/restart",
+            "watchdog/timer/event/restart",
             json.dumps({"message": "Restarting controller..."}),
         )
         obj["healthy"] = False
         return
 
-    if msg.topic.startswith("watchdog/event/"):
-        if msg.topic == "watchdog/event/timeout":
+    if msg.topic.startswith("watchdog/timer/event/"):
+        if msg.topic == "watchdog/timer/event/timeout":
             error = mqtt.load_message(msg)["message"]
             print(f"WATCHDOG: Timed out waiting for controller heartbeat. {error}")
             mqtt.MQTTPublisher.get_instance().publish(
-                "watchdog/event/restart",
+                "watchdog/timer/event/restart",
                 json.dumps({"message": "Restarting controller..."}),
             )
             obj["healthy"] = False
         return
 
-    if msg.topic.startswith("watchdog/command/"):
+    if msg.topic.startswith("watchdog/timer/command/"):
         return

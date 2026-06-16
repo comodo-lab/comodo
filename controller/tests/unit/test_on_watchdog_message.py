@@ -26,7 +26,7 @@ def wd_state():
 def watchdog_client(mqtt_mocks):
     mqtt_mocks["client_class"](
         id="watchdog",
-        topics=["watchdog/event/+", "watchdog/command/+", "controller/heartbeat", "error/exception"],
+        topics=["watchdog/timer/event/+", "watchdog/timer/command/+", "controller/heartbeat", "error/exception"],
         callback=on_watchdog_message,
     )
     return mqtt_mocks["client_instance"]
@@ -48,11 +48,11 @@ def test_wrong_json(message_bus, watchdog_client, wd_state, capsys):
 
 
 def test_ignores_watchdog_command(message_bus, watchdog_client, wd_state):
-    msg = MockMessage(topic="watchdog/command/run", payload=json.dumps({"not": "important"}))
+    msg = MockMessage(topic="watchdog/timer/command/run", payload=json.dumps({"not": "important"}))
     on_watchdog_message(watchdog_client, msg, wd_state)
 
     messages = message_bus.get_messages(decoded=True)
-    assert len(messages) == 0, "watchdog/command/* topics should be silently ignored"
+    assert len(messages) == 0, "watchdog/timer/command/* topics should be silently ignored"
 
 
 def test_updates_timer_on_heartbeat(message_bus, watchdog_client, wd_state):
@@ -77,12 +77,12 @@ def test_handles_error_exception(message_bus, watchdog_client, wd_state, capsys)
     # MQTT message
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
-    assert messages[0].topic == "watchdog/event/restart"
+    assert messages[0].topic == "watchdog/timer/event/restart"
     assert messages[0].payload == json.dumps({"message": "Restarting controller..."})
 
 
 def test_responds_to_timeout(message_bus, watchdog_client, wd_state, capsys):
-    msg = MockMessage(topic="watchdog/event/timeout", payload=json.dumps({"message": "Test"}))
+    msg = MockMessage(topic="watchdog/timer/event/timeout", payload=json.dumps({"message": "Test"}))
     on_watchdog_message(watchdog_client, msg, wd_state)
 
     # Printed error
@@ -93,14 +93,14 @@ def test_responds_to_timeout(message_bus, watchdog_client, wd_state, capsys):
     # MQTT message
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
-    assert messages[0].topic == "watchdog/event/restart"
+    assert messages[0].topic == "watchdog/timer/event/restart"
     assert messages[0].payload == json.dumps({"message": "Restarting controller..."})
 
 
 def test_ignores_watchdog_command_restart(message_bus, watchdog_client, wd_state, capsys):
     assert wd_state["healthy"] == True
 
-    msg = MockMessage(topic="watchdog/command/restart", payload='{"not": "important"}')
+    msg = MockMessage(topic="watchdog/timer/command/restart", payload='{"not": "important"}')
     on_watchdog_message(watchdog_client, msg, wd_state)
 
     captured = capsys.readouterr()
@@ -108,4 +108,4 @@ def test_ignores_watchdog_command_restart(message_bus, watchdog_client, wd_state
     assert wd_state["healthy"] == True
 
     messages = message_bus.get_messages(decoded=True)
-    assert len(messages) == 0, "watchdog/command/* should be silently ignored"
+    assert len(messages) == 0, "watchdog/timer/command/* should be silently ignored"

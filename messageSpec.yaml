@@ -172,7 +172,7 @@ channels:
               type: string
 
   watchdogCommandStart:
-    address: watchdog/command/start
+    address: watchdog/timer/command/start
     messages:
       watchdogStart:
         payload:
@@ -188,7 +188,7 @@ channels:
               type: number
 
   watchdogEventRestart:
-    address: watchdog/event/restart
+    address: watchdog/timer/event/restart
     messages:
       watchdogRestart:
         payload:
@@ -201,7 +201,7 @@ channels:
               type: string
 
   watchdogEventTimeout:
-    address: watchdog/event/timeout
+    address: watchdog/timer/event/timeout
     messages:
       watchdogTimeout:
         payload:
