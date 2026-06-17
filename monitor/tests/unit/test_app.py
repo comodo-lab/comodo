@@ -13,7 +13,7 @@ from utils.tests.mocks.mock_mqtt_clients import (
 
 class TestOnMessage:
     def test_valid_message(self, message_bus, mock_topic_map):
-        with patch("utils.message_validator.load_spec", return_value=mock_topic_map):
+        with patch("utils.mqtt_validator.load_spec", return_value=mock_topic_map):
             msg = MockMessage(
                 topic="error/message/unexpected",
                 payload='{"topic": "test", "error": "unexpected_topic"}',
@@ -24,7 +24,7 @@ class TestOnMessage:
         assert len(messages) == 0
 
     def test_unexpected_topic(self, message_bus, mock_topic_map):
-        with patch("utils.message_validator.load_spec", return_value=mock_topic_map):
+        with patch("utils.mqtt_validator.load_spec", return_value=mock_topic_map):
             msg = MockMessage(topic="some/unknown/topic", payload='{"a": 1}')
             on_message(None, msg)
 
@@ -35,7 +35,7 @@ class TestOnMessage:
         assert payload["code"] == "unexpected_topic"
 
     def test_invalid_json(self, message_bus, mock_topic_map):
-        with patch("utils.message_validator.load_spec", return_value=mock_topic_map):
+        with patch("utils.mqtt_validator.load_spec", return_value=mock_topic_map):
             msg = MockMessage(
                 topic="error/message/malformed",
                 payload="not valid json",
@@ -49,7 +49,7 @@ class TestOnMessage:
         assert payload["code"] == "invalid_json"
 
     def test_schema_mismatch(self, message_bus, mock_topic_map):
-        with patch("utils.message_validator.load_spec", return_value=mock_topic_map):
+        with patch("utils.mqtt_validator.load_spec", return_value=mock_topic_map):
             msg = MockMessage(
                 topic="error/message/unexpected",
                 payload='{"topic": "test", "error": "unknown_error"}',

@@ -11,7 +11,7 @@ from jsonschema import ValidationError
 
 # Shared utils imports
 from utils import mqtt_clients as mqtt
-from utils.message_validator import validate_message, UnexpectedTopicException
+from utils.mqtt_validator import validate_message, UnexpectedTopicException
 
 def on_message(client, msg):
     try:

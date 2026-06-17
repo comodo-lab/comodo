@@ -12,7 +12,7 @@ def match_topic(topic, topic_map):
             return entry
     return None
 
-def load_spec(path='/app/asyncapi.yaml'):
+def load_spec(path='/app/mqtt_schema.yaml'):
     with open(path) as f:
         spec = yaml.safe_load(f)
 

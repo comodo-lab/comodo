@@ -3,7 +3,7 @@ from json import dump, dumps, JSONDecodeError
 from jsonschema import ValidationError
 
 from utils import mqtt_clients as mqtt
-from utils.message_validator import validate_message
+from utils.mqtt_validator import validate_message
 
 from src.controller_helper import data_path
 from src.error_helper import (

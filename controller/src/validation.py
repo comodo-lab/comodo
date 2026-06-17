@@ -3,14 +3,14 @@ from json import loads, JSONDecodeError
 from jsonschema import ValidationError
 import textwrap
 
-from utils.message_validator import validate_message, UnexpectedTopicException
+from utils.mqtt_validator import validate_message, UnexpectedTopicException
 
 def validate_experiment(file_path: Dict[str, Any], actuator_variables: set) -> Dict[str, Any]:
     """
     Validates experiment data structure and actuator completeness.
 
     Structural validation is performed against the AsyncAPI-derived schema
-    from messageSpec.yaml. Additional checks enforce non-empty experiment
+    from mqtt_schema.yaml. Additional checks enforce non-empty experiment
     definition, numeric non-negative time per row, and exhaustive actuator
     coverage (every column maps to a known actuator, every actuator appears).
 

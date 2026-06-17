@@ -10,7 +10,7 @@ COPY controller/tests /controller/tests
 COPY controller/pytest.ini /controller/pytest.ini
 COPY controller/README.md /controller/README.md
 COPY utils/mqtt_clients.py /controller/utils/mqtt_clients.py
-COPY utils/message_validator.py /controller/utils/message_validator.py
+COPY utils/mqtt_validator.py /controller/utils/mqtt_validator.py
 COPY utils/tests/mocks/mock_mqtt_clients.py /controller/utils/tests/mocks/mock_mqtt_clients.py
 COPY utils/interpolation.py /controller/utils/interpolation.py
 

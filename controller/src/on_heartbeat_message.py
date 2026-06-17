@@ -4,7 +4,7 @@ from json import JSONDecodeError
 from jsonschema import ValidationError
 
 from utils import mqtt_clients as mqtt
-from utils.message_validator import validate_message, UnexpectedTopicException
+from utils.mqtt_validator import validate_message, UnexpectedTopicException
 
 from src.error_helper import (
     incompatible_request,

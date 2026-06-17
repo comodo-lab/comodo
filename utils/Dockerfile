@@ -4,7 +4,7 @@ WORKDIR /app
 COPY utils/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 COPY utils/mqtt_clients.py ./utils/
-COPY utils/message_validator.py ./utils/
+COPY utils/mqtt_validator.py ./utils/
 COPY utils/interpolation.py ./utils/
 COPY utils/tests ./utils/tests/
 COPY utils/pytest.ini ./pytest.ini

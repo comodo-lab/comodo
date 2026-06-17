@@ -2,7 +2,7 @@ import json
 import pytest
 from jsonschema import ValidationError
 
-from utils.message_validator import (
+from utils.mqtt_validator import (
     load_spec,
     check_payload_json_validity,
     check_topic_expected,

@@ -218,7 +218,7 @@ def mock_asyncapi_spec():
             },
         }
     }
-    with patch("utils.message_validator.load_spec", return_value=topic_map):
+    with patch("utils.mqtt_validator.load_spec", return_value=topic_map):
         yield
 
 def instrument_heartbeat_msg(instrument, state, setpoints, experiment_id=None):
