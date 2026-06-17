@@ -1,6 +1,12 @@
 # This compose file runs the integration tests for the comodo stack and exits when done.
 # To run the tests, cd into integration_tests/ and execute:
 #   docker compose --env-file ../.env up --build --attach test-runner --force-recreate
+#   docker compose --env-file ../.env kill
+#
+# Note that pytest captures prints from the runner.py code, not from the stack itself.
+# If debugging code in the stack, you need to attach to the service being debugged, e.g.:
+#   docker compose --env-file ../.env up --build --attach test-runner --attach monitor --force-recreate
+# and then exit with Ctrl-C when done.
 
 include:
   - path: ../compose.yaml

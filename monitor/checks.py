@@ -2,6 +2,22 @@ import json
 from jsonschema import validate, ValidationError
 from utils import mqtt_clients
 
+
+def check_topic_expected(entry, topic):
+    if entry is None:
+        mqtt_clients.MQTTPublisher.get_instance().publish(
+            "error/message",
+            json.dumps(
+                {
+                    "code": "unexpected_topic",
+                    "message": f"Unexpected topic: {topic}",
+                }
+            ),
+        )
+        return False
+    return True
+
+
 def check_payload_json_validity(topic, payload):
     try:
         json.loads(payload)
@@ -9,29 +25,35 @@ def check_payload_json_validity(topic, payload):
     except json.JSONDecodeError as e:
         mqtt_clients.MQTTPublisher.get_instance().publish(
             "error/message",
-            json.dumps({"code": "invalid_json", "message": str(e)})
+            json.dumps(
+                {
+                    "code": "invalid_json",
+                    "message": str(e),
+                    "topic": topic,
+                }
+            ),
         )
         return None
 
-def check_topic_expected(entry, topic):
-    if entry is None:
-        mqtt_clients.MQTTPublisher.get_instance().publish(
-            "error/message",
-            json.dumps({"code": "unexpected_topic", "message": f"Unexpected topic: {topic}"})
-        )
-        return False
-    return True
 
 def check_message_valid(entry, topic, payload):
     try:
-        validate(
-            json.loads(payload),
-            entry["schema"]
-        )
+        validate(json.loads(payload), entry["schema"])
         return True
     except ValidationError as e:
+        offending_key = (
+            ".".join(str(p) for p in e.absolute_path) if e.absolute_path else "<root>"
+        )
         mqtt_clients.MQTTPublisher.get_instance().publish(
             "error/message",
-            json.dumps({"code": "validation_error", "message": e.message})
+            json.dumps(
+                {
+                    "code": "validation_error",
+                    "message": e.message,
+                    "topic": topic,
+                    "failed_check": e.validator,
+                    "offending_key": offending_key,
+                }
+            ),
         )
         return False
