@@ -318,10 +318,6 @@ An end-to-end integration test is available in [`integration/`](integration/).
 It starts all services — RabbitMQ, controller, monitor, firmware simulators,
 setpoint controller, and a test runner — then runs a full experiment cycle:
 
-1. **`test_services_ready`** — waits for heartbeats from all services
-2. **`test_experiment_completes`** — publishes `ui/start`, waits for `controller/end`
-3. **`test_no_errors`** — checks for any error messages published during the test
-
 To run (in `./integration`):
 ```
 docker compose up --build --attach test-runner --quiet-build --force-recreate
