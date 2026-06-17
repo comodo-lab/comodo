@@ -320,12 +320,20 @@ channels:
                     min:
                       type: number
                     max_rate:
-                      type: number
+                      oneOf:
+                        - type: number
+                        - type: "null"
 
             setpoints:
               type: object
-              additionalProperties:
-                type: number
+              additionalProperties: false
+              required:
+                - sensor_setpoint
+              properties:
+                sensor_setpoint:
+                  oneOf:
+                    - type: number
+                    - type: "null"
 
             status:
               type: object
@@ -347,14 +355,17 @@ channels:
                 enabled:
                   type: boolean
                 sensor_measurement:
-                  type: number
-                  nullable: true
+                  oneOf:
+                    - type: number
+                    - type: "null"
                 actuator_setpoint:
-                  type: number
-                  nullable: true
+                  oneOf:
+                    - type: number
+                    - type: "null"
                 experiment_id:
-                  type: string
-                  nullable: true
+                  oneOf:
+                    - type: string
+                    - type: "null"
 
   instrumentHeartbeat:
     address: instruments/+/heartbeat
