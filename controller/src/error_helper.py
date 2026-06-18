@@ -28,11 +28,11 @@ def missing_keys(msg, e):
     )
 
 
-def incompatible_request(obj, msg):
+def incompatible_request(caller, obj, msg):
     """
     Publishes an error message when the mqtt request is incompatible with the current controller status.
     """
-    error = f"Controller is {obj.status}. Cannot act on {msg.topic}"
+    error = f"{caller} cannot act on {msg.topic}. Controller status is {obj.status}."
     mqtt.MQTTPublisher.get_instance().publish(
         "error/controller",
         json.dumps({"code": "incompatible_request", "message": error}),

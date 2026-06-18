@@ -29,7 +29,7 @@ def c_idle(client, msg, obj):
     """
     if msg.topic != "controller/command/validate":
         if msg.topic.startswith("controller/command/"):
-            incompatible_request(obj, msg)
+            incompatible_request("Controller", obj, msg)
         return
 
     # Load and decode experiment file
@@ -94,7 +94,7 @@ def c_starting(client, msg, obj):
         if msg.topic == "controller/command/stop":
             c_stopping(client, msg, obj)
         elif msg.topic.startswith("controller/command/"):
-            incompatible_request(obj, msg)
+            incompatible_request("Controller", obj, msg)
         return
 
     obj.status = "starting"
@@ -132,7 +132,7 @@ def c_ready(client, msg, obj):
         if msg.topic == "controller/command/stop":
             c_stopping(client, msg, obj)
         elif msg.topic.startswith("controller/command/"):
-            incompatible_request(obj, msg)
+            incompatible_request("Controller", obj, msg)
         return
 
     obj.status = "ready"
@@ -161,7 +161,7 @@ def c_running(client, msg, obj):
         if msg.topic == "controller/command/stop":
             c_stopping(client, msg, obj)
         elif msg.topic.startswith("controller/command/"):
-            incompatible_request(obj, msg)
+            incompatible_request("Controller", obj, msg)
         return
 
     if obj.setpoints == []:
@@ -211,7 +211,7 @@ def c_stopping(client, msg, obj):
         "controller/event/end",
     ]:
         if msg.topic.startswith("controller/command/"):
-            incompatible_request(obj, msg)
+            incompatible_request("Controller", obj, msg)
         return
     message = mqtt.load_message(msg)
     msg_id = message.get("experiment_id") or message.get("id")

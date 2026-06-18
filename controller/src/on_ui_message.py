@@ -72,7 +72,7 @@ def on_ui_message(client, msg, obj):
                 dumps({"id": uid, "file": exp_file}),
             )
         else:
-            incompatible_request(obj, msg)
+            incompatible_request("Controller", obj, msg)
     else:
         if msg.topic == "ui/stop":
             if uid == obj.experiment_uid:
@@ -83,4 +83,4 @@ def on_ui_message(client, msg, obj):
             else:
                 incompatible_uid(obj, msg, uid)
         else:
-            incompatible_request(obj, msg)
+            incompatible_request("Controller", obj, msg)

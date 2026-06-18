@@ -67,7 +67,7 @@ class TestIdle:
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 1
         assert messages[0].topic == "error/controller"
-        assert "Controller is idle. Cannot act on controller/command/run" in messages[0].payload
+        assert "Controller cannot act on controller/command/run. Controller status is idle." in messages[0].payload
 
     def test_wrong_json(self, message_bus, state, controller_client, capsys):
         assert state.experiment_uid == None
@@ -285,7 +285,7 @@ class TestStarting:
         assert len(messages) == 1
         assert messages[0].topic == "error/controller"
         assert (
-            "Controller is validating. Cannot act on controller/command/run"
+            "Controller cannot act on controller/command/run. Controller status is validating."
             in messages[0].payload
         )
 
@@ -387,7 +387,7 @@ class TestReady:
         assert len(messages) == 1
         assert messages[0].topic == "error/controller"
         assert (
-            "Controller is awaiting_instruments. Cannot act on controller/command/something_else"
+            "Controller cannot act on controller/command/something_else. Controller status is awaiting_instruments."
             in messages[0].payload
         )
 
@@ -463,7 +463,7 @@ class TestRunning:
         assert len(messages) == 1
         assert messages[0].topic == "error/controller"
         assert (
-            "Controller is ready. Cannot act on controller/command/something_else"
+            "Controller cannot act on controller/command/something_else. Controller status is ready."
             in messages[0].payload
         )
 
@@ -683,7 +683,7 @@ class TestStopping:
         assert len(messages) == 1
         assert messages[-1].topic == "error/controller"
         assert (
-            "Controller is running. Cannot act on controller/command/something_else"
+            "Controller cannot act on controller/command/something_else. Controller status is running."
             in messages[-1].payload
         )
 

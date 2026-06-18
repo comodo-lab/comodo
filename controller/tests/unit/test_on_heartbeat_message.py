@@ -50,7 +50,7 @@ def test_incompatible_request(message_bus, heartbeat_client, state):
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
     assert messages[0].topic == "error/controller"
-    assert "Controller is awaiting_instruments. Cannot act on heartbeat/something_else" in messages[0].payload
+    assert "Controller cannot act on heartbeat/something_else. Controller status is awaiting_instruments." in messages[0].payload
 
 
 def test_wrong_json(message_bus, state, capsys):
@@ -98,9 +98,9 @@ def test_unconfigured_instrument(message_bus, state):
         topic="instruments/instrument_1/heartbeat",
         payload=json.dumps(
             {
-                    "state": "ready",
-                    "setpoints": {},
-                    "config": {"tolerance": 1, "experiment_id": None},
+                "state": "ready",
+                "setpoints": {},
+                "config": {"tolerance": 1, "experiment_id": None},
             }
         ),
     )

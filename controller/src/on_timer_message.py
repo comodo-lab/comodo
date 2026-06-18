@@ -93,4 +93,4 @@ def on_timer_message(client, msg, obj):
                 json.dumps({"source": "setpoint", "experiment_id": message["experiment_id"], "controller_status": obj.status}),
             )
     else:
-        incompatible_request(obj, msg)
+        incompatible_request("Timer", obj, msg)

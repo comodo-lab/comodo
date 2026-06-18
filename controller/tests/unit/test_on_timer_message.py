@@ -96,7 +96,7 @@ def test_incompatible_request(timer_client, message_bus, state):
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
     assert messages[0].topic == "error/controller"
-    assert "Controller is awaiting_instruments. Cannot act on controller/timer/something_else" in messages[0].payload
+    assert "Timer cannot act on controller/timer/something_else. Controller status is awaiting_instruments." in messages[0].payload
 
 
 def test_timeout(timer_client, message_bus, state):
