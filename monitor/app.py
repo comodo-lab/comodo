@@ -13,7 +13,7 @@ from jsonschema import ValidationError
 from utils import mqtt_clients as mqtt
 from utils.mqtt_validator import validate_message, UnexpectedTopicException
 
-def on_message(client, msg):
+def on_message(client, msg, obj):
     try:
         validate_message(msg.topic, msg.payload)
     except UnexpectedTopicException as e:
