@@ -1,3 +1,13 @@
+# This compose file runs the integration tests for the comodo stack and exits when done.
+# To run the tests, cd into integration_tests/ and execute:
+#   docker compose --env-file ../.env up --build --attach test-runner --force-recreate
+#   docker compose --env-file ../.env kill
+#
+# Note that pytest captures prints from the runner.py code, not from the stack itself.
+# If debugging code in the stack, you need to attach to the service being debugged, e.g.:
+#   docker compose --env-file ../.env up --build --attach test-runner --attach monitor --force-recreate
+# and then exit with Ctrl-C when done.
+
 include:
   - path: ../compose.yaml
   #- path: ../compose.data.yaml
@@ -5,18 +15,6 @@ include:
   - path: ../compose.mqtt.yaml
 
 services:
-  rabbitmq:
-    healthcheck:
-      test: rabbitmq-diagnostics -q ping
-      interval: 2s
-      timeout: 5s
-      retries: 10
-      start_period: 5s
-
-  monitor:
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
 
   # influxdb:
   #   environment:
@@ -28,14 +26,13 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    env_file:
+      - ../.env
     environment:
-      MQTT_HOST: ${MQTT_HOST:-rabbitmq}
-      MQTT_USER: ${MQTT_USER:-comodo}
-      MQTT_PASS: ${MQTT_PASS:-comodo}
       HEARTBEAT_TIMEOUT: ${HEARTBEAT_TIMEOUT:-60}
       EXPERIMENT_TIMEOUT: ${EXPERIMENT_TIMEOUT:-120}
     volumes:
       - ./fixtures/start.json:/app/experiment.json:ro
     depends_on:
-      rabbitmq:
+      mqtt-probe-core:
         condition: service_healthy

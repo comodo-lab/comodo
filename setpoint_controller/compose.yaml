@@ -2,6 +2,8 @@
 # This compose file runs the tests for the setpoint controller and exits when done.
 # To run the tests, cd into setpoint_controller/ and execute:
 #   docker compose up --build
+# To check coverage report, after tests have run, execute:
+#   xdg-open $(docker volume inspect setpoint_controller-tests_memory -f '{{ .Mountpoint }}')/htmlcov/class_index.html
 
 name: setpoint_controller-tests
 services:
