@@ -18,15 +18,40 @@ def on_message(client, msg, obj):
         validate_message(msg.topic, msg.payload)
     except UnexpectedTopicException as e:
         mqtt.MQTTPublisher.get_instance().publish(
-            "error/message", json.dumps({"code": "unexpected_topic", "message": str(e)})
+            "error/message", 
+            json.dumps(
+                {
+                    "code": "unexpected_topic",
+                    "message": f"Unexpected topic: {msg.topic}",
+                }
+            )
         )
     except JSONDecodeError as e:
         mqtt.MQTTPublisher.get_instance().publish(
-            "error/message", json.dumps({"code": "invalid_json", "message": str(e)})
+            "error/message",
+            json.dumps(
+                {
+                    "code": "invalid_json",
+                    "message": str(e),
+                    "topic": msg.topic,
+                }
+            )
         )
     except ValidationError as e:
+        offending_key = (
+            ".".join(str(p) for p in e.absolute_path) if e.absolute_path else "<root>"
+        )
         mqtt.MQTTPublisher.get_instance().publish(
-            "error/message", json.dumps({"code": "validation_error", "message": e.message})
+            "error/message", 
+            json.dumps(
+                {
+                    "code": "validation_error",
+                    "message": e.message,
+                    "topic": msg.topic,
+                    "failed_check": e.validator,
+                    "offending_key": offending_key,
+                }
+            )
         )
     except Exception as error:
         print(f"Message invalid: {error}")

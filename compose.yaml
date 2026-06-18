@@ -76,6 +76,10 @@ services:
     build:
       context: .
       dockerfile: monitor/Dockerfile
+    depends_on:
+      mqtt-probe-core:
+        condition: service_healthy
+    restart: unless-stopped
     volumes:
       - ./mqtt_schema.yaml:/app/mqtt_schema.yaml
     environment:
