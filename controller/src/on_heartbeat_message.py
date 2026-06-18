@@ -19,7 +19,7 @@ def on_heartbeat_message(client, msg, obj):
     It expects a message compliant with the spec schema for that channel.
     """
     if "instruments" not in (msg.topic) or "heartbeat" not in msg.topic:
-        incompatible_request("Controller", obj, msg)
+        incompatible_request("Heartbeat", obj, msg)
         return
 
     try:

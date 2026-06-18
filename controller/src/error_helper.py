@@ -32,9 +32,10 @@ def incompatible_request(caller, obj, msg):
     """
     Publishes an error message when the mqtt request is incompatible with the current controller status.
     """
+    topic = f"error/{caller.lower()}"
     error = f"{caller} cannot act on {msg.topic}. Controller status is {obj.status}."
     mqtt.MQTTPublisher.get_instance().publish(
-        "error/controller",
+        topic,
         json.dumps({"code": "incompatible_request", "message": error}),
     )
 
