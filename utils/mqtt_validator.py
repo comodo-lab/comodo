@@ -6,17 +6,31 @@ from paho.mqtt.client import topic_matches_sub
 class UnexpectedTopicException(Exception):
     pass
 
+schemas = {
+    "asyncapi": "/app/mqtt_schema.yaml",
+}
+
 def match_topic(topic, topic_map):
     for address, entry in topic_map.items():
         if topic_matches_sub(address, topic):
             return entry
     return None
 
-def load_spec(path='/app/mqtt_schema.yaml'):
+def load_spec(schema_name="asyncapi"):
+    # --------------------------------------------------------------------------
+    # Load the schema
+
+    path = schemas.get(schema_name, schema_name)
     with open(path) as f:
         spec = yaml.safe_load(f)
 
+    # --------------------------------------------------------------------------
+    # Get the channels
+
     channels = spec.get("channels", {})
+
+    # --------------------------------------------------------------------------
+    # Build the topic map
 
     topic_map = {}
     for ch_name, ch_def in channels.items():
@@ -46,12 +60,11 @@ def validate_message(topic, payload, schema_name="asyncapi"):
         json.JSONDecodeError: If the payload is not valid JSON
         jsonschema.ValidationError: If the payload does not conform to the schema
     """
-    
-    # --------------------------------------------------------------------------
-    # Set up checks
 
-    # Load the AsyncAPI specification 
-    topic_map = load_spec()
+    # --------------------------------------------------------------------------
+    # Load the specified specification
+
+    topic_map = load_spec(schema_name)
 
     # Get the entry from the spec
     entry = match_topic(topic, topic_map)
