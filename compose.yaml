@@ -21,7 +21,7 @@ services:
     working_dir: /work
     volumes:
       - ./comodo.yaml:/work/config.yaml
-      - ./comodo.yaml.schema:/work/schema.yaml
+      - ./schemas/comodo.yaml.schema:/work/schema.yaml
 
   mqtt-probe-core:
     build:
@@ -48,7 +48,7 @@ services:
         condition: service_completed_successfully
     volumes:
       - ./controller/data:/controller/data
-      - ./mqtt_schema.yaml:/app/mqtt_schema.yaml:ro
+      - ./schemas/mqtt_schema.yaml:/app/schemas/mqtt_schema.yaml:ro
       - ./comodo.yaml:/app/comodo.yaml:ro
     networks:
       comodo-core:
@@ -82,7 +82,7 @@ services:
         condition: service_healthy
     restart: unless-stopped
     volumes:
-      - ./mqtt_schema.yaml:/app/mqtt_schema.yaml
+      - ./schemas/mqtt_schema.yaml:/app/schemas/mqtt_schema.yaml
     environment:
       <<: [*mqtt-env]
     networks:
