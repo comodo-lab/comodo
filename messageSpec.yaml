@@ -15,12 +15,9 @@ channels:
           additionalProperties: false
           required:
             - uid
-            - status
           properties:
             uid:
               type: number
-            status:
-              type: string
 
   uiStart:
     address: ui/start
