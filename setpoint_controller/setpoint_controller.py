@@ -21,6 +21,12 @@ def main():
         missing_req_env_vars = [k for k, v in rev_dict.items() if v is None]
         if missing_req_env_vars:
             raise KeyError(", ".join(missing_req_env_vars))
+        # Validate SENSOR and ACTUATOR format
+        if rev_dict["SENSOR"].count("/") != 1:
+            raise ValueError("SENSOR must be instrument_name/variable_name")
+        if rev_dict["ACTUATOR"].count("/") != 1:
+            raise ValueError("ACTUATOR must be instrument_name/variable_name")
+
         mqtt_host = rev_dict["MQTT_HOST"]
         mqtt_user = rev_dict["MQTT_USER"]
         mqtt_pass = rev_dict["MQTT_PASS"]
@@ -28,6 +34,9 @@ def main():
         actuator_instrument, actuator_variable = rev_dict["ACTUATOR"].split("/", 1)
     except KeyError as e:
         print(f"Missing required environment variables: {e}")
+        exit(1)
+    except ValueError as e:
+        print(f"Invalid environment variable: {e}")
         exit(1)
 
     spc_id = f"{sensor_instrument}-{sensor_variable}--{actuator_instrument}-{actuator_variable}"

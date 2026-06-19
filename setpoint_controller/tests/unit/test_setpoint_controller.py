@@ -56,6 +56,48 @@ class Test_main:
         # Ensure that SetpointController was never initialized
         mocks["spc_class"].assert_not_called()
 
+    def test_fails_to_start_with_invalid_sensor_format(self, mocks_for_main, capsys):
+        mocks = mocks_for_main
+
+        # Simulate invalid SENSOR value
+        mocks["env_values"].update(
+            {
+                "MQTT_HOST": "test_host",
+                "MQTT_USER": "test_user",
+                "MQTT_PASS": "test_pass",
+                "SENSOR": "invalid_sensor",  # Missing '/'
+                "ACTUATOR": "test/actuator",
+            }
+        )
+
+        with pytest.raises(SystemExit):
+            main()
+
+        captured = capsys.readouterr()
+        assert "Invalid environment variable" in captured.out
+        assert "SENSOR must be instrument_name/variable_name" in captured.out
+
+    def test_fails_to_start_with_invalid_actuator_format(self, mocks_for_main, capsys):
+        mocks = mocks_for_main
+
+        # Simulate invalid ACTUATOR value
+        mocks["env_values"].update(
+            {
+                "MQTT_HOST": "test_host",
+                "MQTT_USER": "test_user",
+                "MQTT_PASS": "test_pass",
+                "SENSOR": "test/sensor",
+                "ACTUATOR": "invalid_actuator",  # Missing '/'
+            }
+        )
+
+        with pytest.raises(SystemExit):
+            main()
+
+        captured = capsys.readouterr()
+        assert "Invalid environment variable" in captured.out
+        assert "ACTUATOR must be instrument_name/variable_name" in captured.out
+
     def test_parameters_pulled_from_env(self, mocks_for_main):
         mocks = mocks_for_main
         mocks["env_values"].update(
