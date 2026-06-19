@@ -14,14 +14,20 @@ def main():
     # Load configuration
     heartbeat_interval = float(os.getenv("HEARTBEAT_INTERVAL", 1)) / 1000
     try:
-        mqtt_host = os.getenv("MQTT_HOST")
-        mqtt_user = os.getenv("MQTT_USER")
-        mqtt_pass = os.getenv("MQTT_PASS")
-
-        sensor_instrument, sensor_variable = os.getenv("SENSOR").split("/", 1)
-        actuator_instrument, actuator_variable = os.getenv("ACTUATOR").split("/", 1)
+        req_env_vars = ["MQTT_HOST", "MQTT_USER", "MQTT_PASS", "SENSOR", "ACTUATOR"]
+        # Load required environment variables into a dictionary
+        rev_dict = {key: os.getenv(key) for key in req_env_vars}
+        # Check for missing values
+        missing_req_env_vars = [k for k, v in rev_dict.items() if v is None]
+        if missing_req_env_vars:
+            raise KeyError(", ".join(missing_req_env_vars))
+        mqtt_host = rev_dict["MQTT_HOST"]
+        mqtt_user = rev_dict["MQTT_USER"]
+        mqtt_pass = rev_dict["MQTT_PASS"]
+        sensor_instrument, sensor_variable = rev_dict["SENSOR"].split("/", 1)
+        actuator_instrument, actuator_variable = rev_dict["ACTUATOR"].split("/", 1)
     except KeyError as e:
-        print(f"Missing required environment variable: {e}")
+        print(f"Missing required environment variables: {e}")
         exit(1)
 
     spc_id = f"{sensor_instrument}-{sensor_variable}--{actuator_instrument}-{actuator_variable}"
