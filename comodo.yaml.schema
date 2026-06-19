@@ -189,6 +189,7 @@ slots:
 
   external_sensor:
     range: string
+    pattern: "^[^/]+/[^/]+$"
   K_P:
     range: float
   K_I:
