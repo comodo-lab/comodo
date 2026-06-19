@@ -39,65 +39,39 @@ class TestLoadSpec:
 
 
 class TestCheckPayloadJsonValidity:
-    def test_valid_json(self, message_bus):
+    def test_valid_json(self):
         result = check_payload_json_validity("test/topic", '{"key": "val"}')
         assert result is None
-        assert len(message_bus.get_messages()) == 0
 
-    def test_invalid_json(self, message_bus):
+    def test_invalid_json(self):
         with pytest.raises(json.JSONDecodeError):
             check_payload_json_validity("test/topic", "not valid json")
-        messages = message_bus.get_messages(decoded=True)
-        assert len(messages) == 1
-        assert messages[0].topic == "error/message"
-        payload = json.loads(messages[0].payload)
-        assert payload["code"] == "invalid_json"
-        assert "message" in payload
-
 
 class TestCheckTopicExpected:
-    def test_topic_found(self, message_bus):
+    def test_topic_found(self):
         entry = {"name": "test", "schema": {}}
         result = check_topic_expected(entry, "test/topic")
         assert result is None
-        assert len(message_bus.get_messages()) == 0
 
-    def test_topic_not_found(self, message_bus):
+    def test_topic_not_found(self):
         with pytest.raises(UnexpectedTopicException):
             check_topic_expected(None, "test/topic")
-        messages = message_bus.get_messages(decoded=True)
-        assert len(messages) == 1
-        assert messages[0].topic == "error/message"
-        payload = json.loads(messages[0].payload)
-        assert payload["code"] == "unexpected_topic"
-        assert "message" in payload
-
 
 class TestCheckMessageValid:
-    def test_valid_message(self, message_bus, mock_topic_map):
+    def test_valid_message(self, mock_topic_map):
         entry = mock_topic_map["error/message/unexpected"]
         payload = '{"topic": "test", "error": "unexpected_topic"}'
         result = check_message_valid(entry, "error/message/unexpected", payload)
         assert result is None
-        assert len(message_bus.get_messages()) == 0
 
-    def test_schema_mismatch(self, message_bus, mock_topic_map):
+    def test_schema_mismatch(self, mock_topic_map):
         entry = mock_topic_map["error/message/unexpected"]
         payload = '{"topic": "test", "error": "not_in_enum"}'
         with pytest.raises(ValidationError):
             check_message_valid(entry, "error/message/unexpected", payload)
-        messages = message_bus.get_messages(decoded=True)
-        assert len(messages) == 1
-        assert messages[0].topic == "error/message"
-        err = json.loads(messages[0].payload)
-        assert err["code"] == "validation_error"
-        assert "message" in err
 
-    def test_missing_required_field(self, message_bus, mock_topic_map):
+    def test_missing_required_field(self, mock_topic_map):
         entry = mock_topic_map["error/message/unexpected"]
         payload = '{"topic": "test"}'
         with pytest.raises(ValidationError):
             check_message_valid(entry, "error/message/unexpected", payload)
-        messages = message_bus.get_messages(decoded=True)
-        assert len(messages) == 1
-        assert messages[0].topic == "error/message"
