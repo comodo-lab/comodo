@@ -26,6 +26,7 @@ services:
     image: comodolab/comodo-mqtt_probe:latest
     environment:
       <<: *mqtt-env
+      MQTT_PROBE_ID: firmware
     networks:
       comodo-firmware:
 

@@ -29,6 +29,7 @@ services:
       dockerfile: mqtt_probe/Dockerfile
     environment:
       <<: *mqtt-env
+      MQTT_PROBE_ID: core
     networks:
       comodo-core:
 

@@ -6,6 +6,19 @@ info:
     Minimal strict protocol contract for the Comodo experiment automation platform.
 
 channels:
+  mqtt-probe:
+    address: mqtt-probe/+
+    messages:
+      mqttProbeMessage:
+        payload:
+          type: object
+          additionalProperties: false
+          required:
+            - uid
+          properties:
+            uid:
+              type: number
+
   uiStart:
     address: ui/start
     messages:
