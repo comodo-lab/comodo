@@ -1,6 +1,8 @@
 #!/bin/sh
 set -e
 
+MQTT_PROBE_ID="${MQTT_PROBE_ID:-probe}"
+
 HOST="${MQTT_HOST:-localhost}"
 PORT="${MQTT_PORT:-1883}"
 USER="${MQTT_USER:-}"
@@ -17,14 +19,16 @@ if [ -n "$USER" ] && [ -n "$PASS" ]; then
 fi
 
 probe_once() {
-  TOPIC="mqtt-probe/$RANDOM"
+  TOPIC="mqtt-probe/${MQTT_PROBE_ID}"
+  UID_VAL=$RANDOM
+  TMP=$(mktemp)
 
-  timeout $TIMEOUT mosquitto_sub -h "$HOST" -p "$PORT" $AUTH_ARGS -t "$TOPIC" -C 1 2>/dev/null &
+  timeout $TIMEOUT mosquitto_sub -h "$HOST" -p "$PORT" $AUTH_ARGS -t "$TOPIC" -C 1 2>/dev/null > "$TMP" &
   SUB_PID=$!
 
   sleep 1
 
-  timeout $TIMEOUT mosquitto_pub -h "$HOST" -p "$PORT" $AUTH_ARGS -t "$TOPIC" -m '{"status":"ok"}' 2>&1
+  timeout $TIMEOUT mosquitto_pub -h "$HOST" -p "$PORT" $AUTH_ARGS -t "$TOPIC" -m "{\"status\":\"ok\",\"uid\":$UID_VAL}" 2>&1
   PUB_STATUS=$?
 
   set +e
@@ -37,10 +41,18 @@ probe_once() {
       echo "$(date '+%Y-%m-%d %H:%M:%S') Timeout (no route to host?)"
     fi
     echo "$(date '+%Y-%m-%d %H:%M:%S') Pub status: $PUB_STATUS, Sub status: $SUB_STATUS"
+    rm -f "$TMP"
     return 1
-  else
-    return 0
   fi
+
+  if ! grep -q "\"uid\":$UID_VAL" "$TMP"; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') UID mismatch (stale message?)"
+    rm -f "$TMP"
+    return 1
+  fi
+
+  rm -f "$TMP"
+  return 0
 }
 
 while true; do
