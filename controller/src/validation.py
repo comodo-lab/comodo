@@ -25,7 +25,7 @@ def validate_experiment(file_path: Dict[str, Any], actuator_variables: set) -> D
     # Attempt loading the file
     try:
         with open(file_path) as f:
-            data = loads(f.read())
+            data = f.read()
     except FileNotFoundError:
         raise FileNotFoundError(f"ERROR: File not found - {file_path}")
     
@@ -36,4 +36,5 @@ def validate_experiment(file_path: Dict[str, Any], actuator_variables: set) -> D
         raise e    
 
     # TODO: check acutators against generated experiment config AsyncAPI
-    return data
+    experiment_dict = loads(data)
+    return experiment_dict
