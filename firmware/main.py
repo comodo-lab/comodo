@@ -29,7 +29,7 @@ def send_heartbeat():
     if state.client is not None and "ready" in state.config:
         heartbeat_structure = state.get_status()
         state.client.publish(
-            f"instruments/{state.config['INSTRUMENT_ID']}/heartbeat", heartbeat_structure
+            f"instruments/{state.config['INSTRUMENT_NAME']}/heartbeat", heartbeat_structure
         )
 
 
@@ -47,7 +47,7 @@ async def measurement_tick(variable):
         interval = int(state.config.get(f"INTERVAL_{variable.upper()}", 1000))
         value = state.instrument.get_measurement(state, variable)
         state.client.publish(
-            f"instruments/{state.config['INSTRUMENT_ID']}/{variable}/measurement",
+            f"instruments/{state.config['INSTRUMENT_NAME']}/{variable}/measurement",
             json.dumps({"value": value}),
         )
         await asyncio.sleep(interval / 1000)
@@ -70,12 +70,12 @@ async def main():
 
     ## Create client
     topics = [
-        f"instruments/{state.config['INSTRUMENT_ID']}/+/setpoint",
+        f"instruments/{state.config['INSTRUMENT_NAME']}/+/setpoint",
         f"controller/event/end",
         f"controller/command/stop",
     ]
     state.client = mqtt.MQTTClient(
-        id=state.config["INSTRUMENT_ID"],
+        id=state.config["INSTRUMENT_NAME"],
         callback=state.idle_cb,
         topics=topics,
         broker_address=state.config["MQTT_HOST"],
@@ -103,9 +103,9 @@ async def main():
     if all_ok and state.instrument.variables:
         state.status["state"] = "ready"
         state.client.callback = state.ready_cb
-        print(f"Instrument {state.config['INSTRUMENT_ID']} ready")
+        print(f"Instrument {state.config['INSTRUMENT_NAME']} ready")
     else:
-        print(f"Instrument {state.config['INSTRUMENT_ID']} self-test failed, staying idle")
+        print(f"Instrument {state.config['INSTRUMENT_NAME']} self-test failed, staying idle")
 
     simulate = state.config.get("SIMULATE", False)
     if isinstance(simulate, str):
@@ -123,7 +123,7 @@ async def main():
     state.config["ready"] = True
 
     print(
-        f"Instrument {state.config['INSTRUMENT_ID']} created successfully "
+        f"Instrument {state.config['INSTRUMENT_NAME']} created successfully "
         f"using firmware {state.config['FIRMWARE']}"
     )
 
@@ -147,7 +147,7 @@ if __name__ == "__main__":
         try:
             state.client.publish(
                 "error/instrument",
-                json.dumps({"code": "exception", "message": f"[{state.config['INSTRUMENT_ID']}] {e}"}),
+                json.dumps({"code": "exception", "message": f"[{state.config['INSTRUMENT_NAME']}] {e}"}),
             )
         except:
             print(f"Error: {e}")

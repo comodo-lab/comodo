@@ -17,7 +17,7 @@ services:
       dockerfile: firmware/Dockerfile
     environment:
       <<: *sim-env
-      INSTRUMENT_ID: "furnace_centre"
+      INSTRUMENT_NAME: "furnace_centre"
       FIRMWARE: carbolite_gero.tg3
       DEVICE_ADDRESS: 192.168.111.222
     depends_on:
@@ -29,7 +29,7 @@ services:
       dockerfile: firmware/Dockerfile
     environment:
       <<: *sim-env
-      INSTRUMENT_ID: "furnace_left"
+      INSTRUMENT_NAME: "furnace_left"
       FIRMWARE: carbolite_gero.tg3
       DEVICE_ADDRESS: 192.168.111.224
     depends_on:
@@ -41,7 +41,7 @@ services:
       dockerfile: firmware/Dockerfile
     environment:
       <<: *sim-env
-      INSTRUMENT_ID: "furnace_right"
+      INSTRUMENT_NAME: "furnace_right"
       FIRMWARE: carbolite_gero.tg3
       DEVICE_ADDRESS: 192.168.111.225
     depends_on:
@@ -53,7 +53,7 @@ services:
       dockerfile: firmware/Dockerfile
     environment:
       <<: *sim-env
-      INSTRUMENT_ID: "pressure_downstream"
+      INSTRUMENT_NAME: "pressure_downstream"
       FIRMWARE: pfeiffer.mpt200
     depends_on:
       <<: *rabbitmq-dep
@@ -64,7 +64,7 @@ services:
       dockerfile: firmware/Dockerfile
     environment:
       <<: *sim-env
-      INSTRUMENT_ID: "pressure_upstream"
+      INSTRUMENT_NAME: "pressure_upstream"
       FIRMWARE: pfeiffer.mpt200
     depends_on:
       <<: *rabbitmq-dep
@@ -75,7 +75,7 @@ services:
       dockerfile: firmware/Dockerfile
     environment:
       <<: *sim-env
-      INSTRUMENT_ID: "mass_flow"
+      INSTRUMENT_NAME: "mass_flow"
       FIRMWARE: bronkhorst.el_flow_select
     depends_on:
       <<: *rabbitmq-dep

@@ -4,7 +4,7 @@ import json
 import os
 
 config = {
-    "INSTRUMENT_ID": "No name",
+    "INSTRUMENT_NAME": "No name",
     "FIRMWARE": "None specified",
     "MQTT_USER": "comodo",
     "MQTT_PASS": "comodo",

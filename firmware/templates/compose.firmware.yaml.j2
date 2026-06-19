@@ -35,7 +35,7 @@ services:
     <<: *python-instrument-template
     environment:
       <<: *instrument-env
-      INSTRUMENT_ID: "{{ name }}"
+      INSTRUMENT_NAME: "{{ name }}"
       FIRMWARE: {{ instr.firmware }}
       DEVICE_ADDRESS: "{{ instr.address }}"
       HEARTBEAT_INTERVAL: {{ (global.heartbeat.interval | default(1) | float * 1000) | int }}{% for v_name, v_cfg in instr.variables.items() %}{% if v_cfg.measurement and v_cfg.measurement.interval %}
