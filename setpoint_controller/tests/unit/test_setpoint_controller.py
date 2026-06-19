@@ -39,27 +39,72 @@ class Test_main:
                 "spc_class": mock_spc_class,
             }
 
-    def test_fails_to_start_without_required_env_vars(self, mocks_for_main):
+    def test_fails_to_start_without_required_env_vars(self, mocks_for_main, capsys):
         mocks = mocks_for_main
 
         # Simulate missing required environment variable
-        def getenv_side_effect(var, default=None):
-            if var == "MQTT_HOST":
-                raise KeyError("MQTT_HOST")
-            return default
-
-        mocks["getenv"].side_effect = getenv_side_effect
+        mocks["env_values"].update({"MQTT_HOST": "some_host"})  # not missing
+        missing_vars = ["MQTT_USER", "MQTT_PASS", "SENSOR", "ACTUATOR"]
 
         with pytest.raises(SystemExit):
             main()
 
+        captured = capsys.readouterr()
+        assert "Missing required environment variables" in captured.out
+        assert all(var in captured.out for var in missing_vars)
+        assert "MQTT_HOST" not in captured.out
         # Ensure that SetpointController was never initialized
         mocks["spc_class"].assert_not_called()
+
+    def test_fails_to_start_with_invalid_sensor_format(self, mocks_for_main, capsys):
+        mocks = mocks_for_main
+
+        # Simulate invalid SENSOR value
+        mocks["env_values"].update(
+            {
+                "MQTT_HOST": "test_host",
+                "MQTT_USER": "test_user",
+                "MQTT_PASS": "test_pass",
+                "SENSOR": "invalid_sensor",  # Missing '/'
+                "ACTUATOR": "test/actuator",
+            }
+        )
+
+        with pytest.raises(SystemExit):
+            main()
+
+        captured = capsys.readouterr()
+        assert "Invalid environment variable" in captured.out
+        assert "SENSOR must be instrument_name/variable_name" in captured.out
+
+    def test_fails_to_start_with_invalid_actuator_format(self, mocks_for_main, capsys):
+        mocks = mocks_for_main
+
+        # Simulate invalid ACTUATOR value
+        mocks["env_values"].update(
+            {
+                "MQTT_HOST": "test_host",
+                "MQTT_USER": "test_user",
+                "MQTT_PASS": "test_pass",
+                "SENSOR": "test/sensor",
+                "ACTUATOR": "invalid_actuator",  # Missing '/'
+            }
+        )
+
+        with pytest.raises(SystemExit):
+            main()
+
+        captured = capsys.readouterr()
+        assert "Invalid environment variable" in captured.out
+        assert "ACTUATOR must be instrument_name/variable_name" in captured.out
 
     def test_parameters_pulled_from_env(self, mocks_for_main):
         mocks = mocks_for_main
         mocks["env_values"].update(
             {
+                "MQTT_HOST": "test_host",
+                "MQTT_USER": "test_user",
+                "MQTT_PASS": "test_pass",
                 "SENSOR": "A/B",
                 "ACTUATOR": "C/D",
             }
