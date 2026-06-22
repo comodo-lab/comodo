@@ -49,7 +49,7 @@ def on_timer_message(client, msg, obj):
             not obj.instruments["configured"]
         ) and obj.status == "awaiting_instruments":
             t.sleep(timer_check_frequency)
-            if t.time() - t0 > instrument_setup_wait:
+            if instrument_setup_wait is not None and t.time() - t0 > instrument_setup_wait:
                 controller_timeout(message["experiment_id"], "instruments", "Stopping")
                 mqtt.MQTTPublisher.get_instance().publish(
                     "controller/command/stop", json.dumps({"id": message["experiment_id"]})

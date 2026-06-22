@@ -116,7 +116,7 @@ class TestMain:
         ]
         mocks["get_secret"].assert_called_with("MQTT_PASS", "MQTT_PASS_FILE", None)
 
-        mocks["cstate"].assert_called_once_with(actuator_variables=set(), sensor_variables=set())
+        mocks["cstate"].assert_called_once_with(instrument_setup_wait=10,actuator_variables=set(), sensor_variables=set())
 
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 0

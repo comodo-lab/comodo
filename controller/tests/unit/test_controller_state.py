@@ -281,3 +281,50 @@ def test_cannot_set_wrong_type_instruments(state):
         assert "Instruments must be a dictionary, cannot accept <class 'int'>" in e.args[0]
     else:
         assert False, "Should not let you set wrong type"
+
+
+def test_can_set_instrument_setup_wait(state):
+    state.instrument_setup_wait = 5.0
+    assert state.instrument_setup_wait == 5.0
+
+
+def test_can_set_instrument_setup_wait_none(state):
+    state.instrument_setup_wait = None
+    assert state.instrument_setup_wait is None
+
+
+def test_cannot_set_instrument_setup_wait_zero(state):
+    with pytest.raises(ValueError, match="positive"):
+        state.instrument_setup_wait = 0
+
+
+def test_cannot_set_instrument_setup_wait_negative(state):
+    with pytest.raises(ValueError, match="positive"):
+        state.instrument_setup_wait = -1.0
+
+
+def test_cannot_set_instrument_setup_wait_string(state):
+    with pytest.raises(ValueError, match="positive"):
+        state.instrument_setup_wait = "5"
+
+
+def test_can_set_actuator_variables(state):
+    av = {"a/b"}
+    state.actuator_variables = av
+    assert state.actuator_variables == av
+
+
+def test_cannot_set_wrong_type_actuator_variables(state):
+    with pytest.raises(TypeError, match="Actuator variables must be a set"):
+        state.actuator_variables = ["a/b"]
+
+
+def test_can_set_sensor_variables(state):
+    sv = {"c/d"}
+    state.sensor_variables = sv
+    assert state.sensor_variables == sv
+
+
+def test_cannot_set_wrong_type_sensor_variables(state):
+    with pytest.raises(TypeError, match="Sensor variables must be a set"):
+        state.sensor_variables = ["c/d"]

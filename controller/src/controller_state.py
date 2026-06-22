@@ -29,12 +29,12 @@ class cstate:
         "_current_setpoint",
         "_past_setpoints",
         "_instruments",
-        "instrument_setup_wait",
-        "actuator_variables",
-        "sensor_variables",
+        "_instrument_setup_wait",
+        "_actuator_variables",
+        "_sensor_variables",
     ]
 
-    def __init__(self, actuator_variables: Set[str] = None, sensor_variables: Set[str] = None) -> None:
+    def __init__(self, instrument_setup_wait: float = None, actuator_variables: Set[str] = None, sensor_variables: Set[str] = None) -> None:
         """
         Initializes a new instance of the cstate class.
         """
@@ -47,9 +47,9 @@ class cstate:
         self.current_setpoint: Dict[str, Any] = None
         self.past_setpoints: List[Dict[str, Any]] = []
         self.instruments: Dict[str, Any] = {"configured": False}
-        self.instrument_setup_wait: float = 10.0
-        self.actuator_variables: Set[str] = actuator_variables or set()
-        self.sensor_variables: Set[str] = sensor_variables or set()
+        self.instrument_setup_wait = instrument_setup_wait
+        self.actuator_variables = actuator_variables or set()
+        self.sensor_variables = sensor_variables or set()
 
     @property
     def actuator_instruments(self) -> set[str]:
@@ -59,6 +59,36 @@ class cstate:
     def sensor_instruments(self) -> set[str]:
         sensors = {sv.split("/", 1)[0] for sv in self.sensor_variables}
         return sensors - self.actuator_instruments
+
+    @property
+    def instrument_setup_wait(self) -> float:
+        return self._instrument_setup_wait
+
+    @instrument_setup_wait.setter
+    def instrument_setup_wait(self, value: float) -> None:
+        if value is not None and (not isinstance(value, (int, float)) or value <= 0):
+            raise ValueError(f"Instrument setup wait must be a positive number or None, got {value}")
+        self._instrument_setup_wait = value
+
+    @property
+    def actuator_variables(self) -> Set[str]:
+        return self._actuator_variables
+
+    @actuator_variables.setter
+    def actuator_variables(self, value: Set[str]) -> None:
+        if not isinstance(value, set):
+            raise TypeError(f"Actuator variables must be a set, cannot accept {type(value)}")
+        self._actuator_variables = value
+
+    @property
+    def sensor_variables(self) -> Set[str]:
+        return self._sensor_variables
+
+    @sensor_variables.setter
+    def sensor_variables(self, value: Set[str]) -> None:
+        if not isinstance(value, set):
+            raise TypeError(f"Sensor variables must be a set, cannot accept {type(value)}")
+        self._sensor_variables = value
 
     def heartbeat(self) -> Dict[str, Any]:
         """

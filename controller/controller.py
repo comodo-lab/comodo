@@ -60,8 +60,9 @@ def main():
         global_config.get("watchdog", {}).get("timeout", 5)
     )
     instrument_setup_wait = float(
-        global_config.get("instrument_setup", {}).get("wait", 10)
+        global_config.get("instrument_setup", {}).get("wait", -1)
     )
+    assert instrument_setup_wait > 0, "instrument_setup.wait must be a positive number"
 
     assert wdog_interval > 0
     assert wdog_timeout > 2 * wdog_interval
@@ -83,8 +84,7 @@ def main():
                 sensor_variables.add(f"{instr_name}/{var_name}")
 
     # Initialize controller state
-    state = cstate(actuator_variables=actuator_variables, sensor_variables=sensor_variables)
-    state.instrument_setup_wait = instrument_setup_wait
+    state = cstate(instrument_setup_wait=instrument_setup_wait, actuator_variables=actuator_variables, sensor_variables=sensor_variables)
 
     print(f"  Creating clients...")
 
