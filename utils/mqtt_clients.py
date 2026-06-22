@@ -241,7 +241,12 @@ def load_message(msg):
     Decodes and loads the message received from the MQTT client as a JSON object.
     Exceptions need to be caught when calling this function.
     """
-    return json.loads(msg.payload.decode("utf-8"))
+    try:
+        message_decoded = msg.payload.decode("utf-8")
+        message_json = json.loads(message_decoded)
+    except Exception as e:
+        raise ValueError(f"Error decoding message: {e}") 
+    return message_json
 
 
 class MQTTPublisher:
