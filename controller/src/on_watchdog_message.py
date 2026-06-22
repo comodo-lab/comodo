@@ -29,7 +29,7 @@ def on_watchdog_message(client, msg, obj):
         error = mqtt.load_message(msg)["error"]
         print(f"WATCHDOG: Received error: {error}")
         mqtt.MQTTPublisher.get_instance().publish(
-            "watchdog/timer/event/restart",
+            "watchdog/timer/event/restart_triggered",
             json.dumps({"message": "Restarting controller..."}),
         )
         obj["healthy"] = False
@@ -40,7 +40,7 @@ def on_watchdog_message(client, msg, obj):
             error = mqtt.load_message(msg)["message"]
             print(f"WATCHDOG: Timed out waiting for controller heartbeat. {error}")
             mqtt.MQTTPublisher.get_instance().publish(
-                "watchdog/timer/event/restart",
+                "watchdog/timer/event/restart_triggered",
                 json.dumps({"message": "Restarting controller..."}),
             )
             obj["healthy"] = False

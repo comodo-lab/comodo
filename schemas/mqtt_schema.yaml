@@ -200,7 +200,7 @@ channels:
               type: number
 
   watchdogEventRestart:
-    address: watchdog/timer/event/restart
+    address: watchdog/timer/event/restart_triggered
     messages:
       watchdogRestart:
         payload:

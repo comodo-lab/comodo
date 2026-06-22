@@ -77,7 +77,7 @@ def test_handles_error_exception(message_bus, watchdog_client, wd_state, capsys)
     # MQTT message
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
-    assert messages[0].topic == "watchdog/timer/event/restart"
+    assert messages[0].topic == "watchdog/timer/event/restart_triggered"
     assert messages[0].payload == json.dumps({"message": "Restarting controller..."})
 
 
@@ -93,7 +93,7 @@ def test_responds_to_timeout(message_bus, watchdog_client, wd_state, capsys):
     # MQTT message
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
-    assert messages[0].topic == "watchdog/timer/event/restart"
+    assert messages[0].topic == "watchdog/timer/event/restart_triggered"
     assert messages[0].payload == json.dumps({"message": "Restarting controller..."})
 
 
