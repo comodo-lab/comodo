@@ -56,7 +56,7 @@ def experiment_validation_error(error, uid=0):
     Publishes an error message when the experiment configuration received from the ui fails validation.
     """
     error_msg = f"{type(error).__name__}: {error}"
-    print("ERROR: {error_msg}")
+    print(f"ERROR: {error_msg}")
     mqtt.MQTTPublisher.get_instance().publish(
         "error/validator",
         json.dumps({"code": "experiment_validation", "message": error_msg})
