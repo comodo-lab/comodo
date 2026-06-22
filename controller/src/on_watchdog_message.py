@@ -47,4 +47,5 @@ def on_watchdog_message(client, msg, obj):
         return
 
     if msg.topic.startswith("watchdog/timer/command/"):
+        # Placeholder noop
         return

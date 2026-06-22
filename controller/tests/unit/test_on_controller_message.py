@@ -697,7 +697,7 @@ class TestStopping:
         assert len(messages) == 1
         assert messages[-1].topic == "error/controller"
         assert (
-            "Current experiment is 123. Cannot act on controller/command/stop for experiment 456."
+            "Current experiment is 123. Controller:Controller cannot act on controller/command/stop for experiment 456."
             in messages[-1].payload
         )
 

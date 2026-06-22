@@ -81,6 +81,6 @@ def on_ui_message(client, msg, obj):
                     dumps({"id": uid}),
                 )
             else:
-                incompatible_uid(obj, msg, uid)
+                incompatible_uid("Controller", obj, msg, uid)
         else:
             incompatible_request("Controller", obj, msg)

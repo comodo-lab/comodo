@@ -77,9 +77,9 @@ def test_incorrect_experiment_id(timer_client, message_bus, state):
 
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
-    assert messages[0].topic == "error/controller"
+    assert messages[0].topic == "error/timer"
     assert (
-        "Current experiment is 123. Cannot act on controller/timer/command/start for experiment 999."
+        "Current experiment is 123. Controller:Timer cannot act on controller/timer/command/start for experiment 999."
         in messages[0].payload
     )
 

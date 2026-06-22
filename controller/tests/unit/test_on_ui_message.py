@@ -136,7 +136,7 @@ def test_stop_for_wrong_uid(message_bus, state, ui_client):
     assert len(messages) == 1
     assert messages[0].topic == "error/controller"
     assert (
-        "Current experiment is 456. Cannot act on ui/stop for experiment 123."
+        "Current experiment is 456. Controller:Controller cannot act on ui/stop for experiment 123."
         in messages[0].payload
     )
 
