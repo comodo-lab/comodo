@@ -96,7 +96,7 @@ def test_control_loop(
     )
     t.sleep(0.1)
 
-    mock_validate.assert_called_once_with("some_file", state.actuator_variables)
+    mock_validate.assert_called_once_with("some_file")
     # Should go through c_idle and c_starting, then expect instruments to respond
     assert state._status_history == ["validating", "starting", "awaiting_instruments"]
     assert state.experiment_uid == "123"

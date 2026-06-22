@@ -66,8 +66,8 @@ def test_missing_id(message_bus, state, ui_client, capsys):
     payload_obj = json.loads(messages[0].payload)
     assert len(messages) == 1
     assert messages[0].topic == "error/validator"
-    assert payload_obj["code"] == "failed"
-    assert payload_obj["message"] == exp_err
+    assert payload_obj["code"] == "experiment_validation"
+    assert exp_err in payload_obj["message"] 
     assert exp_err in capsys.readouterr().out
 
 
@@ -109,7 +109,7 @@ def test_idle_only_listens_to_start(message_bus, state, ui_client):
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
     assert messages[0].topic == "error/controller"
-    assert "Controller is idle. Cannot act on ui/stop" in messages[0].payload
+    assert "Controller cannot act on ui/stop. Controller status is idle." in messages[0].payload
 
 
 def test_valid_ui_stop(message_bus, state, ui_client):
@@ -151,4 +151,4 @@ def test_not_idle_only_listens_to_stop(message_bus, state, ui_client):
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
     assert messages[0].topic == "error/controller"
-    assert "Controller is running. Cannot act on ui/start" in messages[0].payload
+    assert "Controller cannot act on ui/start. Controller status is running" in messages[0].payload

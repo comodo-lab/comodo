@@ -120,9 +120,7 @@ class TestIdle:
             )
             c_idle(controller_client, msg, state)
 
-            mock_validate.assert_called_once_with(
-                "missing_file.json", state.actuator_variables
-            )
+            mock_validate.assert_called_once_with("missing_file.json")
 
         assert state._status_history == ["validating", "idle"]
         assert state.experiment_uid == None
@@ -162,7 +160,7 @@ class TestIdle:
         assert len(messages) == 1
         assert messages[0].topic == "error/validator"
         m = loads(messages[0].payload)
-        assert m["code"] == "failed"
+        assert m["code"] == "experiment_validation"
         assert "Test validation error" in m["message"]
 
     def test_invalid_setpoints(
@@ -190,9 +188,7 @@ class TestIdle:
             )
             c_idle(controller_client, msg, state)
 
-            mock_validate.assert_called_once_with(
-                "valid_file.json", state.actuator_variables
-            )
+            mock_validate.assert_called_once_with("valid_file.json")
             # Split setpoints called
             mock_split_setpoints.assert_called_once_with(["some data"], 42)
 
@@ -204,7 +200,7 @@ class TestIdle:
         assert len(messages) == 1
         assert messages[0].topic == "error/validator"
         m = loads(messages[0].payload)
-        assert m["code"] == "failed"
+        assert m["code"] == "experiment_validation"
         assert "Test setpoints error" in m["message"]
 
     def test_valid_file(
@@ -231,9 +227,7 @@ class TestIdle:
             )
             c_idle(controller_client, msg, state)
 
-            mock_validate.assert_called_once_with(
-                "valid_file.json", state.actuator_variables
-            )
+            mock_validate.assert_called_once_with("valid_file.json")
             # Split setpoints called
             mock_split_setpoints.assert_called_once_with(["some data"], 42)
 

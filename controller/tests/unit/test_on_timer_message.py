@@ -245,7 +245,7 @@ def test_timer_setpoint_incompatible_controller_state(timer_client, message_bus,
     assert len(messages) == 1
     assert messages[0].topic == "error/controller"
     m = json.loads(messages[0].payload)
-    assert m["code"] == "timer"
+    assert m["code"] == "timer_error"
     assert "Timer for setpoint exited unexpectedly." in m["message"]
     assert "ready instead of running" in m["message"]
 

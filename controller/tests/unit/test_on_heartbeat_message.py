@@ -85,7 +85,7 @@ def test_validation_exception(message_bus, state, capsys):
     message = messages[0]
     payload_obj = json.loads(message.payload)
 
-    assert payload_obj["code"] == "validation"
+    assert payload_obj["code"] == "heartbeat_validation"
     assert exp_err in payload_obj["message"]
     assert exp_err in capsys.readouterr().out
 
