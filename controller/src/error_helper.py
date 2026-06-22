@@ -55,10 +55,11 @@ def experiment_validation_error(error, uid=0):
     """
     Publishes an error message when the experiment configuration received from the ui fails validation.
     """
-    print(f"ERROR: {error.args[0]}")
+    error_msg = f"{type(error).__name__}: {error}"
+    print("ERROR: {error_msg}")
     mqtt.MQTTPublisher.get_instance().publish(
         "error/validator",
-        json.dumps({"code": "failed", "message": str(error.args[0])}),
+        json.dumps({"code": "experiment_validation", "message": error_msg})
     )
 
 
@@ -72,7 +73,7 @@ def heartbeat_validation_error(msg, error):
     print(f"ERROR: {error}")
     mqtt.MQTTPublisher.get_instance().publish(
         "error/heartbeat",
-        json.dumps({"code": "validation", "message": error}),
+        json.dumps({"code": "heartbeat_validation", "message": error}),
     )
 
 
@@ -84,7 +85,7 @@ def unconfigured_instrument(msg, instrument_name):
     print(f"WARNING: {error}")
     mqtt.MQTTPublisher.get_instance().publish(
         "error/heartbeat",
-        json.dumps({"code": "unconfigured", "message": error}),
+        json.dumps({"code": "unconfigured_instrument", "message": error}),
     )
 
 
@@ -104,5 +105,5 @@ def controller_state_incompatible_with_timer(uid, source, expected_state, state)
     """
     mqtt.MQTTPublisher.get_instance().publish(
         "error/controller",
-        json.dumps({"code": "timer", "message": f"Timer for {source} exited unexpectedly. The controller state was found to be {state} instead of {expected_state}."}),
+        json.dumps({"code": "timer_error", "message": f"Timer for {source} exited unexpectedly. The controller state was found to be {state} instead of {expected_state}."}),
     )
