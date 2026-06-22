@@ -178,7 +178,7 @@ def mock_c_stopping():
 
 @pytest.fixture(autouse=True)
 def mock_asyncapi_spec():
-    topic_map = {
+    asyncapi_topic_map = {
         "ui/start": {
             "name": "uiStart",
             "schema": {
@@ -218,7 +218,29 @@ def mock_asyncapi_spec():
             },
         }
     }
-    with patch("utils.mqtt_validator.load_spec", return_value=topic_map):
+
+    experiment_row_topic_map = {
+        "experiment/row": {
+            "name": "experimentRow",
+            "schema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["time", "furnace_centre/temperature", "mass_spec/mass_spec"],
+                "properties": {
+                    "time": {"type": "number", "minimum": 0},
+                    "furnace_centre/temperature": {"type": "number", "minimum": 0, "maximum": 1000},
+                    "mass_spec/mass_spec": {"type": "number", "minimum": 0, "maximum": 100},
+                },
+            },
+        },
+    }
+
+    def _mock_load_spec(schema_name="asyncapi"):
+        if schema_name == "experiment_row":
+            return experiment_row_topic_map
+        return asyncapi_topic_map
+
+    with patch("utils.mqtt_validator.load_spec", side_effect=_mock_load_spec):
         yield
 
 def instrument_heartbeat_msg(instrument, state, setpoints, experiment_id=None):
