@@ -35,6 +35,9 @@ class cstate:
     ]
 
     def __init__(self, actuator_variables: Set[str] = None, sensor_variables: Set[str] = None) -> None:
+        """
+        Initializes a new instance of the cstate class.
+        """
         self.experiment_start_time: datetime = None
         self.experiment_uid: str = None
         self.exp_file: str = None
