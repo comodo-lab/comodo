@@ -1,0 +1,103 @@
+channels:
+  experimentRow:
+    address: experiment/row
+    messages:
+      experimentRow:
+        payload:
+          type: object
+          additionalProperties: false
+          required:
+            - time
+
+
+
+            - furnace_centre/temperature
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            - mass_flow/mass_flow
+
+
+
+
+
+
+
+
+
+
+
+
+
+          properties:
+            time:
+              type: number
+              minimum: 0
+
+
+
+            furnace_centre/temperature:
+              type: number
+              minimum: 0
+              maximum: 1000
+            furnace_centre/temperature_profile:
+              type: string
+              enum: ["linear", "exponential", "logarithmic", "step"]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            mass_flow/mass_flow:
+              type: number
+              minimum: 0
+              maximum: 100
+            mass_flow/mass_flow_profile:
+              type: string
+              enum: ["linear", "exponential", "logarithmic", "step"]
+
+
+
+
+
+
+
+
+
+
+
+
