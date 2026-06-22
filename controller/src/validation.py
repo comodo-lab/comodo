@@ -1,28 +1,37 @@
-from typing import Dict, Any, Optional, Tuple
-from json import loads, JSONDecodeError
-from jsonschema import ValidationError
-import textwrap
+import json
+import os
+import yaml
+from jinja2 import Environment, FileSystemLoader
 
-from utils.mqtt_validator import validate_message, UnexpectedTopicException
+from utils import mqtt_validator
+from utils.mqtt_validator import validate_message
 
-def validate_experiment(file_path: Dict[str, Any], actuator_variables: set) -> Dict[str, Any]:
-    """
-    Validates experiment data structure and actuator completeness.
+def generate_row_schema():
+    # --------------------------------------------------------------------------
+    # Load comodo config 
 
-    Structural validation is performed against the AsyncAPI-derived schema
-    from mqtt_schema.yaml. Additional checks enforce non-empty experiment
-    definition, numeric non-negative time per row, and exhaustive actuator
-    coverage (every column maps to a known actuator, every actuator appears).
+    with open("/app/comodo.yaml") as f:
+        config = yaml.safe_load(f) or {}
 
-    Args:
-        file_path: The experiment definition file path (JSON).
-        actuator_variables: Set of valid actuator variable identifiers (e.g. "furnace_centre/temperature").
+    # --------------------------------------------------------------------------
+    # Load template directory 
 
-    Returns:
-        The validated data dict.
-    """
+    env = Environment(loader=FileSystemLoader("/app/schemas"))
+    template = env.get_template("experiment_schema.yaml.j2")
 
-    # Attempt loading the file
+    # --------------------------------------------------------------------------
+    # Fetch instruments and render 
+
+    instruments = config.get("instruments", {})
+    rendered = template.render(instruments=instruments)
+
+    # --------------------------------------------------------------------------
+    # Write out
+
+    with open("/app/schemas/experiment_row.yaml", "w") as f:
+        f.write(rendered)
+
+    return
     try:
         with open(file_path) as f:
             data = f.read()

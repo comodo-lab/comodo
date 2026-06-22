@@ -8,6 +8,7 @@ class UnexpectedTopicException(Exception):
 
 schemas = {
     "asyncapi": "/app/schemas/mqtt_schema.yaml",
+    "experiment_row": "/app/schemas/experiment_row.yaml",
 }
 
 def match_topic(topic, topic_map):
