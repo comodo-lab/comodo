@@ -58,15 +58,15 @@ def test_invalid_ui_message(message_bus, state, ui_client, capsys):
 def test_missing_id(message_bus, state, ui_client, capsys):
     assert state.experiment_uid == None
 
-    exp_err = "'id' is a required property"
+    exp_err = "Cannot decode ui/start message, missing: \n   'id'"
     msg = MockMessage(topic="ui/start", payload=json.dumps({"config": "foo"}))
     on_ui_message(ui_client, msg, state)
 
     messages = message_bus.get_messages(decoded=True)
     payload_obj = json.loads(messages[0].payload)
     assert len(messages) == 1
-    assert messages[0].topic == "error/validator"
-    assert payload_obj["code"] == "experiment_validation"
+    assert messages[0].topic == "error/controller"
+    assert payload_obj["code"] == "missing_key"
     assert exp_err in payload_obj["message"] 
     assert exp_err in capsys.readouterr().out
 

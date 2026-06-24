@@ -36,10 +36,14 @@ def on_ui_message(client, msg, obj):
 
     try:
         experiment = mqtt.load_message(msg)
+        uid = experiment["id"]
     except JSONDecodeError as e:
         wrong_json(msg, e)
         return
-
+    except KeyError as e:
+        missing_keys(msg, e)
+        return
+    
     if msg.topic == "ui/start":
         try:
             validate_message(msg.topic, msg.payload)
@@ -47,16 +51,10 @@ def on_ui_message(client, msg, obj):
             wrong_json(msg, e)
             return
         except ValidationError as e:
-            experiment_validation_error(e)
+            experiment_validation_error(e, uid)
             return
         except UnexpectedTopicException as e:
             return
-
-    try:
-        uid = experiment["id"]
-    except KeyError as e:
-        missing_keys(msg, e)
-        return
 
     if obj.status == "idle":
         if msg.topic == "ui/start":
