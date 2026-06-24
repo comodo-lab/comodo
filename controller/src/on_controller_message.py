@@ -34,7 +34,7 @@ def c_idle(client, msg, obj):
 
     # Load and decode experiment file
     try:
-        # Load and experiment object
+        # Load an experiment object
         payload = mqtt.load_message(msg)
 
         # Set experment file object and temp_uid
