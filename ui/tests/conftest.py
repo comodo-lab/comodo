@@ -9,10 +9,12 @@ def sample_config_yaml(tmp_path):
     content = """\
 global:
   heartbeat:
-    interval: 1s
+    interval: 1
+  instrument_setup:
+    wait: 10
   watchdog:
-    timeout: 5s
-    interval: 1s
+    timeout: 5
+    interval: 1
 
 instruments:
   test_sensor:
@@ -21,29 +23,29 @@ instruments:
     variables:
       reading:
         measurement:
-          interval: 1s
+          interval: 1
         sensor:
           type: float
           min: 0
-          max: 100
-          unit: V
+          max: 10
+          unit: X
   test_actuator:
     firmware: test/actuator
     address: "localhost:5678"
     variables:
       output:
         measurement:
-          interval: 1s
+          interval: 1
         sensor:
           type: float
           min: 0
-          max: 50
-          unit: mA
+          max: 10
+          unit: X
         actuator:
           type: float
-          min: 5
-          max: 45
-          unit: mA
+          min: 0
+          max: 10
+          unit: X
 """
     f = tmp_path / "comodo.yaml"
     f.write_text(content)
@@ -56,46 +58,50 @@ def sample_config_with_pid(tmp_path):
     content = """\
 global:
   heartbeat:
-    interval: 1s
+    interval: 1
+  instrument_setup:
+    wait: 10
   watchdog:
-    timeout: 5s
-    interval: 1s
+    timeout: 5
+    interval: 1
 
 instruments:
-  pressure:
-    firmware: test/pressure
+  test_sensor:
+    firmware: test/sensor
     address: "localhost:1111"
     variables:
       value:
         measurement:
-          interval: 1s
+          interval: 1
         sensor:
           type: float
           min: 0
           max: 10
-          unit: bar
-  flow:
-    firmware: test/flow
+          unit: X
+  test_spc:
+    firmware: test/spc
     address: "localhost:2222"
     variables:
-      rate:
+      output:
         measurement:
-          interval: 1s
+          interval: 1
         sensor:
           type: float
           min: 0
-          max: 100
-          unit: "%"
+          max: 10
+          unit: X
         actuator:
           type: float
           min: 0
-          max: 100
-          unit: "%"
+          max: 10
+          unit: X
         setpoint_controller:
-          external_sensor: pressure/value
-          P: 10.0
-          I: 1.0
-          D: 0.1
+          external_sensor: test_sensor/value
+          K_P: 10.0
+          K_I: 1.0
+          K_D: 0.1
+          K_AW: 0.05
+          K_DF: 0.01
 """
     f = tmp_path / "comodo.yaml"
     f.write_text(content)
