@@ -126,8 +126,8 @@ services:
     environment:
       <<: *mqtt-env
       HEARTBEAT_INTERVAL: 1000
-      SENSOR: "pressure_upstream.pressure"
-      ACTUATOR: "mass_flow.mass_flow"
+      SENSOR: "pressure_upstream/pressure"
+      ACTUATOR: "mass_flow/mass_flow"
       K_P: 10.0
       K_I: 1.0
       K_D: 0.1
