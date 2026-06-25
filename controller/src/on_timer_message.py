@@ -9,7 +9,7 @@ from src.error_helper import (
     missing_keys,
     controller_timeout,
     controller_state_incompatible_with_timer,
-    incompatible_request,
+    incompatible_topic,
 )
 
 timer_check_frequency = 0.1
@@ -93,4 +93,4 @@ def on_timer_message(client, msg, obj):
                 json.dumps({"source": "setpoint", "experiment_id": message["experiment_id"], "controller_status": obj.status}),
             )
     else:
-        incompatible_request("Timer", obj, msg)
+        incompatible_topic(obj, msg, "controller_timer")

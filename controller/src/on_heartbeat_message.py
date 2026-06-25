@@ -7,7 +7,7 @@ from utils import mqtt_clients as mqtt
 from utils.mqtt_validator import validate_message, UnexpectedTopicException
 
 from src.error_helper import (
-    incompatible_request,
+    incompatible_topic,
     wrong_json,
     heartbeat_validation_error,
     unconfigured_instrument,
@@ -19,7 +19,7 @@ def on_heartbeat_message(client, msg, obj):
     It expects a message compliant with the spec schema for that channel.
     """
     if "instruments" not in (msg.topic) or "heartbeat" not in msg.topic:
-        incompatible_request("Heartbeat", obj, msg)
+        incompatible_topic(obj, msg, "heartbeat_callback")
         return
 
     try:

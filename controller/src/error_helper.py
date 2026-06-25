@@ -40,6 +40,19 @@ def incompatible_controller_status(obj, msg):
     )
 
 
+def incompatible_topic(obj, msg, caller):
+    """
+    Publishes an error message when the mqtt topic is incompatible with the caller that received the message.
+    """
+    caller = caller.lower()
+    topic = f"error/{caller}"
+    error = f"The {caller.replace('_', ' ')} cannot act on {msg.topic}."
+    mqtt.MQTTPublisher.get_instance().publish(
+        topic,
+        json.dumps({"code": "incompatible_topic", "message": error}),
+    )
+
+
 def incompatible_uid(caller, obj, msg, msg_uid):
     """
     Publishes an error message when the experiment uid in the mqtt request does not match the current experiment's uid.
