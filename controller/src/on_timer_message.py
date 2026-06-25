@@ -31,6 +31,7 @@ def on_timer_message(client, msg, obj):
         return
 
     if msg.topic == "controller/timer/event/done":
+        print(f"WARNING: Unexpected timer done event ignored (experiment_id: {message.get('experiment_id', 'unknown')})")
         return
 
     try:
