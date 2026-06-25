@@ -1,4 +1,4 @@
-from json import dumps
+import json
 from typing import Dict, Any, List, Set
 from datetime import datetime
 
@@ -34,7 +34,9 @@ class cstate:
         "sensor_variables",
     ]
 
-    def __init__(self, actuator_variables: Set[str] = None, sensor_variables: Set[str] = None) -> None:
+    def __init__(
+        self, actuator_variables: Set[str] = None, sensor_variables: Set[str] = None
+    ) -> None:
         self.experiment_start_time: datetime = None
         self.experiment_uid: str = None
         self.exp_file: str = None
@@ -71,7 +73,7 @@ class cstate:
         """
         Returns the string representation (heartbeat) of the cstate object.
         """
-        return dumps(self.heartbeat())
+        return json.dumps(self.heartbeat())
 
     def reset(self) -> None:
         """
