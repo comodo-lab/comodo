@@ -228,4 +228,4 @@ def c_stopping(client, msg, obj):
         stop_reason = "was stopped" if msg.topic == "controller/command/stop" else "finished"
         print(f"Experiment {uid} {stop_reason} and the controller has been reset.")
     else:
-        incompatible_uid("Controller", obj, msg, msg_id)
+        incompatible_uid(obj, msg, msg_id, "controller")

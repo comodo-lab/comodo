@@ -35,7 +35,7 @@ def on_timer_message(client, msg, obj):
 
     try:
         if message["experiment_id"] != obj.experiment_uid:
-            incompatible_uid("Timer", obj, msg, message["experiment_id"])
+            incompatible_uid(obj, msg, message["experiment_id"], "controller_timer")
             return
     except KeyError as e:
         missing_keys(msg, e)
