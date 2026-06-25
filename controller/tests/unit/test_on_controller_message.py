@@ -54,7 +54,9 @@ class TestIdle:
 
     # ========================================
 
-    def test_incompatible_request(self, message_bus, state, controller_client):
+    def test_incompatible_controller_status(
+        self, message_bus, state, controller_client
+    ):
         assert state.experiment_uid == None
         assert state.status == "idle"
 
@@ -67,13 +69,18 @@ class TestIdle:
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 1
         assert messages[0].topic == "error/controller"
-        assert "Controller cannot act on controller/command/run. Controller status is idle." in messages[0].payload
+        assert (
+            "Controller status is idle. Cannot act on controller/command/run."
+            in messages[0].payload
+        )
 
     def test_wrong_json(self, message_bus, state, controller_client, capsys):
         assert state.experiment_uid == None
         assert state.status == "idle"
 
-        msg = MockMessage(topic="controller/command/validate", payload="this is not json")
+        msg = MockMessage(
+            topic="controller/command/validate", payload="this is not json"
+        )
         c_idle(controller_client, msg, state)
 
         assert state.experiment_uid == None
@@ -267,7 +274,9 @@ class TestStarting:
 
     # ========================================
 
-    def test_incompatible_request(self, message_bus, state, controller_client):
+    def test_incompatible_controller_status(
+        self, message_bus, state, controller_client
+    ):
         assert state.experiment_uid == "123"
         assert state.status == "validating"
         assert controller_client.callback == c_starting
@@ -305,9 +314,9 @@ class TestStarting:
         assert state.status == "validating"
         assert controller_client.callback == c_starting
 
-        instrument_names = sorted(set(
-            av.split("/", 1)[0] for av in state.actuator_variables
-        ))
+        instrument_names = sorted(
+            set(av.split("/", 1)[0] for av in state.actuator_variables)
+        )
 
         msg = MockMessage(topic="controller/command/start", payload=dumps({"id": "123"}))
         c_starting(controller_client, msg, state)
@@ -365,7 +374,9 @@ class TestReady:
 
     # ========================================
 
-    def test_incompatible_request(self, message_bus, state, controller_client):
+    def test_incompatible_controller_status(
+        self, message_bus, state, controller_client
+    ):
         assert state.experiment_uid == "123"
         assert state.status == "awaiting_instruments"
         assert controller_client.callback == c_ready
@@ -442,7 +453,8 @@ class TestRunning:
 
     # ========================================
 
-    def test_incompatible_request(self, message_bus, state, controller_client):
+    def test_incompatible_controller_status(
+        self, message_bus, state, controller_client
         assert state.experiment_uid == "123"
         assert state.status == "ready"
         assert controller_client.callback == c_running
@@ -661,7 +673,9 @@ class TestStopping:
 
     # ========================================
 
-    def test_incompatible_request(self, message_bus, state, controller_client):
+    def test_incompatible_controller_status(
+        self, message_bus, state, controller_client
+    ):
         assert state.experiment_uid == "123"
         assert state.status == "running"
         assert controller_client.callback == c_stopping

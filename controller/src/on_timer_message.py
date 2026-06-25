@@ -41,7 +41,10 @@ def on_timer_message(client, msg, obj):
         missing_keys(msg, e)
         return
 
-    if msg.topic == "controller/timer/command/start" and message.get("source") == "instrument_setup":
+    if (
+        msg.topic == "controller/timer/command/start"
+        and message.get("source") == "instrument_setup"
+    ):
         # Wait for instruments to be ready or timeout
         instrument_setup_wait = obj.instrument_setup_wait
         t0 = t.time()
@@ -52,7 +55,8 @@ def on_timer_message(client, msg, obj):
             if t.time() - t0 > instrument_setup_wait:
                 controller_timeout(message["experiment_id"], "instruments", "Stopping")
                 mqtt.MQTTPublisher.get_instance().publish(
-                    "controller/command/stop", json.dumps({"id": message["experiment_id"]})
+                    "controller/command/stop",
+                    json.dumps({"id": message["experiment_id"]}),
                 )
                 return
         mqtt.MQTTPublisher.get_instance().publish(
@@ -67,7 +71,10 @@ def on_timer_message(client, msg, obj):
                 }
             ),
         )
-    elif msg.topic == "controller/timer/command/start" and message.get("source") == "setpoint":
+    elif (
+        msg.topic == "controller/timer/command/start"
+        and message.get("source") == "setpoint"
+    ):
         try:
             duration = message["duration"]
         except KeyError as e:
@@ -90,7 +97,13 @@ def on_timer_message(client, msg, obj):
         else:
             mqtt.MQTTPublisher.get_instance().publish(
                 "controller/timer/event/done",
-                json.dumps({"source": "setpoint", "experiment_id": message["experiment_id"], "controller_status": obj.status}),
+                json.dumps(
+                    {
+                        "source": "setpoint",
+                        "experiment_id": message["experiment_id"],
+                        "controller_status": obj.status,
+                    }
+                ),
             )
     else:
         incompatible_topic(obj, msg, "controller_timer")
