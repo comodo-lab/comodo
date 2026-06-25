@@ -7,9 +7,9 @@ from utils.mqtt_validator import validate_message
 
 from src.controller_helper import data_path
 from src.error_helper import (
+    incompatible_controller_status,
     wrong_json,
     missing_keys,
-    incompatible_request,
     incompatible_uid,
     experiment_validation_error
 )
@@ -72,7 +72,7 @@ def on_ui_message(client, msg, obj):
                 dumps({"id": uid, "file": exp_file}),
             )
         else:
-            incompatible_request("Controller", obj, msg)
+            incompatible_controller_status(obj, msg)
     else:
         if msg.topic == "ui/stop":
             if uid == obj.experiment_uid:
@@ -83,4 +83,4 @@ def on_ui_message(client, msg, obj):
             else:
                 incompatible_uid("Controller", obj, msg, uid)
         else:
-            incompatible_request("Controller", obj, msg)
+            incompatible_controller_status(obj, msg)
