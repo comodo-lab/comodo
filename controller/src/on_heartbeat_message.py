@@ -53,6 +53,22 @@ def _handle_actuator_heartbeat(obj, payload_json, instrument_name):
     if obj.status == "awaiting_instruments":
         if payload_json["state"] == "idle":
             return
+        if payload_json["config"] != obj_instrument["config"]:
+            e = (
+                f"Instrument '{instrument_name}' misconfigured. "
+                f"Expected {obj_instrument['config']}, received {payload_json['config']}."
+            )
+
+            print(f"ERROR: {e} Stopping experiment.")
+
+            mqtt.MQTTPublisher.get_instance().publish(
+                "error/sensor",
+                json.dumps({"code": "configuration", "message": e}),
+            )
+            mqtt.MQTTPublisher.get_instance().publish(
+                "controller/command/stop", json.dumps({"id": obj.experiment_uid})
+            )
+            return
         obj_instrument["state"] = payload_json["state"]
         obj_instrument["setpoints"] = payload_json["setpoints"]
         obj_instrument["config"] = payload_json["config"]
