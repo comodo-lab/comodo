@@ -318,7 +318,7 @@ An end-to-end integration test is available in [`integration_tests/`](integratio
 It starts all services — RabbitMQ, controller, monitor, firmware simulators,
 setpoint controller, and a test runner — then runs a full experiment cycle:
 
-To run (in `./integration`):
+To run, move into the integration_tests directory and execute:
 ```
 docker compose --env-file ../.env up --build --attach test-runner --force-recreate
 ```
