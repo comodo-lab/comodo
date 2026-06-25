@@ -18,3 +18,7 @@ for component in "${components[@]}"; do
     echo "Testing $component..."
     (cd "$component" && docker compose up --build)
 done
+
+# run integration tests
+echo "Running integration tests..."
+(cd integration_tests && docker compose --env-file ../.env kill && docker compose --env-file ../.env up --build --attach test-runner --force-recreate && docker compose --env-file ../.env kill)
