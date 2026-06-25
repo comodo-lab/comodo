@@ -3,6 +3,19 @@
 #!/bin/bash
 set -euo pipefail
 
+run_integration=true
+for arg in "$@"; do
+    case "$arg" in
+    --no_integration|--noint)
+        run_integration=false
+        ;;
+    *)
+        echo "Unknown argument: $arg"
+        exit 1
+        ;;
+    esac
+done
+
 cd $(dirname "$0")
 project_root=$(cd .. && pwd)
 cd $project_root
@@ -22,13 +35,17 @@ for component in "${components[@]}"; do
     all_output+=$'\n'"$component_output"
 done
 
-# Run integration tests
-echo "Running integration tests..."
-integration_output=$(
-    cd integration_tests && docker compose --env-file ../.env kill &&
-    docker compose --env-file ../.env up --build --attach test-runner --force-recreate 2>&1 | tee /dev/stderr &&
-    docker compose --env-file ../.env kill)
-all_output+=$'\n'"$integration_output"
+if [[ "$run_integration" == true ]]; then
+    # Run integration tests
+    echo "Running integration tests..."
+    integration_output=$(
+        cd integration_tests && docker compose --env-file ../.env kill &&
+        docker compose --env-file ../.env up --build --attach test-runner --force-recreate 2>&1 | tee /dev/stderr &&
+        docker compose --env-file ../.env kill)
+    all_output+=$'\n'"$integration_output"
+else
+    echo "Skipping integration tests."
+fi
 
 # Print summary of test results
 summary_lines=$(printf '%s\n' "$all_output" | grep -E "test[^|]*[[:space:]]+\|[[:space:]]+={3,} .* in [0-9.]+s ={3,}" || true)
