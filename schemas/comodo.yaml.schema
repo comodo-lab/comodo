@@ -24,8 +24,12 @@ classes:
   MeasurementConfig:
     slots:
       - interval
+      - tolerance
     slot_usage:
       interval:
+        required: true
+        range: float
+      tolerance:
         required: true
         range: float
 
@@ -81,6 +85,11 @@ classes:
       - min
       - max
       - unit
+      - default_setpoint
+    slot_usage:
+      default_setpoint:
+        required: true
+        range: float
 
   ActuatorConfig:
     slots:
@@ -88,6 +97,11 @@ classes:
       - min
       - max
       - unit
+      - default_setpoint
+    slot_usage:
+      default_setpoint:
+        required: true
+        range: float
 
   SetpointControllerConfig:
     slots:

@@ -15,6 +15,7 @@ instruments:
       temperature:
         measurement:
           interval: 1
+          tolerance: 1
         sensor:
           type: float
           min: 0
@@ -25,6 +26,7 @@ instruments:
           min: 0
           max: 1000
           unit: °C
+          default_setpoint: 0
   furnace_left:
     firmware: carbolite_gero.tg3
     address: "192.168.111.224"
@@ -32,6 +34,7 @@ instruments:
       temperature:
         measurement:
           interval: 1
+          tolerance: 1
         sensor:
           type: float
           min: 0
@@ -44,6 +47,7 @@ instruments:
       temperature:
         measurement:
           interval: 1
+          tolerance: 1
         sensor:
           type: float
           min: 0
@@ -56,6 +60,7 @@ instruments:
       pressure:
         measurement:
           interval: 1
+          tolerance: 1
         sensor:
           type: float
           min: 0
@@ -68,11 +73,13 @@ instruments:
       pressure:
         measurement:
           interval: 0.5
+          tolerance: 1
         sensor:
           type: float
           min: 0
           max: 10
           unit: bar
+          default_setpoint: 0
   mass_flow:
     firmware: bronkhorst.el_flow_select
     address: "/dev/ttyUSB2"
@@ -80,6 +87,7 @@ instruments:
       mass_flow:
         measurement:
           interval: 1
+          tolerance: 1
         sensor:
           type: float
           min: 0
@@ -90,6 +98,7 @@ instruments:
           min: 0
           max: 100
           unit: \%
+          default_setpoint: 0
         setpoint_controller:
           external_sensor: pressure_upstream/pressure
           K_P: 10.0
@@ -100,6 +109,7 @@ instruments:
       temperature:
         measurement:
           interval: 1
+          tolerance: 1
         sensor:
           type: float
           min: 0
@@ -108,6 +118,7 @@ instruments:
       pressure_upstream:
         measurement:
           interval: 1
+          tolerance: 1
         sensor:
           type: float
           min: 0
@@ -116,6 +127,7 @@ instruments:
       pressure_downstream:
         measurement:
           interval: 1
+          tolerance: 1
         sensor:
           type: float
           min: 0
@@ -128,6 +140,7 @@ instruments:
       mass_spec:
         measurement:
           interval: 1
+          tolerance: 1
         sensor:
           type: array
 
