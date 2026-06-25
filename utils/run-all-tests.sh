@@ -3,6 +3,10 @@
 #!/bin/bash
 set -e
 
+cd $(dirname "$0")
+project_root=$(cd .. && pwd)
+cd $project_root
+
 # Run tests for each component
 echo "Running tests for Comodo"
 
