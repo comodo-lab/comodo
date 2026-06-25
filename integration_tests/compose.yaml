@@ -26,6 +26,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: integration-test
     env_file:
       - ../.env
     environment:
