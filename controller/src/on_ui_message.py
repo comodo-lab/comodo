@@ -1,5 +1,5 @@
 import os
-from json import dump, dumps, JSONDecodeError
+import json
 from jsonschema import ValidationError
 
 from utils import mqtt_clients as mqtt
@@ -13,6 +13,7 @@ from src.error_helper import (
     incompatible_uid,
     experiment_validation_error,
 )
+
 
 def on_ui_message(client, msg, obj):
     """
@@ -36,7 +37,7 @@ def on_ui_message(client, msg, obj):
 
     try:
         experiment = mqtt.load_message(msg)
-    except JSONDecodeError as e:
+    except json.JSONDecodeError as e:
         wrong_json(msg, e)
         return
 
@@ -60,11 +61,11 @@ def on_ui_message(client, msg, obj):
 
             exp_file = f"{data_path}/tmp/experiment_{uid}.json"
             with open(exp_file, "w") as f:
-                dump(experiment, f)
+                json.dump(experiment, f)
 
             mqtt.MQTTPublisher.get_instance().publish(
                 "controller/command/validate",
-                dumps({"id": uid, "file": exp_file}),
+                json.dumps({"id": uid, "file": exp_file}),
             )
         else:
             incompatible_controller_status(obj, msg)
@@ -73,7 +74,7 @@ def on_ui_message(client, msg, obj):
             if uid == obj.experiment_uid:
                 mqtt.MQTTPublisher.get_instance().publish(
                     "controller/command/stop",
-                    dumps({"id": uid}),
+                    json.dumps({"id": uid}),
                 )
             else:
                 incompatible_uid(obj, msg, uid, "controller")
