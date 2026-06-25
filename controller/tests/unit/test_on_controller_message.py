@@ -21,7 +21,7 @@ from src.on_controller_message import (
     c_stopping,
     assign_serial_id,
 )
-from src.validation import validate_experiment
+from src.validation import ExperimentValidationError
 
 
 class TestIdle:
@@ -122,8 +122,8 @@ class TestIdle:
             payload=dumps({"id": "123", "file": "missing_file.json"}),
         )
         with patch("src.on_controller_message.validate_experiment") as mock_validate:
-            mock_validate.side_effect = FileNotFoundError(
-                "ERROR: File not found - missing_file.json"
+            mock_validate.side_effect = ExperimentValidationError(
+                "Experiment file not found - missing_file.json"
             )
             c_idle(controller_client, msg, state)
 
@@ -149,7 +149,7 @@ class TestIdle:
         assert state.status == "idle"
 
         with patch("src.on_controller_message.validate_experiment") as mock_validate:
-            mock_validate.side_effect = ValidationError(
+            mock_validate.side_effect = ExperimentValidationError(
                 "Test validation error"
             )
             msg = MockMessage(
@@ -288,7 +288,7 @@ class TestStarting:
         assert len(messages) == 1
         assert messages[0].topic == "error/controller"
         assert (
-            "Controller cannot act on controller/command/run. Controller status is validating."
+            "Controller status is validating. Cannot act on controller/command/run."
             in messages[0].payload
         )
 
@@ -392,7 +392,7 @@ class TestReady:
         assert len(messages) == 1
         assert messages[0].topic == "error/controller"
         assert (
-            "Controller cannot act on controller/command/something_else. Controller status is awaiting_instruments."
+            "Controller status is awaiting_instruments. Cannot act on controller/command/something_else."
             in messages[0].payload
         )
 
@@ -469,7 +469,7 @@ class TestRunning:
         assert len(messages) == 1
         assert messages[0].topic == "error/controller"
         assert (
-            "Controller cannot act on controller/command/something_else. Controller status is ready."
+            "Controller status is ready. Cannot act on controller/command/something_else."
             in messages[0].payload
         )
 
@@ -691,7 +691,7 @@ class TestStopping:
         assert len(messages) == 1
         assert messages[-1].topic == "error/controller"
         assert (
-            "Controller cannot act on controller/command/something_else. Controller status is running."
+            "Controller status is running. Cannot act on controller/command/something_else."
             in messages[-1].payload
         )
 

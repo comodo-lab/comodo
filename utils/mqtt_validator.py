@@ -3,19 +3,26 @@ from jsonschema import validate, ValidationError
 from utils import mqtt_clients
 from paho.mqtt.client import topic_matches_sub
 
-class UnexpectedTopicException(Exception):
-    pass
+
+class MQTTValidationException(Exception):
+
+    def __init__(self, message):
+        print(f"MQTT validation error: {message}")
+        super().__init__(message)
+
 
 schemas = {
     "asyncapi": "/app/schemas/mqtt_schema.yaml",
     "experiment_row": "/app/schemas/experiment_row.yaml",
 }
 
+
 def match_topic(topic, topic_map):
     for address, entry in topic_map.items():
         if topic_matches_sub(address, topic):
             return entry
     return None
+
 
 def load_spec(schema_name="asyncapi"):
     # --------------------------------------------------------------------------
@@ -45,7 +52,10 @@ def load_spec(schema_name="asyncapi"):
         topic_map[address] = {"name": ch_name, "schema": first_msg.get("payload", {})}
     return topic_map
 
-def validate_message(topic, payload, schema_name="asyncapi"):
+
+def validate_message(
+    topic, payload, schema_name="asyncapi", raise_MQTTValidationException_only=True
+):
     """
     Validates an incoming MQTT message against a schema
 
@@ -57,49 +67,77 @@ def validate_message(topic, payload, schema_name="asyncapi"):
         schema_name (str): The name of the schema to validate against (default: "asyncapi")
 
     Raises:
-        UnexpectedTopicException: If the topic is not defined in the AsyncAPI specification
-        json.JSONDecodeError: If the payload is not valid JSON
-        jsonschema.ValidationError: If the payload does not conform to the schema
+        MQTTValidationException: If the message does not conform to the schema
     """
+    # Check that the topic is in the register defined by the AsyncAPI spec
+    entry = check_topic_expected(schema_name, topic)
 
-    # --------------------------------------------------------------------------
-    # Load the specified specification
+    # Check the validity of the JSON payload
+    try:
+        loaded_payload = check_payload_json_validity(payload)
+    except json.JSONDecodeError as e:
+        if raise_MQTTValidationException_only:
+            raise MQTTValidationException(
+                f"Invalid JSON payload for topic '{topic}': {e}"
+            )
+        else:
+            raise e
 
+    # Perform message validation against the AsyncAPI schema
+    try:
+        check_message_valid(entry, loaded_payload)
+    except ValidationError as e:
+        if raise_MQTTValidationException_only:
+            offending_key = (
+                ".".join(str(p) for p in e.absolute_path)
+                if e.absolute_path
+                else "<root>"
+            )
+            raise MQTTValidationException(
+                f"Message failed validation against schema for '{topic}': {e.message}. Failed check: {e.validator}, Offending key: {offending_key}"
+            )
+        else:
+            raise e
+
+
+def check_topic_expected(schema_name, topic):
+    """
+    Loads the spec and checks if the topic is expected.
+
+    Input:
+        schema_name (str): The name of the schema to validate against
+        topic (str): The MQTT topic of the message
+
+    Returns:
+        dict: The entry from the spec corresponding to the topic if it is expected.
+
+    Raises:
+        MQTTValidationException: If the topic is not expected according to the schema
+    """
+    # Load the spec
     topic_map = load_spec(schema_name)
-
     # Get the entry from the spec
     entry = match_topic(topic, topic_map)
-
-    # --------------------------------------------------------------------------
-    # Run checks
-
-    try:
-        # Check that the topic is in the register defined by the AsyncAPI spec
-        check_topic_expected(entry, topic)
-
-        # Check the validity of the JSON payload
-        check_payload_json_validity(topic, payload)
-
-        # Perform message validation against the AsyncAPI schemea
-        check_message_valid(entry, topic, payload)
-    except Exception as e:
-        raise e
-
-def check_payload_json_validity(topic, payload):
-    try:
-        json.loads(payload)
-    except json.JSONDecodeError as e:
-        raise e
-
-def check_topic_expected(entry, topic):
     if entry is None:
-        raise UnexpectedTopicException(f"Unexpected topic: {topic}")
+        raise MQTTValidationException(f"Unexpected topic: {topic}")
+    return entry
 
-def check_message_valid(entry, topic, payload):
-    try:
-        validate(
-            json.loads(payload),
-            entry["schema"]
-        )
-    except ValidationError as e:
-        raise e
+
+def check_payload_json_validity(payload):
+    """
+    Checks the validity of the JSON payload
+
+    Raises:
+        json.JSONDecodeError: If the payload is not valid JSON
+    """
+    return json.loads(payload)
+
+
+def check_message_valid(entry, loaded_payload):
+    """
+    Validates the message payload against the schema defined in the spec
+
+    Raises:
+        ValidationError: If the message does not conform to the schema
+    """
+    validate(loaded_payload, entry["schema"])

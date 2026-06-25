@@ -4,7 +4,7 @@ from json import JSONDecodeError
 from jsonschema import ValidationError
 
 from utils import mqtt_clients as mqtt
-from utils.mqtt_validator import validate_message, UnexpectedTopicException
+from utils.mqtt_validator import validate_message, MQTTValidationException
 
 from src.error_helper import (
     incompatible_topic,
@@ -24,13 +24,8 @@ def on_heartbeat_message(client, msg, obj):
 
     try:
         validate_message(msg.topic, msg.payload)
-    except json.JSONDecodeError as e:
-        wrong_json(msg, e)
-        return
-    except ValidationError as e:
+    except MQTTValidationException as e:
         heartbeat_validation_error(msg, e)
-        return
-    except UnexpectedTopicException as e:
         return
 
     if obj.status in ["idle", "validating", "starting"]:

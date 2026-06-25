@@ -3,7 +3,7 @@ from json import dump, dumps, JSONDecodeError
 from jsonschema import ValidationError
 
 from utils import mqtt_clients as mqtt
-from utils.mqtt_validator import validate_message
+from utils.mqtt_validator import validate_message, MQTTValidationException
 
 from src.controller_helper import data_path
 from src.error_helper import (
@@ -11,7 +11,7 @@ from src.error_helper import (
     wrong_json,
     missing_keys,
     incompatible_uid,
-    experiment_validation_error
+    experiment_validation_error,
 )
 
 def on_ui_message(client, msg, obj):
@@ -43,13 +43,8 @@ def on_ui_message(client, msg, obj):
     if msg.topic == "ui/start":
         try:
             validate_message(msg.topic, msg.payload)
-        except JSONDecodeError as e:
-            wrong_json(msg, e)
-            return
-        except ValidationError as e:
-            experiment_validation_error(e)
-            return
-        except UnexpectedTopicException as e:
+        except MQTTValidationException as e:
+            experiment_validation_error(e, experiment.get("id", "---"))
             return
 
     try:

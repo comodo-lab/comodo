@@ -13,7 +13,7 @@ from src.error_helper import (
     wrong_json,
     experiment_validation_error,
 )
-from src.validation import validate_experiment
+from src.validation import validate_experiment, ExperimentValidationError
 
 
 def c_idle(client, msg, obj):
@@ -67,13 +67,13 @@ def c_idle(client, msg, obj):
             "controller/validator/passed", json.dumps(m)
         )
         obj.exp_config = exp_config
-        
+
         # Update state and callback of controller
         client.callback = c_starting
         mqtt.MQTTPublisher.get_instance().publish(
             "controller/command/start", json.dumps({"id": m["id"]})
         )
-    except Exception as e:
+    except (ExperimentValidationError, ValueError) as e:
         experiment_validation_error(e, temp_uid)
         obj.experiment_uid = None
         obj.status = "idle"
