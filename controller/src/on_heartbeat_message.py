@@ -38,7 +38,7 @@ def on_heartbeat_message(client, msg, obj):
 
     instrument_name = msg.topic.split("/")[1]
     payload_json = json.loads(msg.payload)
-    if instrument_name in obj.instruments:
+    if instrument_name in obj.actuator_instruments:
         _handle_actuator_heartbeat(obj, payload_json, instrument_name)
     elif instrument_name in obj.sensor_instruments:
         return

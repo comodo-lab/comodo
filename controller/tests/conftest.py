@@ -96,6 +96,7 @@ def mock_state(status, mock_experiment_dict={}, mock_setpoints=[]):
     sensor_inst = {sv.split("/", 1)[0] for sv in sv_set}
     actuator_inst = {av.split("/", 1)[0] for av in av_set}
     expected_sensor_instruments = sensor_inst - actuator_inst
+    type(state_obj).actuator_instruments = PropertyMock(return_value=actuator_inst)
     type(state_obj).sensor_instruments = PropertyMock(return_value=expected_sensor_instruments)
     state_obj.sensor_variables = sv_set
 
