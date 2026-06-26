@@ -78,7 +78,7 @@ class TestValidateMessage:
             validate_message(
                 topic="unexpected/topic",
                 payload='{"key": "val"}',
-                raise_MQTTValidationException_only=True,
+                combine_exceptions=True,
             )
 
         assert "Unexpected topic: unexpected/topic" in str(e.value)
@@ -96,7 +96,7 @@ class TestValidateMessage:
             validate_message(
                 topic="unexpected/topic",
                 payload='{"key": "val"}',
-                raise_MQTTValidationException_only=False,
+                combine_exceptions=False,
             )
 
         assert "Unexpected topic: unexpected/topic" in str(e.value)
@@ -114,7 +114,7 @@ class TestValidateMessage:
             validate_message(
                 topic="expected/topic",
                 payload='{"key": "val"}',
-                raise_MQTTValidationException_only=True,
+                combine_exceptions=True,
             )
 
         assert "Invalid JSON payload for topic 'expected/topic'" in str(e.value)
@@ -134,7 +134,7 @@ class TestValidateMessage:
             validate_message(
                 topic="expected/topic",
                 payload='{"key": "val"}',
-                raise_MQTTValidationException_only=False,
+                combine_exceptions=False,
             )
 
         assert validate_message_mocks["mock_check_topic_expected"].called_once_with(
@@ -159,7 +159,7 @@ class TestValidateMessage:
             validate_message(
                 topic="expected/topic",
                 payload='{"key": "val"}',
-                raise_MQTTValidationException_only=True,
+                combine_exceptions=True,
             )
 
         assert "Well this is odd..." in str(e.value)
@@ -190,7 +190,7 @@ class TestValidateMessage:
             validate_message(
                 topic="expected/topic",
                 payload='{"key": "val"}',
-                raise_MQTTValidationException_only=False,
+                combine_exceptions=False,
             )
 
         assert "Well this is odd..." in str(e.value)
@@ -210,7 +210,7 @@ class TestValidateMessage:
         validate_message(
             topic="expected/topic",
             payload='{"key": "val"}',
-            raise_MQTTValidationException_only=True,
+            combine_exceptions=True,
         )
 
         assert validate_message_mocks["mock_check_topic_expected"].called_once_with(

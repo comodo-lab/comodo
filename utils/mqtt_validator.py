@@ -53,9 +53,7 @@ def load_spec(schema_name="asyncapi"):
     return topic_map
 
 
-def validate_message(
-    topic, payload, schema_name="asyncapi", raise_MQTTValidationException_only=True
-):
+def validate_message(topic, payload, schema_name="asyncapi", combine_exceptions=True):
     """
     Validates an incoming MQTT message against a schema
 
@@ -65,9 +63,16 @@ def validate_message(
         topic (str): The MQTT topic of the message
         payload (str): The payload of the message as a string
         schema_name (str): The name of the schema to validate against (default: "asyncapi")
+        combine_exceptions (bool): If true (default), it raises only MQTTValidationException. Otherwise, it raises the original exception.
+            The controller, for example, only needs to catch MQTTValidationException. Monitor, on the other hand, wants to get the original exceptions.
 
     Raises:
-        MQTTValidationException: If the message does not conform to the schema
+        combine_exception=True:
+            MQTTValidationException: If the message fails validation in any way (invalid topic, invalid JSON, or schema validation failure)
+        combine_exception=False:
+            MQTTValidationException: If the topic is not expected according to the schema.
+            json.JSONDecodeError: If the payload is not valid JSON.
+            ValidationError: If the message does not conform to the schema.
     """
     # Check that the topic is in the register defined by the AsyncAPI spec
     entry = check_topic_expected(schema_name, topic)
@@ -76,7 +81,7 @@ def validate_message(
     try:
         loaded_payload = check_payload_json_validity(payload)
     except json.JSONDecodeError as e:
-        if raise_MQTTValidationException_only:
+        if combine_exceptions:
             raise MQTTValidationException(
                 f"Invalid JSON payload for topic '{topic}': {e}"
             )
@@ -87,14 +92,15 @@ def validate_message(
     try:
         check_message_valid(entry, loaded_payload)
     except ValidationError as e:
-        if raise_MQTTValidationException_only:
+        if combine_exceptions:
             offending_key = (
                 ".".join(str(p) for p in e.absolute_path)
                 if e.absolute_path
                 else "<root>"
             )
             raise MQTTValidationException(
-                f"Message failed validation against schema for '{topic}': {e.message}. Failed check: {e.validator}, Offending key: {offending_key}"
+                f"Message failed validation against schema for '{topic}': {e.message}."
+                f" Failed check: {e.validator}, Offending key: {offending_key}"
             )
         else:
             raise e

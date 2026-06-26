@@ -40,7 +40,7 @@ class TestOnMessage:
         assert mocks["mock_validate_message"].called_once_with(
             topic=msg.topic,
             payload=msg.payload,
-            raise_MQTTValidationException_only=False,
+            combine_exceptions=False,
         )
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 1
@@ -64,7 +64,7 @@ class TestOnMessage:
         assert mocks["mock_validate_message"].called_once_with(
             topic=msg.topic,
             payload=msg.payload,
-            raise_MQTTValidationException_only=False,
+            combine_exceptions=False,
         )
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 1
@@ -89,7 +89,7 @@ class TestOnMessage:
         assert mocks["mock_validate_message"].called_once_with(
             topic=msg.topic,
             payload=msg.payload,
-            raise_MQTTValidationException_only=False,
+            combine_exceptions=False,
         )
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 1
@@ -114,7 +114,7 @@ class TestOnMessage:
         assert mocks["mock_validate_message"].called_once_with(
             topic=msg.topic,
             payload=msg.payload,
-            raise_MQTTValidationException_only=False,
+            combine_exceptions=False,
         )
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 0
@@ -133,7 +133,7 @@ class TestOnMessage:
         assert mocks["mock_validate_message"].called_once_with(
             topic=msg.topic,
             payload=msg.payload,
-            raise_MQTTValidationException_only=False,
+            combine_exceptions=False,
         )
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 0

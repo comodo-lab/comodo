@@ -16,7 +16,7 @@ def on_message(client, msg, obj):
         validate_message(
             topic=msg.topic,
             payload=msg.payload,
-            raise_MQTTValidationException_only=False,
+            combine_exceptions=False,
         )
     except MQTTValidationException as e:
         mqtt.MQTTPublisher.get_instance().publish(
