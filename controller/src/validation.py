@@ -18,22 +18,35 @@ class ExperimentValidationError(Exception):
 def generate_row_schema():
     # --------------------------------------------------------------------------
     # Load comodo config
-    with open("/app/comodo.yaml") as f:
-        config = yaml.safe_load(f)
+    try:
+        with open("/app/comodo.yaml") as f:
+            config = yaml.safe_load(f)
+    except FileNotFoundError:
+        raise ExperimentValidationError("comodo.yaml file not found")
 
     # --------------------------------------------------------------------------
     # Load template directory
-    env = Environment(loader=FileSystemLoader("/app/schemas"))
-    template = env.get_template("experiment_schema.yaml.j2")
+    try:
+        env = Environment(loader=FileSystemLoader("/app/schemas"))
+        template = env.get_template("experiment_schema.yaml.j2")
+    except Exception as e:
+        raise ExperimentValidationError(f"Failed to load template: {e}")
 
     # --------------------------------------------------------------------------
     # Fetch instruments and render
-    rendered = template.render(instruments=config.get("instruments"))
+    try:
+        instruments = config["instruments"]
+        rendered = template.render(instruments=instruments)
+    except KeyError as e:
+        raise ExperimentValidationError(f"Missing instruments in config: {e}")
 
     # --------------------------------------------------------------------------
     # Write rendered schema to file
-    with open("/app/schemas/experiment_row.yaml", "w") as f:
-        f.write(rendered)
+    try:
+        with open("/app/schemas/experiment_row.yaml", "w") as f:
+            f.write(rendered)
+    except Exception as e:
+        raise ExperimentValidationError(f"Failed to write rendered schema: {e}")
 
     return
 
@@ -66,10 +79,12 @@ def validate_experiment(file_path):
 
     try:
         experiment_dict = json.loads(experiment_json)
-        for row in experiment_dict.get("experiment_definition"):
+        for row in experiment_dict["experiment_definition"]:
             validate_message(
                 "experiment/row", json.dumps(row), schema_name="experiment_row"
             )
+    except KeyError as e:
+        raise ExperimentValidationError(f"Missing experiment definition: {e}")
     except MQTTValidationException as e:
         raise ExperimentValidationError(f"Experiment row validation failed: {e}")
 
