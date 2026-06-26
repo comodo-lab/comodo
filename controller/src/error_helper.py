@@ -28,39 +28,55 @@ def missing_keys(msg, e):
     )
 
 
-def incompatible_request(caller, obj, msg):
+def incompatible_controller_status(obj, msg):
     """
     Publishes an error message when the mqtt request is incompatible with the current controller status.
     """
-    topic = f"error/{caller.lower()}"
-    error = f"Controller:{caller} cannot act on {msg.topic}. Controller status is {obj.status}."
+    topic = f"error/controller"
+    error = f"Controller status is {obj.status}. Cannot act on {msg.topic}."
     mqtt.MQTTPublisher.get_instance().publish(
         topic,
-        json.dumps({"code": "incompatible_request", "message": error}),
+        json.dumps({"code": "incompatible_controller_status", "message": error}),
     )
 
 
-def incompatible_uid(caller, obj, msg, msg_uid):
+def incompatible_topic(obj, msg, caller):
+    """
+    Publishes an error message when the mqtt topic is incompatible with the caller that received the message.
+    """
+    caller = caller.lower()
+    topic = f"error/{caller}"
+    error = f"The {caller.replace('_', ' ')} cannot act on {msg.topic}."
+    mqtt.MQTTPublisher.get_instance().publish(
+        topic,
+        json.dumps({"code": "incompatible_topic", "message": error}),
+    )
+
+
+def incompatible_uid(obj, msg, msg_uid, caller):
     """
     Publishes an error message when the experiment uid in the mqtt request does not match the current experiment's uid.
     """
     topic = f"error/{caller.lower()}"
-    error = f"Current experiment is {obj.experiment_uid}. Controller:{caller} cannot act on {msg.topic} for experiment {msg_uid}."
+    caller = caller.lower().replace("_", " ")
+    caller = caller[0].upper() + caller[1:]
+    error = f"Current experiment is {obj.experiment_uid}. {caller} cannot act on {msg.topic} for experiment {msg_uid}."
+    print(f"ERROR: {error}")
     mqtt.MQTTPublisher.get_instance().publish(
         topic,
         json.dumps({"code": "incompatible_uid", "message": error}),
     )
 
 
-def experiment_validation_error(error, uid=0):
+def experiment_validation_error(error, uid):
     """
     Publishes an error message when the experiment configuration received from the ui fails validation.
     """
-    error_msg = f"{type(error).__name__}: {error}"
-    print(f"ERROR: {error_msg}")
+    e = f"Experiment {uid} validation failed with {type(error).__name__}: {error}"
+    print(f"ERROR: {e}")
     mqtt.MQTTPublisher.get_instance().publish(
         "error/validator",
-        json.dumps({"code": "experiment_validation", "message": error_msg})
+        json.dumps({"code": "experiment_validation", "message": e}),
     )
 
 
@@ -94,9 +110,16 @@ def controller_timeout(uid, who_timedout, consequence):
     """
     Publishes an error message when a timeout occurs.
     """
+    error = f"Timed out waiting for {who_timedout}. {consequence}..."
+    print(f"ERROR: {error}")
     mqtt.MQTTPublisher.get_instance().publish(
         "error/controller",
-        json.dumps({"code": "timeout", "message": f"Timed out waiting for {who_timedout}. {consequence}..."}),
+        json.dumps(
+            {
+                "code": "timeout",
+                "message": error,
+            }
+        ),
     )
 
 
@@ -104,7 +127,14 @@ def controller_state_incompatible_with_timer(uid, source, expected_state, state)
     """
     Publishes an error message when the state of the controller is not compatible with the current timer.
     """
+    error = f"Timer for {source} exited unexpectedly. The controller state was found to be {state} instead of {expected_state}."
+    print(f"ERROR: {error}")
     mqtt.MQTTPublisher.get_instance().publish(
         "error/controller",
-        json.dumps({"code": "timer_error", "message": f"Timer for {source} exited unexpectedly. The controller state was found to be {state} instead of {expected_state}."}),
+        json.dumps(
+            {
+                "code": "timer_error",
+                "message": error,
+            }
+        ),
     )

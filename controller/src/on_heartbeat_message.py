@@ -1,17 +1,17 @@
 import json
 import time as t
-from json import JSONDecodeError
 from jsonschema import ValidationError
 
 from utils import mqtt_clients as mqtt
-from utils.mqtt_validator import validate_message, UnexpectedTopicException
+from utils.mqtt_validator import validate_message, MQTTValidationException
 
 from src.error_helper import (
-    incompatible_request,
+    incompatible_topic,
     wrong_json,
     heartbeat_validation_error,
     unconfigured_instrument,
 )
+
 
 def on_heartbeat_message(client, msg, obj):
     """
@@ -19,27 +19,22 @@ def on_heartbeat_message(client, msg, obj):
     It expects a message compliant with the spec schema for that channel.
     """
     if "instruments" not in (msg.topic) or "heartbeat" not in msg.topic:
-        incompatible_request("Heartbeat", obj, msg)
+        incompatible_topic(obj, msg, "heartbeat_callback")
         return
 
     try:
         validate_message(msg.topic, msg.payload)
-    except json.JSONDecodeError as e:
-        wrong_json(msg, e)
-        return
-    except ValidationError as e:
+    except MQTTValidationException as e:
         heartbeat_validation_error(msg, e)
-        return
-    except UnexpectedTopicException as e:
         return
 
     if obj.status in ["idle", "validating", "starting"]:
         return
 
     instrument_name = msg.topic.split("/")[1]
-    payload_json = json.loads(msg.payload)
+    payload = json.loads(msg.payload)
     if instrument_name in obj.instruments:
-        _handle_actuator_heartbeat(obj, payload_json, instrument_name)
+        _handle_actuator_heartbeat(obj, payload, instrument_name)
     elif instrument_name in obj.sensor_instruments:
         return
     else:
@@ -47,15 +42,15 @@ def on_heartbeat_message(client, msg, obj):
         return
 
 
-def _handle_actuator_heartbeat(obj, payload_json, instrument_name):
+def _handle_actuator_heartbeat(obj, heartbeat, instrument_name):
     obj_instrument = obj.instruments[instrument_name]
     obj_instrument["last_contact"] = t.time()
     if obj.status == "awaiting_instruments":
-        if payload_json["state"] == "idle":
+        if heartbeat["state"] == "idle":
             return
-        obj_instrument["state"] = payload_json["state"]
-        obj_instrument["setpoints"] = payload_json["setpoints"]
-        obj_instrument["config"] = payload_json["config"]
+        obj_instrument["state"] = heartbeat["state"]
+        obj_instrument["setpoints"] = heartbeat["setpoints"]
+        obj_instrument["config"] = heartbeat["config"]
         if all(
             obj.instruments[s]["state"] not in [None, "idle"]
             for s in obj.instruments
@@ -64,9 +59,10 @@ def _handle_actuator_heartbeat(obj, payload_json, instrument_name):
             if not obj.instruments["configured"]:
                 obj.instruments["configured"] = True
                 mqtt.MQTTPublisher.get_instance().publish(
-                    "controller/event/ready", json.dumps({"experiment_id": obj.experiment_uid})
+                    "controller/event/ready",
+                    json.dumps({"experiment_id": obj.experiment_uid}),
                 )
     else:
-        obj_instrument["state"] = payload_json["state"]
-        obj_instrument["setpoints"] = payload_json["setpoints"]
-        obj_instrument["config"] = payload_json["config"]
+        obj_instrument["state"] = heartbeat["state"]
+        obj_instrument["setpoints"] = heartbeat["setpoints"]
+        obj_instrument["config"] = heartbeat["config"]

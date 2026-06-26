@@ -35,15 +35,17 @@ def wd_timer_client(mqtt_mocks):
 # ========================================
 
 
-def test_incompatible_request(message_bus, wd_timer_client, wd_state):
-    msg = MockMessage(topic="watchdog/timer/command/run", payload=json.dumps({"not": "important"}))
+def test_incompatible_topic(message_bus, wd_timer_client, wd_state):
+    msg = MockMessage(
+        topic="watchdog/timer/command/run", payload=json.dumps({"not": "important"})
+    )
     on_wd_timer_message(wd_timer_client, msg, wd_state)
 
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
-    assert messages[0].topic == "error/watchdog"
+    assert messages[0].topic == "error/watchdog_timer"
     assert (
-        "WATCHDOG_TIMER: Unexpected message received: watchdog/timer/command/run"
+        "The watchdog timer cannot act on watchdog/timer/command/run"
         in messages[0].payload
     )
 
@@ -68,7 +70,9 @@ def test_wrong_json(message_bus, wd_timer_client, wd_state, capsys):
 
 
 def test_missing_keys(message_bus, wd_timer_client, wd_state, capsys):
-    msg = MockMessage(topic="watchdog/timer/command/start", payload=json.dumps({"timeout": 1}))
+    msg = MockMessage(
+        topic="watchdog/timer/command/start", payload=json.dumps({"timeout": 1})
+    )
     on_wd_timer_message(wd_timer_client, msg, wd_state)
 
     # Printed error
@@ -104,7 +108,7 @@ def test_incompatible_values(message_bus, wd_timer_client, wd_state, capsys):
     # MQTT error
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
-    assert messages[0].topic == "error/watchdog"
+    assert messages[0].topic == "error/watchdog_timer"
     assert "WATCHDOG_TIMER incompatible values:" in messages[0].payload
     assert "Expected interval 0.2, but got 1" in messages[0].payload
     assert wd_state["healthy"] == False

@@ -7,13 +7,13 @@ from utils.interpolation import split_setpoints
 
 from src.controller_helper import assign_serial_id, dump_database_for_experiment
 from src.error_helper import (
-    incompatible_request,
+    incompatible_controller_status,
     incompatible_uid,
     missing_keys,
     wrong_json,
     experiment_validation_error,
 )
-from src.validation import validate_experiment
+from src.validation import validate_experiment, ExperimentValidationError
 
 
 def c_idle(client, msg, obj):
@@ -29,15 +29,15 @@ def c_idle(client, msg, obj):
     """
     if msg.topic != "controller/command/validate":
         if msg.topic.startswith("controller/command/"):
-            incompatible_request("Controller", obj, msg)
+            incompatible_controller_status(obj, msg)
         return
 
     # Load and decode experiment file
     try:
-        # Load and experiment object
+        # Load experiment object
         payload = mqtt.load_message(msg)
 
-        # Set experment file object and temp_uid
+        # Set experiment file object and temp_uid
         obj.exp_file = payload["file"]
         temp_uid = payload["id"]
     except json.JSONDecodeError as e:
@@ -46,14 +46,14 @@ def c_idle(client, msg, obj):
     except KeyError as e:
         missing_keys(msg, e)
         return
-    
+
     obj.experiment_start_time = datetime.now()
     obj.status = "validating"
-    
+
     # Validate experiment configuration
     try:
         exp_config = validate_experiment(obj.exp_file)
-        
+
         # Compute intermediate setpoints
         obj.setpoints = split_setpoints(
             exp_config["experiment_definition"], exp_config["config"]["resolution"]
@@ -63,15 +63,17 @@ def c_idle(client, msg, obj):
             "id": obj.experiment_uid,
             "valid": True,
         }
-        mqtt.MQTTPublisher.get_instance().publish("controller/validator/passed", json.dumps(m))
+        mqtt.MQTTPublisher.get_instance().publish(
+            "controller/validator/passed", json.dumps(m)
+        )
         obj.exp_config = exp_config
-        
+
         # Update state and callback of controller
         client.callback = c_starting
         mqtt.MQTTPublisher.get_instance().publish(
             "controller/command/start", json.dumps({"id": m["id"]})
         )
-    except Exception as e:
+    except (ExperimentValidationError, ValueError) as e:
         experiment_validation_error(e, temp_uid)
         obj.experiment_uid = None
         obj.status = "idle"
@@ -94,7 +96,7 @@ def c_starting(client, msg, obj):
         if msg.topic == "controller/command/stop":
             c_stopping(client, msg, obj)
         elif msg.topic.startswith("controller/command/"):
-            incompatible_request("Controller", obj, msg)
+            incompatible_controller_status(obj, msg)
         return
 
     obj.status = "starting"
@@ -113,7 +115,8 @@ def c_starting(client, msg, obj):
     obj.status = "awaiting_instruments"
     client.callback = c_ready
     mqtt.MQTTPublisher.get_instance().publish(
-        "controller/timer/command/start", json.dumps({"source": "instrument_setup", "experiment_id": obj.experiment_uid})
+        "controller/timer/command/start",
+        json.dumps({"source": "instrument_setup", "experiment_id": obj.experiment_uid}),
     )
 
 
@@ -132,7 +135,7 @@ def c_ready(client, msg, obj):
         if msg.topic == "controller/command/stop":
             c_stopping(client, msg, obj)
         elif msg.topic.startswith("controller/command/"):
-            incompatible_request("Controller", obj, msg)
+            incompatible_controller_status(obj, msg)
         return
 
     obj.status = "ready"
@@ -161,7 +164,7 @@ def c_running(client, msg, obj):
         if msg.topic == "controller/command/stop":
             c_stopping(client, msg, obj)
         elif msg.topic.startswith("controller/command/"):
-            incompatible_request("Controller", obj, msg)
+            incompatible_controller_status(obj, msg)
         return
 
     if obj.setpoints == []:
@@ -192,7 +195,13 @@ def c_running(client, msg, obj):
         )
     mqtt.MQTTPublisher.get_instance().publish(
         "controller/timer/command/start",
-        json.dumps({"source": "setpoint", "experiment_id": obj.experiment_uid, "duration": next_setpoint["duration"]}),
+        json.dumps(
+            {
+                "source": "setpoint",
+                "experiment_id": obj.experiment_uid,
+                "duration": next_setpoint["duration"],
+            }
+        ),
     )
 
 
@@ -211,7 +220,7 @@ def c_stopping(client, msg, obj):
         "controller/event/end",
     ]:
         if msg.topic.startswith("controller/command/"):
-            incompatible_request("Controller", obj, msg)
+            incompatible_controller_status(obj, msg)
         return
     message = mqtt.load_message(msg)
     msg_id = message.get("experiment_id") or message.get("id")
@@ -225,7 +234,9 @@ def c_stopping(client, msg, obj):
         uid = obj.experiment_uid
         obj.reset()
         client.callback = c_idle
-        stop_reason = "was stopped" if msg.topic == "controller/command/stop" else "finished"
+        stop_reason = (
+            "was stopped" if msg.topic == "controller/command/stop" else "finished"
+        )
         print(f"Experiment {uid} {stop_reason} and the controller has been reset.")
     else:
-        incompatible_uid("Controller", obj, msg, msg_id)
+        incompatible_uid(obj, msg, msg_id, "controller")
