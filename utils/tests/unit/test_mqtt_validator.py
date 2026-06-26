@@ -39,26 +39,20 @@ class TestLoadSpec:
         topic_map = load_spec("utils/tests/file_fixtures/sample_asyncapi.yaml")
 
         assert "error/message/malformed" in topic_map
-        assert topic_map["error/message/malformed"]["name"] == "errorMalformed"
-        assert topic_map["error/message/malformed"]["schema"]["type"] == "object"
-        assert topic_map["error/message/malformed"]["schema"]["required"] == [
-            "topic",
-            "error",
-            "error_message",
-        ]
+        tmm = topic_map["error/message/malformed"]
+        assert tmm["name"] == "errorMalformed"
+        assert tmm["schema"]["type"] == "object"
+        assert tmm["schema"]["required"] == ["topic", "error", "error_message"]
 
         assert "error/message/invalid" in topic_map
-        assert topic_map["error/message/invalid"]["name"] == "errorInvalid"
-        assert topic_map["error/message/invalid"]["schema"]["properties"]["error"][
-            "enum"
-        ] == ["validation_error"]
+        tmi = topic_map["error/message/invalid"]
+        assert tmi["name"] == "errorInvalid"
+        assert tmi["schema"]["properties"]["error"]["enum"] == ["validation_error"]
 
         assert "error/message/unexpected" in topic_map
-        assert topic_map["error/message/unexpected"]["name"] == "errorUnexpected"
-        assert topic_map["error/message/unexpected"]["schema"]["required"] == [
-            "topic",
-            "error",
-        ]
+        tmu = topic_map["error/message/unexpected"]
+        assert tmu["name"] == "errorUnexpected"
+        assert tmu["schema"]["required"] == ["topic", "error"]
 
 
 class TestValidateMessage:
