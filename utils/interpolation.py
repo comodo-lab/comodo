@@ -151,28 +151,17 @@ def split_setpoints(setpoint_list, resolution):
             profile = values[step][1]
 
             if step != 0:
-                # Calculate the time interval since the last setpoint
                 time_interval = time - previous_time
                 if time_interval < resolution:
                     raise ValueError(
                         f"Invalid time interval: {time_interval} in step {step}.\n It must be greater or equal to the experiment's resolution {resolution}"
                     )
-
-                # Calculate the number of steps needed for interpolation
-                num_steps = int(time_interval / resolution)
+                num_steps = int(time_interval / resolution) + 1
                 if num_steps < 2:
-                    if num_steps == 1:
-                        print(
-                            f"Skipping interpolation for {name} due to insufficient steps: {num_steps}, just assigning setpoint value."
-                        )
-                        new_values = [float(setpoint)]
-                        continue
-                    else:
-                        raise ValueError(
-                            f"Invalid number of steps for interpolation: {num_steps} for variable {name}"
-                        )
+                    raise ValueError(
+                        f"Invalid number of steps for interpolation: {num_steps} for variable {name}"
+                    )
 
-                # Interpolate based on the profile type
                 if profile == "linear":
                     new_values = linear_interpolation(
                         float(previous_setpoint), float(setpoint), num_steps
@@ -191,13 +180,13 @@ def split_setpoints(setpoint_list, resolution):
                     )
                 else:
                     raise ValueError(f"Unknown profile type: {profiles}")
-            else:
-                # For the first setpoint, just use the setpoint value
-                new_values = [float(setpoint)]
 
-            interpolated_values = np.append(
-                interpolated_values, new_values
-            )  # Skip the first value as it is the previous setpoint
+                interpolated_values = np.append(
+                    interpolated_values, new_values[1:]
+                )
+            else:
+                new_values = [float(setpoint)]
+                interpolated_values = np.append(interpolated_values, new_values)
             previous_setpoint = setpoint
             previous_time = time
             step += 1
