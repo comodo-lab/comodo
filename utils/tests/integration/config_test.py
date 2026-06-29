@@ -23,10 +23,12 @@ class TestConfigLoad:
         # Check instrument parsing
 
         assert config.instruments.keys() == {
+            "furnace_centre",
             "furnace_left",
             "furnace_right",
             "pressure_downstream",
             "pressure_upstream",
+            "mass_flow",
             "mass_spec"
         }, "Config failed to load instruments correctly"
 
