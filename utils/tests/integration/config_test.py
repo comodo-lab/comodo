@@ -52,7 +52,6 @@ class TestConfigLoad:
             "furnace_right/temperature",
             "pressure_downstream/pressure",
             "pressure_upstream/pressure",
-            "mass_flow/mass_flow",
             "mass_flow/temperature",
             "mass_flow/pressure_upstream",
             "mass_flow/pressure_downstream",
