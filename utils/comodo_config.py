@@ -9,27 +9,13 @@ class ComodoConfig():
         self.config = {} # Raw: Parsed yaml config file
         
         # Global Parameters
-        self.heartbeat_interval = None
-        self.watchdog_interval = None
-        self.watchdog_timeout = None
-        self.instrument_setup_wait = None
-        
-        # Instruments
-        self.instruments = {} # Raw: Dict of instrument configurations
-        self.expected_instruments = set() # Derived: Set of expected instrument configurations
-        self.actuator_instruments = {} # Derived: Instruments with actuator capabilities
-        self.sensor_instruments = {} # Derived: Instruments with only sensor capabilities
-        
-        # Variables
-        self.actuator_variables = set() # Derived: Set of actuator variables
-        self.sensor_variables = set() # Derived: Set of sensor variables
-        self.setpoint_controllers = {} # Derived: Set of Sensor -> Actuator PID pairings
+        self.globals = {
+            "heartbeat_interval": None,
+            "watchdog_interval": None,
+            "watchdog_timeout": None,
+            "instrument_setup_wait": None,
+        }
 
-        # Setpoint Controller
-        self.spc_config = {} # Raw: Dict of setpoint controller configurations
-        
-        # Default Experiment
-        self.default_experiment = {} # Derived: default setpoints assembled into a single experiment row
 
     def load_config(self):
         """
