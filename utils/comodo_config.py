@@ -17,7 +17,7 @@ class ComodoConfig():
         }
 
 
-    def load_config(self):
+    def load(self):
         """
         Loads the configuration from a YAML file and populates the instance variables.
         """
@@ -27,12 +27,10 @@ class ComodoConfig():
             self.config = yaml.safe_load(f)
         
         # Populate global parameters
-        global_params = self.config.get('global')
-        self.heartbeat_interval = global_params.get('heartbeat').get('interval')
-        self.watchdog_interval = global_params.get('watchdog').get('interval')
-        self.watchdog_timeout = global_params.get('watchdog').get('timeout')
-        self.instrument_setup_wait = global_params.get('instrument_setup').get('wait')
+        self.populate_globals()
+
+        # Populate instruments
+        self.populate_instruments()
 
         return self
-
 
