@@ -24,12 +24,8 @@ classes:
   MeasurementConfig:
     slots:
       - interval
-      - tolerance
     slot_usage:
       interval:
-        required: true
-        range: float
-      tolerance:
         required: true
         range: float
 
@@ -98,8 +94,12 @@ classes:
       - max
       - unit
       - default_setpoint
+      - tolerance
     slot_usage:
       default_setpoint:
+        required: true
+        range: float
+      tolerance:
         required: true
         range: float
 
