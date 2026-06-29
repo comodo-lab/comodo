@@ -34,3 +34,10 @@ class ComodoConfig():
 
         return self
 
+    def populate_globals(self):
+        global_params = self.config.get('global')
+        self.globals["heartbeat_interval"] = global_params.get('heartbeat').get('interval')
+        self.globals["watchdog_interval"] = global_params.get('watchdog').get('interval')
+        self.globals["watchdog_timeout"] = global_params.get('watchdog').get('timeout')
+        self.globals["instrument_setup_wait"] = global_params.get('instrument_setup').get('wait')
+        
