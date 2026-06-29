@@ -5,7 +5,8 @@ class TestConfigLoad:
         # ----------------------------------------------------------------------
         # Load config and assert is non-none
         
-        config = ComodoConfig(path="tests/file_fixtures/comodo.yaml")
+        config = ComodoConfig(path="utils/tests/file_fixtures/comodo.yaml")
+        config.load()
         assert config is not None
 
         # ----------------------------------------------------------------------
