@@ -58,14 +58,14 @@ class TestConfigLoad:
             "mass_spec/mass_spec",
         }, "Config failed to load sensors correctly"
 
-        assert config.actuators["furnace_centre/temperature"].setup == {
+        assert config.actuators["furnace_centre/temperature"] == {
             "min": 0,
             "max": 1000,
             "default_setpoint": 0,
             "tolerance": 1.0,
         }, "Config failed to load actuator setup correctly"
         
-        assert config.sensors["pressure_downstream/pressure"].setup == {
+        assert config.sensors["pressure_downstream/pressure"] == {
             "min": 0,
             "max": 10
         }, "Config failed to load sensor setup correctly"            
