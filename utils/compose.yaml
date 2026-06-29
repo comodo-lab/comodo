@@ -15,7 +15,7 @@ services:
     container_name: utils-test
     volumes:
       - memory:/memory  # Used to persist pytest cache between runs
-    command: bash -c "coverage run --source=. --omit='utils/tests/*,*/__*' -m pytest
+    command: bash -c "coverage run --source=. --omit='utils/tests/*,*/__*' -m pytest -vv
       utils/tests/ &&
       echo '' && coverage report && coverage html -d /memory/htmlcov"
 
