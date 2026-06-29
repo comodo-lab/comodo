@@ -88,7 +88,7 @@ class TestConfigLoad:
         # ----------------------------------------------------------------------
         # Check default experiment derivation
 
-        assert config.default_experiment == {
+        assert config.default_experiment == [
             {
                 "time": 0,
                 "furnace_centre/temperature": 0,
@@ -96,4 +96,4 @@ class TestConfigLoad:
                 "mass_flow/mass_flow": 0,
                 "mass_flow/mass_flow_profile": "linear"
             }
-        }, "Config failed to load default experiment correctly"
+        ], "Config failed to load default experiment correctly"
