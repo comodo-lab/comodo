@@ -45,6 +45,10 @@ class ComodoConfig():
         return self
 
     def populate_globals(self):
+        """
+        Populate global parameters from the configuration
+        """
+        
         global_params = self.config.get('global')
         self.globals["heartbeat_interval"] = global_params.get('heartbeat').get('interval')
         self.globals["watchdog_interval"] = global_params.get('watchdog').get('interval')
@@ -90,3 +94,18 @@ class ComodoConfig():
                     data = variable_data['setpoint_controller'].copy()
                     data["actuator"] = key
                     self.spcs.append(data)
+
+    def get_default_experiment(self):
+        """
+        Returns the default experiment configuration.
+        """
+
+        # Iterate over the actuator's, get their default setpoints and return a dictionary of the default experiment
+        default_experiment = [{'time': 0}]
+        for actuator_key, actuator_data in self.actuators.items():
+            default_experiment[0][actuator_key] = actuator_data.get('default_setpoint', None)
+
+            # Add the profile (default linear)
+            default_experiment[0][f'{actuator_key}_profile'] = 'linear'
+
+        return default_experiment
