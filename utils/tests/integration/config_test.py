@@ -73,17 +73,17 @@ class TestConfigLoad:
         # ----------------------------------------------------------------------
         # Check SPC listings
 
-        assert len(config.spc) == 1, "Config failed to load the correct number of SPCs"
+        assert len(config.spcs) == 1, "Config failed to load the correct number of SPCs"
 
-        spc = config.spc[0]
-        assert spc.actuator == "mass_flow/mass_flow", "Config failed to load SPC actuator correctly"
-        assert spc.sensor == "pressure_upstream/pressure", "Config failed to load SPC sensor correctly"
-        assert spc.setup == {
-            "k_p": 10.0,
-            "k_i": 1.0,
-            "k_d": 0.1,
-            "k_aw": 0.05,
-            "k_df": 0.01
+        spc = config.spcs[0]
+        assert spc == {
+            "K_P": 10.0,
+            "K_I": 1.0,
+            "K_D": 0.1,
+            "K_AW": 0.05,
+            "K_DF": 0.01,
+            "actuator": "mass_flow/mass_flow",
+            "external_sensor": "pressure_upstream/pressure"
         }, "Config failed to load SPC setup correctly"
 
         # ----------------------------------------------------------------------
