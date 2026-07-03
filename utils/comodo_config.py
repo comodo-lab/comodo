@@ -48,3 +48,18 @@ class ComodoConfig():
         self.globals["watchdog_timeout"] = global_params.get('watchdog').get('timeout')
         self.globals["instrument_setup_wait"] = global_params.get('instrument_setup').get('wait')
         
+    def populate_instruments(self):
+        """
+        Populate instruments from the configuration
+        Expects to find firmware, address, and variables for each instrument
+        """
+
+        instruments_config = self.config.get('instruments', {})
+        for instrument_name, instrument_data in instruments_config.items():
+            self.instruments[instrument_name] = {
+                "firmware": instrument_data.get('firmware', None),
+                "address": instrument_data.get('address', None),
+            }
+            for variable in instrument_data.get('variables', []):
+                self.instruments[instrument_name].setdefault('variables', []).append(variable)
+
