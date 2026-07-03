@@ -32,7 +32,7 @@ class TestConfigLoad:
             "mass_spec"
         }, "Config failed to load instruments correctly"
 
-        assert config.instruments["furnace_centre"].setup == {
+        assert config.instruments["furnace_centre"] == {
             "firmware": "carbolite_gero.tg3",
             "address": "192.168.111.222",
             "variables": ["temperature"]
@@ -55,6 +55,7 @@ class TestConfigLoad:
             "mass_flow/temperature",
             "mass_flow/pressure_upstream",
             "mass_flow/pressure_downstream",
+            "mass_flow/mass_flow",
             "mass_spec/mass_spec",
         }, "Config failed to load sensors correctly"
 
