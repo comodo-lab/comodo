@@ -89,7 +89,7 @@ class TestConfigLoad:
         # ----------------------------------------------------------------------
         # Check default experiment derivation
 
-        assert config.default_experiment == [
+        assert config.get_default_experiment() == [
             {
                 "time": 0,
                 "furnace_centre/temperature": 0,
