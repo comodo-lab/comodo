@@ -39,6 +39,9 @@ class ComodoConfig():
         # Populate instruments
         self.populate_instruments()
 
+        # Populate variables
+        self.populate_sensors_actuators_spcs()
+
         return self
 
     def populate_globals(self):
@@ -63,3 +66,27 @@ class ComodoConfig():
             for variable in instrument_data.get('variables', []):
                 self.instruments[instrument_name].setdefault('variables', []).append(variable)
 
+    def populate_sensors_actuators_spcs(self):
+        """
+        Populates the sensors and actuators from the configuration.
+        Iterates through each instrument and its variables, creating a unique key for each variable in the format "instrument_name/variable_name". Omits any Setpoint Controller linked variables.
+        """
+
+        # Build a first pass of sensors and actuators from the instruments and their variables, including SPC linked variables which will be popped later
+        instruments_config = self.config.get('instruments', {})
+        for instrument_name, instrument_data in instruments_config.items():
+            for variable_name, variable_data in instrument_data.get('variables', []).items():
+                # Create a unique key for each variable
+                key = f"{instrument_name}/{variable_name}"
+
+                # If there is a relevant tag, add the variable to the appropriate dictionary
+                if 'sensor' in variable_data:
+                    self.sensors[key] = variable_data['sensor'].copy()
+                if 'actuator' in variable_data:
+                    self.actuators[key] = variable_data['actuator'].copy()
+
+                # If the variable is linked to a Setpoint Controller (SPC), add it to the SPCs dictionary
+                if 'setpoint_controller' in variable_data:
+                    data = variable_data['setpoint_controller'].copy()
+                    data["actuator"] = key
+                    self.spcs.append(data)
