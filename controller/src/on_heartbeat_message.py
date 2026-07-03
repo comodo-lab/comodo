@@ -38,19 +38,17 @@ def on_heartbeat_message(client, msg, obj):
 
     instrument_name = msg.topic.split("/")[1]
     payload_json = json.loads(msg.payload)
-    if instrument_name in obj.actuator_instruments:
-        _handle_actuator_heartbeat(obj, payload_json, instrument_name)
-    elif instrument_name in obj.sensor_instruments:
-        return
+    if instrument_name in obj.instruments:
+        _handle_instrument_heartbeat(obj, payload_json, instrument_name)
     else:
         unconfigured_instrument(msg, instrument_name)
         return
 
-
-def _handle_actuator_heartbeat(obj, payload_json, instrument_name):
+def _handle_instrument_heartbeat(obj, payload_json, instrument_name):
     obj_instrument = obj.instruments[instrument_name]
     obj_instrument["last_contact"] = t.time()
     if obj.status == "awaiting_instruments":
+        # Assert state and config match, otherwise stop experiment
         if payload_json["state"] == "idle":
             return
         if payload_json["config"] != obj_instrument["config"]:
@@ -69,9 +67,14 @@ def _handle_actuator_heartbeat(obj, payload_json, instrument_name):
                 "controller/command/stop", json.dumps({"id": obj.experiment_uid})
             )
             return
+
+        # Update instrument state and setpoints
         obj_instrument["state"] = payload_json["state"]
         obj_instrument["setpoints"] = payload_json["setpoints"]
         obj_instrument["config"] = payload_json["config"]
+
+        # Check if all instruments are ready (not idle) and if so:
+        # set the configured flag and publish ready event
         if all(
             obj.instruments[s]["state"] not in [None, "idle"]
             for s in obj.instruments
@@ -83,6 +86,7 @@ def _handle_actuator_heartbeat(obj, payload_json, instrument_name):
                     "controller/event/ready", json.dumps({"experiment_id": obj.experiment_uid})
                 )
     else:
+        # Update instrument state and setpoints
         obj_instrument["state"] = payload_json["state"]
         obj_instrument["setpoints"] = payload_json["setpoints"]
         obj_instrument["config"] = payload_json["config"]

@@ -6,14 +6,10 @@ from jinja2 import Environment, FileSystemLoader
 from utils import mqtt_validator
 from utils.mqtt_validator import validate_message
 
-def generate_row_schema():
+def generate_row_schema(config):
     # --------------------------------------------------------------------------
     # Load comodo config 
 
-    with open("/app/comodo.yaml") as f:
-        config = yaml.safe_load(f) or {}
-
-    # --------------------------------------------------------------------------
     # Load template directory 
 
     env = Environment(loader=FileSystemLoader("/app/schemas"))
@@ -22,7 +18,7 @@ def generate_row_schema():
     # --------------------------------------------------------------------------
     # Fetch instruments and render 
 
-    instruments = config.get("instruments", {})
+    instruments = config.raw.get("instruments", {})
     rendered = template.render(instruments=instruments)
 
     # --------------------------------------------------------------------------
@@ -33,7 +29,7 @@ def generate_row_schema():
 
     return
 
-def validate_experiment(file_path):
+def validate_experiment(file_path, config):
     # --------------------------------------------------------------------------
     # Read experiment file
     
@@ -51,7 +47,7 @@ def validate_experiment(file_path):
     # --------------------------------------------------------------------------
     # Perform specific validation (compare instruments with comodo.yaml)
 
-    generate_row_schema()
+    generate_row_schema(config)
 
     experiment_dict = json.loads(experiment_json)
     for row in experiment_dict.get("experiment_definition"):

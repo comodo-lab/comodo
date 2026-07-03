@@ -44,7 +44,7 @@ def on_timer_message(client, msg, obj):
 
     if msg.topic == "controller/timer/command/start" and message.get("source") == "instrument_setup":
         # Wait for instruments to be ready or timeout
-        instrument_setup_wait = obj.instrument_setup_wait
+        instrument_setup_wait = obj.config.globals["instrument_setup_wait"]
         t0 = t.time()
         while (
             not obj.instruments["configured"]
