@@ -4,9 +4,9 @@ class ComodoConfig():
     def __init__(self, path="/app/comodo.yaml"):
         # Path to the config file
         self.path = path
-        
+
         # Initialise the instance variables
-        self.config = {} # Raw: Parsed yaml config file
+        self.raw = {} # Raw: Parsed yaml config file
         
         # Global Parameters
         self.globals = {
@@ -31,7 +31,7 @@ class ComodoConfig():
         
         # Load the YAML configuration file
         with open(self.path, 'r') as f:
-            self.config = yaml.safe_load(f)
+            self.raw = yaml.safe_load(f)
         
         # Populate global parameters
         self.populate_globals()
@@ -48,8 +48,9 @@ class ComodoConfig():
         """
         Populate global parameters from the configuration
         """
-        
-        global_params = self.config.get('global')
+
+        global_params = self.raw.get('global')
+
         self.globals["heartbeat_interval"] = global_params.get('heartbeat').get('interval')
         self.globals["watchdog_interval"] = global_params.get('watchdog').get('interval')
         self.globals["watchdog_timeout"] = global_params.get('watchdog').get('timeout')
@@ -70,7 +71,7 @@ class ComodoConfig():
         Expects to find firmware, address, and variables for each instrument
         """
 
-        instruments_config = self.config.get('instruments', {})
+        instruments_config = self.raw.get('instruments', {})
         for instrument_name, instrument_data in instruments_config.items():
             self.instruments[instrument_name] = {
                 "firmware": instrument_data.get('firmware', None),
@@ -86,7 +87,7 @@ class ComodoConfig():
         """
 
         # Build a first pass of sensors and actuators from the instruments and their variables, including SPC linked variables which will be popped later
-        instruments_config = self.config.get('instruments', {})
+        instruments_config = self.raw.get('instruments', {})
         for instrument_name, instrument_data in instruments_config.items():
             for variable_name, variable_data in instrument_data.get('variables', []).items():
                 # Create a unique key for each variable
