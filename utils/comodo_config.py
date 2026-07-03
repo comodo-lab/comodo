@@ -54,7 +54,16 @@ class ComodoConfig():
         self.globals["watchdog_interval"] = global_params.get('watchdog').get('interval')
         self.globals["watchdog_timeout"] = global_params.get('watchdog').get('timeout')
         self.globals["instrument_setup_wait"] = global_params.get('instrument_setup').get('wait')
-        
+
+        # Check that all global parameters are positive numbers
+        for key, value in self.globals.items():
+            if not isinstance(value, (int, float)) or value <= 0:
+                raise ValueError(f"Global parameter '{key}' must be a positive number. Found: {value}")
+
+        # Check that the watchdog timeout is greater than the watchdog interval
+        if self.globals["watchdog_timeout"] <= self.globals["watchdog_interval"]:
+            raise ValueError(f"Global parameter 'watchdog_timeout' must be greater than 'watchdog_interval'.")
+
     def populate_instruments(self):
         """
         Populate instruments from the configuration
