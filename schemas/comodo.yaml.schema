@@ -81,11 +81,6 @@ classes:
       - min
       - max
       - unit
-      - default_setpoint
-    slot_usage:
-      default_setpoint:
-        required: true
-        range: float
 
   ActuatorConfig:
     slots:
@@ -98,10 +93,8 @@ classes:
     slot_usage:
       default_setpoint:
         required: true
-        range: float
       tolerance:
         required: true
-        range: float
 
   SetpointControllerConfig:
     slots:
@@ -200,6 +193,10 @@ slots:
     range: float
   unit:
     range: string
+  default_setpoint:
+    range: float
+  tolerance:
+    range: float
 
   external_sensor:
     range: string

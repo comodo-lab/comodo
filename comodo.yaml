@@ -75,7 +75,6 @@ instruments:
           min: 0
           max: 10
           unit: bar
-          default_setpoint: 0
   mass_flow:
     firmware: bronkhorst.el_flow_select
     address: "/dev/ttyUSB2"
