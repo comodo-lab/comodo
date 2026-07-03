@@ -19,13 +19,14 @@ instruments:
           type: float
           min: 0
           max: 1000
-          unit: °C
+          unit: C
         actuator:
           type: float
           min: 0
           max: 1000
-          unit: °C
+          unit: C
           default_setpoint: 0
+          tolerance: 1
   furnace_left:
     firmware: carbolite_gero.tg3
     address: "192.168.111.224"
@@ -33,12 +34,11 @@ instruments:
       temperature:
         measurement:
           interval: 1
-          tolerance: 1
         sensor:
           type: float
           min: 0
           max: 1000
-          unit: °C
+          unit: C
   furnace_right:
     firmware: carbolite_gero.tg3
     address: "192.168.111.225"
@@ -50,7 +50,7 @@ instruments:
           type: float
           min: 0
           max: 1000
-          unit: °C
+          unit: C
   pressure_downstream:
     firmware: pfeiffer.mpt200
     address: "/dev/ttyUSB0"
@@ -83,7 +83,6 @@ instruments:
       mass_flow:
         measurement:
           interval: 1
-          tolerance: 1
         sensor:
           type: float
           min: 0
@@ -95,6 +94,7 @@ instruments:
           max: 100
           unit: \%
           default_setpoint: 0
+          tolerance: 1
         setpoint_controller:
           external_sensor: pressure_upstream/pressure
           K_P: 10.0
@@ -109,11 +109,10 @@ instruments:
           type: float
           min: 0
           max: 100
-          unit: °C
+          unit: C
       pressure_upstream:
         measurement:
           interval: 1
-          tolerance: 1
         sensor:
           type: float
           min: 0
@@ -122,7 +121,6 @@ instruments:
       pressure_downstream:
         measurement:
           interval: 1
-          tolerance: 1
         sensor:
           type: float
           min: 0
@@ -135,6 +133,5 @@ instruments:
       mass_spec:
         measurement:
           interval: 1
-          tolerance: 1
         sensor:
           type: array
