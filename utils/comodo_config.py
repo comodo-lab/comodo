@@ -16,6 +16,13 @@ class ComodoConfig():
             "instrument_setup_wait": None,
         }
 
+        # Instruments and their variables
+        self.instruments = {}
+        self.sensors = {}
+        self.actuators = {}
+        self.spcs = []
+        
+        
 
     def load(self):
         """
