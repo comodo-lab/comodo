@@ -59,15 +59,19 @@ class TestConfigLoad:
         }, "Config failed to load sensors correctly"
 
         assert config.actuators["furnace_centre/temperature"] == {
+            "type": "float",
             "min": 0,
             "max": 1000,
+            "unit": "C",
             "default_setpoint": 0,
             "tolerance": 1.0,
         }, "Config failed to load actuator setup correctly"
         
         assert config.sensors["pressure_downstream/pressure"] == {
+            "type": "float",
             "min": 0,
-            "max": 10
+            "max": 10,
+            "unit": "bar",
         }, "Config failed to load sensor setup correctly"            
 
         # ----------------------------------------------------------------------
