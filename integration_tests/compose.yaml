@@ -32,12 +32,16 @@ services:
       MQTT_HOST: rabbitmq
       MQTT_USER: comodo
       MQTT_PASS: comodo
+    volumes:
+      - ./fixtures/comodo.yaml:/app/comodo.yaml:ro
 
   ui:
     environment:
       MQTT_HOST: rabbitmq
       MQTT_USER: comodo
       MQTT_PASS: comodo
+    volumes:
+      - ./fixtures/comodo.yaml:/app/comodo.yaml:ro
 
   monitor:
     environment:

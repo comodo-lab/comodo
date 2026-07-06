@@ -61,6 +61,7 @@ classes:
     slots:
       - firmware
       - address
+      - simulate
       - id
       - variables
 
@@ -184,6 +185,9 @@ slots:
 
   address:
     range: string
+
+  simulate:
+    range: boolean
 
   type:
     range: string
