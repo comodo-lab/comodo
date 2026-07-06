@@ -76,6 +76,7 @@ class ComodoConfig():
             self.instruments[instrument_name] = {
                 "firmware": instrument_data.get('firmware', None),
                 "address": instrument_data.get('address', None),
+                "simulate": instrument_data.get('simulate', False),
             }
             for variable in instrument_data.get('variables', []):
                 self.instruments[instrument_name].setdefault('variables', []).append(variable)
