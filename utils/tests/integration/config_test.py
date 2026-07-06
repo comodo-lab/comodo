@@ -35,6 +35,7 @@ class TestConfigLoad:
         assert config.instruments["furnace_centre"] == {
             "firmware": "carbolite_gero.tg3",
             "address": "192.168.111.222",
+            "simulate": True,
             "variables": ["temperature"]
         }, "Config failed to load instrument setup correctly"
 
