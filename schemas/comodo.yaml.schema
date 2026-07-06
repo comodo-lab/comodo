@@ -21,14 +21,6 @@ classes:
       - instrument_setup
       - watchdog
 
-  MeasurementConfig:
-    slots:
-      - interval
-    slot_usage:
-      interval:
-        required: true
-        range: float
-
   HeartbeatConfig:
     slots:
       - interval
@@ -68,20 +60,20 @@ classes:
   Variable:
     slots:
       - id
-      - measurement
       - sensor
       - actuator
       - setpoint_controller
-    slot_usage:
-      measurement:
-        required: true
 
   SensorConfig:
     slots:
+      - interval
       - type
       - min
       - max
       - unit
+    slot_usage:
+      interval:
+        required: true
 
   ActuatorConfig:
     slots:
@@ -175,10 +167,6 @@ slots:
 
   wait:
     range: float
-
-  measurement:
-    range: MeasurementConfig
-    inlined: true
 
   firmware:
     range: string

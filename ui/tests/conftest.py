@@ -22,9 +22,8 @@ instruments:
     address: "localhost:1234"
     variables:
       reading:
-        measurement:
-          interval: 1
         sensor:
+          interval: 1
           type: float
           min: 0
           max: 10
@@ -34,9 +33,8 @@ instruments:
     address: "localhost:5678"
     variables:
       output:
-        measurement:
-          interval: 1
         sensor:
+          interval: 1
           type: float
           min: 0
           max: 10
@@ -71,9 +69,8 @@ instruments:
     address: "localhost:1111"
     variables:
       value:
-        measurement:
-          interval: 1
         sensor:
+          interval: 1
           type: float
           min: 0
           max: 10
@@ -83,9 +80,8 @@ instruments:
     address: "localhost:2222"
     variables:
       output:
-        measurement:
-          interval: 1
         sensor:
+          interval: 1
           type: float
           min: 0
           max: 10

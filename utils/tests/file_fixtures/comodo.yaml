@@ -14,9 +14,8 @@ instruments:
     simulate: true
     variables:
       temperature:
-        measurement:
-          interval: 1
         sensor:
+          interval: 1
           type: float
           min: 0
           max: 1000
@@ -34,9 +33,8 @@ instruments:
     simulate: true
     variables:
       temperature:
-        measurement:
-          interval: 1
         sensor:
+          interval: 1
           type: float
           min: 0
           max: 1000
@@ -47,9 +45,8 @@ instruments:
     simulate: true
     variables:
       temperature:
-        measurement:
-          interval: 1
         sensor:
+          interval: 1
           type: float
           min: 0
           max: 1000
@@ -60,9 +57,8 @@ instruments:
     simulate: true
     variables:
       pressure:
-        measurement:
-          interval: 1
         sensor:
+          interval: 1
           type: float
           min: 0
           max: 10
@@ -73,9 +69,8 @@ instruments:
     simulate: true
     variables:
       pressure:
-        measurement:
-          interval: 0.5
         sensor:
+          interval: 0.5
           type: float
           min: 0
           max: 10
@@ -86,9 +81,8 @@ instruments:
     simulate: true
     variables:
       mass_flow:
-        measurement:
-          interval: 1
         sensor:
+          interval: 1
           type: float
           min: 0
           max: 100
@@ -108,25 +102,22 @@ instruments:
           K_AW: 0.05
           K_DF: 0.01
       temperature:
-        measurement:
-          interval: 1
         sensor:
+          interval: 1
           type: float
           min: 0
           max: 100
           unit: C
       pressure_upstream:
-        measurement:
-          interval: 1
         sensor:
+          interval: 1
           type: float
           min: 0
           max: 10
           unit: bar
       pressure_downstream:
-        measurement:
-          interval: 1
         sensor:
+          interval: 1
           type: float
           min: 0
           max: 10
@@ -137,7 +128,6 @@ instruments:
     simulate: true
     variables:
       mass_spec:
-        measurement:
-          interval: 1
         sensor:
+          interval: 1
           type: array

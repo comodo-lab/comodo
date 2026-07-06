@@ -70,6 +70,7 @@ class TestConfigLoad:
         }, "Config failed to load actuator setup correctly"
         
         assert config.sensors["pressure_downstream/pressure"] == {
+            "interval": 1.0,
             "type": "float",
             "min": 0,
             "max": 10,

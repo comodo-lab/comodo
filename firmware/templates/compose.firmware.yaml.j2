@@ -38,8 +38,8 @@ services:
       INSTRUMENT_NAME: "{{ name }}"
       FIRMWARE: {{ instr.firmware }}
       DEVICE_ADDRESS: "{{ instr.address }}"
-      HEARTBEAT_INTERVAL: {{ (global.heartbeat.interval | default(1) | float * 1000) | int }}{% for v_name, v_cfg in instr.variables.items() %}{% if v_cfg.measurement and v_cfg.measurement.interval %}
-      INTERVAL_{{ v_name | upper }}: {{ (v_cfg.measurement.interval | float * 1000) | int }}{% endif %}{% endfor %}
+      HEARTBEAT_INTERVAL: {{ (global.heartbeat.interval | default(1) | float * 1000) | int }}{% for v_name, v_cfg in instr.variables.items() %}{% if v_cfg.sensor and v_cfg.sensor.interval %}
+      INTERVAL_{{ v_name | upper }}: {{ (v_cfg.sensor.interval | float * 1000) | int }}{% endif %}{% endfor %}
 {%- if instr.address.startswith('/dev/') %}
     devices:
       - "{{ instr.address }}:{{ instr.address }}"
