@@ -1,7 +1,7 @@
 x-sim-env: &sim-env
-  MQTT_HOST: ${MQTT_HOST}
-  MQTT_USER: ${MQTT_USER}
-  MQTT_PASS: ${MQTT_PASS}
+  MQTT_HOST: rabbitmq
+  MQTT_USER: comodo
+  MQTT_PASS: comodo
   SIMULATE: "true"
   HEARTBEAT_INTERVAL: 1000
   MEASUREMENT_INTERVAL: 1000

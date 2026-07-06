@@ -16,6 +16,35 @@ include:
 
 services:
 
+  rabbitmq:
+    networks:
+      - default
+      - comodo-core
+
+  mqtt-probe-core:
+    environment:
+      MQTT_HOST: rabbitmq
+      MQTT_USER: comodo
+      MQTT_PASS: comodo
+
+  controller:
+    environment:
+      MQTT_HOST: rabbitmq
+      MQTT_USER: comodo
+      MQTT_PASS: comodo
+
+  ui:
+    environment:
+      MQTT_HOST: rabbitmq
+      MQTT_USER: comodo
+      MQTT_PASS: comodo
+
+  monitor:
+    environment:
+      MQTT_HOST: rabbitmq
+      MQTT_USER: comodo
+      MQTT_PASS: comodo
+
   # influxdb:
   #   environment:
   #     DOCKER_INFLUXDB_INIT_ORG: ${INFLUX_ORG:-comodo}
@@ -29,6 +58,9 @@ services:
     env_file:
       - ../.env
     environment:
+      MQTT_HOST: rabbitmq
+      MQTT_USER: comodo
+      MQTT_PASS: comodo
       HEARTBEAT_TIMEOUT: ${HEARTBEAT_TIMEOUT:-60}
       EXPERIMENT_TIMEOUT: ${EXPERIMENT_TIMEOUT:-120}
     volumes:
