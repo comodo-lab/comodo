@@ -1,0 +1,157 @@
+global:
+  heartbeat:
+    interval: 1
+  instrument_setup:
+    wait: 10
+  watchdog:
+    timeout: 5
+    interval: 1
+
+instruments:
+  furnace_centre:
+    firmware: carbolite_gero.tg3
+    address: "192.168.111.222"
+    simulate: true
+    variables:
+      temperature:
+        measurement:
+          interval: 1
+        sensor:
+          type: float
+          min: 0
+          max: 1000
+          unit: C
+        actuator:
+          type: float
+          min: 0
+          max: 1000
+          unit: C
+          default_setpoint: 0
+          tolerance: 1
+  furnace_left:
+    firmware: carbolite_gero.tg3
+    address: "192.168.111.224"
+    simulate: true
+    variables:
+      temperature:
+        measurement:
+          interval: 1
+        sensor:
+          type: float
+          min: 0
+          max: 1000
+          unit: C
+  furnace_right:
+    firmware: carbolite_gero.tg3
+    address: "192.168.111.225"
+    simulate: true
+    variables:
+      temperature:
+        measurement:
+          interval: 1
+        sensor:
+          type: float
+          min: 0
+          max: 1000
+          unit: C
+  pressure_downstream:
+    firmware: pfeiffer.mpt200
+    address: "/dev/ttyUSB0"
+    simulate: true
+    variables:
+      pressure:
+        measurement:
+          interval: 1
+        sensor:
+          type: float
+          min: 0
+          max: 10
+          unit: bar
+  pressure_upstream:
+    firmware: pfeiffer.mpt200
+    address: "/dev/ttyUSB1"
+    simulate: true
+    variables:
+      pressure:
+        measurement:
+          interval: 0.5
+        sensor:
+          type: float
+          min: 0
+          max: 10
+          unit: bar
+  mass_flow:
+    firmware: bronkhorst.el_flow_select
+    address: "/dev/ttyUSB2"
+    simulate: true
+    variables:
+      mass_flow:
+        measurement:
+          interval: 1
+        sensor:
+          type: float
+          min: 0
+          max: 100
+          unit: \%
+        actuator:
+          type: float
+          min: 0
+          max: 100
+          unit: \%
+          default_setpoint: 0
+          tolerance: 1
+        setpoint_controller:
+          external_sensor: pressure_upstream/pressure
+          K_P: 10.0
+          K_I: 1.0
+          K_D: 0.1
+          K_AW: 0.05
+          K_DF: 0.01
+      temperature:
+        measurement:
+          interval: 1
+        sensor:
+          type: float
+          min: 0
+          max: 100
+          unit: C
+      pressure_upstream:
+        measurement:
+          interval: 1
+        sensor:
+          type: float
+          min: 0
+          max: 10
+          unit: bar
+      pressure_downstream:
+        measurement:
+          interval: 1
+        sensor:
+          type: float
+          min: 0
+          max: 10
+          unit: bar
+  mass_spec:
+    firmware: pfeiffer.prisma_pro
+    address: "192.168.1.100"
+    simulate: true
+    variables:
+      mass_spec:
+        measurement:
+          interval: 1
+        sensor:
+          type: array
+
+visualisations:
+  temperature_graph:
+    title: Temperature Control
+    type: graph
+    y_values:
+      - temperature_left
+      - temperature_centre
+      - temperature_right
+  gauge_1:
+    id: gauge_1
+    type: gauge
+    value:
+      - temperature_centre
