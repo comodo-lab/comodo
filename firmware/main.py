@@ -26,7 +26,7 @@ def send_heartbeat():
     Returns:
         None
     """
-    if state.client is not None and "ready" in state.config:
+    if state.client is not None and "ready" in state.status["state"]:
         heartbeat_structure = state.get_status()
         state.client.publish(
             f"instruments/{state.config['INSTRUMENT_NAME']}/heartbeat", heartbeat_structure
@@ -42,21 +42,37 @@ async def heartbeat_tick():
         await asyncio.sleep(int(state.config["HEARTBEAT_INTERVAL"]) / 1000)
 
 
-async def measurement_tick(variable):
+async def measurement_tick(variable_name, interval, oneshot=False):
     while True:
-        interval = int(state.config.get(f"INTERVAL_{variable.upper()}", 1000))
-        value = state.instrument.get_measurement(state, variable)
+        value = state.instrument.get_measurement(state, variable_name)
         state.client.publish(
-            f"instruments/{state.config['INSTRUMENT_NAME']}/{variable}/measurement",
+            f"instruments/{state.config['INSTRUMENT_NAME']}/{variable_name}/measurement",
             json.dumps({"value": value}),
         )
         await asyncio.sleep(interval / 1000)
 
+        if oneshot:
+            break
+
+# ----------------- Launcher ----------------- ##
+
+async def launcher(oneshot=False, timeout=None):
+    try:
+        async with asyncio.timeout(timeout):
+            async with asyncio.TaskGroup() as tg:
+                for variable in state.config["SENSORS"]:
+                    tg.create_task(
+                        measurement_tick(
+                            variable["name"],
+                            variable["interval"],
+                            oneshot=oneshot
+                        )
+                    )
+    except TimeoutError:
+        raise RuntimeError("Sensors failed to initialise in time") from e
 
 # ----------------- Main function ----------------- ##
 
-
-# The main function
 async def main():
     """
     The main function
@@ -88,20 +104,21 @@ async def main():
     state.instrument = BaseInstrument.create_instrument(state.config["FIRMWARE"])
     state.instrument.initialise(state)
 
+    # Attempt startup 
+    await launcher(oneshot=True, timeout=10)
+
+    # If successful, set ready and print the instrument creation message
+    state.status["state"] = "ready"
+    state.client.callback = state.ready_cb
 
     print(
         f"Instrument {state.config['INSTRUMENT_NAME']} created successfully "
         f"using firmware {state.config['FIRMWARE']}"
     )
 
-    ## Setup heartbeat and per-variable measurement tasks
-    asyncio.create_task(heartbeat_tick())
-    for var, var_config in state.instrument.variables.items():
-        if "sensor_param" in var_config:
-            asyncio.create_task(measurement_tick(var))
-
     # Keep running forever
-    await asyncio.Event().wait()
+    asyncio.create_task(heartbeat_tick())
+    await launcher()
 
     return 0
 
