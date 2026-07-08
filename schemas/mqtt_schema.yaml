@@ -400,10 +400,6 @@ channels:
                   type: string
                 simulate:
                   type: boolean
-                intervals:
-                  type: object
-                  additionalProperties:
-                    type: number
                 variables:
                   type: object
                   additionalProperties:
