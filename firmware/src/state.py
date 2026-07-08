@@ -17,7 +17,7 @@ class InstrumentState(object):
         self.status = {
             "state": "idle",
             "setpoints": {},
-            "config": {},
+            "config": {}
         }
 
         self.client = None

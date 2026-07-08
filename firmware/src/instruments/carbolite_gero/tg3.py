@@ -45,8 +45,11 @@ def write_register(host, register, value):
 
 
 class Instrument(BaseInstrument):
-    variables = {
-        "temperature": {"sensor_param": 1, "actuator_param": 2},
+    available_variables = {
+        "temperature": {
+            "sensor": 1,
+            "actuator": 2
+        },
     }
 
     def __init__(self):

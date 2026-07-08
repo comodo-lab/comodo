@@ -256,14 +256,14 @@ def read_all(instrument):
 
 
 class Instrument(BaseInstrument):
-    variables = {
+    available_variables = {
         "mass_flow": {
-            "sensor_param": "Flow_Rate_Measured",
-            "actuator_param": "Flow_Rate_Setpoint",
+            "sensor": "Flow_Rate_Measured",
+            "actuator": "Flow_Rate_Setpoint",
         },
-        "temperature": {"sensor_param": "Temperature"},
-        "pressure_upstream": {"sensor_param": "Inlet_Pressure"},
-        "pressure_downstream": {"sensor_param": "Outlet_Pressure"},
+        "temperature": {"sensor": "Temperature"},
+        "pressure_upstream": {"sensor": "Inlet_Pressure"},
+        "pressure_downstream": {"sensor": "Outlet_Pressure"},
     }
 
     def __init__(self):
