@@ -10,9 +10,11 @@ config = {
     "MQTT_PASS": "comodo",
     "MQTT_HOST": "rabbitmq",
     "HEARTBEAT_INTERVAL": 1000,
-    "MEASUREMENT_INTERVAL": 1000,
     "SIMULATE": True,
     "DEVICE_ADDRESS": "",
+    "ACTIVE_VARIABLES": [],
+    "SENSORS": {},
+    "HEARTBEAT": {},
 }
 
 
@@ -22,6 +24,36 @@ def load_config():
     Returns:
         dict: The configuration object
     """
+    # Create config dict
     for key, value in config.items():
         config[key] = os.getenv(key, value)
+
+    # Populate the SENSORS list based on ACTIVE_VARIABLES and the instrument's available variables
+    for variable in config["ACTIVE_VARIABLES"]:
+        # Ensure the variable is available in the instrument
+        if variable not in state.instrument.available_variables:
+            print(f"Warning: Variable '{variable}' is not available in instrument '{state.config['FIRMWARE']}'")
+            continue
+
+        # Ensure the variable is a sensor
+        if "sensor" not in state.instrument.available_variables[variable]:
+            continue
+
+        # Get the reporting interval
+        interval = int(state.config.get(f"INTERVAL_{variable.upper()}", 1000))
+
+        # Add the variable to the SENSORS list
+        config["SENSORS"][variable] = {
+            "name": variable,
+            "interval": interval,
+        }
+
+    # Create the heartbeat object
+    config["HEARTBEAT"] = {
+        "firmware": config["FIRMWARE"],
+        "device_address": config["DEVICE_ADDRESS"],
+        "simulate": config["SIMULATE"],
+        "variables": config["ACTIVE_VARIABLES"],
+    }
+
     return config

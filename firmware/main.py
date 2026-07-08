@@ -88,39 +88,6 @@ async def main():
     state.instrument = BaseInstrument.create_instrument(state.config["FIRMWARE"])
     state.instrument.initialise(state)
 
-    # Self-test: read each sensor variable once
-    all_ok = True
-    for var, var_config in state.instrument.variables.items():
-        if "sensor_param" not in var_config:
-            continue
-        try:
-            val = state.instrument.get_measurement(state, var)
-            if val is None:
-                all_ok = False
-        except Exception:
-            all_ok = False
-
-    if all_ok and state.instrument.variables:
-        state.status["state"] = "ready"
-        state.client.callback = state.ready_cb
-        print(f"Instrument {state.config['INSTRUMENT_NAME']} ready")
-    else:
-        print(f"Instrument {state.config['INSTRUMENT_NAME']} self-test failed, staying idle")
-
-    simulate = state.config.get("SIMULATE", False)
-    if isinstance(simulate, str):
-        simulate = simulate.lower() in ("true", "1", "yes")
-    state.status["config"] = {
-        "firmware": state.config.get("FIRMWARE"),
-        "device_address": state.config.get("DEVICE_ADDRESS"),
-        "simulate": simulate,
-        "intervals": {
-            var: int(state.config.get(f"INTERVAL_{var.upper()}", 1000))
-            for var in state.instrument.variables
-        },
-        "variables": state.instrument.variables,
-    }
-    state.config["ready"] = True
 
     print(
         f"Instrument {state.config['INSTRUMENT_NAME']} created successfully "
