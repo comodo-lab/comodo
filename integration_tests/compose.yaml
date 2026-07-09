@@ -11,7 +11,7 @@
 include:
   - path: ../compose.yaml
   #- path: ../compose.data.yaml
-  - path: ./compose.firmware.yaml
+  - path: ../compose.firmware.yaml
   - path: ../compose.mqtt.yaml
 
 services:
@@ -65,8 +65,8 @@ services:
       MQTT_HOST: rabbitmq
       MQTT_USER: comodo
       MQTT_PASS: comodo
-      HEARTBEAT_TIMEOUT: ${HEARTBEAT_TIMEOUT:-60}
-      EXPERIMENT_TIMEOUT: ${EXPERIMENT_TIMEOUT:-120}
+      HEARTBEAT_TIMEOUT: ${HEARTBEAT_TIMEOUT:-20}
+      EXPERIMENT_TIMEOUT: ${EXPERIMENT_TIMEOUT:-40}
     volumes:
       - ./fixtures/start.json:/app/experiment.json:ro
     depends_on:
