@@ -99,7 +99,6 @@ def c_starting(client, msg, obj):
 
     obj.status = "starting"
     # Create list of instruments dicts from actuator variables
-    obj.instruments = {"configured": False}
     for instrument_name in obj.config.instruments:
         if instrument_name not in obj.instruments:
             obj.instruments[instrument_name] = {

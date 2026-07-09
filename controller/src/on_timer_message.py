@@ -47,7 +47,7 @@ def on_timer_message(client, msg, obj):
         instrument_setup_wait = obj.config.globals["instrument_setup_wait"]
         t0 = t.time()
         while (
-            not obj.instruments["configured"]
+            not obj.instruments_ready
         ) and obj.status == "awaiting_instruments":
             t.sleep(timer_check_frequency)
             if instrument_setup_wait is not None and t.time() - t0 > instrument_setup_wait:
@@ -63,7 +63,7 @@ def on_timer_message(client, msg, obj):
                     "source": "instrument_setup",
                     # experiment uid changes when all instruments get configured, so have to use obj.experiment_uid, not message["experiment_id"]
                     "experiment_id": obj.experiment_uid,
-                    "instruments_configured": obj.instruments["configured"],
+                    "instruments_configured": obj.instruments_ready,
                     "controller_status": obj.status,
                 }
             ),
