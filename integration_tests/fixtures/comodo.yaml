@@ -122,15 +122,6 @@ instruments:
           min: 0
           max: 10
           unit: bar
-  mass_spec:
-    firmware: pfeiffer.prisma_pro
-    address: "192.168.1.100"
-    simulate: true
-    variables:
-      mass_spec:
-        sensor:
-          interval: 1
-          type: array
 
 visualisations:
   temperature_graph:

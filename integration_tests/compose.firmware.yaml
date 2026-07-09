@@ -99,21 +99,6 @@ services:
       rabbitmq:
         condition: service_healthy
 
-  mass_spec:
-    build:
-      context: ..
-      dockerfile: firmware/Dockerfile
-    environment:
-      <<: *sim-env
-      INSTRUMENT_NAME: "mass_spec"
-      FIRMWARE: pfeiffer.prisma_pro
-      DEVICE_ADDRESS: "192.168.1.100"
-      ACTIVE_VARIABLES: '["mass_spec"]'
-      INTERVAL_MASS_SPEC: 1000
-    depends_on:
-      rabbitmq:
-        condition: service_healthy
-
   spc-mass_flow-mass_flow:
     build:
       context: ..
