@@ -51,10 +51,11 @@ def _handle_instrument_heartbeat(obj, payload_json, instrument_name):
         # Assert state and config match, otherwise stop experiment
         if payload_json["state"] == "idle":
             return
-        if payload_json["config"] != obj_instrument["config"]:
+        expected = obj.config.get_expected_heartbeat(instrument_name)
+        if payload_json["config"] != expected:
             e = (
                 f"Instrument '{instrument_name}' misconfigured. "
-                f"Expected {obj_instrument['config']}, received {payload_json['config']}."
+                f"Expected {expected}, received {payload_json['config']}."
             )
 
             print(f"ERROR: {e} Stopping experiment.")

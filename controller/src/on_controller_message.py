@@ -104,7 +104,7 @@ def c_starting(client, msg, obj):
         if instrument_name not in obj.instruments:
             obj.instruments[instrument_name] = {
                 "last_contact": None,
-                "config": {},
+                "config": None,
                 "state": None,
                 "setpoints": None,
             }
