@@ -401,9 +401,9 @@ channels:
                 simulate:
                   type: boolean
                 variables:
-                  type: object
-                  additionalProperties:
-                    type: object
+                  type: array
+                  items:
+                    type: string
 
             setpoints:
               type: object
