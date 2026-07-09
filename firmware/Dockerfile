@@ -19,5 +19,8 @@ COPY utils ./utils
 # Copy the tests
 COPY ./firmware/tests ./tests
 
+# Copy the pytest configuration
+COPY ./firmware/pytest.ini ./
+
 # Set the entry point
 CMD ["python3", "-u", "main.py"]
