@@ -272,14 +272,14 @@ class Instrument(BaseInstrument):
 
     def initialise(self, state):
         if state.config.get("SIMULATE"):
-            self._simulated = {v: 0 for v in self.variables}
+            self._simulated = {v: 0 for v in self.available_variables}
             return
         self.device = state.config["DEVICE_ADDRESS"]
         self.instrument = propar.instrument(self.device)
 
     def go_to_setpoint(self, state, variable):
-        var = self.variables.get(variable)
-        if not var or "actuator_param" not in var:
+        var = self.available_variables.get(variable)
+        if not var or "actuator" not in var:
             print(f"'{variable}' does not support setpoints")
             return
 
@@ -309,7 +309,7 @@ class Instrument(BaseInstrument):
             return current
 
         data = read_all(self.instrument)
-        return data.get(self.variables[variable]["sensor_param"])
+        return data.get(self.available_variables[variable]["sensor"])
 
     def set_config(self, config):
         pass

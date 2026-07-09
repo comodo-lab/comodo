@@ -69,12 +69,12 @@ class Instrument(BaseInstrument):
         if state.config.get("SIMULATE"):
             self._simulated[variable] = target
             return
-        write_register(self.client, self.variables[variable]["actuator_param"], target)
+        write_register(self.client, self.available_variables[variable]["actuator"], target)
 
     def get_measurement(self, state, variable):
         if state.config.get("SIMULATE"):
             return self._default_sim(state, variable)
-        return read_register(self.client, self.variables[variable]["sensor_param"])
+        return read_register(self.client, self.available_variables[variable]["sensor"])
 
     def set_config(self, config):
         pass
