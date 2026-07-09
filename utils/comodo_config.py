@@ -78,8 +78,8 @@ class ComodoConfig():
                 "address": instrument_data.get('address', None),
                 "simulate": instrument_data.get('simulate', False),
             }
-            for variable in instrument_data.get('variables', []):
-                self.instruments[instrument_name].setdefault('variables', []).append(variable)
+            for variable_name, variable_data in instrument_data.get('variables', {}).items():
+                self.instruments[instrument_name].setdefault('variables', {})[variable_name] = variable_data
 
     def populate_sensors_actuators_spcs(self):
         """
@@ -105,6 +105,20 @@ class ComodoConfig():
                     data = variable_data['setpoint_controller'].copy()
                     data["actuator"] = key
                     self.spcs.append(data)
+
+    def get_expected_heartbeat(self, instrument_name):
+        """
+        Returns the expected heartbeat config for a given instrument.
+        Constructs the canonical heartbeat config shape from the instrument's
+        comodo.yaml data, matching what the firmware should publish.
+        """
+        inst = self.instruments[instrument_name]
+        return {
+            "firmware": inst["firmware"],
+            "device_address": inst["address"],
+            "simulate": inst["simulate"],
+            "variables": list(inst["variables"].keys())
+        }
 
     def get_default_experiment(self):
         """
