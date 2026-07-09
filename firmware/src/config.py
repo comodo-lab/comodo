@@ -19,17 +19,32 @@ config = {
 
 
 def load_config():
-    """Load the default configuration and override using the environmentn
+    """
+    Load the default configuration and override using the environmentn
 
     Returns:
         dict: The configuration object
     """
     # Create config dict
     for key, value in config.items():
-        config[key] = os.getenv(key, value)
+        if key in ["SIMULATE"]:
+            config[key] = os.getenv(key, str(value)).lower() in ["true", "1", "yes"]
+        elif key in ["ACTIVE_VARIABLES"]:
+            config[key] = json.loads(os.getenv(key, json.dumps(value)))
+        else:
+            config[key] = os.getenv(key, value)
 
+    return config
+
+def populate_heartbeat(state):
+    """
+    Populate the heartbeat object in the config based on the active variables and their intervals.
+
+    Returns:
+    """
+    
     # Populate the SENSORS list based on ACTIVE_VARIABLES and the instrument's available variables
-    for variable in config["ACTIVE_VARIABLES"]:
+    for variable in state.config["ACTIVE_VARIABLES"]:
         # Ensure the variable is available in the instrument
         if variable not in state.instrument.available_variables:
             print(f"Warning: Variable '{variable}' is not available in instrument '{state.config['FIRMWARE']}'")
@@ -55,5 +70,4 @@ def load_config():
         "simulate": config["SIMULATE"],
         "variables": config["ACTIVE_VARIABLES"],
     }
-
-    return config
+    return

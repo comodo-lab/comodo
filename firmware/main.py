@@ -60,7 +60,7 @@ async def launcher(oneshot=False, timeout=None):
     try:
         async with asyncio.timeout(timeout):
             async with asyncio.TaskGroup() as tg:
-                for variable in state.config["SENSORS"]:
+                for variable in state.config["SENSORS"].values():
                     tg.create_task(
                         measurement_tick(
                             variable["name"],
@@ -104,12 +104,17 @@ async def main():
     state.instrument = BaseInstrument.create_instrument(state.config["FIRMWARE"])
     state.instrument.initialise(state)
 
+    cfg.populate_heartbeat(state)
+
     # Attempt startup 
     await launcher(oneshot=True, timeout=10)
 
     # If successful, set ready and print the instrument creation message
     state.status["state"] = "ready"
     state.client.callback = state.ready_cb
+
+    # Populate heartbeat config
+    state.status["config"] = state.config.get("HEARTBEAT", {}).copy()
 
     print(
         f"Instrument {state.config['INSTRUMENT_NAME']} created successfully "
