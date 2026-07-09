@@ -31,6 +31,7 @@ class cstate:
         "_past_setpoints",
         "_instruments",
         "_config",
+        "_instruments_ready",
     ]
 
     def __init__(self) -> None:
@@ -45,7 +46,8 @@ class cstate:
         self.setpoints: List[Dict[str, Any]] = []
         self.current_setpoint: Dict[str, Any] = None
         self.past_setpoints: List[Dict[str, Any]] = []
-        self.instruments: Dict[str, Any] = {"configured": False}
+        self.instruments: Dict[str, Any] = {}
+        self.instruments_ready: bool = False
         self.config: ComodoConfig = None
 
     @property
@@ -94,7 +96,8 @@ class cstate:
         self.setpoints = []
         self.current_setpoint = None
         self.past_setpoints = []
-        self.instruments = {"configured": False}
+        self.instruments = {}
+        self.instruments_ready = False
 
     @property
     def experiment_start_time(self) -> datetime:
@@ -284,3 +287,24 @@ class cstate:
                 f"Instruments must be a dictionary, cannot accept {type(value)}."
             )
         self._instruments = value
+
+    @property
+    def instruments_ready(self) -> bool:
+        return self._instruments_ready
+
+    @instruments_ready.setter
+    def instruments_ready(self, value: bool) -> None:
+        """
+        Sets the instruments_ready flag.
+
+        Args:
+            value: The new value for the instruments_ready flag. Must be a boolean.
+
+        Raises:
+            TypeError: If the provided value is not a boolean.
+        """
+        if not isinstance(value, bool):
+            raise TypeError(
+                f"Instruments ready flag must be a boolean, cannot accept {type(value)}."
+            )
+        self._instruments_ready = value
