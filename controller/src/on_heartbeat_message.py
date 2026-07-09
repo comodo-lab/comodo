@@ -76,16 +76,21 @@ def _handle_instrument_heartbeat(obj, payload_json, instrument_name):
 
         # Check if all instruments are ready (not idle) and if so:
         # set the configured flag and publish ready event
-        if all(
-            obj.instruments[s]["state"] not in [None, "idle"]
-            for s in obj.instruments
-            if s != "configured"
-        ):
-            if not obj.instruments["configured"]:
-                obj.instruments["configured"] = True
-                mqtt.MQTTPublisher.get_instance().publish(
-                    "controller/event/ready", json.dumps({"experiment_id": obj.experiment_uid})
+
+        heartbeats_ready = True
+        for instrument in obj.instruments.values():
+            if instrument["state"] in [None, "idle"]:
+                heartbeats_ready = False
+                break
+
+        if heartbeats_ready and not obj.instruments_ready:
+            obj.instruments_ready = True
+            mqtt.MQTTPublisher.get_instance().publish(
+                "controller/event/ready",
+                json.dumps(
+                    {"experiment_id": obj.experiment_uid}
                 )
+            )
     else:
         # Update instrument state and setpoints
         obj_instrument["state"] = payload_json["state"]
