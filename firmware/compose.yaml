@@ -1,7 +1,7 @@
 
 # This compose file runs the firmware integration tests and exits when done.
 # To run the tests:
-#   docker compose -f compose.integration.yaml up --build
+#   docker compose -f compose.yaml up --build
 name: firmware-integration-tests
 services:
   firmware-test:
