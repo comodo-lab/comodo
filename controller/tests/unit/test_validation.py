@@ -4,7 +4,7 @@ import pytest
 import yaml
 from jsonschema import ValidationError, validate
 from jinja2 import Template
-from unittest.mock import mock_open, patch
+from unittest.mock import mock_open, patch, MagicMock
 
 from src.validation import validate_experiment
 
@@ -121,7 +121,7 @@ def test_generated_row_schema_rejects_wrong_instrument(mock_actuator_instruments
 def test_validate_experiment_valid(valid_experiment_json):
     with patch("builtins.open", mock_open(read_data=valid_experiment_json)):
         with patch("src.validation.generate_row_schema") as mock_gen:
-            result = validate_experiment("/fake/path")
+            result = validate_experiment("/fake/path", MagicMock())
 
     assert result == json.loads(valid_experiment_json)
 
@@ -129,7 +129,7 @@ def test_validate_experiment_valid(valid_experiment_json):
 def test_validate_experiment_calls_generate_row_schema(valid_experiment_json):
     with patch("builtins.open", mock_open(read_data=valid_experiment_json)):
         with patch("src.validation.generate_row_schema") as mock_gen:
-            validate_experiment("/fake/path")
+            validate_experiment("/fake/path", MagicMock())
 
     mock_gen.assert_called_once()
 
@@ -141,7 +141,7 @@ def test_validate_experiment_calls_validate_message_per_row(valid_experiment_jso
     with patch("builtins.open", mock_open(read_data=valid_experiment_json)):
         with patch("src.validation.generate_row_schema"):
             with patch("src.validation.validate_message") as mock_val:
-                validate_experiment("/fake/path")
+                validate_experiment("/fake/path", MagicMock())
 
     assert mock_val.call_count == 1 + n_rows
     mock_val.assert_any_call("ui/start", valid_experiment_json)
@@ -160,7 +160,7 @@ def test_validate_experiment_structural_error_propagates(valid_experiment_json):
         with patch("src.validation.generate_row_schema"):
             with patch("src.validation.validate_message", side_effect=raiser):
                 with pytest.raises(ValidationError, match="Bad experiment structure"):
-                    validate_experiment("/fake/path")
+                    validate_experiment("/fake/path", MagicMock())
 
 
 def test_validate_experiment_row_error_propagates(valid_experiment_json):
@@ -172,13 +172,13 @@ def test_validate_experiment_row_error_propagates(valid_experiment_json):
         with patch("src.validation.generate_row_schema"):
             with patch("src.validation.validate_message", side_effect=raiser):
                 with pytest.raises(ValidationError, match="Bad row data"):
-                    validate_experiment("/fake/path")
+                    validate_experiment("/fake/path", MagicMock())
 
 
 def test_validate_experiment_file_not_found():
     with patch("builtins.open", side_effect=FileNotFoundError):
         with pytest.raises(FileNotFoundError, match="ERROR: File not found"):
-            validate_experiment("/nonexistent/path")
+            validate_experiment("/nonexistent/path", MagicMock())
 
 
 def test_validate_experiment_json_decode_error_propagates():
@@ -186,4 +186,4 @@ def test_validate_experiment_json_decode_error_propagates():
         with patch("src.validation.validate_message"):
             with patch("src.validation.generate_row_schema"):
                 with pytest.raises(json.JSONDecodeError):
-                    validate_experiment("/fake/path")
+                    validate_experiment("/fake/path", MagicMock())
