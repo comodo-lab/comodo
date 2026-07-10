@@ -1,7 +1,7 @@
 from json import loads, dumps, JSONDecodeError
 from jsonschema import ValidationError
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, ANY
 
 from tests.conftest import (
     MockMessage,
@@ -120,7 +120,7 @@ class TestIdle:
             )
             c_idle(controller_client, msg, state)
 
-            mock_validate.assert_called_once_with("missing_file.json")
+            mock_validate.assert_called_once_with("missing_file.json", ANY)
 
         assert state._status_history == ["validating", "idle"]
         assert state.experiment_uid == None
@@ -188,7 +188,7 @@ class TestIdle:
             )
             c_idle(controller_client, msg, state)
 
-            mock_validate.assert_called_once_with("valid_file.json")
+            mock_validate.assert_called_once_with("valid_file.json", ANY)
             # Split setpoints called
             mock_split_setpoints.assert_called_once_with(["some data"], 42)
 
@@ -227,7 +227,7 @@ class TestIdle:
             )
             c_idle(controller_client, msg, state)
 
-            mock_validate.assert_called_once_with("valid_file.json")
+            mock_validate.assert_called_once_with("valid_file.json", ANY)
             # Split setpoints called
             mock_split_setpoints.assert_called_once_with(["some data"], 42)
 
