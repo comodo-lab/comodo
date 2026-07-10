@@ -102,7 +102,7 @@ def test_incompatible_request(timer_client, message_bus, state):
 def test_timeout(timer_client, message_bus, state):
     assert state.experiment_uid == "123"
     assert state.status == "awaiting_instruments"
-    assert state.instruments["configured"] == False
+    assert state.instruments_ready == False
     state.instrument_setup_wait = 0.1
 
     with patch(
@@ -125,7 +125,7 @@ def test_timeout(timer_client, message_bus, state):
 def test_stops_when_configured(message_bus, state, timer_client):
     assert state.experiment_uid == "123"
     assert state.status == "awaiting_instruments"
-    state.instruments["configured"] = True
+    state.instruments_ready = True
 
     msg = MockMessage(
         topic="controller/timer/command/start",
@@ -146,7 +146,7 @@ def test_stops_when_configured(message_bus, state, timer_client):
 
 def test_stops_when_not_awaiting_instruments(message_bus, state, timer_client):
     assert state.experiment_uid == "123"
-    assert state.instruments["configured"] == False
+    assert state.instruments_ready == False
     state.status = "ready"
 
     msg = MockMessage(
@@ -168,7 +168,7 @@ def test_stops_when_not_awaiting_instruments(message_bus, state, timer_client):
 
 def test_done_instrument_setup_uses_obj_uid(message_bus, state, timer_client):
     assert state.experiment_uid == "123"
-    assert state.instruments["configured"] == False
+    assert state.instruments_ready == False
     state.status = "ready"
 
     with patch("src.on_timer_message.t.time") as mock_time:
