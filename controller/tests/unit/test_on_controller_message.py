@@ -305,9 +305,7 @@ class TestStarting:
         assert state.status == "validating"
         assert controller_client.callback == c_starting
 
-        instrument_names = sorted(set(
-            av.split("/", 1)[0] for av in state.actuator_variables
-        ))
+        instrument_names = ["furnace_centre", "furnace_left", "mass_flow"]
 
         msg = MockMessage(topic="controller/command/start", payload=dumps({"id": "123"}))
         c_starting(controller_client, msg, state)
@@ -325,7 +323,6 @@ class TestStarting:
         for instrument_name, instrument in state.instruments.items():
             assert instrument_name in instrument_names
 
-            print(f"OWDB {instrument}")
             assert "last_contact" in instrument
             assert instrument["last_contact"] is None
             assert "config" in instrument

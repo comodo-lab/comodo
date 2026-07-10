@@ -60,6 +60,9 @@ def mock_state(status, mock_experiment_dict={}, mock_setpoints=[]):
         "mass_flow": {
             "variables": {"mass_flow": {"actuator": {"min": 0, "max": 100}}}
         },
+        "furnace_left": {
+            "variables": {"temperature": {"sensor": {"interval": 1.0}}}
+        },
     }
 
     # Use PropertyMock to track status changes
@@ -137,8 +140,7 @@ def mock_state(status, mock_experiment_dict={}, mock_setpoints=[]):
     # ------------------------------- awaiting_instruments
     state_obj.status = "awaiting_instruments"
     state_obj._status_history = []
-    for av in state_obj.actuator_variables:
-        instrument_name = av.split("/", 1)[0]
+    for instrument_name in state_obj.config.instruments:
         if instrument_name not in state_obj.instruments:
             state_obj.instruments[instrument_name] = {
                 "last_contact": None,
@@ -155,8 +157,7 @@ def mock_state(status, mock_experiment_dict={}, mock_setpoints=[]):
         return state_obj
 
     state_obj.setpoints = mock_setpoints
-    for av in state_obj.actuator_variables:
-        instrument_name = av.split("/", 1)[0]
+    for instrument_name in state_obj.config.instruments:
         if instrument_name in state_obj.instruments:
             state_obj.instruments[instrument_name]["last_contact"] = t.time() - 1
             state_obj.instruments[instrument_name]["state"] = "idle"

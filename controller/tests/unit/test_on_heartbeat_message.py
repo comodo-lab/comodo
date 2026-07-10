@@ -235,7 +235,7 @@ def test_awaiting_instruments_all_responded(
     assert state.status == "awaiting_instruments"
     assert state.instruments_ready == False
 
-    names = ["furnace_centre", "mass_flow"]
+    names = ["furnace_centre", "mass_flow", "furnace_left"]
 
     # Correct heartbeat for all instruments
     for name in names:
