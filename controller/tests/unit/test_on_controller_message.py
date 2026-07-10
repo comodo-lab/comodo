@@ -320,20 +320,20 @@ class TestStarting:
         assert state.status == "awaiting_instruments"
         assert controller_client.callback == mock_c_ready
         # Instrument config list updated correctly
-        assert len(state.instruments) == len(instrument_names) + 1
-        assert state.instruments["configured"] == False
-        for instrument_key in state.instruments.keys():
-            if instrument_key != "configured":
-                assert instrument_key in instrument_names
-                instrument = state.instruments[instrument_key]
-                assert "last_contact" in instrument
-                assert instrument["last_contact"] is None
-                assert "config" in instrument
-                assert instrument["config"] is not None
-                assert "state" in instrument
-                assert instrument["state"] is None
-                assert "setpoints" in instrument
-                assert instrument["setpoints"] is None
+        assert len(state.instruments) == len(instrument_names)
+        assert state.instruments_ready == False
+        for instrument_name, instrument in state.instruments.items():
+            assert instrument_name in instrument_names
+
+            print(f"OWDB {instrument}")
+            assert "last_contact" in instrument
+            assert instrument["last_contact"] is None
+            assert "config" in instrument
+            assert instrument["config"] is None
+            assert "state" in instrument
+            assert instrument["state"] is None
+            assert "setpoints" in instrument
+            assert instrument["setpoints"] is None
         # Timer message sent
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 1
