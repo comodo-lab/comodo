@@ -29,7 +29,8 @@ def send_heartbeat():
     if state.client is not None and "ready" in state.status["state"]:
         heartbeat_structure = state.get_status()
         state.client.publish(
-            f"instruments/{state.config['INSTRUMENT_NAME']}/heartbeat", heartbeat_structure
+            f"instruments/{state.config['INSTRUMENT_NAME']}/heartbeat",
+            heartbeat_structure,
         )
 
 
@@ -54,7 +55,9 @@ async def measurement_tick(variable_name, interval, oneshot=False):
         if oneshot:
             break
 
+
 # ----------------- Launcher ----------------- ##
+
 
 async def launcher(oneshot=False, timeout=None):
     try:
@@ -65,13 +68,15 @@ async def launcher(oneshot=False, timeout=None):
                         measurement_tick(
                             variable["name"],
                             variable["interval"],
-                            oneshot=oneshot
+                            oneshot=oneshot,
                         )
                     )
     except TimeoutError:
         raise RuntimeError("Sensors failed to initialise in time") from e
 
+
 # ----------------- Main function ----------------- ##
+
 
 async def main():
     """
@@ -106,7 +111,7 @@ async def main():
 
     cfg.populate_heartbeat(state)
 
-    # Attempt startup 
+    # Attempt startup
     await launcher(oneshot=True, timeout=10)
 
     # If successful, set ready and print the instrument creation message
@@ -136,7 +141,12 @@ if __name__ == "__main__":
         try:
             state.client.publish(
                 "error/instrument",
-                json.dumps({"code": "exception", "message": f"[{state.config['INSTRUMENT_NAME']}] {e}"}),
+                json.dumps(
+                    {
+                        "code": "exception",
+                        "message": f"[{state.config['INSTRUMENT_NAME']}] {e}",
+                    }
+                ),
             )
         except:
             print(f"Error: {e}")

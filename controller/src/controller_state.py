@@ -4,6 +4,7 @@ from datetime import datetime
 
 from utils.comodo_config import ComodoConfig
 
+
 class cstate:
     """
     Represents the state of the controller, including the status and experiment configuration.
@@ -65,7 +66,9 @@ class cstate:
             TypeError: If the provided value is not an instance of ComodoConfig or None.
         """
         if not isinstance(value, (ComodoConfig, type(None))):
-            raise TypeError(f"Config must be an instance of ComodoConfig or None, got {type(value).__name__}")
+            raise TypeError(
+                f"Config must be an instance of ComodoConfig or None, got {type(value).__name__}"
+            )
         self._config = value
 
     def heartbeat(self) -> Dict[str, Any]:

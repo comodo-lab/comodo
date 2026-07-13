@@ -46,10 +46,7 @@ def write_register(host, register, value):
 
 class Instrument(BaseInstrument):
     available_variables = {
-        "temperature": {
-            "sensor": 1,
-            "actuator": 2
-        },
+        "temperature": {"sensor": 1, "actuator": 2},
     }
 
     def __init__(self):
@@ -69,7 +66,9 @@ class Instrument(BaseInstrument):
         if state.config.get("SIMULATE"):
             self._simulated[variable] = target
             return
-        write_register(self.client, self.available_variables[variable]["actuator"], target)
+        write_register(
+            self.client, self.available_variables[variable]["actuator"], target
+        )
 
     def get_measurement(self, state, variable):
         if state.config.get("SIMULATE"):

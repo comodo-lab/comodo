@@ -36,18 +36,21 @@ def load_config():
 
     return config
 
+
 def populate_heartbeat(state):
     """
     Populate the heartbeat object in the config based on the active variables and their intervals.
 
     Returns:
     """
-    
+
     # Populate the SENSORS list based on ACTIVE_VARIABLES and the instrument's available variables
     for variable in state.config["ACTIVE_VARIABLES"]:
         # Ensure the variable is available in the instrument
         if variable not in state.instrument.available_variables:
-            print(f"Warning: Variable '{variable}' is not available in instrument '{state.config['FIRMWARE']}'")
+            print(
+                f"Warning: Variable '{variable}' is not available in instrument '{state.config['FIRMWARE']}'"
+            )
             continue
 
         # Ensure the variable is a sensor
