@@ -31,7 +31,8 @@ def on_timer_message(client, msg, obj):
         return
 
     if msg.topic == "controller/timer/event/done":
-        print(f"WARNING: Unexpected timer done event ignored (experiment_id: {message.get('experiment_id', 'unknown')})")
+        exp_id = message.get("experiment_id", "unknown")
+        print(f"WARNING: Unexpected timer done event ignored (experiment_id: {exp_id})")
         return
 
     try:
@@ -48,12 +49,18 @@ def on_timer_message(client, msg, obj):
     ):
         # Wait for instruments to be ready or timeout
         instrument_setup_wait = obj.config.globals["instrument_setup_wait"]
+        if instrument_setup_wait is None:
+            print(
+                "ERROR: instrument_setup_wait is not set in the config. Stopping experiment."
+            )
+            mqtt.MQTTPublisher.get_instance().publish(
+                "controller/command/stop",
+                json.dumps({"id": message["experiment_id"]}),
+            )
         t0 = t.time()
-        while (
-            not obj.instruments_ready
-        ) and obj.status == "awaiting_instruments":
+        while (not obj.instruments_ready) and obj.status == "awaiting_instruments":
             t.sleep(timer_check_frequency)
-            if instrument_setup_wait is not None and t.time() - t0 > instrument_setup_wait:
+            if t.time() - t0 > instrument_setup_wait:
                 controller_timeout(message["experiment_id"], "instruments", "Stopping")
                 mqtt.MQTTPublisher.get_instance().publish(
                     "controller/command/stop",

@@ -7,7 +7,7 @@
 
 name: controller-tests
 services:
-  controller:
+  controller-test:
     image: comodo-controller:testing
     build:
       context: ../

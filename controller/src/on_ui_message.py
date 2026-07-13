@@ -44,12 +44,12 @@ def on_ui_message(client, msg, obj):
     except KeyError as e:
         missing_keys(msg, e)
         return
-    
+
     if msg.topic == "ui/start":
         try:
             validate_message(msg.topic, msg.payload)
         except MQTTValidationException as e:
-            experiment_validation_error(e, experiment.get("id", "---"))
+            experiment_validation_error(e, uid)
             return
 
     if obj.status == "idle":

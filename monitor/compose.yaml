@@ -7,7 +7,7 @@
 
 name: monitor-tests
 services:
-  monitor:
+  monitor-test:
     image: comodo-monitor:testing
     build:
       context: ../

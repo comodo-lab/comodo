@@ -7,7 +7,7 @@ import textwrap
 import yaml
 
 from utils import mqtt_clients as mqtt
-from utils import comodo_config 
+from utils import comodo_config
 
 from src.controller_helper import get_env_or_secret
 from src.controller_state import cstate
@@ -72,7 +72,12 @@ def main():
     watchdog = mqtt.MQTTClient(
         id="watchdog",
         callback=on_watchdog_message,
-        topics=["watchdog/timer/event/+", "watchdog/timer/command/+", "controller/heartbeat", "error/exception"],
+        topics=[
+            "watchdog/timer/event/+",
+            "watchdog/timer/command/+",
+            "controller/heartbeat",
+            "error/exception",
+        ],
         obj=wdog,
         broker_address=mqtt_host,
         user=mqtt_user,
@@ -136,9 +141,9 @@ def main():
         json.dumps(
             {
                 "timeout": wdog["timeout"],
-                "interval": wdog["interval"]
+                "interval": wdog["interval"],
             }
-        )
+        ),
     )
     t.sleep(1)
     if wdog["healthy"]:

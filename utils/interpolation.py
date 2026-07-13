@@ -181,9 +181,7 @@ def split_setpoints(setpoint_list, resolution):
                 else:
                     raise ValueError(f"Unknown profile type: {profiles}")
 
-                interpolated_values = np.append(
-                    interpolated_values, new_values[1:]
-                )
+                interpolated_values = np.append(interpolated_values, new_values[1:])
             else:
                 new_values = [float(setpoint)]
                 interpolated_values = np.append(interpolated_values, new_values)

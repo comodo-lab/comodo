@@ -53,7 +53,7 @@ def c_idle(client, msg, obj):
     # Validate experiment configuration
     try:
         exp_config = validate_experiment(obj.exp_file, obj.config)
-        
+
         # Compute intermediate setpoints
         obj.setpoints = split_setpoints(
             exp_config["experiment_definition"], exp_config["config"]["resolution"]
