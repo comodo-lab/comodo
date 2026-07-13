@@ -1,0 +1,40 @@
+name: integration tests
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "integration_tests/**"
+      - "utils/**"
+      - "controller/**"
+      - "firmware/**"
+      - "monitor/**"
+      - "mqtt_probe/**"
+      - "setpoint_controller/**"
+      - "ui/**"
+  pull_request:
+    branches: ["main", "dev"]
+
+# --------------------------------------------------------------------------------- #
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Run integration tests
+        run: |
+          set -eo pipefail
+          cd ./integration_tests
+          docker compose --env-file ../.env up --build --attach test-runner --abort-on-container-exit --exit-code-from test-runner --force-recreate
+
+      - name: Tear down integration stack
+        if: ${{ always() }}
+        run: |
+          cd ./integration_tests
+          docker compose --env-file ../.env down --volumes --remove-orphans
