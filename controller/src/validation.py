@@ -15,27 +15,20 @@ class ExperimentValidationError(Exception):
         super().__init__(message)
 
 
-def generate_row_schema():
-    # --------------------------------------------------------------------------
-    # Load comodo config
-    try:
-        with open("/app/comodo.yaml") as f:
-            config = yaml.safe_load(f)
-    except FileNotFoundError:
-        raise ExperimentValidationError("comodo.yaml file not found")
-
+def generate_row_schema(config):
     # --------------------------------------------------------------------------
     # Load template directory
+
     try:
         env = Environment(loader=FileSystemLoader("/app/schemas"))
         template = env.get_template("experiment_schema.yaml.j2")
-    except Exception as e:
-        raise ExperimentValidationError(f"Failed to load template: {e}")
+    except FileNotFoundError:
+        raise ExperimentValidationError("experiment_schema.yaml.j2 file not found")
 
     # --------------------------------------------------------------------------
     # Fetch instruments and render
     try:
-        instruments = config.raw["instruments"]
+        instruments = config.raw.get("instruments", {})
         rendered = template.render(instruments=instruments)
     except KeyError as e:
         raise ExperimentValidationError(f"Missing instruments in config: {e}")
