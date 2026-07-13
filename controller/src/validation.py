@@ -35,7 +35,7 @@ def generate_row_schema():
     # --------------------------------------------------------------------------
     # Fetch instruments and render
     try:
-        instruments = config.raw.get("instruments", {})
+        instruments = config.raw["instruments"]
         rendered = template.render(instruments=instruments)
     except KeyError as e:
         raise ExperimentValidationError(f"Missing instruments in config: {e}")
@@ -49,6 +49,7 @@ def generate_row_schema():
         raise ExperimentValidationError(f"Failed to write rendered schema: {e}")
 
     return
+
 
 def validate_experiment(file_path, config):
     # --------------------------------------------------------------------------
