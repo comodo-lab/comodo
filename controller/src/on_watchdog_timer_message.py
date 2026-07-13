@@ -4,6 +4,7 @@ import json
 from utils import mqtt_clients as mqtt
 
 from src.error_helper import (
+    incompatible_topic,
     wrong_json,
     missing_keys,
 )
@@ -38,7 +39,7 @@ def on_wd_timer_message(client, msg, obj):
         except AssertionError as e:
             error = f"WATCHDOG_TIMER incompatible values: {e}"
             mqtt.MQTTPublisher.get_instance().publish(
-                "error/watchdog",
+                "error/watchdog_timer",
                 json.dumps({"code": "incompatible_values", "message": error}),
             )
             print("ERROR: Watchdog timer failed to start.")
@@ -68,8 +69,4 @@ def on_wd_timer_message(client, msg, obj):
                 )
                 return
     else:
-        error = f"WATCHDOG_TIMER: Unexpected message received: {msg.topic}"
-        mqtt.MQTTPublisher.get_instance().publish(
-            "error/watchdog",
-            json.dumps({"code": "unexpected_message", "message": error}),
-        )
+        incompatible_topic(obj, msg, "watchdog_timer")

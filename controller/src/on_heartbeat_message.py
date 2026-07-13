@@ -1,17 +1,17 @@
 import json
 import time as t
-from json import JSONDecodeError
 from jsonschema import ValidationError
 
 from utils import mqtt_clients as mqtt
-from utils.mqtt_validator import validate_message, UnexpectedTopicException
+from utils.mqtt_validator import validate_message, MQTTValidationException
 
 from src.error_helper import (
-    incompatible_request,
+    incompatible_topic,
     wrong_json,
     heartbeat_validation_error,
     unconfigured_instrument,
 )
+
 
 def on_heartbeat_message(client, msg, obj):
     """
@@ -19,27 +19,24 @@ def on_heartbeat_message(client, msg, obj):
     It expects a message compliant with the spec schema for that channel.
     """
     if "instruments" not in (msg.topic) or "heartbeat" not in msg.topic:
-        incompatible_request("Heartbeat", obj, msg)
+        incompatible_topic(obj, msg, "heartbeat_callback")
         return
 
     try:
         validate_message(msg.topic, msg.payload)
-    except json.JSONDecodeError as e:
-        wrong_json(msg, e)
-        return
-    except ValidationError as e:
+    except MQTTValidationException as e:
         heartbeat_validation_error(msg, e)
-        return
-    except UnexpectedTopicException as e:
         return
 
     if obj.status in ["idle", "validating", "starting"]:
         return
 
     instrument_name = msg.topic.split("/")[1]
-    payload_json = json.loads(msg.payload)
+    payload = json.loads(msg.payload)
     if instrument_name in obj.instruments:
-        _handle_instrument_heartbeat(obj, payload_json, instrument_name)
+        _handle_actuator_heartbeat(obj, payload, instrument_name)
+    elif instrument_name in obj.sensor_instruments:
+        return
     else:
         unconfigured_instrument(msg, instrument_name)
         return

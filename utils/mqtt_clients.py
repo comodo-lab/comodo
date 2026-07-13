@@ -9,6 +9,14 @@ import time
 import random
 
 
+class MQTTMessageError(Exception):
+    """Custom exception for MQTT message errors."""
+
+    def __init__(self, message):
+        print(f"MQTT message error: {message}")
+        super().__init__(message)
+
+
 def print_message(client, msg, timestamped=False):
     """
     Print the message received from the MQTT client to the console in the format:
@@ -72,7 +80,12 @@ def mqtt_publish_exceptions(name, func):
             try:
                 MQTTPublisher.get_instance().publish(
                     "error/mqtt",
-                    json.dumps({"code": "unhandled_exception", "message": f"Unhandled exception in {name}: {str(e)}"}),
+                    json.dumps(
+                        {
+                            "code": "unhandled_exception",
+                            "message": f"Unhandled exception in {name}: {str(e)}",
+                        }
+                    ),
                 )
             except Exception as e:
                 print(f"Error while reporting error! {e}")
@@ -242,11 +255,9 @@ def load_message(msg):
     Exceptions need to be caught when calling this function.
     """
     try:
-        message_decoded = msg.payload.decode("utf-8")
-        message_json = json.loads(message_decoded)
+        return json.loads(msg.payload.decode("utf-8"))
     except Exception as e:
-        raise ValueError(f"Error decoding message: {e}") 
-    return message_json
+        raise MQTTMessageError(f"Error loading message as JSON: {e}")
 
 
 class MQTTPublisher:
@@ -307,7 +318,9 @@ class MQTTPublisher:
             try:
                 self.client.publish(topic, payload)
             except Exception as e:
-                print(f"Error publishing message {e}")
+                raise MQTTMessageError(
+                    f"Error publishing message to topic '{topic}': {e}"
+                )
 
     @classmethod
     def get_instance(cls, **kwargs):

@@ -2,7 +2,7 @@ import json
 
 from utils import mqtt_clients as mqtt
 
-from src.error_helper import wrong_json
+from src.error_helper import incompatible_topic, wrong_json
 
 
 def on_watchdog_message(client, msg, obj):
@@ -25,7 +25,7 @@ def on_watchdog_message(client, msg, obj):
         obj["timer"] = obj["timeout"]
         return
 
-    if msg.topic == "error/exception":
+    elif msg.topic == "error/exception":
         error = mqtt.load_message(msg)["error"]
         print(f"WATCHDOG: Received error: {error}")
         mqtt.MQTTPublisher.get_instance().publish(
@@ -35,7 +35,7 @@ def on_watchdog_message(client, msg, obj):
         obj["healthy"] = False
         return
 
-    if msg.topic.startswith("watchdog/timer/event/"):
+    elif msg.topic.startswith("watchdog/timer/event/"):
         if msg.topic == "watchdog/timer/event/timeout":
             error = mqtt.load_message(msg)["message"]
             print(f"WATCHDOG: Timed out waiting for controller heartbeat. {error}")
@@ -46,6 +46,9 @@ def on_watchdog_message(client, msg, obj):
             obj["healthy"] = False
         return
 
-    if msg.topic.startswith("watchdog/timer/command/"):
+    elif msg.topic.startswith("watchdog/timer/command/"):
         # Placeholder noop
         return
+
+    else:
+        incompatible_topic(obj, msg, "watchdog")

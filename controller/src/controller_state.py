@@ -1,4 +1,4 @@
-from json import dumps
+import json
 from typing import Dict, Any, List, Set
 from datetime import datetime
 
@@ -82,7 +82,7 @@ class cstate:
         """
         Returns the string representation (heartbeat) of the cstate object.
         """
-        return dumps(self.heartbeat())
+        return json.dumps(self.heartbeat())
 
     def reset(self) -> None:
         """

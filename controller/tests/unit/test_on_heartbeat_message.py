@@ -33,7 +33,7 @@ def heartbeat_client(mqtt_mocks):
 # ========================================
 
 
-def test_incompatible_request(message_bus, heartbeat_client, state):
+def test_incompatible_topic(message_bus, heartbeat_client, state):
     assert state.experiment_uid == "123"
 
     msg = MockMessage(
@@ -43,12 +43,19 @@ def test_incompatible_request(message_bus, heartbeat_client, state):
 
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
-    assert messages[0].topic == "error/heartbeat"
-    assert "Heartbeat cannot act on heartbeat/something_else. Controller status is awaiting_instruments." in messages[0].payload
+    assert messages[0].topic == "error/heartbeat_callback"
+    assert (
+        "The heartbeat callback cannot act on heartbeat/something_else."
+        in messages[0].payload
+    )
 
 
 def test_wrong_json(message_bus, state, capsys):
-    exp_err = "Cannot decode instruments/instrument_1/heartbeat message, wrong JSON:"
+    exp_err = (
+        "Invalid heartbeat from instrument_1: not a json."
+        + " Invalid JSON payload for topic 'instruments/instrument_1/heartbeat':"
+        + " Expecting value: line 1 column 1 (char 0)"
+    )
     msg = MockMessage(
         topic="instruments/instrument_1/heartbeat",
         payload="not a json",
@@ -57,16 +64,22 @@ def test_wrong_json(message_bus, state, capsys):
 
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 1
-    
+
     message = messages[0]
     payload_obj = json.loads(message.payload)
 
-    assert payload_obj["code"] == "malformed_json"
+    assert payload_obj["code"] == "heartbeat_validation"
     assert exp_err in payload_obj["message"]
     assert f"ERROR: {exp_err}" in capsys.readouterr().out
 
+
 def test_validation_exception(message_bus, state, capsys):
-    exp_err = "Invalid heartbeat from instrument_1: {\"hello\": \"world\"}. Additional properties are not allowed ('hello' was unexpected)"
+    exp_err = (
+        'Invalid heartbeat from instrument_1: {"hello": "world"}.'
+        + " Message failed validation against schema for 'instruments/instrument_1/heartbeat':"
+        + " Additional properties are not allowed ('hello' was unexpected)."
+        + " Failed check: additionalProperties, Offending key: <root>"
+    )
     msg = MockMessage(
         topic="instruments/instrument_1/heartbeat",
         payload=json.dumps({"hello": "world"}),
@@ -82,6 +95,7 @@ def test_validation_exception(message_bus, state, capsys):
     assert payload_obj["code"] == "heartbeat_validation"
     assert exp_err in payload_obj["message"]
     assert exp_err in capsys.readouterr().out
+
 
 def test_unconfigured_instrument(message_bus, state):
     assert state.experiment_uid == "123"
@@ -106,7 +120,37 @@ def test_unconfigured_instrument(message_bus, state):
     assert "Instrument instrument_1 is not configured" in messages[0].payload
 
 
+def test_sensor_only_heartbeat_awaiting_instruments(message_bus, state):
+    assert state.status == "awaiting_instruments"
+    assert "furnace_left" not in state.instruments
+    assert "furnace_left" in state.sensor_instruments
 
+    msg = MockMessage(
+        topic="instruments/furnace_left/heartbeat",
+        payload=json.dumps(
+            {"state": "ready", "setpoints": {}, "config": {"experiment_id": None}}
+        ),
+    )
+    on_heartbeat_message(heartbeat_client, msg, state)
+
+    messages = message_bus.get_messages(decoded=True)
+    assert len(messages) == 0, "Sensor-only heartbeats should not publish errors"
+
+
+def test_sensor_only_heartbeat_running(message_bus, state):
+    state.status = "running"
+    assert "furnace_left" in state.sensor_instruments
+
+    msg = MockMessage(
+        topic="instruments/furnace_left/heartbeat",
+        payload=json.dumps(
+            {"state": "ready", "setpoints": {}, "config": {"experiment_id": None}}
+        ),
+    )
+    on_heartbeat_message(heartbeat_client, msg, state)
+
+    messages = message_bus.get_messages(decoded=True)
+    assert len(messages) == 0, "Sensor-only heartbeats should not publish errors"
 
 
 def test_unconfigured_instrument_idle(message_bus, state, heartbeat_client):
@@ -120,7 +164,7 @@ def test_unconfigured_instrument_idle(message_bus, state, heartbeat_client):
             {
                 "state": "idle",
                 "setpoints": {},
-                    "config": {"tolerance": None, "experiment_id": None},
+                "config": {"tolerance": None, "experiment_id": None},
             }
         ),
     )
@@ -128,7 +172,6 @@ def test_unconfigured_instrument_idle(message_bus, state, heartbeat_client):
 
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 0, "No messages should be published in idle state"
-
 
 
 def test_awaiting_instruments_racing_heartbeat(

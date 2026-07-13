@@ -9,7 +9,7 @@ from src.error_helper import (
     missing_keys,
     controller_timeout,
     controller_state_incompatible_with_timer,
-    incompatible_request,
+    incompatible_topic,
 )
 
 timer_check_frequency = 0.1
@@ -36,13 +36,16 @@ def on_timer_message(client, msg, obj):
 
     try:
         if message["experiment_id"] != obj.experiment_uid:
-            incompatible_uid("Timer", obj, msg, message["experiment_id"])
+            incompatible_uid(obj, msg, message["experiment_id"], "controller_timer")
             return
     except KeyError as e:
         missing_keys(msg, e)
         return
 
-    if msg.topic == "controller/timer/command/start" and message.get("source") == "instrument_setup":
+    if (
+        msg.topic == "controller/timer/command/start"
+        and message.get("source") == "instrument_setup"
+    ):
         # Wait for instruments to be ready or timeout
         instrument_setup_wait = obj.config.globals["instrument_setup_wait"]
         t0 = t.time()
@@ -53,7 +56,8 @@ def on_timer_message(client, msg, obj):
             if instrument_setup_wait is not None and t.time() - t0 > instrument_setup_wait:
                 controller_timeout(message["experiment_id"], "instruments", "Stopping")
                 mqtt.MQTTPublisher.get_instance().publish(
-                    "controller/command/stop", json.dumps({"id": message["experiment_id"]})
+                    "controller/command/stop",
+                    json.dumps({"id": message["experiment_id"]}),
                 )
                 return
         mqtt.MQTTPublisher.get_instance().publish(
@@ -68,7 +72,10 @@ def on_timer_message(client, msg, obj):
                 }
             ),
         )
-    elif msg.topic == "controller/timer/command/start" and message.get("source") == "setpoint":
+    elif (
+        msg.topic == "controller/timer/command/start"
+        and message.get("source") == "setpoint"
+    ):
         try:
             duration = message["duration"]
         except KeyError as e:
@@ -91,7 +98,13 @@ def on_timer_message(client, msg, obj):
         else:
             mqtt.MQTTPublisher.get_instance().publish(
                 "controller/timer/event/done",
-                json.dumps({"source": "setpoint", "experiment_id": message["experiment_id"], "controller_status": obj.status}),
+                json.dumps(
+                    {
+                        "source": "setpoint",
+                        "experiment_id": message["experiment_id"],
+                        "controller_status": obj.status,
+                    }
+                ),
             )
     else:
-        incompatible_request("Timer", obj, msg)
+        incompatible_topic(obj, msg, "controller_timer")
