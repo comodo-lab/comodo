@@ -7,7 +7,7 @@
 
 name: setpoint_controller-tests
 services:
-  setpoint_controller:
+  setpoint_controller-test:
     image: comodo-setpoint_controller:testing
     build:
       context: ../

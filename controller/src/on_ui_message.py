@@ -37,22 +37,20 @@ def on_ui_message(client, msg, obj):
 
     try:
         experiment = mqtt.load_message(msg)
+        uid = experiment["id"]
     except json.JSONDecodeError as e:
         wrong_json(msg, e)
+        return
+    except KeyError as e:
+        missing_keys(msg, e)
         return
 
     if msg.topic == "ui/start":
         try:
             validate_message(msg.topic, msg.payload)
         except MQTTValidationException as e:
-            experiment_validation_error(e, experiment.get("id", "---"))
+            experiment_validation_error(e, uid)
             return
-
-    try:
-        uid = experiment["id"]
-    except KeyError as e:
-        missing_keys(msg, e)
-        return
 
     if obj.status == "idle":
         if msg.topic == "ui/start":

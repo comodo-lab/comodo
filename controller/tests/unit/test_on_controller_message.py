@@ -1,6 +1,6 @@
 import pytest
 import json
-from unittest.mock import patch
+from unittest.mock import patch, ANY
 
 from tests.conftest import (
     MockMessage,
@@ -128,7 +128,7 @@ class TestIdle:
             )
             c_idle(controller_client, msg, state)
 
-            mock_validate.assert_called_once_with("missing_file.json")
+            mock_validate.assert_called_once_with("missing_file.json", ANY)
 
         assert state._status_history == ["validating", "idle"]
         assert state.experiment_uid == None
@@ -197,7 +197,7 @@ class TestIdle:
             )
             c_idle(controller_client, msg, state)
 
-            mock_validate.assert_called_once_with("valid_file.json")
+            mock_validate.assert_called_once_with("valid_file.json", ANY)
             # Split setpoints called
             mock_split_setpoints.assert_called_once_with(["some data"], 42)
 
@@ -236,7 +236,7 @@ class TestIdle:
             )
             c_idle(controller_client, msg, state)
 
-            mock_validate.assert_called_once_with("valid_file.json")
+            mock_validate.assert_called_once_with("valid_file.json", ANY)
             # Split setpoints called
             mock_split_setpoints.assert_called_once_with(["some data"], 42)
 
@@ -316,9 +316,7 @@ class TestStarting:
         assert state.status == "validating"
         assert controller_client.callback == c_starting
 
-        instrument_names = sorted(
-            set(av.split("/", 1)[0] for av in state.actuator_variables)
-        )
+        instrument_names = ["furnace_centre", "furnace_left", "mass_flow"]
 
         msg = MockMessage(
             topic="controller/command/start", payload=json.dumps({"id": "123"})
@@ -333,20 +331,19 @@ class TestStarting:
         assert state.status == "awaiting_instruments"
         assert controller_client.callback == mock_c_ready
         # Instrument config list updated correctly
-        assert len(state.instruments) == len(instrument_names) + 1
-        assert state.instruments["configured"] == False
-        for instrument_key in state.instruments.keys():
-            if instrument_key != "configured":
-                assert instrument_key in instrument_names
-                instrument = state.instruments[instrument_key]
-                assert "last_contact" in instrument
-                assert instrument["last_contact"] is None
-                assert "config" in instrument
-                assert instrument["config"] is not None
-                assert "state" in instrument
-                assert instrument["state"] is None
-                assert "setpoints" in instrument
-                assert instrument["setpoints"] is None
+        assert len(state.instruments) == len(instrument_names)
+        assert state.instruments_ready == False
+        for instrument_name, instrument in state.instruments.items():
+            assert instrument_name in instrument_names
+
+            assert "last_contact" in instrument
+            assert instrument["last_contact"] is None
+            assert "config" in instrument
+            assert instrument["config"] is None
+            assert "state" in instrument
+            assert instrument["state"] is None
+            assert "setpoints" in instrument
+            assert instrument["setpoints"] is None
         # Timer message sent
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 1

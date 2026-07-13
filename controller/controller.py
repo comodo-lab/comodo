@@ -7,6 +7,7 @@ import textwrap
 import yaml
 
 from utils import mqtt_clients as mqtt
+from utils import comodo_config
 
 from src.controller_helper import get_env_or_secret
 from src.controller_state import cstate
@@ -20,7 +21,7 @@ from src.on_heartbeat_message import on_heartbeat_message
 
 def main():
     print(f"Starting...")
-    # Load configuration
+    # Load configuration from env
     expected_env_vars = [
         ["MQTT_HOST"],
         ["MQTT_USER"],
@@ -44,48 +45,18 @@ def main():
     mqtt_pass = get_env_or_secret("MQTT_PASS", "MQTT_PASS_FILE", None)
     connection_timeout = os.getenv("MQTT_CONNECTION_TIMEOUT", 10)
 
-    # Load comodo.yaml 
-    try:
-        with open("/app/comodo.yaml") as f:
-            config = yaml.safe_load(f) or {}
-    except (FileNotFoundError, yaml.YAMLError):
-        config = {}
+    # Load comodo.yaml
+    config = comodo_config.ComodoConfig().load()
 
-    global_config = config.get("global", {})
-
-    wdog_interval = float(
-        global_config.get("heartbeat", {}).get("interval", 1)
-    )
-    wdog_timeout = float(
-        global_config.get("watchdog", {}).get("timeout", 5)
-    )
-    instrument_setup_wait = float(
-        global_config.get("instrument_setup", {}).get("wait", 10)
-    )
-
-    assert wdog_interval > 0
-    assert wdog_timeout > 2 * wdog_interval
     wdog = {
-        "interval": wdog_interval,
-        "timeout": wdog_timeout,
-        "timer": wdog_timeout,
+        "interval": config.globals["watchdog_interval"],
+        "timeout": config.globals["watchdog_timeout"],
+        "timer": config.globals["watchdog_timeout"],
         "healthy": False,
     }
-
-    # Compute actuator and sensor variables from instrument config
-    actuator_variables = set()
-    sensor_variables = set()
-    for instr_name, instr_cfg in config.get("instruments", {}).items():
-        for var_name, var_cfg in instr_cfg.get("variables", {}).items():
-            if "actuator" in var_cfg:
-                actuator_variables.add(f"{instr_name}/{var_name}")
-            if "sensor" in var_cfg:
-                sensor_variables.add(f"{instr_name}/{var_name}")
-
     # Initialize controller state
-    state = cstate(actuator_variables=actuator_variables, sensor_variables=sensor_variables)
-    state.instrument_setup_wait = instrument_setup_wait
-
+    state = cstate()
+    state.config = config
     print(f"  Creating clients...")
 
     # Initialise publisher singleton
@@ -101,7 +72,12 @@ def main():
     watchdog = mqtt.MQTTClient(
         id="watchdog",
         callback=on_watchdog_message,
-        topics=["watchdog/timer/event/+", "watchdog/timer/command/+", "controller/heartbeat", "error/exception"],
+        topics=[
+            "watchdog/timer/event/+",
+            "watchdog/timer/command/+",
+            "controller/heartbeat",
+            "error/exception",
+        ],
         obj=wdog,
         broker_address=mqtt_host,
         user=mqtt_user,
@@ -160,7 +136,15 @@ def main():
     )
     # measurement = mqtt.MQTTClient("measurement", on_client_message, topics="measurement/#")
 
-    publisher.client.publish("watchdog/timer/command/start", json.dumps({"timeout": wdog["timeout"], "interval": wdog["interval"]}))
+    publisher.client.publish(
+        "watchdog/timer/command/start",
+        json.dumps(
+            {
+                "timeout": wdog["timeout"],
+                "interval": wdog["interval"],
+            }
+        ),
+    )
     t.sleep(1)
     if wdog["healthy"]:
         print(f"Controller started successfully.")

@@ -36,7 +36,7 @@ class TestMatchTopic:
 
 class TestLoadSpec:
     def test_load_spec(self):
-        topic_map = load_spec("utils/tests/file_fixtures/sample_asyncapi.yaml")
+        topic_map = load_spec("/utils/tests/file_fixtures/sample_asyncapi.yaml")
 
         assert "error/message/malformed" in topic_map
         tmm = topic_map["error/message/malformed"]

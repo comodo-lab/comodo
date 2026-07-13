@@ -52,7 +52,7 @@ def c_idle(client, msg, obj):
 
     # Validate experiment configuration
     try:
-        exp_config = validate_experiment(obj.exp_file)
+        exp_config = validate_experiment(obj.exp_file, obj.config)
 
         # Compute intermediate setpoints
         obj.setpoints = split_setpoints(
@@ -101,13 +101,11 @@ def c_starting(client, msg, obj):
 
     obj.status = "starting"
     # Create list of instruments dicts from actuator variables
-    obj.instruments = {"configured": False}
-    for av in obj.actuator_variables:
-        instrument_name = av.split("/", 1)[0]
+    for instrument_name in obj.config.instruments:
         if instrument_name not in obj.instruments:
             obj.instruments[instrument_name] = {
                 "last_contact": None,
-                "config": {},
+                "config": None,
                 "state": None,
                 "setpoints": None,
             }

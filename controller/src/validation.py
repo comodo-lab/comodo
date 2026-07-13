@@ -35,7 +35,7 @@ def generate_row_schema():
     # --------------------------------------------------------------------------
     # Fetch instruments and render
     try:
-        instruments = config["instruments"]
+        instruments = config.raw["instruments"]
         rendered = template.render(instruments=instruments)
     except KeyError as e:
         raise ExperimentValidationError(f"Missing instruments in config: {e}")
@@ -51,7 +51,7 @@ def generate_row_schema():
     return
 
 
-def validate_experiment(file_path):
+def validate_experiment(file_path, config):
     # --------------------------------------------------------------------------
     # Read experiment file
 
@@ -73,7 +73,7 @@ def validate_experiment(file_path):
     # Perform specific validation (compare instruments with comodo.yaml)
 
     try:
-        generate_row_schema()
+        generate_row_schema(config)
     except Exception as e:
         raise ExperimentValidationError(f"Failed to generate row schema: {e}")
 

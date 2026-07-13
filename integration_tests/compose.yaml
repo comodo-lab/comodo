@@ -11,10 +11,43 @@
 include:
   - path: ../compose.yaml
   #- path: ../compose.data.yaml
-  - path: ./compose.firmware.yaml
+  - path: compose.firmware.yaml
   - path: ../compose.mqtt.yaml
 
 services:
+
+  rabbitmq:
+    networks:
+      - default
+      - comodo-core
+
+  mqtt-probe-core:
+    environment:
+      MQTT_HOST: rabbitmq
+      MQTT_USER: comodo
+      MQTT_PASS: comodo
+
+  controller:
+    environment:
+      MQTT_HOST: rabbitmq
+      MQTT_USER: comodo
+      MQTT_PASS: comodo
+    volumes:
+      - ./fixtures/comodo.yaml:/app/comodo.yaml:ro
+
+  ui:
+    environment:
+      MQTT_HOST: rabbitmq
+      MQTT_USER: comodo
+      MQTT_PASS: comodo
+    volumes:
+      - ./fixtures/comodo.yaml:/app/comodo.yaml:ro
+
+  monitor:
+    environment:
+      MQTT_HOST: rabbitmq
+      MQTT_USER: comodo
+      MQTT_PASS: comodo
 
   # influxdb:
   #   environment:
@@ -30,8 +63,11 @@ services:
     env_file:
       - ../.env
     environment:
-      HEARTBEAT_TIMEOUT: ${HEARTBEAT_TIMEOUT:-60}
-      EXPERIMENT_TIMEOUT: ${EXPERIMENT_TIMEOUT:-120}
+      MQTT_HOST: rabbitmq
+      MQTT_USER: comodo
+      MQTT_PASS: comodo
+      HEARTBEAT_TIMEOUT: ${HEARTBEAT_TIMEOUT:-20}
+      EXPERIMENT_TIMEOUT: ${EXPERIMENT_TIMEOUT:-40}
     volumes:
       - ./fixtures/start.json:/app/experiment.json:ro
     depends_on:

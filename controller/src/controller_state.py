@@ -2,6 +2,8 @@ import json
 from typing import Dict, Any, List, Set
 from datetime import datetime
 
+from utils.comodo_config import ComodoConfig
+
 
 class cstate:
     """
@@ -29,14 +31,14 @@ class cstate:
         "_current_setpoint",
         "_past_setpoints",
         "_instruments",
-        "instrument_setup_wait",
-        "actuator_variables",
-        "sensor_variables",
+        "_config",
+        "_instruments_ready",
     ]
 
-    def __init__(
-        self, actuator_variables: Set[str] = None, sensor_variables: Set[str] = None
-    ) -> None:
+    def __init__(self) -> None:
+        """
+        Initializes a new instance of the cstate class.
+        """
         self.experiment_start_time: datetime = None
         self.experiment_uid: str = None
         self.exp_file: str = None
@@ -45,19 +47,29 @@ class cstate:
         self.setpoints: List[Dict[str, Any]] = []
         self.current_setpoint: Dict[str, Any] = None
         self.past_setpoints: List[Dict[str, Any]] = []
-        self.instruments: Dict[str, Any] = {"configured": False}
-        self.instrument_setup_wait: float = 10.0
-        self.actuator_variables: Set[str] = actuator_variables or set()
-        self.sensor_variables: Set[str] = sensor_variables or set()
+        self.instruments: Dict[str, Any] = {}
+        self.instruments_ready: bool = False
+        self.config: ComodoConfig = None
 
     @property
-    def actuator_instruments(self) -> set[str]:
-        return {av.split("/", 1)[0] for av in self.actuator_variables}
+    def config(self) -> ComodoConfig | None:
+        return self._config
 
-    @property
-    def sensor_instruments(self) -> set[str]:
-        sensors = {sv.split("/", 1)[0] for sv in self.sensor_variables}
-        return sensors - self.actuator_instruments
+    @config.setter
+    def config(self, value: ComodoConfig | None) -> None:
+        """
+        Sets the configuration for the controller state.
+
+        Args:
+            value (ComodoConfig | None): The configuration to set. Must be an instance of ComodoConfig or None.
+        Raises:
+            TypeError: If the provided value is not an instance of ComodoConfig or None.
+        """
+        if not isinstance(value, (ComodoConfig, type(None))):
+            raise TypeError(
+                f"Config must be an instance of ComodoConfig or None, got {type(value).__name__}"
+            )
+        self._config = value
 
     def heartbeat(self) -> Dict[str, Any]:
         """
@@ -87,7 +99,8 @@ class cstate:
         self.setpoints = []
         self.current_setpoint = None
         self.past_setpoints = []
-        self.instruments = {"configured": False}
+        self.instruments = {}
+        self.instruments_ready = False
 
     @property
     def experiment_start_time(self) -> datetime:
@@ -277,3 +290,24 @@ class cstate:
                 f"Instruments must be a dictionary, cannot accept {type(value)}."
             )
         self._instruments = value
+
+    @property
+    def instruments_ready(self) -> bool:
+        return self._instruments_ready
+
+    @instruments_ready.setter
+    def instruments_ready(self, value: bool) -> None:
+        """
+        Sets the instruments_ready flag.
+
+        Args:
+            value: The new value for the instruments_ready flag. Must be a boolean.
+
+        Raises:
+            TypeError: If the provided value is not a boolean.
+        """
+        if not isinstance(value, bool):
+            raise TypeError(
+                f"Instruments ready flag must be a boolean, cannot accept {type(value)}."
+            )
+        self._instruments_ready = value

@@ -57,7 +57,7 @@ def test_invalid_ui_message(message_bus, state, ui_client, capsys):
 def test_missing_id(message_bus, state, ui_client, capsys):
     assert state.experiment_uid == None
 
-    exp_err = "'id' is a required property"
+    exp_err = "Cannot decode ui/start message, missing: \n   'id'"
     msg = MockMessage(topic="ui/start", payload=json.dumps({"config": "foo"}))
     on_ui_message(ui_client, msg, state)
 

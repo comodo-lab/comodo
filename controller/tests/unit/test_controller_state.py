@@ -20,23 +20,8 @@ def test_cstate_initialization():
     assert state.setpoints == []
     assert state.current_setpoint == None
     assert state.past_setpoints == []
-    assert state.instruments == {"configured": False}
-    assert state.actuator_variables == set()
-
-
-def test_cstate_with_actuator_variables():
-    av_set = {"furnace_centre/temperature", "mass_flow/mass_flow"}
-    state = cstate(actuator_variables=av_set)
-    assert state.actuator_variables == av_set
-    assert state.actuator_instruments == {"furnace_centre", "mass_flow"}
-
-
-def test_cstate_with_sensor_variables():
-    av_set = {"furnace_centre/temperature"}
-    sv_set = {"furnace_centre/temperature", "furnace_left/temperature", "pressure_upstream/pressure"}
-    state = cstate(actuator_variables=av_set, sensor_variables=sv_set)
-    assert state.sensor_variables == sv_set
-    assert state.sensor_instruments == {"furnace_left", "pressure_upstream"}
+    assert state.instruments == {}
+    assert state.instruments_ready == False
 
 
 def test_cannot_add_new_attribute(state):
@@ -73,7 +58,7 @@ def test_reset(state):
     state.setpoints = [{"time": 0, "pressure": 0, "temperature": 0}]
     state.current_setpoint = {"time": 0, "pressure": 0, "temperature": 0}
     state.past_setpoints = [{"time": 0, "pressure": 0, "temperature": 0}]
-    state.instruments = {"configured": True}
+    state.instruments = {}
 
     state.reset()
 
@@ -258,7 +243,6 @@ def test_can_set_instruments(state):
             "setpoint": None,
         }
     assert state.instruments == {
-        "configured": False,
         "T": {
             "last_contact": 0,
             "config": {},
@@ -281,3 +265,30 @@ def test_cannot_set_wrong_type_instruments(state):
         assert "Instruments must be a dictionary, cannot accept <class 'int'>" in e.args[0]
     else:
         assert False, "Should not let you set wrong type"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

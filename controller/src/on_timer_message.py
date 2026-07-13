@@ -31,6 +31,8 @@ def on_timer_message(client, msg, obj):
         return
 
     if msg.topic == "controller/timer/event/done":
+        exp_id = message.get("experiment_id", "unknown")
+        print(f"WARNING: Unexpected timer done event ignored (experiment_id: {exp_id})")
         return
 
     try:
@@ -46,11 +48,17 @@ def on_timer_message(client, msg, obj):
         and message.get("source") == "instrument_setup"
     ):
         # Wait for instruments to be ready or timeout
-        instrument_setup_wait = obj.instrument_setup_wait
+        instrument_setup_wait = obj.config.globals["instrument_setup_wait"]
+        if instrument_setup_wait is None:
+            print(
+                "ERROR: instrument_setup_wait is not set in the config. Stopping experiment."
+            )
+            mqtt.MQTTPublisher.get_instance().publish(
+                "controller/command/stop",
+                json.dumps({"id": message["experiment_id"]}),
+            )
         t0 = t.time()
-        while (
-            not obj.instruments["configured"]
-        ) and obj.status == "awaiting_instruments":
+        while (not obj.instruments_ready) and obj.status == "awaiting_instruments":
             t.sleep(timer_check_frequency)
             if t.time() - t0 > instrument_setup_wait:
                 controller_timeout(message["experiment_id"], "instruments", "Stopping")
@@ -66,7 +74,7 @@ def on_timer_message(client, msg, obj):
                     "source": "instrument_setup",
                     # experiment uid changes when all instruments get configured, so have to use obj.experiment_uid, not message["experiment_id"]
                     "experiment_id": obj.experiment_uid,
-                    "instruments_configured": obj.instruments["configured"],
+                    "instruments_configured": obj.instruments_ready,
                     "controller_status": obj.status,
                 }
             ),

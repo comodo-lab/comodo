@@ -7,7 +7,7 @@
 
 name: utils-tests
 services:
-  utils:
+  utils-test:
     image: comodo-utils:testing
     build:
       context: ../
@@ -15,8 +15,8 @@ services:
     container_name: utils-test
     volumes:
       - memory:/memory  # Used to persist pytest cache between runs
-    command: bash -c "coverage run --source=. --omit='utils/tests/*,*/__*' -m pytest
-      utils/tests/ --ignore=utils/tests/unit/test_mqtt_clients.py --ignore=utils/tests/unit/test_interpolation.py --ignore=utils/tests/integration/ &&
+    command: bash -c "coverage run --source=. --omit='tests/*,*/__*' -m pytest -vv
+      tests/ &&
       echo '' && coverage report && coverage html -d /memory/htmlcov"
 
 volumes:

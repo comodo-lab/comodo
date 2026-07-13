@@ -161,7 +161,9 @@ class MMSP:
 
 
 class Instrument(BaseInstrument):
-    variables = {"mass_spec": {}}
+    available_variables = {
+        "mass_spec": {},
+    }
 
     def __init__(self):
         self.mmsp = None

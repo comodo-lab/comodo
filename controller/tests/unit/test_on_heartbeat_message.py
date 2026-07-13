@@ -8,15 +8,9 @@ from tests.conftest import (
     mock_state,
     mock_experiment_dict,
     mock_setpoints,
-    instrument_heartbeat_msg,
 )
 
 from src.on_heartbeat_message import on_heartbeat_message
-
-INSTRUMENTS = [
-    {"name": "furnace_centre", "tolerance": 1},
-    {"name": "mass_flow", "tolerance": 1},
-]
 
 # =============== Fixtures ===============
 
@@ -185,22 +179,29 @@ def test_awaiting_instruments_racing_heartbeat(
     state,
     heartbeat_client,
 ):
-    assert state.instruments["configured"] == False
+    assert state.instruments_ready == False
 
-    instruments = INSTRUMENTS
-    first_instrument_name = instruments[0]["name"]
+    first_instrument_name = "furnace_centre"
     first_instrument_config = {
-        **{k: v for k, v in instruments[0].items() if k != "name"},
-        "experiment_id": state.experiment_uid,
+        "firmware": "test",
+        "device_address": "1.2.3.4",
+        "simulate": True,
+        "variables": [],
     }
     assert state.instruments[first_instrument_name]["state"] == None
     assert state.instruments[first_instrument_name]["setpoints"] == None
     assert state.instruments[first_instrument_name]["config"] == first_instrument_config
 
     # Incorrect heartbeat for first instrument
-    wrong_config = instruments[0].copy()
-    wrong_config["tolerance"] = wrong_config["tolerance"] + 1
-    msg = instrument_heartbeat_msg(instrument=wrong_config, state="idle", setpoints={})
+    msg = MockMessage(
+        topic="instruments/furnace_centre/heartbeat",
+        payload=json.dumps({
+            "state": "idle",
+            "setpoints": {},
+            "config": {"firmware": "wrong", "device_address": "1.2.3.4",
+                       "simulate": True, "variables": []},
+        }),
+    )
 
     # Should not raise, because instrument status is still awaiting_config
     on_heartbeat_message(heartbeat_client, msg, state)
@@ -209,7 +210,7 @@ def test_awaiting_instruments_racing_heartbeat(
     assert state.instruments[first_instrument_name]["state"] == None
     assert state.instruments[first_instrument_name]["setpoints"] == None
     assert state.instruments[first_instrument_name]["config"] == first_instrument_config
-    assert state.instruments["configured"] == False
+    assert state.instruments_ready == False
 
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 0, "Should only publish if ready"
@@ -222,35 +223,47 @@ def test_awaiting_instruments_not_all_responded(
 ):
     assert state.experiment_uid == "123"
     assert state.status == "awaiting_instruments"
-    assert state.instruments["configured"] == False
+    assert state.instruments_ready == False
 
-    instruments = INSTRUMENTS
+    names = ["mass_flow"]
 
     # Correct heartbeat for all but first instruments
-    for instrument in instruments[1:]:
-        msg = instrument_heartbeat_msg(
-            instrument=instrument, state="ready", setpoints={}, experiment_id="123"
+    for name in names:
+        msg = MockMessage(
+            topic=f"instruments/{name}/heartbeat",
+            payload=json.dumps({
+                "state": "ready",
+                "setpoints": {},
+                "config": {"firmware": "test", "device_address": "1.2.3.4",
+                           "simulate": True, "variables": []},
+            }),
         )
         on_heartbeat_message(heartbeat_client, msg, state)
 
     # Should have updated instruments, but not be ready yet
-    for instrument in instruments[1:]:
-        assert state.instruments[instrument["name"]]["state"] == "ready"
-        assert state.instruments[instrument["name"]]["setpoints"] == {}
+    for name in names:
+        assert state.instruments[name]["state"] == "ready"
+        assert state.instruments[name]["setpoints"] == {}
     assert state.status == "awaiting_instruments"
-    assert state.instruments["configured"] == False
+    assert state.instruments_ready == False
 
     # First instrument heartbeat with idle state
-    msg = instrument_heartbeat_msg(
-        instrument=instruments[0], state="idle", setpoints={}
+    msg = MockMessage(
+        topic="instruments/furnace_centre/heartbeat",
+        payload=json.dumps({
+            "state": "idle",
+            "setpoints": {},
+            "config": {"firmware": "test", "device_address": "1.2.3.4",
+                       "simulate": True, "variables": []},
+        }),
     )
     on_heartbeat_message(heartbeat_client, msg, state)
 
     # Should still not be ready
-    assert state.instruments[instruments[0]["name"]]["state"] is None
-    assert state.instruments[instruments[0]["name"]]["setpoints"] is None
+    assert state.instruments["furnace_centre"]["state"] is None
+    assert state.instruments["furnace_centre"]["setpoints"] is None
     assert state.status == "awaiting_instruments"
-    assert state.instruments["configured"] == False
+    assert state.instruments_ready == False
 
     messages = message_bus.get_messages(decoded=True)
     assert len(messages) == 0, "Should only publish if ready"
@@ -263,19 +276,25 @@ def test_awaiting_instruments_all_responded(
 ):
     assert state.experiment_uid == "123"
     assert state.status == "awaiting_instruments"
-    assert state.instruments["configured"] == False
+    assert state.instruments_ready == False
 
-    instruments = INSTRUMENTS
+    names = ["furnace_centre", "mass_flow", "furnace_left"]
 
     # Correct heartbeat for all instruments
-    for instrument in instruments:
-        msg = instrument_heartbeat_msg(
-            instrument=instrument, state="ready", setpoints={}, experiment_id="123"
+    for name in names:
+        msg = MockMessage(
+            topic=f"instruments/{name}/heartbeat",
+            payload=json.dumps({
+                "state": "ready",
+                "setpoints": {},
+                "config": {"firmware": "test", "device_address": "1.2.3.4",
+                           "simulate": True, "variables": []},
+            }),
         )
         on_heartbeat_message(heartbeat_client, msg, state)
 
-    assert state.instruments[instrument["name"]]["state"] == "ready"
-    assert state.instruments["configured"] == True
+    assert state.instruments["mass_flow"]["state"] == "ready"
+    assert state.instruments_ready == True
     assert state.status == "awaiting_instruments"
 
     messages = message_bus.get_messages(decoded=True)
@@ -290,15 +309,20 @@ def test_running_heartbeat_updates_instrument(
     heartbeat_client,
 ):
     state.status = "running"
-    instruments = INSTRUMENTS
 
-    msg = instrument_heartbeat_msg(
-        instrument=instruments[0], state="adjusting", setpoints={"temperature": 42}
+    msg = MockMessage(
+        topic="instruments/furnace_centre/heartbeat",
+        payload=json.dumps({
+            "state": "adjusting",
+            "setpoints": {"temperature": 42},
+            "config": {"firmware": "test", "device_address": "1.2.3.4",
+                       "simulate": True, "variables": []},
+        }),
     )
     on_heartbeat_message(heartbeat_client, msg, state)
 
-    assert state.instruments[instruments[0]["name"]]["state"] == "adjusting"
-    assert state.instruments[instruments[0]["name"]]["setpoints"] == {"temperature": 42}
+    assert state.instruments["furnace_centre"]["state"] == "adjusting"
+    assert state.instruments["furnace_centre"]["setpoints"] == {"temperature": 42}
 
     messages = message_bus.get_messages(decoded=True)
     # No new messages should be published during running heartbeats
