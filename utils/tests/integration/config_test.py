@@ -1,10 +1,10 @@
 from comodo_config import ComodoConfig
 
+
 class TestConfigLoad:
     def test_config_load(self):
         # ----------------------------------------------------------------------
         # Load config and assert is non-none
-        
 
         config = ComodoConfig(path="/utils/tests/file_fixtures/comodo.yaml")
         config.load()
@@ -12,12 +12,12 @@ class TestConfigLoad:
 
         # ----------------------------------------------------------------------
         # Check global settings
-            
-        assert config.globals == {            
+
+        assert config.globals == {
             "heartbeat_interval": 1.0,
             "watchdog_interval": 1.0,
             "watchdog_timeout": 5.0,
-            "instrument_setup_wait": 10.0
+            "instrument_setup_wait": 10.0,
         }, "Config failed to load global settings correctly"
 
         # ----------------------------------------------------------------------
@@ -30,14 +30,32 @@ class TestConfigLoad:
             "pressure_downstream",
             "pressure_upstream",
             "mass_flow",
-            "mass_spec"
+            "mass_spec",
         }, "Config failed to load instruments correctly"
 
         assert config.instruments["furnace_centre"] == {
             "firmware": "carbolite_gero.tg3",
             "address": "192.168.111.222",
             "simulate": True,
-            "variables": ["temperature"]
+            "variables": {
+                "temperature": {
+                    "sensor": {
+                        "interval": 1,
+                        "type": "float",
+                        "min": 0,
+                        "max": 1000,
+                        "unit": "C",
+                    },
+                    "actuator": {
+                        "type": "float",
+                        "min": 0,
+                        "max": 1000,
+                        "unit": "C",
+                        "default_setpoint": 0,
+                        "tolerance": 1,
+                    },
+                },
+            },
         }, "Config failed to load instrument setup correctly"
 
         # ----------------------------------------------------------------------
@@ -45,9 +63,9 @@ class TestConfigLoad:
 
         assert config.actuators.keys() == {
             "furnace_centre/temperature",
-            "mass_flow/mass_flow"
+            "mass_flow/mass_flow",
         }, "Config failed to load actuators correctly"
-        
+
         assert config.sensors.keys() == {
             "furnace_centre/temperature",
             "furnace_left/temperature",
@@ -69,14 +87,14 @@ class TestConfigLoad:
             "default_setpoint": 0,
             "tolerance": 1.0,
         }, "Config failed to load actuator setup correctly"
-        
+
         assert config.sensors["pressure_downstream/pressure"] == {
             "interval": 1.0,
             "type": "float",
             "min": 0,
             "max": 10,
             "unit": "bar",
-        }, "Config failed to load sensor setup correctly"            
+        }, "Config failed to load sensor setup correctly"
 
         # ----------------------------------------------------------------------
         # Check SPC listings
@@ -91,7 +109,7 @@ class TestConfigLoad:
             "K_AW": 0.05,
             "K_DF": 0.01,
             "actuator": "mass_flow/mass_flow",
-            "external_sensor": "pressure_upstream/pressure"
+            "external_sensor": "pressure_upstream/pressure",
         }, "Config failed to load SPC setup correctly"
 
         # ----------------------------------------------------------------------
@@ -103,6 +121,20 @@ class TestConfigLoad:
                 "furnace_centre/temperature": 0,
                 "furnace_centre/temperature_profile": "linear",
                 "mass_flow/mass_flow": 0,
-                "mass_flow/mass_flow_profile": "linear"
+                "mass_flow/mass_flow_profile": "linear",
             }
         ], "Config failed to load default experiment correctly"
+
+    def test_get_expected_heartbeat_makes_variables_into_flat_list(self):
+        config = ComodoConfig(path="/utils/tests/file_fixtures/comodo.yaml")
+        config.load()
+
+        expected_heartbeat = {
+            "firmware": "carbolite_gero.tg3",
+            "device_address": "192.168.111.222",
+            "simulate": True,
+            "variables": ["temperature"],
+        }
+        assert (
+            config.get_expected_heartbeat("furnace_centre") == expected_heartbeat
+        ), "Config failed to load expected heartbeat correctly"
