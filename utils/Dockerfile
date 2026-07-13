@@ -1,12 +1,14 @@
 FROM python:3.11-slim
-ENV PYTHONUNBUFFERED=1
-WORKDIR /app
-COPY utils/requirements.txt ./
+
+COPY utils/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
-COPY utils/mqtt_clients.py ./utils/
-COPY utils/mqtt_validator.py ./utils/
-COPY utils/interpolation.py ./utils/
-COPY utils/comodo_config.py ./utils/
-COPY utils/tests ./utils/tests/
-COPY utils/pytest.ini ./pytest.ini
+
+WORKDIR /utils
+COPY utils/__init__.py /utils/__init__.py
+COPY utils/mqtt_clients.py /utils/mqtt_clients.py
+COPY utils/mqtt_validator.py /utils/mqtt_validator.py
+COPY utils/interpolation.py /utils/interpolation.py
+COPY utils/comodo_config.py /utils/comodo_config.py
+COPY utils/pytest.ini /utils/pytest.ini
+COPY utils/tests /utils/tests
 
