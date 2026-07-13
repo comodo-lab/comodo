@@ -7,7 +7,7 @@
 
 name: utils-tests
 services:
-  utils:
+  utils-test:
     image: comodo-utils:testing
     build:
       context: ../
