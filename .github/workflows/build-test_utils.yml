@@ -1,0 +1,34 @@
+name: build-test utils
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "utils/**"
+  pull_request:
+    branches: ["main", "dev"]
+
+# --------------------------------------------------------------------------------- #
+
+jobs:
+  build-test:
+    uses: ./.github/workflows/build-test-push.yml
+    with:
+      container_name: comodo-utils
+      org_name: comodolab
+      build_context: "."
+      dockerfile: "./utils/Dockerfile"
+      test_script: |
+        set -eo pipefail
+        cd ./utils
+        docker compose up --abort-on-container-exit --exit-code-from utils-test
+      push_versioned: False
+      push_latest: False
+      push_vb: False
+      custom_tag: ''
+    secrets:
+      docker_username: ${{ secrets.DOCKER_USERNAME }}
+      docker_password: ${{ secrets.DOCKER_PASSWORD }}
+    permissions:
+      contents: read
+      packages: write

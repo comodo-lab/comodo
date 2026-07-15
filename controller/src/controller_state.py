@@ -1,11 +1,13 @@
-from json import dumps
-from typing import Dict, Any, List
+import json
+from typing import Dict, Any, List, Set
 from datetime import datetime
+
+from utils.comodo_config import ComodoConfig
 
 
 class cstate:
     """
-    Represents the state of the controller, including the status, values being adjusted, and experiment configuration.
+    Represents the state of the controller, including the status and experiment configuration.
     """
 
     allowed_status = [
@@ -28,9 +30,9 @@ class cstate:
         "_setpoints",
         "_current_setpoint",
         "_past_setpoints",
-        "_instruments",
-        "_adjusting",
-        "schema_path",
+        "_instrument_states",
+        "_config",
+        "_instruments_ready",
     ]
 
     def __init__(self) -> None:
@@ -45,9 +47,29 @@ class cstate:
         self.setpoints: List[Dict[str, Any]] = []
         self.current_setpoint: Dict[str, Any] = None
         self.past_setpoints: List[Dict[str, Any]] = []
-        self.instruments: Dict[str, Any] = {"configured": False}
-        self.adjusting: AdjustingDict = AdjustingDict()
-        self.schema_path: str = "schemas/schema_experiment.json"
+        self.instrument_states: Dict[str, Any] = {}
+        self.instruments_ready: bool = False
+        self.config: ComodoConfig = None
+
+    @property
+    def config(self) -> ComodoConfig | None:
+        return self._config
+
+    @config.setter
+    def config(self, value: ComodoConfig | None) -> None:
+        """
+        Sets the configuration for the controller state.
+
+        Args:
+            value (ComodoConfig | None): The configuration to set. Must be an instance of ComodoConfig or None.
+        Raises:
+            TypeError: If the provided value is not an instance of ComodoConfig or None.
+        """
+        if not isinstance(value, (ComodoConfig, type(None))):
+            raise TypeError(
+                f"Config must be an instance of ComodoConfig or None, got {type(value).__name__}"
+            )
+        self._config = value
 
     def heartbeat(self) -> Dict[str, Any]:
         """
@@ -63,7 +85,7 @@ class cstate:
         """
         Returns the string representation (heartbeat) of the cstate object.
         """
-        return dumps(self.heartbeat())
+        return json.dumps(self.heartbeat())
 
     def reset(self) -> None:
         """
@@ -77,8 +99,8 @@ class cstate:
         self.setpoints = []
         self.current_setpoint = None
         self.past_setpoints = []
-        self.instruments = {"configured": False}
-        self.adjusting = AdjustingDict()
+        self.instrument_states = {}
+        self.instruments_ready = False
 
     @property
     def experiment_start_time(self) -> datetime:
@@ -249,96 +271,43 @@ class cstate:
         self._past_setpoints = value
 
     @property
-    def instruments(self) -> Dict[str, Any]:
-        return self._instruments
+    def instrument_states(self) -> Dict[str, Any]:
+        return self._instrument_states
 
-    @instruments.setter
-    def instruments(self, value: Dict[str, Any]) -> None:
+    @instrument_states.setter
+    def instrument_states(self, value: Dict[str, Any]) -> None:
         """
-        Sets the instruments dictionary.
+        Sets the instrument states dictionary.
 
         Args:
-            value: The new value for the entire instruments dictionary.
+            value: The new value for the entire instrument states dictionary.
 
         Raises:
-            TypeError: If the provided instruments dictionary is not a dictionary.
+            TypeError: If the provided instrument states dictionary is not a dictionary.
         """
         if not isinstance(value, dict):
             raise TypeError(
-                f"Instruments must be a dictionary, cannot accept {type(value)}."
+                f"Instrument states must be a dictionary, cannot accept {type(value)}."
             )
-        self._instruments = value
+        self._instrument_states = value
 
     @property
-    def adjusting(self):
-        return self._adjusting
+    def instruments_ready(self) -> bool:
+        return self._instruments_ready
 
-    @adjusting.setter
-    def adjusting(self, value: Dict[str, int]) -> None:
+    @instruments_ready.setter
+    def instruments_ready(self, value: bool) -> None:
         """
-        Sets the adjusting dictionary.
-        It converts a plain dict to an AdjustingDict, to protect from unwanted elements or values.
+        Sets the instruments_ready flag.
 
         Args:
-            value: The new value for the entire adjusting dictionary.
+            value: The new value for the instruments_ready flag. Must be a boolean.
 
         Raises:
-            ValueError: If the provided adjusting dictionary is incomplete or contains invalid keys.
+            TypeError: If the provided value is not a boolean.
         """
-        self._adjusting = AdjustingDict(value)
-
-
-class AdjustingDict(dict):
-    """
-    Represents a dictionary of adjusting values.
-    The purpose of this class is to protect the adjusting dictionary from unwanted elements or values.
-    """
-
-    required_adjusting = [
-        "T",
-        "P",
-        "D1",
-        "D2",
-    ]
-
-    def __init__(self, *args, **kwargs) -> None:
-        """
-        Initializes a new instance of the AdjustingDict class.
-
-        Raises:
-            ValueError: If the provided adjusting dictionary is incomplete or contains invalid keys.
-        """
-        super().__init__({key: 0 for key in self.required_adjusting})
-        if args or kwargs:
-            tmp = dict(*args, **kwargs)
-            if not all(key in tmp for key in self.required_adjusting):
-                raise ValueError(
-                    f"Incomplete adjusting keys. Adjusting must contain all of {self.required_adjusting}."
-                )
-            for key, value in tmp.items():
-                self.__setitem__(key, value)
-
-    def __setitem__(self, key: str, value: int) -> None:
-        """
-        Sets the value for the specified adjusting key.
-
-        Args:
-            key: The adjusting key.
-            value: The adjusting value.
-
-        Raises:
-            ValueError: If the provided adjusting key is invalid or the value is not 0 or 1.
-        """
-        if key not in self.required_adjusting:
-            raise ValueError(
-                f"Invalid adjusting key: {key}. Adjusting must be one of {self.required_adjusting}."
+        if not isinstance(value, bool):
+            raise TypeError(
+                f"Instruments ready flag must be a boolean, cannot accept {type(value)}."
             )
-        elif value not in [0, 1]:
-            raise ValueError(f"Invalid value for {key}: {value}. It must be 0 or 1.")
-        super().__setitem__(key, value)
-
-    def __delitem__(self, *args, **kwargs) -> None:
-        """
-        Raises a runtime error when attempting to delete items from the adjusting dictionary.
-        """
-        raise RuntimeError("Cannot delete items from the adjusting dict.")
+        self._instruments_ready = value

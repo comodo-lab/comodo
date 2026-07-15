@@ -78,7 +78,7 @@ class InMemoryMessageBus:
         with self.lock:
             if not topic:
                 history = self.message_history.copy()
-            elif any(c in topic for c in "*?[]#"):  # accept wildcard characters
+            elif any(c in topic for c in "*?[]#+"):  # accept wildcard characters
                 history = [
                     m
                     for m in self.message_history

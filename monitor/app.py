@@ -1,45 +1,66 @@
 # System imports
+import json
 import os
-import sys
-from pathlib import Path
 
 import traceback
 import asyncio
-from paho.mqtt.client import topic_matches_sub
+from jsonschema import ValidationError
 
 # Shared utils imports
 from utils import mqtt_clients as mqtt
+from utils.mqtt_validator import validate_message, MQTTValidationException
 
-# Local imports
-import checks
-from utils import message_spec
 
-def match_topic(topic, topic_map):
-    for address, entry in topic_map.items():
-        if topic_matches_sub(address, topic):
-            return entry
-    return None
+def on_message(client, msg, obj):
+    try:
+        validate_message(
+            topic=msg.topic,
+            payload=msg.payload,
+            combine_exceptions=False,
+        )
+    except MQTTValidationException as e:
+        mqtt.MQTTPublisher.get_instance().publish(
+            "error/message",
+            json.dumps(
+                {
+                    "code": "unexpected_topic",
+                    "message": f"Unexpected topic: {msg.topic}",
+                }
+            ),
+        )
+    except json.JSONDecodeError as e:
+        mqtt.MQTTPublisher.get_instance().publish(
+            "error/message",
+            json.dumps(
+                {
+                    "code": "invalid_json",
+                    "message": str(e),
+                    "topic": msg.topic,
+                }
+            ),
+        )
+    except ValidationError as e:
+        offending_key = (
+            ".".join(str(p) for p in e.absolute_path) if e.absolute_path else "<root>"
+        )
+        mqtt.MQTTPublisher.get_instance().publish(
+            "error/message",
+            json.dumps(
+                {
+                    "code": "validation_error",
+                    "message": e.message,
+                    "topic": msg.topic,
+                    "failed_check": e.validator,
+                    "offending_key": offending_key,
+                }
+            ),
+        )
+    except Exception as error:
+        print(f"ERROR: Message invalid: {error}")
 
-def on_message(client, msg, topic_map):
-    # Get the entry from the spec
-    entry = match_topic(msg.topic, topic_map)
-    payload = msg.payload
-    topic = msg.topic
-    
-    # Check that the topic is in the register defined by the AsyncAPI spec
-    if not checks.check_topic_expected(entry, topic):
-        return
-
-    # Check the validity of the JSON payload
-    if not checks.check_payload_json_validity(topic, payload):
-        return
-
-    # Perform message validation against the AsyncAPI schemea
-    if not checks.check_message_valid(entry, topic, payload):
-        return
 
 async def main():
-    # Initialise the MQTTPublisher singleton 
+    # Initialise the MQTTPublisher singleton
     mqtt.MQTTPublisher.get_instance(
         id="publisher-monitor",
         broker_address=os.getenv("MQTT_HOST", "localhost"),
@@ -48,25 +69,22 @@ async def main():
         connection_timeout=60,
     )
 
-    # Load the AsyncAPI specification 
-    topic_map = message_spec.load_spec()
-
     # Create the MQTT client for subscription
     client = mqtt.MQTTClient(
-        id='mqtt-monitor',
+        id="mqtt-monitor",
         callback=on_message,
-        topics=['#'],
+        topics=["#"],
         broker_address=os.getenv("MQTT_HOST", "localhost"),
         user=os.getenv("MQTT_USER", "guest"),
         password=os.getenv("MQTT_PASS", "guest"),
         connection_timeout=60,
-        obj=topic_map
     )
-    
+
     # Keep running forever
     await asyncio.Event().wait()
 
     return 0
+
 
 if __name__ == "__main__":
     try:

@@ -17,7 +17,7 @@ class InstrumentState(object):
         self.status = {
             "state": "idle",
             "setpoints": {},
-            "config": {"tolerance": None, "experiment_id": None},
+            "config": {},
         }
 
         self.client = None
@@ -49,31 +49,19 @@ class InstrumentState(object):
         self.config = config
 
     def idle_cb(self, _client, msg, _obj=None):
-        """The callback function for the mqtt client when the instrument is idle
-        Can move to the ready state if the instrument is configured
+        """The callback function for the mqtt client when the instrument is starting up
+        Can move to the ready state if the instrument passes self tests
 
-        Listens to: instruments/{INSTRUMENT_ID}/setup
+        Listens to: None
         Next states: ready
 
-        Args:
-           topic: str: The topic of the message
-           msg: str: The message
-
         Returns:
-            None
+          None
         """
-        if msg.topic == f"instruments/{self.config['INSTRUMENT_ID']}/setup":
-            self._apply_config(mqtt.load_message(msg))
-            self.client.callback = self.ready_cb
-            self.status["state"] = "ready"
-            print(f"Instrument configured: {self.status['config']}")
+        pass
 
     def adjusting_cb(self, _client, msg, _obj=None):
         """The callback function for the mqtt client when the instrument is adjusting
-        Can move to the ready state if the instrument is ready
-
-        Listens to: instruments/{INSTRUMENT_ID}/+/setpoint
-        Next states: ready, adjusting
 
         Args:
             topic: str: The topic of the message
@@ -82,9 +70,6 @@ class InstrumentState(object):
         Returns:
             None
         """
-        # If a new config is recieved, apply it
-        self.idle_cb(_client, msg, _obj)
-
         # If setpoint is recieved and valid, go to it
         self._parse_and_go_to_setpoint(msg)
 
@@ -101,28 +86,11 @@ class InstrumentState(object):
         Returns:
             None
         """
-        # If a new config is recieved, apply it
-        self.idle_cb(_client, msg, _obj)
-
         # If setpoint is recieved and valid, go to it
         self._parse_and_go_to_setpoint(msg)
 
         # if controller/event/end is received, move to the idle state
         self._end_experiment(msg.topic)
-
-    def _apply_config(self, params):
-        """Apply the configuration
-
-        Args:
-            params: dict: The parsed configuration
-
-        Returns:
-            None
-        """
-        config = params.get("config", {})
-        print(f"Instrument configuration received: {config}")
-        for key in config:
-            self.status["config"][key] = config[key]
 
     def _parse_and_go_to_setpoint(self, msg):
         if not msg.topic.endswith("setpoint"):
@@ -146,10 +114,7 @@ class InstrumentState(object):
         self.status["state"] = "adjusting"
 
         # Trigger go to setpoint
-        if self.config["SIMULATE"]:
-            self.instrument.simulate_go_to_setpoint(self)
-        else:
-            self.instrument.go_to_setpoint(self)
+        self.instrument.go_to_setpoint(self, variable)
 
         return
 
@@ -157,6 +122,7 @@ class InstrumentState(object):
         if topic in ["controller/event/end", "controller/command/stop"]:
             self.client.callback = self.idle_cb
             self.status["state"] = "idle"
-            print(f"Instrument {self.config['INSTRUMENT_ID']} awaiting configuration.")
+            self.status["setpoints"] = {}
+            print(f"Instrument {self.config['INSTRUMENT_NAME']} idle.")
 
         return

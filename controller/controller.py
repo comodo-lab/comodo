@@ -4,8 +4,10 @@ import os
 import time as t
 import json
 import textwrap
+import yaml
 
 from utils import mqtt_clients as mqtt
+from utils import comodo_config
 
 from src.controller_helper import get_env_or_secret
 from src.controller_state import cstate
@@ -19,19 +21,16 @@ from src.on_heartbeat_message import on_heartbeat_message
 
 def main():
     print(f"Starting...")
-    # Load configuration
+    # Load configuration from env
     expected_env_vars = [
         ["MQTT_HOST"],
         ["MQTT_USER"],
         ["MQTT_PASS", "MQTT_PASS_FILE"],
         ["MQTT_CONNECTION_TIMEOUT"],
-        ["WATCHDOG_INTERVAL"],
-        ["WATCHDOG_TIMEOUT"],
         ["INFLUX_BUCKET"],
         ["INFLUX_HOST"],
         ["INFLUX_ORG"],
         ["INFLUX_TOKEN", "INFLUX_TOKEN_FILE"],
-        ["INSTRUMENT_SETUP_WAIT"],
     ]
     env_vars = list(os.environ.keys())
 
@@ -45,21 +44,19 @@ def main():
     mqtt_user = os.getenv("MQTT_USER", None)
     mqtt_pass = get_env_or_secret("MQTT_PASS", "MQTT_PASS_FILE", None)
     connection_timeout = os.getenv("MQTT_CONNECTION_TIMEOUT", 10)
-    wdog_interval = os.getenv("WATCHDOG_INTERVAL", 1)
-    wdog_timeout = os.getenv("WATCHDOG_TIMEOUT", 5)
 
-    assert wdog_interval > 0
-    assert wdog_timeout > 2 * wdog_interval
+    # Load comodo.yaml
+    config = comodo_config.ComodoConfig().load()
+
     wdog = {
-        "interval": wdog_interval,
-        "timeout": wdog_timeout,
-        "timer": wdog_timeout,
+        "interval": config.globals["watchdog_interval"],
+        "timeout": config.globals["watchdog_timeout"],
+        "timer": config.globals["watchdog_timeout"],
         "healthy": False,
     }
-
     # Initialize controller state
     state = cstate()
-
+    state.config = config
     print(f"  Creating clients...")
 
     # Initialise publisher singleton
@@ -75,7 +72,12 @@ def main():
     watchdog = mqtt.MQTTClient(
         id="watchdog",
         callback=on_watchdog_message,
-        topics=["watchdog/event/+", "watchdog/command/+", "controller/heartbeat", "error/exception"],
+        topics=[
+            "watchdog/timer/event/+",
+            "watchdog/timer/command/+",
+            "controller/heartbeat",
+            "error/exception",
+        ],
         obj=wdog,
         broker_address=mqtt_host,
         user=mqtt_user,
@@ -85,7 +87,7 @@ def main():
     wd_timer = mqtt.MQTTClient(
         id="wd_timer",
         callback=on_wd_timer_message,
-        topics="watchdog/command/start",
+        topics="watchdog/timer/command/start",
         obj=wdog,
         broker_address=mqtt_host,
         user=mqtt_user,
@@ -134,7 +136,15 @@ def main():
     )
     # measurement = mqtt.MQTTClient("measurement", on_client_message, topics="measurement/#")
 
-    publisher.client.publish("watchdog/command/start", json.dumps({"timeout": wdog["timeout"], "interval": wdog["interval"]}))
+    publisher.client.publish(
+        "watchdog/timer/command/start",
+        json.dumps(
+            {
+                "timeout": wdog["timeout"],
+                "interval": wdog["interval"],
+            }
+        ),
+    )
     t.sleep(1)
     if wdog["healthy"]:
         print(f"Controller started successfully.")
@@ -142,7 +152,7 @@ def main():
         print(f"Controller failed to start. watchdog unhealthy.")
     while wdog["healthy"]:
         controller.publish("controller/heartbeat", f"{state}")
-        t.sleep(wdog["interval"])
+        t.sleep(config.globals["heartbeat_interval"])
 
     print(f"Exiting...")
 

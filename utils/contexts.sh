@@ -36,8 +36,10 @@ done
 
 echo ""
 cd $(dirname "$0")
+project_root=$(cd .. && pwd)
+docker compose -f "$project_root/firmware/compose.gen.yaml" run --rm compose-gen
 unset DOCKER_HOST
-source ../.env
+source "$project_root/.env"
 
 existing_contexts=$(docker context ls --format '{{.Name}}' | grep 'comodo_' || true)
 if [ ! -z "$existing_contexts" ] && [ "$clean" != true ]; then

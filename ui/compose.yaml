@@ -5,7 +5,7 @@
 
 name: ui-tests
 services:
-  ui:
+  ui-test:
     image: comodo-ui:testing
     build:
       context: ../

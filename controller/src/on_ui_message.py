@@ -1,20 +1,18 @@
-import json
 import os
-
-import jsonschema
+import json
+from jsonschema import ValidationError
 
 from utils import mqtt_clients as mqtt
-from utils.message_spec import load_spec as load_message_spec
+from utils.mqtt_validator import validate_message, MQTTValidationException
 
 from src.controller_helper import data_path
 from src.error_helper import (
+    incompatible_controller_status,
     wrong_json,
     missing_keys,
-    incompatible_request,
     incompatible_uid,
+    experiment_validation_error,
 )
-
-UI_START_SCHEMA = load_message_spec("/app/messageSpec.yaml")["ui/start"]["schema"]
 
 
 def on_ui_message(client, msg, obj):
@@ -39,22 +37,20 @@ def on_ui_message(client, msg, obj):
 
     try:
         experiment = mqtt.load_message(msg)
+        uid = experiment["id"]
     except json.JSONDecodeError as e:
         wrong_json(msg, e)
+        return
+    except KeyError as e:
+        missing_keys(msg, e)
         return
 
     if msg.topic == "ui/start":
         try:
-            jsonschema.validate(experiment, UI_START_SCHEMA)
-        except jsonschema.ValidationError as e:
-            print(f"Invalid ui/start payload: {e}")
+            validate_message(msg.topic, msg.payload)
+        except MQTTValidationException as e:
+            experiment_validation_error(e, uid)
             return
-
-    try:
-        uid = experiment["id"]
-    except KeyError as e:
-        missing_keys(msg, e)
-        return
 
     if obj.status == "idle":
         if msg.topic == "ui/start":
@@ -70,7 +66,7 @@ def on_ui_message(client, msg, obj):
                 json.dumps({"id": uid, "file": exp_file}),
             )
         else:
-            incompatible_request(obj, msg)
+            incompatible_controller_status(obj, msg)
     else:
         if msg.topic == "ui/stop":
             if uid == obj.experiment_uid:
@@ -79,6 +75,6 @@ def on_ui_message(client, msg, obj):
                     json.dumps({"id": uid}),
                 )
             else:
-                incompatible_uid(obj, msg, uid)
+                incompatible_uid(obj, msg, uid, "controller")
         else:
-            incompatible_request(obj, msg)
+            incompatible_controller_status(obj, msg)

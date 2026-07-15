@@ -26,69 +26,58 @@ def send_heartbeat():
     Returns:
         None
     """
-    if state.client is not None and "ready" in state.config:
+    if state.client is not None and "ready" in state.status["state"]:
         heartbeat_structure = state.get_status()
         state.client.publish(
-            f"instruments/{state.config['INSTRUMENT_ID']}/heartbeat", heartbeat_structure
+            f"instruments/{state.config['INSTRUMENT_NAME']}/heartbeat",
+            heartbeat_structure,
         )
-
-
-## ----------------- Publishing helper functions ----------------- ##
-
-
-def publish_measurement(measurements):
-    if state.client is None:
-        return
-
-    if type(measurements) is int or type(measurements) is float:
-        measurements = {"value": measurements}
-
-    for key, measurement in measurements.items():
-        msg = json.dumps({"value": measurement})
-        state.client.publish(f"instruments/{state.config['INSTRUMENT_ID']}/{key}/measurement", msg)
-
-
-def send_measurement():
-    """
-    Send the measurement
-
-    Returns:
-        None
-    """
-
-    # Return if the client or instrument is not ready
-    if (state.client is None) or (state.instrument is None):
-        return
-
-    # Retrieve the measurement
-    if state.config["SIMULATE"]:
-        measurements = state.instrument.simulate_get_measurement(state)
-    else:
-        measurements = state.instrument.get_measurement(state)
-
-    # Publish the measurement (break lists into individual messages)
-    publish_measurement(measurements)
 
 
 ## ----------------- Timer functions ----------------- ##
 
 
-async def heartbeat_tick(timer):
+async def heartbeat_tick():
     while True:
         send_heartbeat()
         await asyncio.sleep(int(state.config["HEARTBEAT_INTERVAL"]) / 1000)
 
 
-async def measurement_tick(timer):
+async def measurement_tick(variable_name, interval, oneshot=False):
     while True:
-        send_measurement()
-        await asyncio.sleep(int(state.config["MEASUREMENT_INTERVAL"]) / 1000)
+        value = state.instrument.get_measurement(state, variable_name)
+        state.client.publish(
+            f"instruments/{state.config['INSTRUMENT_NAME']}/{variable_name}/measurement",
+            json.dumps({"value": value}),
+        )
+        await asyncio.sleep(interval / 1000)
+
+        if oneshot:
+            break
+
+
+# ----------------- Launcher ----------------- ##
+
+
+async def launcher(oneshot=False, timeout=None):
+    try:
+        async with asyncio.timeout(timeout):
+            async with asyncio.TaskGroup() as tg:
+                for variable in state.config["SENSORS"].values():
+                    tg.create_task(
+                        measurement_tick(
+                            variable["name"],
+                            variable["interval"],
+                            oneshot=oneshot,
+                        )
+                    )
+    except TimeoutError:
+        raise RuntimeError("Sensors failed to initialise in time") from e
 
 
 # ----------------- Main function ----------------- ##
 
 
-# The main function
 async def main():
     """
     The main function
@@ -102,13 +91,12 @@ async def main():
 
     ## Create client
     topics = [
-        f"instruments/{state.config['INSTRUMENT_ID']}/setup",
-        f"instruments/{state.config['INSTRUMENT_ID']}/+/setpoint",
+        f"instruments/{state.config['INSTRUMENT_NAME']}/+/setpoint",
         f"controller/event/end",
         f"controller/command/stop",
     ]
     state.client = mqtt.MQTTClient(
-        id=state.config["INSTRUMENT_ID"],
+        id=state.config["INSTRUMENT_NAME"],
         callback=state.idle_cb,
         topics=topics,
         broker_address=state.config["MQTT_HOST"],
@@ -117,29 +105,30 @@ async def main():
         connection_timeout=60,
     )
 
-    # Create the instrument
+    # Create and initialise the instrument
     state.instrument = BaseInstrument.create_instrument(state.config["FIRMWARE"])
+    state.instrument.initialise(state)
 
-    # Initialise the instrument
-    if not state.config["SIMULATE"]:
-        state.instrument.initialise()
-    else:
-        print(f" ### Simulating {state.config['INSTRUMENT_ID']} ### ")
+    cfg.populate_heartbeat(state)
 
-    ## Set the ready flag
-    state.config["ready"] = True
+    # Attempt startup
+    await launcher(oneshot=True, timeout=10)
+
+    # If successful, set ready and print the instrument creation message
+    state.status["state"] = "ready"
+    state.client.callback = state.ready_cb
+
+    # Populate heartbeat config
+    state.status["config"] = state.config.get("HEARTBEAT", {}).copy()
+
     print(
-        f"Instrument {state.config['INSTRUMENT_ID']} created successfully "
+        f"Instrument {state.config['INSTRUMENT_NAME']} created successfully "
         f"using firmware {state.config['FIRMWARE']}"
     )
-    print(f"Instrument {state.config['INSTRUMENT_ID']} awaiting configuration.")
-
-    ## Setup heartbeat timer if on a pico or async timer if on linux
-    asyncio.create_task(heartbeat_tick(None))
-    asyncio.create_task(measurement_tick(None))
 
     # Keep running forever
-    await asyncio.Event().wait()
+    asyncio.create_task(heartbeat_tick())
+    await launcher()
 
     return 0
 
@@ -152,7 +141,12 @@ if __name__ == "__main__":
         try:
             state.client.publish(
                 "error/instrument",
-                json.dumps({"code": "exception", "message": f"[{state.config['INSTRUMENT_ID']}] {e}"}),
+                json.dumps(
+                    {
+                        "code": "exception",
+                        "message": f"[{state.config['INSTRUMENT_NAME']}] {e}",
+                    }
+                ),
             )
         except:
             print(f"Error: {e}")
