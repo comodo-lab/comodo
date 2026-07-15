@@ -66,8 +66,8 @@ def dump_database_for_experiment(obj):
         error = f"Cannot dump influx database. INFLUX_TOKEN not set."
         print(f"ERROR: {error}")
         mqtt.MQTTPublisher.get_instance().publish(
-            f"error/controller",
-            json.dumps({"error": error}),
+            "error/controller",
+            json.dumps({"code": "influx_config", "message": error}),
         )
         return
 
@@ -100,6 +100,6 @@ def dump_database_for_experiment(obj):
         error = f"Could not dump influx database: {e}"
         print(f"ERROR: {error}")
         mqtt.MQTTPublisher.get_instance().publish(
-            f"error/controller",
-            json.dumps({"error": error}),
+            "error/controller",
+            json.dumps({"code": "influx_error", "message": error}),
         )

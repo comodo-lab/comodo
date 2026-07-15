@@ -20,6 +20,8 @@ class TestMain:
         ) as mock_getenv, patch(
             "controller.get_env_or_secret"
         ) as mock_get_secret, patch(
+            "controller.comodo_config.ComodoConfig"
+        ) as mock_comodo_config, patch(
             "controller.cstate"
         ) as mock_cstate, patch(
             "controller.t.sleep"
@@ -44,12 +46,19 @@ class TestMain:
             mock_get_secret.side_effect = (
                 lambda var, file_var=None, default=None: env_values.get(var, default)
             )
+            mock_loaded_config = mock_comodo_config.return_value.load.return_value
+            mock_loaded_config.globals = {
+                "watchdog_interval": 1,
+                "watchdog_timeout": 5,
+            }
             mock_cstate.return_value = mock_state("idle")
 
             yield {
                 "env_values": env_values,
                 "getenv": mock_getenv,
                 "get_secret": mock_get_secret,
+                "comodo_config_class": mock_comodo_config,
+                "loaded_config": mock_loaded_config,
                 "cstate": mock_cstate,
                 "sleep": mock_sleep,
                 "callbacks": {
@@ -75,13 +84,10 @@ class TestMain:
             ["MQTT_USER"],
             ["MQTT_PASS", "MQTT_PASS_FILE"],
             ["MQTT_CONNECTION_TIMEOUT"],
-            ["WATCHDOG_INTERVAL"],
-            ["WATCHDOG_TIMEOUT"],
             ["INFLUX_BUCKET"],
             ["INFLUX_HOST"],
             ["INFLUX_ORG"],
             ["INFLUX_TOKEN", "INFLUX_TOKEN_FILE"],
-            ["INSTRUMENT_SETUP_WAIT"],
         ]
         for var_group in expected_env_vars:
             assert (
@@ -103,23 +109,10 @@ class TestMain:
             call("MQTT_HOST", "rabbitmq"),
             call("MQTT_USER", None),
             call("MQTT_CONNECTION_TIMEOUT", 10),
-            call("WATCHDOG_INTERVAL", 1),
-            call("WATCHDOG_TIMEOUT", 5),
         ]
         mocks["get_secret"].assert_called_with("MQTT_PASS", "MQTT_PASS_FILE", None)
 
         mocks["cstate"].assert_called_once_with()
-
-        messages = message_bus.get_messages(decoded=True)
-        assert len(messages) == 0
-
-    def test_wdog_vars_validated(self, main_mocks, message_bus):
-        mocks = main_mocks
-        mocks["env_values"]["WATCHDOG_INTERVAL"] = 5
-        mocks["env_values"]["WATCHDOG_TIMEOUT"] = 8  # Invalid: not > 2 * interval
-
-        with pytest.raises(AssertionError):
-            main()
 
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 0
@@ -132,10 +125,12 @@ class TestMain:
                 "MQTT_USER": "test_user",
                 "MQTT_PASS": "test_pass",
                 "MQTT_CONNECTION_TIMEOUT": 15,
-                "WATCHDOG_INTERVAL": 2,
-                "WATCHDOG_TIMEOUT": 6,
             }
         )
+        mocks["loaded_config"].globals = {
+            "watchdog_interval": 2,
+            "watchdog_timeout": 6,
+        }
         wdog = {"interval": 2, "timeout": 6, "timer": 6, "healthy": False}
         state = mocks["cstate"].return_value
         mocks["sleep"].side_effect = SystemExit  # Exit early
@@ -154,7 +149,12 @@ class TestMain:
             call(
                 id="watchdog",
                 callback=mocks["callbacks"]["on_watchdog_message"],
-                topics=["watchdog/#", "heartbeat/controller", "error/exception"],
+                topics=[
+                    "watchdog/timer/event/+",
+                    "watchdog/timer/command/+",
+                    "controller/heartbeat",
+                    "error/exception",
+                ],
                 obj=wdog,
                 broker_address="test_host",
                 user="test_user",
@@ -164,7 +164,7 @@ class TestMain:
             call(
                 id="wd_timer",
                 callback=mocks["callbacks"]["on_wd_timer_message"],
-                topics="wd_timer/#",
+                topics="watchdog/timer/command/start",
                 obj=wdog,
                 broker_address="test_host",
                 user="test_user",
@@ -194,7 +194,7 @@ class TestMain:
             call(
                 id="timer",
                 callback=mocks["callbacks"]["on_timer_message"],
-                topics="timer/#",
+                topics="controller/timer/#",
                 obj=state,
                 broker_address="test_host",
                 user="test_user",
@@ -204,7 +204,7 @@ class TestMain:
             call(
                 id="heartbeat",
                 callback=mocks["callbacks"]["on_heartbeat_message"],
-                topics="heartbeat/instrument/#",
+                topics="instruments/+/heartbeat",
                 obj=state,
                 broker_address="test_host",
                 user="test_user",
@@ -215,8 +215,8 @@ class TestMain:
 
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 1
-        assert messages[0].topic == "wd_timer/start"
-        assert messages[0].payload == json.dumps(wdog)
+        assert messages[0].topic == "watchdog/timer/command/start"
+        assert json.loads(messages[0].payload) == {"timeout": 6, "interval": 2}
 
     def test_watchdog_loop_not_started_if_unhealthy(
         self, main_mocks, message_bus, capsys
@@ -228,7 +228,8 @@ class TestMain:
 
         mocks["sleep"].assert_called_once_with(1)  # Only initial sleep before wd starts
         messages = message_bus.get_messages(decoded=True)
-        assert len(messages) == 1  # Only the initial wd_timer/start message
+        assert messages[0].topic == "watchdog/timer/command/start"
+        assert json.loads(messages[0].payload) == {"timeout": 5, "interval": 1}
         captured = capsys.readouterr()
         assert "Creating clients..." in captured.out
         assert "Controller failed to start. watchdog unhealthy." in captured.out
@@ -236,7 +237,11 @@ class TestMain:
 
     def test_watchdog_loop(self, main_mocks, mqtt_mocks, message_bus, capsys):
         mocks = main_mocks
-        mocks["env_values"].update({"WATCHDOG_INTERVAL": 2})
+        mocks["loaded_config"].globals = {
+            "heartbeat_interval": 2,
+            "watchdog_interval": 1,
+            "watchdog_timeout": 6,
+        }
 
         def wd_timer_side_effect(client, msg, obj):
             obj["healthy"] = True
@@ -256,10 +261,11 @@ class TestMain:
         ]
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 4
-        assert messages[0].topic == "wd_timer/start"
-        assert messages[1].topic == "heartbeat/controller"
-        assert messages[2].topic == "heartbeat/controller"
-        assert messages[3].topic == "heartbeat/controller"
+        assert messages[0].topic == "watchdog/timer/command/start"
+        assert json.loads(messages[0].payload) == {"timeout": 6, "interval": 1}
+        assert messages[1].topic == "controller/heartbeat"
+        assert messages[2].topic == "controller/heartbeat"
+        assert messages[3].topic == "controller/heartbeat"
         captured = capsys.readouterr()
         assert "Creating clients..." in captured.out
         assert "Controller started successfully." in captured.out
@@ -269,13 +275,17 @@ class TestMain:
         self, main_mocks, mqtt_mocks, message_bus, capsys
     ):
         mocks = main_mocks
-        mocks["env_values"].update({"WATCHDOG_INTERVAL": 2})
+        mocks["loaded_config"].globals = {
+            "heartbeat_interval": 2,
+            "watchdog_interval": 1,
+            "watchdog_timeout": 6,
+        }
 
         def wd_timer_side_effect(client, msg, obj):
             obj["healthy"] = True
 
         def wd_side_effect(client, msg, obj):
-            if mocks["callbacks"]["on_watchdog_message"].call_count >= 3:
+            if mocks["callbacks"]["on_watchdog_message"].call_count >= 4:
                 obj["healthy"] = False
 
         mocks["callbacks"]["on_wd_timer_message"].side_effect = wd_timer_side_effect
@@ -294,10 +304,10 @@ class TestMain:
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) >= 4  # >= Setting healthy to false takes some time
         assert len(messages) <= 6  # <= But it shouldn't take that much time
-        assert messages[0].topic == "wd_timer/start"
-        assert messages[1].topic == "heartbeat/controller"
-        assert messages[2].topic == "heartbeat/controller"
-        assert messages[3].topic == "heartbeat/controller"
+        assert messages[0].topic == "watchdog/timer/command/start"
+        assert messages[1].topic == "controller/heartbeat"
+        assert messages[2].topic == "controller/heartbeat"
+        assert messages[3].topic == "controller/heartbeat"
         captured = capsys.readouterr()
         assert "Creating clients..." in captured.out
         assert "Controller started successfully." in captured.out

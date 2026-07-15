@@ -216,9 +216,6 @@ and fill in the required environment variables:
 - `GRAFANA_DASHBOARD_URL` is optional. If not set (empty or commented out), the default dashboard will be used.
   If set, it overrides the URL of the Grafana dashboard to be embedded in the Comodo UI.
   See [how to generate a url in this section](#publishing-a-grafana-dashboard).
-- `SIMULATE_SENSORS` is optional. If set to `true`, the firmware will simulate sensor readings instead of reading from real sensors.
-  This is useful for testing and development purposes.
-  If not set (empty or commented out), it defaults to `false`.
 
 **Note:** To "not set" an optional environment variable, you can either leave it empty (`VAR=`), comment it out `# VAR=...`,
 or make sure the `ENV_*` variable is not defined in your shell environment.
@@ -265,10 +262,6 @@ If you must bring the stack down and want to start from scratch, run:
 
 Currently this is done through the `compose.firmware.yaml` file (see [note here](#central-configuration-file).)
 
-Since deployment is manual at this stage, the only recommended configuration is to either simulate the sensors or not.
-To simulate the sensors, ensure that the `SIMULATE_SENSORS` environment variable is set to `true` in the `.env` file.
-To use real sensors, set it to false, or simply remove the variable from the `.env` file.
-
 ### Debugging
 
 There is a fifth compose file, `compose.debug.yaml`, which can be used to deploy debugging tools for the different components of Comodo.
@@ -314,7 +307,14 @@ For convenience, there is a helper script to run the tests for all components, w
 
 ### Testing the full stack
 
-Tests for the full Comodo stack are sorely needed, but not yet implemented.
+An end-to-end integration test is available in [`integration_tests/`](integration_tests/).
+It starts all services — RabbitMQ, controller, monitor, firmware simulators,
+setpoint controller, and a test runner — then runs a full experiment cycle:
+
+To run, move into the integration_tests directory and execute:
+```
+docker compose --env-file ../.env up --build --attach integration-test --force-recreate
+```
 
 ### Temporary experiment trigger:
 

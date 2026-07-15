@@ -1,0 +1,7 @@
+paho-mqtt
+jsonschema
+PyYAML
+numpy
+pytest
+coverage
+influxdb_client

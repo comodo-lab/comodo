@@ -21,21 +21,22 @@ services:
     working_dir: /work
     volumes:
       - ./comodo.yaml:/work/config.yaml
-      - ./comodo.yaml.schema:/work/schema.yaml
+      - ./schemas/comodo.yaml.schema:/work/schema.yaml
 
   mqtt-probe-core:
-    image: comodolab/comodo-mqtt_probe:latest
+    build:
+      context: ./
+      dockerfile: mqtt_probe/Dockerfile
     environment:
       <<: *mqtt-env
-    networks:
-      comodo-core:
+      MQTT_PROBE_ID: core
 
   controller:
     build:
       context: ./
       dockerfile: controller/Dockerfile
     environment:
-      <<: [*mqtt-env, *influx-env]
+      <<: [ *mqtt-env, *influx-env ]
     container_name: comodo-controller
     restart: unless-stopped
     depends_on:
@@ -44,9 +45,9 @@ services:
       config:
         condition: service_completed_successfully
     volumes:
-      - ./controller/data:/controller/data
-    networks:
-      comodo-core:
+      - ./controller/data:/controller/data:rw
+      - ./schemas:/app/schemas/:rw
+      - ./comodo.yaml:/app/comodo.yaml:ro
 
   ui:
     build:
@@ -61,11 +62,20 @@ services:
         condition: service_completed_successfully
     ports:
       - '8501:8050'
+    volumes:
+      - ./comodo.yaml:/app/comodo.yaml:ro
     environment:
-      <<: [*mqtt-env, *influx-env, *grafana-env]
-    networks:
-      comodo-core:
+      <<: [ *mqtt-env, *influx-env, *grafana-env ]
 
-networks:
-  comodo-core:
-    name: comodo-core
+  monitor:
+    build:
+      context: .
+      dockerfile: monitor/Dockerfile
+    depends_on:
+      mqtt-probe-core:
+        condition: service_healthy
+    restart: unless-stopped
+    volumes:
+      - ./schemas/mqtt_schema.yaml:/app/schemas/mqtt_schema.yaml
+    environment:
+      <<: [ *mqtt-env ]

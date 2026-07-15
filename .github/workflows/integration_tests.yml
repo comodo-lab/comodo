@@ -1,0 +1,53 @@
+name: integration tests
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "integration_tests/**"
+      - "utils/**"
+      - "controller/**"
+      - "firmware/**"
+      - "monitor/**"
+      - "mqtt_probe/**"
+      - "setpoint_controller/**"
+      - "ui/**"
+  pull_request:
+    branches: ["main", "dev"]
+
+# --------------------------------------------------------------------------------- #
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Set up environment variables
+        run: |
+          cat > .env <<'EOF'
+          MQTT_HOST=rabbitmq
+          MQTT_USER=comodo_mqtt_user
+          MQTT_PASS=comodo_mqtt_password
+          EOF
+
+      - name: Generate firmware compose file
+        run: |
+          cp integration_tests/fixtures/comodo.yaml ./
+          docker compose -f "./firmware/compose.gen.yaml" run --rm compose-gen
+
+      - name: Run integration tests
+        run: |
+          set -eo pipefail
+          cd ./integration_tests
+          docker compose --env-file ../.env up --build --attach integration-test --abort-on-container-exit --exit-code-from integration-test --force-recreate
+
+      - name: Tear down integration stack
+        if: ${{ always() }}
+        run: |
+          cd ./integration_tests
+          docker compose --env-file ../.env down --volumes --remove-orphans

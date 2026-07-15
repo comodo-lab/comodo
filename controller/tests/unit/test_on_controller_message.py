@@ -1,5 +1,5 @@
-import json
 import pytest
+import json
 from unittest.mock import patch
 
 from tests.conftest import (
@@ -20,7 +20,7 @@ from src.on_controller_message import (
     c_stopping,
     assign_serial_id,
 )
-from src.validation import ValidationException
+from src.validation import ExperimentValidationError
 
 
 class TestIdle:
@@ -53,11 +53,13 @@ class TestIdle:
 
     # ========================================
 
-    def test_incompatible_request(self, message_bus, state, controller_client):
+    def test_incompatible_controller_status(
+        self, message_bus, state, controller_client
+    ):
         assert state.experiment_uid == None
         assert state.status == "idle"
 
-        msg = MockMessage(topic="controller/run", payload="not important")
+        msg = MockMessage(topic="controller/command/run", payload="not important")
         c_idle(controller_client, msg, state)
 
         assert state.experiment_uid == None
@@ -66,13 +68,18 @@ class TestIdle:
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 1
         assert messages[0].topic == "error/controller"
-        assert "Controller is idle. Cannot act on controller/run" in messages[0].payload
+        assert (
+            "Controller status is idle. Cannot act on controller/command/run."
+            in messages[0].payload
+        )
 
     def test_wrong_json(self, message_bus, state, controller_client, capsys):
         assert state.experiment_uid == None
         assert state.status == "idle"
 
-        msg = MockMessage(topic="controller/validate", payload="this is not json")
+        msg = MockMessage(
+            topic="controller/command/validate", payload="this is not json"
+        )
         c_idle(controller_client, msg, state)
 
         assert state.experiment_uid == None
@@ -81,7 +88,7 @@ class TestIdle:
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 1
         assert messages[0].topic == "error/controller"
-        exp_err = "Cannot decode controller/validate message, wrong JSON:"
+        exp_err = "Cannot decode controller/command/validate message, wrong JSON:"
         assert exp_err in messages[0].payload
         assert f"ERROR: {exp_err}" in capsys.readouterr().out
 
@@ -90,7 +97,7 @@ class TestIdle:
         assert state.status == "idle"
 
         msg = MockMessage(
-            topic="controller/validate", payload=json.dumps({"uid": "123"})
+            topic="controller/command/validate", payload=json.dumps({"id": "123"})
         )
         c_idle(controller_client, msg, state)
 
@@ -100,8 +107,11 @@ class TestIdle:
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 1
         assert messages[0].topic == "error/controller"
-        exp_err = "Cannot decode controller/validate message, missing: \n   'file'"
-        assert exp_err in json.loads(messages[0].payload)["error"]
+        exp_err = (
+            "Cannot decode controller/command/validate message, missing: \n   'file'"
+        )
+        m = json.loads(messages[0].payload)
+        assert exp_err in m["message"]
         assert f"ERROR: {exp_err}" in capsys.readouterr().out
 
     def test_missing_file(self, message_bus, state, controller_client):
@@ -109,18 +119,16 @@ class TestIdle:
         assert state.status == "idle"
 
         msg = MockMessage(
-            topic="controller/validate",
-            payload=json.dumps({"uid": "123", "file": "missing_file.json"}),
+            topic="controller/command/validate",
+            payload=json.dumps({"id": "123", "file": "missing_file.json"}),
         )
-        with patch("src.on_controller_message.validate_file") as mock_validate_file:
-            mock_validate_file.side_effect = ValidationException(
-                f"ERROR: File not found - {state.schema_path}"
+        with patch("src.on_controller_message.validate_experiment") as mock_validate:
+            mock_validate.side_effect = ExperimentValidationError(
+                "Experiment file not found - missing_file.json"
             )
             c_idle(controller_client, msg, state)
 
-            mock_validate_file.assert_called_once_with(
-                "missing_file.json", state.schema_path
-            )
+            mock_validate.assert_called_once_with("missing_file.json", state.config)
 
         assert state._status_history == ["validating", "idle"]
         assert state.experiment_uid == None
@@ -128,8 +136,8 @@ class TestIdle:
         assert controller_client.callback == c_idle
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 1
-        assert messages[0].topic == "error/validator/failed"
-        assert "File not found" in messages[0].payload
+        assert messages[0].topic == "error/validator"
+        assert "Experiment file not found" in messages[0].payload
 
     def test_invalid_file(
         self,
@@ -139,15 +147,16 @@ class TestIdle:
         mock_split_setpoints,
     ):
         assert state.experiment_uid == None
+        assert state.experiment_start_time == None
         assert state.status == "idle"
 
-        with patch("src.on_controller_message.validate_file") as mock_validate_file:
-            mock_validate_file.side_effect = ValidationException(
-                f"Test validation error"
+        with patch("src.on_controller_message.validate_experiment") as mock_validate:
+            mock_validate.side_effect = ExperimentValidationError(
+                "Test validation error"
             )
             msg = MockMessage(
-                topic="controller/validate",
-                payload=json.dumps({"uid": "123", "file": "invalid_file.json"}),
+                topic="controller/command/validate",
+                payload=json.dumps({"id": "123", "file": "invalid_file.json"}),
             )
             c_idle(controller_client, msg, state)
 
@@ -158,9 +167,10 @@ class TestIdle:
         assert controller_client.callback == c_idle
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 1
-        assert messages[0].topic == "error/validator/failed"
-        assert "Test validation error" in messages[0].payload
-        assert '"uid": "123"' in messages[0].payload
+        assert messages[0].topic == "error/validator"
+        m = json.loads(messages[0].payload)
+        assert m["code"] == "experiment_validation"
+        assert "Test validation error" in m["message"]
 
     def test_invalid_setpoints(
         self,
@@ -174,24 +184,22 @@ class TestIdle:
         assert state.experiment_start_time == None
         assert state.status == "idle"
 
-        with patch("src.on_controller_message.validate_file") as mock_validate_file:
-            mock_validate_file.return_value = {
-                "uid": "123",
-                "experiment": {"some": "data"},
+        with patch("src.on_controller_message.validate_experiment") as mock_validate:
+            mock_validate.return_value = {
+                "id": "123",
+                "experiment_definition": ["some data"],
                 "config": {"resolution": 42},
             }
             mock_split_setpoints.side_effect = ValueError("Test setpoints error")
             msg = MockMessage(
-                topic="controller/validate",
-                payload=json.dumps({"uid": "123", "file": "valid_file.json"}),
+                topic="controller/command/validate",
+                payload=json.dumps({"id": "123", "file": "valid_file.json"}),
             )
             c_idle(controller_client, msg, state)
 
-            mock_validate_file.assert_called_once_with(
-                "valid_file.json", state.schema_path
-            )
+            mock_validate.assert_called_once_with("valid_file.json", state.config)
             # Split setpoints called
-            mock_split_setpoints.assert_called_once_with({"some": "data"}, 42)
+            mock_split_setpoints.assert_called_once_with(["some data"], 42)
 
         assert state._status_history == ["validating", "idle"]
         assert state.experiment_uid == None
@@ -199,9 +207,10 @@ class TestIdle:
         assert controller_client.callback == c_idle
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 1
-        assert messages[0].topic == "error/validator/failed"
-        assert "Test setpoints error" in messages[0].payload
-        assert '"uid": "123"' in messages[0].payload
+        assert messages[0].topic == "error/validator"
+        m = json.loads(messages[0].payload)
+        assert m["code"] == "experiment_validation"
+        assert "Test setpoints error" in m["message"]
 
     def test_valid_file(
         self,
@@ -215,23 +224,21 @@ class TestIdle:
         assert state.experiment_start_time == None
         assert state.status == "idle"
 
-        with patch("src.on_controller_message.validate_file") as mock_validate_file:
-            mock_validate_file.return_value = {
-                "uid": "123",
-                "experiment": {"some": "data"},
+        with patch("src.on_controller_message.validate_experiment") as mock_validate:
+            mock_validate.return_value = {
+                "id": "123",
+                "experiment_definition": ["some data"],
                 "config": {"resolution": 42},
             }
             msg = MockMessage(
-                topic="controller/validate",
-                payload=json.dumps({"uid": "123", "file": "valid_file.json"}),
+                topic="controller/command/validate",
+                payload=json.dumps({"id": "123", "file": "valid_file.json"}),
             )
             c_idle(controller_client, msg, state)
 
-            mock_validate_file.assert_called_once_with(
-                "valid_file.json", state.schema_path
-            )
+            mock_validate.assert_called_once_with("valid_file.json", state.config)
             # Split setpoints called
-            mock_split_setpoints.assert_called_once_with({"some": "data"}, 42)
+            mock_split_setpoints.assert_called_once_with(["some data"], 42)
 
         assert state.experiment_start_time != None
         assert state.experiment_uid == "123"
@@ -239,10 +246,10 @@ class TestIdle:
         assert controller_client.callback == mock_c_starting
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 2
-        assert messages[0].topic == "validator/passed"
-        assert '{"uid": "123", "valid": true}' in messages[0].payload
-        assert messages[1].topic == "controller/start"
-        assert '{"uid": "123"}' in messages[1].payload
+        assert messages[0].topic == "controller/validator/passed"
+        assert '{"id": "123", "valid": true}' in messages[0].payload
+        assert messages[1].topic == "controller/command/start"
+        assert '{"id": "123"}' in messages[1].payload
 
 
 class TestStarting:
@@ -269,19 +276,21 @@ class TestStarting:
 
     # ========================================
 
-    def test_incompatible_request(self, message_bus, state, controller_client):
+    def test_incompatible_controller_status(
+        self, message_bus, state, controller_client
+    ):
         assert state.experiment_uid == "123"
         assert state.status == "validating"
         assert controller_client.callback == c_starting
 
-        msg = MockMessage(topic="controller/run", payload="not important")
+        msg = MockMessage(topic="controller/command/run", payload="not important")
         c_starting(controller_client, msg, state)
 
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 1
         assert messages[0].topic == "error/controller"
         assert (
-            "Controller is validating. Cannot act on controller/run"
+            "Controller status is validating. Cannot act on controller/command/run."
             in messages[0].payload
         )
 
@@ -290,7 +299,7 @@ class TestStarting:
         assert state.status == "validating"
         assert controller_client.callback == c_starting
 
-        msg = MockMessage(topic="controller/stop", payload="not important")
+        msg = MockMessage(topic="controller/command/stop", payload="not important")
         c_starting(controller_client, msg, state)
 
         assert mock_c_stopping.called
@@ -307,10 +316,11 @@ class TestStarting:
         assert state.status == "validating"
         assert controller_client.callback == c_starting
 
-        instruments = mock_experiment_dict["config"]["instruments"]
-        instrument_names = [instrument["name"] for instrument in instruments]
+        instrument_names = [ins for ins in state.config.instruments.keys()]
 
-        msg = MockMessage(topic="controller/start", payload=json.dumps({"uid": "123"}))
+        msg = MockMessage(
+            topic="controller/command/start", payload=json.dumps({"id": "123"})
+        )
         c_starting(controller_client, msg, state)
 
         # goes through starting to awaiting_instruments
@@ -321,29 +331,23 @@ class TestStarting:
         assert state.status == "awaiting_instruments"
         assert controller_client.callback == mock_c_ready
         # Instrument config list updated correctly
-        assert len(state.instruments) == len(instruments) + 1
-        assert state.instruments["configured"] == False
-        for instrument_key in state.instruments.keys():
-            if instrument_key != "configured":
-                assert instrument_key in instrument_names
-                instrument = state.instruments[instrument_key]
-                assert "last_contact" in instrument
-                assert instrument["last_contact"] is None
-                assert "config" in instrument
-                assert instrument["config"] is not None
-                assert "status" in instrument
-                assert instrument["status"] is None
-                assert "setpoint" in instrument
-                assert instrument["setpoint"] is None
+        assert len(state.instrument_states) == len(instrument_names)
+        assert state.instruments_ready == False
+        for instrument_name, instrument in state.instrument_states.items():
+            assert instrument_name in instrument_names
+            assert instrument == {
+                "last_contact": None,
+                "config": None,
+                "state": None,
+                "setpoints": None,
+            }
         # Timer message sent
         messages = message_bus.get_messages(decoded=True)
-        assert len(messages) == 1 + len(instruments)
-        assert messages[0].topic == "timer/start/instrument_setup"
-        assert messages[0].payload == json.dumps({"uid": "123"})
-        # Instrument setup messages sent
-        for i, instrument in enumerate(instruments):
-            assert messages[i + 1].topic == f"instrument/{instrument['name']}/setup"
-            assert messages[i + 1].payload == json.dumps(instrument)
+        assert len(messages) == 1
+        assert messages[0].topic == "controller/timer/command/start"
+        assert messages[0].payload == json.dumps(
+            {"source": "instrument_setup", "experiment_id": "123"}
+        )
 
 
 class TestReady:
@@ -370,14 +374,16 @@ class TestReady:
 
     # ========================================
 
-    def test_incompatible_request(self, message_bus, state, controller_client):
+    def test_incompatible_controller_status(
+        self, message_bus, state, controller_client
+    ):
         assert state.experiment_uid == "123"
         assert state.status == "awaiting_instruments"
         assert controller_client.callback == c_ready
 
         msg = MockMessage(
-            topic="controller/something_else",
-            payload=json.dumps({"uid": "123"}),
+            topic="controller/command/something_else",
+            payload=json.dumps({"id": "123"}),
         )
         c_ready(controller_client, msg, state)
 
@@ -386,7 +392,7 @@ class TestReady:
         assert len(messages) == 1
         assert messages[0].topic == "error/controller"
         assert (
-            "Controller is awaiting_instruments. Cannot act on controller/something_else"
+            "Controller status is awaiting_instruments. Cannot act on controller/command/something_else."
             in messages[0].payload
         )
 
@@ -397,7 +403,7 @@ class TestReady:
         assert state.status == "awaiting_instruments"
         assert controller_client.callback == c_ready
 
-        msg = MockMessage(topic="controller/stop", payload="not important")
+        msg = MockMessage(topic="controller/command/stop", payload="not important")
         c_ready(controller_client, msg, state)
 
         assert mock_c_stopping.called
@@ -416,7 +422,8 @@ class TestReady:
         with patch("src.on_controller_message.assign_serial_id") as mock_assign:
             mock_assign.return_value = None
             msg = MockMessage(
-                topic="controller/ready", payload=json.dumps({"uid": "123"})
+                topic="controller/event/ready",
+                payload=json.dumps({"experiment_id": "123"}),
             )
             c_ready(controller_client, msg, state)
 
@@ -426,8 +433,8 @@ class TestReady:
             assert controller_client.callback == mock_c_running
             messages = message_bus.get_messages(decoded=True)
             assert len(messages) == 1
-            assert messages[0].topic == "controller/run"
-            assert messages[0].payload == '{"uid": "123"}'
+            assert messages[0].topic == "controller/command/run"
+            assert messages[0].payload == '{"experiment_id": "123"}'
 
 
 class TestRunning:
@@ -445,22 +452,17 @@ class TestRunning:
         )
         return mqtt_mocks["client_instance"]
 
-    @pytest.fixture
-    def mock_c_end(self, autouse=True):
-        with patch("src.on_controller_message.c_end") as mock_c_end:
-            mock_c_end.return_value = None
-            mock_c_end.__name__ = "mock_c_end"
-            yield mock_c_end
-
     # ========================================
 
-    def test_incompatible_request(self, message_bus, state, controller_client):
+    def test_incompatible_controller_status(
+        self, message_bus, state, controller_client
+    ):
         assert state.experiment_uid == "123"
         assert state.status == "ready"
         assert controller_client.callback == c_running
 
         msg = MockMessage(
-            topic="controller/something_else", payload=json.dumps({"uid": "123"})
+            topic="controller/command/something_else", payload=json.dumps({"id": "123"})
         )
         c_running(controller_client, msg, state)
 
@@ -469,7 +471,7 @@ class TestRunning:
         assert len(messages) == 1
         assert messages[0].topic == "error/controller"
         assert (
-            "Controller is ready. Cannot act on controller/something_else"
+            "Controller status is ready. Cannot act on controller/command/something_else."
             in messages[0].payload
         )
 
@@ -480,7 +482,7 @@ class TestRunning:
         assert state.status == "ready"
         assert controller_client.callback == c_running
 
-        msg = MockMessage(topic="controller/stop", payload="not important")
+        msg = MockMessage(topic="controller/command/stop", payload="not important")
         c_running(controller_client, msg, state)
 
         assert mock_c_stopping.called
@@ -493,16 +495,16 @@ class TestRunning:
         state.setpoints = []
 
         msg = MockMessage(
-            topic="controller/run",
-            payload=json.dumps({"uid": "123"}),
+            topic="controller/command/run",
+            payload=json.dumps({"experiment_id": "123"}),
         )
         c_running(controller_client, msg, state)
 
         assert controller_client.callback.__name__ == "c_stopping"
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 1
-        assert messages[0].topic == "controller/end"
-        assert messages[0].payload == json.dumps({"uid": "123"})
+        assert messages[0].topic == "controller/event/end"
+        assert messages[0].payload == json.dumps({"experiment_id": "123"})
 
     def test_updates_state_on_first_setpoint_only(
         self, message_bus, state, controller_client
@@ -513,7 +515,9 @@ class TestRunning:
         assert state.current_setpoint is None
         assert state.setpoints != []
 
-        msg = MockMessage(topic="controller/run", payload=json.dumps({"uid": "123"}))
+        msg = MockMessage(
+            topic="controller/command/run", payload=json.dumps({"experiment_id": "123"})
+        )
         c_running(controller_client, msg, state)
 
         # Should update state on first setpoint
@@ -522,7 +526,9 @@ class TestRunning:
 
         # Should not update state on second setpoint
         state.status = "idle"
-        msg = MockMessage(topic="controller/run", payload=json.dumps({"uid": "123"}))
+        msg = MockMessage(
+            topic="controller/command/run", payload=json.dumps({"experiment_id": "123"})
+        )
         c_running(controller_client, msg, state)
 
         assert state.status == "idle"
@@ -534,7 +540,9 @@ class TestRunning:
         assert state.current_setpoint is None
         assert state.setpoints != []
 
-        msg = MockMessage(topic="controller/run", payload=json.dumps({"uid": "123"}))
+        msg = MockMessage(
+            topic="controller/command/run", payload=json.dumps({"experiment_id": "123"})
+        )
         c_running(controller_client, msg, state)
 
         # Should not have saved "None" as past setpoint
@@ -555,7 +563,9 @@ class TestRunning:
         all_setpoints = state.setpoints.copy()
         assert all_setpoints != []
 
-        msg = MockMessage(topic="controller/run", payload=json.dumps({"uid": "123"}))
+        msg = MockMessage(
+            topic="controller/command/run", payload=json.dumps({"experiment_id": "123"})
+        )
         c_running(controller_client, msg, state)
 
         assert state.current_setpoint == all_setpoints[0]
@@ -570,7 +580,9 @@ class TestRunning:
         all_setpoints = state.setpoints.copy()
         assert all_setpoints != []
 
-        msg = MockMessage(topic="controller/run", payload=json.dumps({"uid": "123"}))
+        msg = MockMessage(
+            topic="controller/command/run", payload=json.dumps({"experiment_id": "123"})
+        )
         c_running(controller_client, msg, state)
 
         assert state.setpoints == all_setpoints[1:]
@@ -585,17 +597,19 @@ class TestRunning:
         first_sp = state.setpoints[0]
         instruments = [k for k in first_sp if k != "duration"]
 
-        msg = MockMessage(topic="controller/run", payload=json.dumps({"uid": "123"}))
+        msg = MockMessage(
+            topic="controller/command/run", payload=json.dumps({"experiment_id": "123"})
+        )
         c_running(controller_client, msg, state)
 
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 1 + len(instruments)
 
-        for i, instrument in enumerate(instruments):
-            assert messages[i].topic == f"instrument/{instrument}/setpoint"
+        for i, column in enumerate(instruments):
+            instr_name, var_name = column.split("/", 1)
+            assert messages[i].topic == f"instruments/{instr_name}/{var_name}/setpoint"
             assert json.loads(messages[i].payload) == {
-                "duration": first_sp["duration"],
-                instrument: first_sp[instrument],
+                "value": first_sp[column],
             }
 
     def test_starts_setpoint_timer(
@@ -608,14 +622,17 @@ class TestRunning:
         first_sp = state.setpoints[0]
         instruments = [k for k in first_sp if k != "duration"]
 
-        msg = MockMessage(topic="controller/run", payload=json.dumps({"uid": "123"}))
+        msg = MockMessage(
+            topic="controller/command/run", payload=json.dumps({"experiment_id": "123"})
+        )
         c_running(controller_client, msg, state)
 
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 1 + len(instruments)
-        assert messages[-1].topic == "timer/start/setpoint"
+        assert messages[-1].topic == "controller/timer/command/start"
         assert json.loads(messages[-1].payload) == {
-            "uid": "123",
+            "source": "setpoint",
+            "experiment_id": "123",
             "duration": first_sp["duration"],
         }
 
@@ -629,7 +646,9 @@ class TestRunning:
         state.current_setpoint = last_setpoint.copy()
         state.setpoints = []
 
-        msg = MockMessage(topic="controller/run", payload=json.dumps({"uid": "123"}))
+        msg = MockMessage(
+            topic="controller/command/run", payload=json.dumps({"experiment_id": "123"})
+        )
         c_running(controller_client, msg, state)
 
         assert state.current_setpoint is None
@@ -672,14 +691,16 @@ class TestStopping:
 
     # ========================================
 
-    def test_incompatible_request(self, message_bus, state, controller_client):
+    def test_incompatible_controller_status(
+        self, message_bus, state, controller_client
+    ):
         assert state.experiment_uid == "123"
         assert state.status == "running"
         assert controller_client.callback == c_stopping
 
         msg = MockMessage(
-            topic="controller/something_else",
-            payload=json.dumps({"uid": "123"}),
+            topic="controller/command/something_else",
+            payload=json.dumps({"id": "123"}),
         )
         c_stopping(controller_client, msg, state)
 
@@ -688,7 +709,7 @@ class TestStopping:
         assert len(messages) == 1
         assert messages[-1].topic == "error/controller"
         assert (
-            "Controller is running. Cannot act on controller/something_else"
+            "Controller status is running. Cannot act on controller/command/something_else."
             in messages[-1].payload
         )
 
@@ -698,8 +719,8 @@ class TestStopping:
         assert controller_client.callback == c_stopping
 
         msg = MockMessage(
-            topic="controller/stop",
-            payload=json.dumps({"uid": "456"}),
+            topic="controller/command/stop",
+            payload=json.dumps({"id": "456"}),
         )
         c_stopping(controller_client, msg, state)
 
@@ -708,7 +729,7 @@ class TestStopping:
         assert len(messages) == 1
         assert messages[-1].topic == "error/controller"
         assert (
-            "Current experiment is 123. Cannot act on controller/stop for experiment 456."
+            "Current experiment is 123. Controller cannot act on controller/command/stop for experiment 456."
             in messages[-1].payload
         )
 
@@ -717,7 +738,9 @@ class TestStopping:
         assert state.status == "running"
         assert controller_client.callback == c_stopping
 
-        msg = MockMessage(topic="controller/end", payload=json.dumps({"uid": "123"}))
+        msg = MockMessage(
+            topic="controller/event/end", payload=json.dumps({"experiment_id": "123"})
+        )
         c_stopping(controller_client, msg, state)
 
         assert state._status_history == ["stopping", "idle"]
@@ -734,10 +757,12 @@ class TestStopping:
         self, message_bus, state, controller_client, mock_dump, capsys
     ):
         assert state.experiment_uid == "123"
-        state.status == "something"
+        assert state.status == "running"
         controller_client.callback = "mock_callback"
 
-        msg = MockMessage(topic="controller/stop", payload=json.dumps({"uid": "123"}))
+        msg = MockMessage(
+            topic="controller/command/stop", payload=json.dumps({"id": "123"})
+        )
         c_stopping(controller_client, msg, state)
 
         assert state._status_history == ["stopping", "idle"]

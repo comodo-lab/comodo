@@ -64,9 +64,9 @@ def update_output(n_clicks, table_data, instruments, exp_config):
         resolution = 1
 
     experiment_config = {
-        "uid": experiment_id,
+        "id": experiment_id,
         "config": {"resolution": resolution, "instruments": instruments},
-        "experiment": table_data,
+        "experiment_definition": table_data,
     }
     json_data = json.dumps(experiment_config).encode("utf-8")
 
@@ -194,15 +194,15 @@ def update_control_component(n_intervals, instruments, slider_id, timezone):
     # Query setpoint and actual value for the parameter
     try:
         setpoint = query_influxdb_params(
-            fields=[param_name],
-            topics=["instrument/setpoint"],
+            fields=["value"],
+            topics=[f"instruments/{param_name}/setpoint"],
             start="-1m",
             aggregate="last",
         )[-1].get_value()
 
         actual_value = query_influxdb_params(
             fields=["value"],
-            topics=[f"measurement/{param_name}"],
+            topics=[f"instruments/{param_name}/measurement"],
             start="-1m",
             aggregate="last",
         )[-1].get_value()

@@ -14,7 +14,6 @@ on:
         type: string
         default: ""
   push:
-    branches: ["main", "dev"]
     paths:
       - "firmware/**"
       - "utils/**"
@@ -34,9 +33,11 @@ jobs:
       test_script: |
         set -eo pipefail
         cd ./firmware
-        docker compose up --abort-on-container-exit --exit-code-from firmware
+        docker compose up --abort-on-container-exit --exit-code-from firmware-test
+      push_versioned: ${{ github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'dev') }}
+      push_latest: ${{ github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'dev') }}
       push_vb: ${{ github.event.inputs.push_vb == 'true' }}
-      custom_tag: ${{ github.event.inputs.custom_tag }}
+      custom_tag: ${{ github.event.inputs.custom_tag || '' }}
     secrets:
       docker_username: ${{ secrets.DOCKER_USERNAME }}
       docker_password: ${{ secrets.DOCKER_PASSWORD }}

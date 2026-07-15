@@ -35,13 +35,18 @@ def base_SPC():
             "mqtt_host": "test_host",
             "mqtt_user": "test_user",
             "mqtt_pass": "test_pass",
-            "sensor": "test_sensor",
-            "actuator": "test_actuator",
-            "sensor": "A",
-            "actuator": "B",
+            "sensor_instrument": "I1",
+            "sensor_variable": "A",
+            "actuator_instrument": "I2",
+            "actuator_variable": "B",
             "heartbeat_interval": 1,
         }
         d_kwargs.update(kwargs)
+        d_kwargs.update(
+            {
+                "spc_id": f"{d_kwargs['sensor_instrument']}-{d_kwargs['sensor_variable']}--{d_kwargs['actuator_instrument']}-{d_kwargs['actuator_variable']}"
+            }
+        )
 
         # Create and return SetpointController instance
         return SetpointController(**d_kwargs)
@@ -50,58 +55,60 @@ def base_SPC():
 
 
 @pytest.fixture
-def base_PID(**kwargs):
-    """
-    Create a PID controller with default values for id, sensor and actuator.
-    Allows overriding any of these via kwargs.
-
-    Inputs:
-        **kwargs: keyword arguments to override defaults
-    Returns:
-        PID instance
-    """
-
-    def _create(**kwargs):
-        d_kwargs = {
-            "id": "test_pid",
-            "sensor": "mock_sensor",
-            "actuator": "mock_actuator",
-        }
-
-        d_kwargs.update(kwargs)
-
-        # Create and return PID instance
-        return PID(**d_kwargs)
-
-    return _create
+def mock_spc(mock_spc_status, mock_pid):
+    """SetpointController with default parameters."""
+    spc = MagicMock(spec=SetpointController)
+    spc.sensor_instrument = "I1"
+    spc.sensor_variable = "A"
+    spc.actuator_instrument = "I2"
+    spc.actuator_variable = "B"
+    spc.spc_id = "I1-A--I2-B"
+    spc.pid = mock_pid
+    spc.status = mock_spc_status
+    spc.start_heartbeat_loop = MagicMock()
+    spc.publish_heartbeat = MagicMock()
+    return spc
 
 
 @pytest.fixture
-def mock_spc(mock_pid):
-    """SetpointController with default parameters."""
-    spc = MagicMock(spec=SetpointController)
-    spc.state = {
-        "name": f"pid_A__B",
-        "status": "no_setpoint",
-        "setpoint": None,
-        "config": {"mock": "config"},
-    }
-    spc.start_heartbeat_loop = MagicMock()
-    spc.pid = mock_pid
-    return spc
+def mock_spc_status():
+    """SetpointController.Status with default parameters."""
+    status = MagicMock(spec=SetpointController.Status)
+
+    status.enabled = True
+    status.state = "idle"
+    status.sensor_setpoint = None
+    status.sensor_measurement = None
+    status.actuator_setpoint = None
+    status.experiment_id = None
+
+    def get_status_as_dict():
+        return {
+            "status": {
+                "state": status.state,
+                "enabled": status.enabled,
+                "sensor_measurement": status.sensor_measurement,
+                "actuator_setpoint": status.actuator_setpoint,
+                "experiment_id": status.experiment_id,
+            },
+            "setpoints": {
+                "sensor_setpoint": status.sensor_setpoint,
+            },
+        }
+
+    status.as_dict.side_effect = get_status_as_dict
+
+    return status
 
 
 @pytest.fixture
 def mock_pid():
     """PID with default parameters."""
     pid = MagicMock(spec=PID)
-    pid.id = "pid/mock_sensor__mock_actuator"
-    pid.sensor = "mock_sensor"
-    pid.actuator = "mock_actuator"
     pid.k_p = 1.0
     pid.k_i = 0.5
     pid.setpoint = None
-    pid.configurable = ["mock", "configurable", "params"]
+    pid.configurable = ["k_p", "k_i"]
     pid.get_state.return_value = {"mock": "state"}
     pid.step = MagicMock(return_value=5.0)
 
@@ -116,9 +123,9 @@ def mock_pid():
 
 
 @pytest.fixture
-def rand_pid(base_PID):
+def rand_pid():
     """PID with random parameters."""
-    return base_PID(
+    return PID(
         k_p=rand(0.01, 10.0),
         k_i=rand(0.01, 10.0),
         k_d=rand(0.01, 10.0),

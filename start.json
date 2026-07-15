@@ -1,5 +1,5 @@
 {
-  "uid": "b31754e0",
+  "id": "b31754e0",
   "config": {
     "resolution": 1,
     "instruments": [
@@ -29,7 +29,7 @@
       }
     ]
   },
-  "experiment": [
+  "experiment_definition": [
     {
       "time": 0,
       "furnace": 20,

@@ -85,8 +85,8 @@ def update_header_status(n_intervals, timezone):
 
     try:
         result = query_influxdb_params(
-            fields=["status"],
-            topics=["heartbeat/controller"],
+            fields=["state"],
+            topics=["controller/heartbeat"],
             start="-1m",
             aggregate="last",
         )[-1]
@@ -133,8 +133,8 @@ def update_header_id(n_intervals, timezone):
 
     try:
         result = query_influxdb_params(
-            fields=["experiment"],
-            topics=["heartbeat/controller"],
+            fields=["experiment_id"],
+            topics=["controller/heartbeat"],
             start="-1m",
             aggregate="last",
         )[-1]
@@ -176,8 +176,8 @@ def update_header_id(n_intervals, instruments, timezone):
         instrument_name = instrument["name"]
         try:
             result = query_influxdb_params(
-                fields=["status"],
-                topics=[f"heartbeat/instrument/{instrument_name}"],
+            fields=["state"],
+            topics=[f"instruments/{instrument_name}/heartbeat"],
                 start="-1m",
                 aggregate="last",
             )[-1]
