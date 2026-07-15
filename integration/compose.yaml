@@ -1,0 +1,41 @@
+include:
+  - path: ../compose.yaml
+  #- path: ../compose.data.yaml
+  - path: ./compose.firmware.yaml
+  - path: ../compose.mqtt.yaml
+
+services:
+  rabbitmq:
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 2s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  monitor:
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+
+  # influxdb:
+  #   environment:
+  #     DOCKER_INFLUXDB_INIT_ORG: ${INFLUX_ORG:-comodo}
+  #     DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUX_BUCKET:-comodo}
+  #     DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUX_TOKEN:-devtoken}
+
+  test-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      MQTT_HOST: ${MQTT_HOST:-rabbitmq}
+      MQTT_USER: ${MQTT_USER:-comodo}
+      MQTT_PASS: ${MQTT_PASS:-comodo}
+      HEARTBEAT_TIMEOUT: ${HEARTBEAT_TIMEOUT:-60}
+      EXPERIMENT_TIMEOUT: ${EXPERIMENT_TIMEOUT:-120}
+    volumes:
+      - ./fixtures/start.json:/app/experiment.json:ro
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
