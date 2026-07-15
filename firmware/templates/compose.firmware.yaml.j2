@@ -8,7 +8,6 @@ x-templates:
     MQTT_PASS: ${MQTT_PASS}
   instrument-env: &instrument-env
     <<: *mqtt-env
-    SIMULATE: ${SIMULATE_INSTRUMENTS:-false}
   python-instrument-template: &python-instrument-template
     build:
       context: .
