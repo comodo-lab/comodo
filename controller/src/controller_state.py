@@ -30,7 +30,7 @@ class cstate:
         "_setpoints",
         "_current_setpoint",
         "_past_setpoints",
-        "_instruments",
+        "_instrument_states",
         "_config",
         "_instruments_ready",
     ]
@@ -47,7 +47,7 @@ class cstate:
         self.setpoints: List[Dict[str, Any]] = []
         self.current_setpoint: Dict[str, Any] = None
         self.past_setpoints: List[Dict[str, Any]] = []
-        self.instruments: Dict[str, Any] = {}
+        self.instrument_states: Dict[str, Any] = {}
         self.instruments_ready: bool = False
         self.config: ComodoConfig = None
 
@@ -99,7 +99,7 @@ class cstate:
         self.setpoints = []
         self.current_setpoint = None
         self.past_setpoints = []
-        self.instruments = {}
+        self.instrument_states = {}
         self.instruments_ready = False
 
     @property
@@ -271,25 +271,25 @@ class cstate:
         self._past_setpoints = value
 
     @property
-    def instruments(self) -> Dict[str, Any]:
-        return self._instruments
+    def instrument_states(self) -> Dict[str, Any]:
+        return self._instrument_states
 
-    @instruments.setter
-    def instruments(self, value: Dict[str, Any]) -> None:
+    @instrument_states.setter
+    def instrument_states(self, value: Dict[str, Any]) -> None:
         """
-        Sets the instruments dictionary.
+        Sets the instrument states dictionary.
 
         Args:
-            value: The new value for the entire instruments dictionary.
+            value: The new value for the entire instrument states dictionary.
 
         Raises:
-            TypeError: If the provided instruments dictionary is not a dictionary.
+            TypeError: If the provided instrument states dictionary is not a dictionary.
         """
         if not isinstance(value, dict):
             raise TypeError(
-                f"Instruments must be a dictionary, cannot accept {type(value)}."
+                f"Instrument states must be a dictionary, cannot accept {type(value)}."
             )
-        self._instruments = value
+        self._instrument_states = value
 
     @property
     def instruments_ready(self) -> bool:

@@ -20,7 +20,7 @@ def test_cstate_initialization():
     assert state.setpoints == []
     assert state.current_setpoint == None
     assert state.past_setpoints == []
-    assert state.instruments == {}
+    assert state.instrument_states == {}
     assert state.instruments_ready == False
 
 
@@ -58,7 +58,7 @@ def test_reset(state):
     state.setpoints = [{"time": 0, "pressure": 0, "temperature": 0}]
     state.current_setpoint = {"time": 0, "pressure": 0, "temperature": 0}
     state.past_setpoints = [{"time": 0, "pressure": 0, "temperature": 0}]
-    state.instruments = {}
+    state.instrument_states = {}
 
     state.reset()
 
@@ -236,13 +236,13 @@ def test_cannot_set_wrong_type_past_setpoints(state):
 
 def test_can_set_instruments(state):
     for instrument in ["T", "P"]:
-        state.instruments[instrument] = {
+        state.instrument_states[instrument] = {
             "last_contact": 0,
             "config": {},
             "status": "awaiting_config",
             "setpoint": None,
         }
-    assert state.instruments == {
+    assert state.instrument_states == {
         "T": {
             "last_contact": 0,
             "config": {},
@@ -260,35 +260,11 @@ def test_can_set_instruments(state):
 
 def test_cannot_set_wrong_type_instruments(state):
     try:
-        state.instruments = 123
+        state.instrument_states = 123
     except TypeError as e:
-        assert "Instruments must be a dictionary, cannot accept <class 'int'>" in e.args[0]
+        assert (
+            "Instrument states must be a dictionary, cannot accept <class 'int'>"
+            in e.args[0]
+        )
     else:
         assert False, "Should not let you set wrong type"
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -331,9 +331,9 @@ class TestStarting:
         assert state.status == "awaiting_instruments"
         assert controller_client.callback == mock_c_ready
         # Instrument config list updated correctly
-        assert len(state.instruments) == len(instrument_names)
+        assert len(state.instrument_states) == len(instrument_names)
         assert state.instruments_ready == False
-        for instrument_name, instrument in state.instruments.items():
+        for instrument_name, instrument in state.instrument_states.items():
             assert instrument_name in instrument_names
 
             assert "last_contact" in instrument
