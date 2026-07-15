@@ -13,12 +13,12 @@ name: comodo-data
 
 services:
   mqtt-probe-data:
-    image: comodolab/comodo-mqtt_probe:latest
+    build:
+      context: ./
+      dockerfile: mqtt_probe/Dockerfile
     environment:
       <<: *mqtt-env
       MQTT_PROBE_ID: data
-    networks:
-      comodo-data:
 
   influxdb:
     image: influxdb:latest
@@ -39,8 +39,6 @@ services:
     volumes:
       - influx_data:/var/lib/influxdb2
       - influx_config:/etc/influxdb2
-    networks:
-      comodo-data:
 
   telegraf:
     image: telegraf:latest
@@ -49,11 +47,9 @@ services:
     depends_on:
       - influxdb
     environment:
-      <<: [*mqtt-env, *influx-env]
+      <<: [ *mqtt-env, *influx-env ]
     volumes:
       - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
-    networks:
-      comodo-data:
 
   grafana:
     build:
@@ -84,12 +80,6 @@ services:
       - grafana-storage:/var/lib/grafana
       - ./grafana/dashboards:/var/lib/grafana/dashboards
       - ./grafana/dashboard.yaml:/etc/grafana/provisioning/dashboards/main.yaml
-    networks:
-      comodo-data:
-
-networks:
-  comodo-data:
-    name: comodo-data
 
 volumes:
   rabbitmq_data:

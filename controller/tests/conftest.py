@@ -44,6 +44,23 @@ def mock_state(status, mock_experiment_dict={}, mock_setpoints=[]):
     state_obj = MagicMock(spec=cstate)
     state_obj._status_history = []
 
+    # Mock the config object
+    state_obj.config = MagicMock()
+    state_obj.config.globals = {"instrument_setup_wait": 10}
+    state_obj.config.get_expected_heartbeat.return_value = {
+        "firmware": "test",
+        "device_address": "1.2.3.4",
+        "simulate": True,
+        "variables": [],
+    }
+    state_obj.config.instruments = {
+        "furnace_centre": {
+            "variables": {"temperature": {"actuator": {"min": 0, "max": 1000}}}
+        },
+        "mass_flow": {"variables": {"mass_flow": {"actuator": {"min": 0, "max": 100}}}},
+        "furnace_left": {"variables": {"temperature": {"sensor": {"interval": 1.0}}}},
+    }
+
     # Use PropertyMock to track status changes
     def track_status(self, value):
         state_obj._status_history.append(value)
@@ -64,7 +81,8 @@ def mock_state(status, mock_experiment_dict={}, mock_setpoints=[]):
         state_obj.setpoints = []
         state_obj.current_setpoint = None
         state_obj.past_setpoints = []
-        state_obj.instruments = {"configured": False}
+        state_obj.instrument_states = {}
+        state_obj.instruments_ready = False
 
     state_obj.reset = MagicMock(side_effect=reset)
 
@@ -78,26 +96,8 @@ def mock_state(status, mock_experiment_dict={}, mock_setpoints=[]):
     state_obj.setpoints = []
     state_obj.current_setpoint = None
     state_obj.past_setpoints = []
-    state_obj.instruments = {"configured": False}
-    state_obj.actuator_variables = {"furnace_centre/temperature", "mass_flow/mass_flow"}
-    av_set = state_obj.actuator_variables
-    sv_set = {
-        "furnace_centre/temperature",
-        "furnace_left/temperature",
-        "furnace_right/temperature",
-        "pressure_downstream/pressure",
-        "pressure_upstream/pressure",
-        "mass_flow/mass_flow",
-        "mass_flow/temperature",
-        "mass_flow/pressure_upstream",
-        "mass_flow/pressure_downstream",
-        "mass_spec/mass_spec",
-    }
-    sensor_inst = {sv.split("/", 1)[0] for sv in sv_set}
-    actuator_inst = {av.split("/", 1)[0] for av in av_set}
-    expected_sensor_instruments = sensor_inst - actuator_inst
-    type(state_obj).sensor_instruments = PropertyMock(return_value=expected_sensor_instruments)
-    state_obj.sensor_variables = sv_set
+    state_obj.instrument_states = {}
+    state_obj.instruments_ready = False
 
     if status == "idle":
         return state_obj
@@ -114,12 +114,16 @@ def mock_state(status, mock_experiment_dict={}, mock_setpoints=[]):
     # ------------------------------- awaiting_instruments
     state_obj.status = "awaiting_instruments"
     state_obj._status_history = []
-    for av in state_obj.actuator_variables:
-        instrument_name = av.split("/", 1)[0]
-        if instrument_name not in state_obj.instruments:
-            state_obj.instruments[instrument_name] = {
+    for instrument_name in state_obj.config.instruments:
+        if instrument_name not in state_obj.instrument_states:
+            state_obj.instrument_states[instrument_name] = {
                 "last_contact": None,
-                "config": {"tolerance": 1, "experiment_id": state_obj.experiment_uid},
+                "config": {
+                    "firmware": "test",
+                    "device_address": "1.2.3.4",
+                    "simulate": True,
+                    "variables": [],
+                },
                 "state": None,
                 "setpoints": None,
             }
@@ -127,13 +131,12 @@ def mock_state(status, mock_experiment_dict={}, mock_setpoints=[]):
         return state_obj
 
     state_obj.setpoints = mock_setpoints
-    for av in state_obj.actuator_variables:
-        instrument_name = av.split("/", 1)[0]
-        if instrument_name in state_obj.instruments:
-            state_obj.instruments[instrument_name]["last_contact"] = t.time() - 1
-            state_obj.instruments[instrument_name]["state"] = "idle"
-            state_obj.instruments[instrument_name]["setpoints"] = None
-    state_obj.instruments = {"configured": True}
+    for instrument_name in state_obj.config.instruments:
+        if instrument_name in state_obj.instrument_states:
+            state_obj.instrument_states[instrument_name]["last_contact"] = t.time() - 1
+            state_obj.instrument_states[instrument_name]["state"] = "idle"
+            state_obj.instrument_states[instrument_name]["setpoints"] = None
+    state_obj.instrument_states = {}
     if status == "ready":
         return state_obj
 
@@ -177,17 +180,81 @@ def mock_c_stopping():
         yield mock_c_stopping
 
 
-def instrument_heartbeat_msg(instrument, state, setpoints, experiment_id=None):
-    """Helper function to create a instrument heartbeat mock message."""
-    config = {k: v for k, v in instrument.items() if k != "name"}
-    config.setdefault("experiment_id", experiment_id)
-    return MockMessage(
-        topic=f"instruments/{instrument['name']}/heartbeat",
-        payload=json.dumps(
-            {
-                "state": state,
-                "setpoints": setpoints,
-                "config": config,
-            }
-        ),
-    )
+@pytest.fixture(autouse=True)
+def mock_asyncapi_spec():
+    asyncapi_topic_map = {
+        "ui/start": {
+            "name": "uiStart",
+            "schema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["id", "config", "experiment_definition"],
+                "properties": {
+                    "id": {"type": "string"},
+                    "config": {"type": "object", "additionalProperties": True},
+                    "experiment_definition": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": True,
+                        },
+                    },
+                },
+            },
+        },
+        "instruments/+/heartbeat": {
+            "name": "instrumentHeartbeat",
+            "schema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": ["config", "setpoints", "state"],
+                "properties": {
+                    "config": {"type": "object"},
+                    "setpoints": {
+                        "type": "object",
+                        "additionalProperties": {"type": "number"},
+                    },
+                    "state": {
+                        "type": "string",
+                        "enum": ["idle", "adjusting", "ready", "error"],
+                    },
+                },
+            },
+        },
+    }
+
+    experiment_row_topic_map = {
+        "experiment/row": {
+            "name": "experimentRow",
+            "schema": {
+                "type": "object",
+                "additionalProperties": False,
+                "required": [
+                    "time",
+                    "furnace_centre/temperature",
+                    "mass_spec/mass_spec",
+                ],
+                "properties": {
+                    "time": {"type": "number", "minimum": 0},
+                    "furnace_centre/temperature": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1000,
+                    },
+                    "mass_spec/mass_spec": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 100,
+                    },
+                },
+            },
+        },
+    }
+
+    def _mock_load_spec(schema_name="asyncapi"):
+        if schema_name == "experiment_row":
+            return experiment_row_topic_map
+        return asyncapi_topic_map
+
+    with patch("utils.mqtt_validator.load_spec", side_effect=_mock_load_spec):
+        yield

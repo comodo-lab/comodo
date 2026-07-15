@@ -1,9 +1,8 @@
 asyncapi: 3.0.0
 info:
   title: Comodo Message Specification
-  version: "0.4.0"
   description: >
-    Minimal strict protocol contract for the Comodo experiment automation platform.
+    Message definitions for the Comodo experiment automation platform.
 
 channels:
   mqtt-probe:
@@ -184,7 +183,7 @@ channels:
               type: string
 
   watchdogCommandStart:
-    address: watchdog/command/start
+    address: watchdog/timer/command/start
     messages:
       watchdogStart:
         payload:
@@ -200,7 +199,7 @@ channels:
               type: number
 
   watchdogEventRestart:
-    address: watchdog/event/restart
+    address: watchdog/timer/event/restart_triggered
     messages:
       watchdogRestart:
         payload:
@@ -213,7 +212,7 @@ channels:
               type: string
 
   watchdogEventTimeout:
-    address: watchdog/event/timeout
+    address: watchdog/timer/event/timeout
     messages:
       watchdogTimeout:
         payload:
@@ -401,14 +400,10 @@ channels:
                   type: string
                 simulate:
                   type: boolean
-                intervals:
-                  type: object
-                  additionalProperties:
-                    type: number
                 variables:
-                  type: object
-                  additionalProperties:
-                    type: object
+                  type: array
+                  items:
+                    type: string
 
             setpoints:
               type: object

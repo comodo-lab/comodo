@@ -15,22 +15,13 @@ from controller import main
 class TestMain:
     @pytest.fixture
     def main_mocks(self, mqtt_mocks):
-        DEFAULT_CONFIG = {
-            "global": {
-                "heartbeat": {"interval": 1},
-                "watchdog": {"timeout": 5, "interval": 1},
-                "instrument_setup": {"wait": 10},
-            }
-        }
         with patch("os.environ") as mock_environ, patch(
             "os.getenv"
         ) as mock_getenv, patch(
             "controller.get_env_or_secret"
         ) as mock_get_secret, patch(
-            "builtins.open"
-        ) as mock_open, patch(
-            "controller.yaml.safe_load"
-        ) as mock_yaml_load, patch(
+            "controller.comodo_config.ComodoConfig"
+        ) as mock_comodo_config, patch(
             "controller.cstate"
         ) as mock_cstate, patch(
             "controller.t.sleep"
@@ -55,14 +46,19 @@ class TestMain:
             mock_get_secret.side_effect = (
                 lambda var, file_var=None, default=None: env_values.get(var, default)
             )
-            mock_yaml_load.return_value = DEFAULT_CONFIG
+            mock_loaded_config = mock_comodo_config.return_value.load.return_value
+            mock_loaded_config.globals = {
+                "watchdog_interval": 1,
+                "watchdog_timeout": 5,
+            }
             mock_cstate.return_value = mock_state("idle")
 
             yield {
                 "env_values": env_values,
                 "getenv": mock_getenv,
                 "get_secret": mock_get_secret,
-                "yaml_load": mock_yaml_load,
+                "comodo_config_class": mock_comodo_config,
+                "loaded_config": mock_loaded_config,
                 "cstate": mock_cstate,
                 "sleep": mock_sleep,
                 "callbacks": {
@@ -116,23 +112,7 @@ class TestMain:
         ]
         mocks["get_secret"].assert_called_with("MQTT_PASS", "MQTT_PASS_FILE", None)
 
-        mocks["cstate"].assert_called_once_with(actuator_variables=set(), sensor_variables=set())
-
-        messages = message_bus.get_messages(decoded=True)
-        assert len(messages) == 0
-
-    def test_wdog_vars_validated(self, main_mocks, message_bus):
-        mocks = main_mocks
-        mocks["yaml_load"].return_value = {
-            "global": {
-                "heartbeat": {"interval": 5},
-                "watchdog": {"timeout": 8, "interval": 1},
-                "instrument_setup": {"wait": 10},
-            }
-        }
-
-        with pytest.raises(AssertionError):
-            main()
+        mocks["cstate"].assert_called_once_with()
 
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 0
@@ -147,12 +127,9 @@ class TestMain:
                 "MQTT_CONNECTION_TIMEOUT": 15,
             }
         )
-        mocks["yaml_load"].return_value = {
-            "global": {
-                "heartbeat": {"interval": 2},
-                "watchdog": {"timeout": 6, "interval": 1},
-                "instrument_setup": {"wait": 10},
-            }
+        mocks["loaded_config"].globals = {
+            "watchdog_interval": 2,
+            "watchdog_timeout": 6,
         }
         wdog = {"interval": 2, "timeout": 6, "timer": 6, "healthy": False}
         state = mocks["cstate"].return_value
@@ -172,7 +149,12 @@ class TestMain:
             call(
                 id="watchdog",
                 callback=mocks["callbacks"]["on_watchdog_message"],
-                topics=["watchdog/event/+", "watchdog/command/+", "controller/heartbeat", "error/exception"],
+                topics=[
+                    "watchdog/timer/event/+",
+                    "watchdog/timer/command/+",
+                    "controller/heartbeat",
+                    "error/exception",
+                ],
                 obj=wdog,
                 broker_address="test_host",
                 user="test_user",
@@ -182,7 +164,7 @@ class TestMain:
             call(
                 id="wd_timer",
                 callback=mocks["callbacks"]["on_wd_timer_message"],
-                topics="watchdog/command/start",
+                topics="watchdog/timer/command/start",
                 obj=wdog,
                 broker_address="test_host",
                 user="test_user",
@@ -233,7 +215,7 @@ class TestMain:
 
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 1
-        assert messages[0].topic == "watchdog/command/start"
+        assert messages[0].topic == "watchdog/timer/command/start"
         assert json.loads(messages[0].payload) == {"timeout": 6, "interval": 2}
 
     def test_watchdog_loop_not_started_if_unhealthy(
@@ -246,7 +228,7 @@ class TestMain:
 
         mocks["sleep"].assert_called_once_with(1)  # Only initial sleep before wd starts
         messages = message_bus.get_messages(decoded=True)
-        assert messages[0].topic == "watchdog/command/start"
+        assert messages[0].topic == "watchdog/timer/command/start"
         assert json.loads(messages[0].payload) == {"timeout": 5, "interval": 1}
         captured = capsys.readouterr()
         assert "Creating clients..." in captured.out
@@ -255,12 +237,10 @@ class TestMain:
 
     def test_watchdog_loop(self, main_mocks, mqtt_mocks, message_bus, capsys):
         mocks = main_mocks
-        mocks["yaml_load"].return_value = {
-            "global": {
-                "heartbeat": {"interval": 2},
-                "watchdog": {"timeout": 6, "interval": 1},
-                "instrument_setup": {"wait": 10},
-            }
+        mocks["loaded_config"].globals = {
+            "heartbeat_interval": 2,
+            "watchdog_interval": 1,
+            "watchdog_timeout": 6,
         }
 
         def wd_timer_side_effect(client, msg, obj):
@@ -281,7 +261,8 @@ class TestMain:
         ]
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 4
-        assert messages[0].topic == "watchdog/command/start"
+        assert messages[0].topic == "watchdog/timer/command/start"
+        assert json.loads(messages[0].payload) == {"timeout": 6, "interval": 1}
         assert messages[1].topic == "controller/heartbeat"
         assert messages[2].topic == "controller/heartbeat"
         assert messages[3].topic == "controller/heartbeat"
@@ -294,12 +275,10 @@ class TestMain:
         self, main_mocks, mqtt_mocks, message_bus, capsys
     ):
         mocks = main_mocks
-        mocks["yaml_load"].return_value = {
-            "global": {
-                "heartbeat": {"interval": 2},
-                "watchdog": {"timeout": 6, "interval": 1},
-                "instrument_setup": {"wait": 10},
-            }
+        mocks["loaded_config"].globals = {
+            "heartbeat_interval": 2,
+            "watchdog_interval": 1,
+            "watchdog_timeout": 6,
         }
 
         def wd_timer_side_effect(client, msg, obj):
@@ -325,7 +304,7 @@ class TestMain:
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) >= 4  # >= Setting healthy to false takes some time
         assert len(messages) <= 6  # <= But it shouldn't take that much time
-        assert messages[0].topic == "watchdog/command/start"
+        assert messages[0].topic == "watchdog/timer/command/start"
         assert messages[1].topic == "controller/heartbeat"
         assert messages[2].topic == "controller/heartbeat"
         assert messages[3].topic == "controller/heartbeat"

@@ -8,13 +8,10 @@ x-templates:
     MQTT_PASS: ${MQTT_PASS}
   instrument-env: &instrument-env
     <<: *mqtt-env
-    SIMULATE: ${SIMULATE_INSTRUMENTS:-false}
   python-instrument-template: &python-instrument-template
     build:
       context: .
       dockerfile: firmware/Dockerfile
-    networks:
-      comodo-firmware:
     depends_on:
       mqtt-probe-firmware:
         condition: service_healthy
@@ -23,21 +20,21 @@ name: comodo-firmware
 
 services:
   mqtt-probe-firmware:
-    image: comodolab/comodo-mqtt_probe:latest
+    build:
+      context: ./
+      dockerfile: mqtt_probe/Dockerfile
     environment:
       <<: *mqtt-env
       MQTT_PROBE_ID: firmware
-    networks:
-      comodo-firmware:
-
 
   furnace_centre:
     <<: *python-instrument-template
     environment:
       <<: *instrument-env
-      INSTRUMENT_ID: "furnace_centre"
+      INSTRUMENT_NAME: "furnace_centre"
       FIRMWARE: carbolite_gero.tg3
       DEVICE_ADDRESS: "192.168.111.222"
+      ACTIVE_VARIABLES: '["temperature"]'
       HEARTBEAT_INTERVAL: 1000
       INTERVAL_TEMPERATURE: 1000
 
@@ -45,9 +42,10 @@ services:
     <<: *python-instrument-template
     environment:
       <<: *instrument-env
-      INSTRUMENT_ID: "furnace_left"
+      INSTRUMENT_NAME: "furnace_left"
       FIRMWARE: carbolite_gero.tg3
       DEVICE_ADDRESS: "192.168.111.224"
+      ACTIVE_VARIABLES: '["temperature"]'
       HEARTBEAT_INTERVAL: 1000
       INTERVAL_TEMPERATURE: 1000
 
@@ -55,9 +53,10 @@ services:
     <<: *python-instrument-template
     environment:
       <<: *instrument-env
-      INSTRUMENT_ID: "furnace_right"
+      INSTRUMENT_NAME: "furnace_right"
       FIRMWARE: carbolite_gero.tg3
       DEVICE_ADDRESS: "192.168.111.225"
+      ACTIVE_VARIABLES: '["temperature"]'
       HEARTBEAT_INTERVAL: 1000
       INTERVAL_TEMPERATURE: 1000
 
@@ -65,9 +64,10 @@ services:
     <<: *python-instrument-template
     environment:
       <<: *instrument-env
-      INSTRUMENT_ID: "pressure_downstream"
+      INSTRUMENT_NAME: "pressure_downstream"
       FIRMWARE: pfeiffer.mpt200
       DEVICE_ADDRESS: "/dev/ttyUSB0"
+      ACTIVE_VARIABLES: '["pressure"]'
       HEARTBEAT_INTERVAL: 1000
       INTERVAL_PRESSURE: 1000
     devices:
@@ -78,9 +78,10 @@ services:
     <<: *python-instrument-template
     environment:
       <<: *instrument-env
-      INSTRUMENT_ID: "pressure_upstream"
+      INSTRUMENT_NAME: "pressure_upstream"
       FIRMWARE: pfeiffer.mpt200
       DEVICE_ADDRESS: "/dev/ttyUSB1"
+      ACTIVE_VARIABLES: '["pressure"]'
       HEARTBEAT_INTERVAL: 1000
       INTERVAL_PRESSURE: 500
     devices:
@@ -91,9 +92,10 @@ services:
     <<: *python-instrument-template
     environment:
       <<: *instrument-env
-      INSTRUMENT_ID: "mass_flow"
+      INSTRUMENT_NAME: "mass_flow"
       FIRMWARE: bronkhorst.el_flow_select
       DEVICE_ADDRESS: "/dev/ttyUSB2"
+      ACTIVE_VARIABLES: '["mass_flow", "temperature", "pressure_upstream", "pressure_downstream"]'
       HEARTBEAT_INTERVAL: 1000
       INTERVAL_MASS_FLOW: 1000
       INTERVAL_TEMPERATURE: 1000
@@ -103,31 +105,18 @@ services:
       - "/dev/ttyUSB2:/dev/ttyUSB2"
     privileged: true
 
-  mass_spec:
-    <<: *python-instrument-template
-    environment:
-      <<: *instrument-env
-      INSTRUMENT_ID: "mass_spec"
-      FIRMWARE: pfeiffer.prisma_pro
-      DEVICE_ADDRESS: "192.168.1.100"
-      HEARTBEAT_INTERVAL: 1000
-      INTERVAL_MASS_SPEC: 1000
-
-
   spc-mass_flow-mass_flow:
     build:
       context: .
       dockerfile: setpoint_controller/Dockerfile
-    networks:
-      comodo-firmware:
     depends_on:
       mqtt-probe-firmware:
         condition: service_healthy
     environment:
       <<: *mqtt-env
       HEARTBEAT_INTERVAL: 1000
-      SENSOR: "pressure_upstream.pressure"
-      ACTUATOR: "mass_flow.mass_flow"
+      SENSOR: "pressure_upstream/pressure"
+      ACTUATOR: "mass_flow/mass_flow"
       K_P: 10.0
       K_I: 1.0
       K_D: 0.1
@@ -135,10 +124,6 @@ services:
       K_DF: 0.01
       OUT_MIN: 0
       OUT_MAX: 100
-networks:
-  comodo-firmware:
-    name: comodo-firmware
-
 
 volumes:
   massflow_read:

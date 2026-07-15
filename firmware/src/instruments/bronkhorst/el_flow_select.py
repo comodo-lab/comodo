@@ -256,14 +256,14 @@ def read_all(instrument):
 
 
 class Instrument(BaseInstrument):
-    variables = {
+    available_variables = {
         "mass_flow": {
-            "sensor_param": "Flow_Rate_Measured",
-            "actuator_param": "Flow_Rate_Setpoint",
+            "sensor": "Flow_Rate_Measured",
+            "actuator": "Flow_Rate_Setpoint",
         },
-        "temperature": {"sensor_param": "Temperature"},
-        "pressure_upstream": {"sensor_param": "Inlet_Pressure"},
-        "pressure_downstream": {"sensor_param": "Outlet_Pressure"},
+        "temperature": {"sensor": "Temperature"},
+        "pressure_upstream": {"sensor": "Inlet_Pressure"},
+        "pressure_downstream": {"sensor": "Outlet_Pressure"},
     }
 
     def __init__(self):
@@ -272,14 +272,14 @@ class Instrument(BaseInstrument):
 
     def initialise(self, state):
         if state.config.get("SIMULATE"):
-            self._simulated = {v: 0 for v in self.variables}
+            self._simulated = {v: 0 for v in self.available_variables}
             return
         self.device = state.config["DEVICE_ADDRESS"]
         self.instrument = propar.instrument(self.device)
 
     def go_to_setpoint(self, state, variable):
-        var = self.variables.get(variable)
-        if not var or "actuator_param" not in var:
+        var = self.available_variables.get(variable)
+        if not var or "actuator" not in var:
             print(f"'{variable}' does not support setpoints")
             return
 
@@ -309,7 +309,7 @@ class Instrument(BaseInstrument):
             return current
 
         data = read_all(self.instrument)
-        return data.get(self.variables[variable]["sensor_param"])
+        return data.get(self.available_variables[variable]["sensor"])
 
     def set_config(self, config):
         pass

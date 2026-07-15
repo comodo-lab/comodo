@@ -21,7 +21,7 @@ services:
     working_dir: /work
     volumes:
       - ./comodo.yaml:/work/config.yaml
-      - ./comodo.yaml.schema:/work/schema.yaml
+      - ./schemas/comodo.yaml.schema:/work/schema.yaml
 
   mqtt-probe-core:
     build:
@@ -30,15 +30,13 @@ services:
     environment:
       <<: *mqtt-env
       MQTT_PROBE_ID: core
-    networks:
-      comodo-core:
 
   controller:
     build:
       context: ./
       dockerfile: controller/Dockerfile
     environment:
-      <<: [*mqtt-env, *influx-env]
+      <<: [ *mqtt-env, *influx-env ]
     container_name: comodo-controller
     restart: unless-stopped
     depends_on:
@@ -47,11 +45,9 @@ services:
       config:
         condition: service_completed_successfully
     volumes:
-      - ./controller/data:/controller/data
-      - ./messageSpec.yaml:/app/messageSpec.yaml:ro
+      - ./controller/data:/controller/data:rw
+      - ./schemas:/app/schemas/:rw
       - ./comodo.yaml:/app/comodo.yaml:ro
-    networks:
-      comodo-core:
 
   ui:
     build:
@@ -69,9 +65,7 @@ services:
     volumes:
       - ./comodo.yaml:/app/comodo.yaml:ro
     environment:
-      <<: [*mqtt-env, *influx-env, *grafana-env]
-    networks:
-      comodo-core:
+      <<: [ *mqtt-env, *influx-env, *grafana-env ]
 
   monitor:
     build:
@@ -82,12 +76,6 @@ services:
         condition: service_healthy
     restart: unless-stopped
     volumes:
-      - ./messageSpec.yaml:/app/asyncapi.yaml
+      - ./schemas/mqtt_schema.yaml:/app/schemas/mqtt_schema.yaml
     environment:
-      <<: [*mqtt-env]
-    networks:
-      comodo-core:
-
-networks:
-  comodo-core:
-    name: comodo-core
+      <<: [ *mqtt-env ]

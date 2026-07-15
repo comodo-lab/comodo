@@ -1,429 +1,243 @@
 import json
+
 import pytest
-from unittest.mock import MagicMock, mock_open, patch
-from jsonschema import ValidationError
+import yaml
+from jsonschema import ValidationError, validate
+from jinja2 import Template
+from unittest.mock import mock_open, patch, MagicMock
 
-from src.validation import (
-    ValidationException,
-    validate_file,
-    validate_file_print_errors,
-    validate_file_soft,
-    validate_dict,
-    validate_experiment_dict,
-    validate_experiment_file,
-)
+from src.validation import validate_experiment, ExperimentValidationError
+from utils.mqtt_validator import MQTTValidationException
 
 
-EXPERIMENT_SCHEMA = {
-    "type": "object",
-    "additionalProperties": False,
-    "required": ["id", "config", "experiment_definition"],
-    "properties": {
-        "id": {"type": "string"},
-        "config": {"type": "object", "additionalProperties": True},
-        "experiment_definition": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "additionalProperties": True,
+class TestGenerateRowSchema:
+
+    @pytest.fixture
+    def mock_actuator_instruments(self):
+        return {
+            "furnace_centre": {
+                "variables": {"temperature": {"actuator": {"min": 0, "max": 1000}}}
             },
-        },
-    },
-}
-
-
-# =============== Fixtures ===============
-
-
-@pytest.fixture
-def validate_mocks():
-    with patch("builtins.open") as mock_open_func, patch(
-        "src.validation.json.load"
-    ) as mock_json_load, patch(
-        "src.validation.jsonschema.validate"
-    ) as mock_jsonschema_validate:
-        loaded_contents = []
-
-        def side_effect_load(file_obj, **kwargs):
-            content = file_obj.read()
-            loaded_contents.append(content)
-            return json.loads(content, **kwargs)
-
-        mock_json_load.side_effect = side_effect_load
-        yield {
-            "open": mock_open_func,
-            "json_load": mock_json_load,
-            "json_load_calls": loaded_contents,
-            "jsonschema_validate": mock_jsonschema_validate,
+            "mass_spec": {
+                "variables": {"mass_spec": {"actuator": {"min": 0, "max": 100}}}
+            },
         }
 
-
-# ========================================
-
-
-class TestValidateFile:
+    @staticmethod
+    def load_payload(instruments):
+        with open("/app/schemas/experiment_schema.yaml.j2") as f:
+            rendered = Template(f.read()).render(instruments=instruments)
+        return yaml.safe_load(rendered)["channels"]["experimentRow"]["messages"][
+            "experimentRow"
+        ]["payload"]
 
     @pytest.fixture
-    def vf_mocks(self):
-        with patch("builtins.open") as mock_open_func, patch(
-            "src.validation.json.load"
-        ) as mock_json_load, patch(
-            "src.validation.jsonschema.validate"
-        ) as mock_jsonschema_validate:
-            loaded_contents = []
+    def mock_payload(self, mock_actuator_instruments):
+        return TestGenerateRowSchema.load_payload(mock_actuator_instruments)
 
-            def side_effect_load(file_obj, **kwargs):
-                content = file_obj.read()
-                loaded_contents.append(content)
-                return json.loads(content, **kwargs)
+    # ========================================
 
-            mock_json_load.side_effect = side_effect_load
-            yield {
-                "open": mock_open_func,
-                "json_load": mock_json_load,
-                "json_load_calls": loaded_contents,
-                "jsonschema_validate": mock_jsonschema_validate,
-            }
+    def test_generated_row_schema_contains_actuators(self, mock_payload):
+        payload = mock_payload
 
-    def test_schema_not_found(self, vf_mocks):
-        vf_mocks["open"].side_effect = FileNotFoundError()
-        with pytest.raises(ValidationException) as e:
-            validate_file("some_file.json", "non_existent_schema.json")
-
-        assert "ERROR: File not found - non_existent_schema.json" in e.value.args
-        vf_mocks["json_load"].assert_not_called()
-        vf_mocks["jsonschema_validate"].assert_not_called()
-
-    def test_invalid_schema(self, vf_mocks):
-        vf_mocks["open"].side_effect = (
-            mock_open(read_data="{ invalid json ").return_value,
-        )
-        with pytest.raises(ValidationException) as e:
-            validate_file("some_file.json", "invalid_schema.json")
-
-        assert "ERROR: Cannot decode JSON: invalid_schema.json" in e.value.args[0]
-        # Should have tried to load schema only
-        vf_mocks["json_load"].assert_called_once()
-        assert vf_mocks["json_load_calls"][0] == "{ invalid json "
-        vf_mocks["jsonschema_validate"].assert_not_called()
-
-    def test_file_not_found(self, vf_mocks):
-        vf_mocks["open"].side_effect = [
-            mock_open(read_data='{"s": "s"}').return_value,  # Schema loads ok
-            FileNotFoundError(),  # File to validate not found
+        assert payload["required"] == [
+            "time",
+            "furnace_centre/temperature",
+            "mass_spec/mass_spec",
         ]
-        with pytest.raises(ValidationException) as e:
-            validate_file("non_existent_file.json", "some_schema.json")
+        assert payload["properties"]["furnace_centre/temperature"] == {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1000,
+        }
+        assert payload["properties"]["mass_spec/mass_spec"] == {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+        }
 
-        assert "ERROR: File not found - non_existent_file.json" in e.value.args[0]
-        # Should have loaded schema, but not the file
-        vf_mocks["json_load"].assert_called_once()
-        assert vf_mocks["json_load_calls"][0] == '{"s": "s"}'
-        vf_mocks["jsonschema_validate"].assert_not_called()
+    def test_generated_row_schema_excludes_sensors(self):
+        instruments = {
+            "furnace": {"variables": {"temp": {"actuator": {"min": 0, "max": 500}}}},
+            "sensor": {"variables": {"reading": {}}},
+        }
+        payload = TestGenerateRowSchema.load_payload(instruments)
 
-    def test_invalid_file(self, vf_mocks):
-        vf_mocks["open"].side_effect = [
-            mock_open(read_data='{"s": "s"}').return_value,  # Schema loads ok
-            mock_open(read_data="{ invalid json ").return_value,  # Invalid file
-        ]
-        with pytest.raises(ValidationException) as e:
-            validate_file("invalid_file.json", "some_schema.json")
+        assert "furnace/temp" in payload["required"]
+        assert "sensor/reading" not in payload["required"]
+        assert "sensor/reading" not in payload["properties"]
 
-        assert "ERROR: Cannot decode JSON: invalid_file.json" in e.value.args[0]
-        # Should have loaded schema, and tried to load the file
-        vf_mocks["json_load"].call_count == 2
-        assert vf_mocks["json_load_calls"][0] == '{"s": "s"}'
-        assert vf_mocks["json_load_calls"][1] == "{ invalid json "
-        vf_mocks["jsonschema_validate"].assert_not_called()
+    def test_generated_row_schema_has_profile_fields(self, mock_payload):
+        payload = mock_payload
 
-    def test_validation_errors(self, vf_mocks):
-        vf_mocks["open"].side_effect = [
-            mock_open(read_data='{"s": "s"}').return_value,  # Schema loads ok
-            mock_open(read_data='{"e": 123}').return_value,  # File loads ok
-        ]
-        vf_mocks["jsonschema_validate"].side_effect = ValidationError("Some error")
-        with patch("jsonschema.Draft7Validator") as mock_validator:
-            mvc = MagicMock()
-            mvc.iter_errors.return_value = [
-                MagicMock(json_path="$.a", message="Invalid here"),
-                MagicMock(json_path="$.b", message="Invalid there"),
-            ]
-            mock_validator.return_value = mvc
-            with pytest.raises(ValidationException) as e:
-                validate_file("invalid_data.json", "simple_schema.json")
+        assert "furnace_centre/temperature_profile" in payload["properties"]
+        assert payload["properties"]["furnace_centre/temperature_profile"] == {
+            "type": "string",
+            "enum": ["linear", "exponential", "logarithmic", "step"],
+        }
+        assert "mass_spec/mass_spec_profile" in payload["properties"]
 
-        assert "Validation errors:" in e.value.args[0]
-        assert "$.a -> Invalid here" in e.value.args[0]
-        assert "$.b -> Invalid there" in e.value.args[0]
-        # Should have loaded both schema and file
-        vf_mocks["json_load"].call_count == 2
-        assert vf_mocks["json_load_calls"][0] == '{"s": "s"}'
-        assert vf_mocks["json_load_calls"][1] == '{"e": 123}'
+    def test_generated_row_schema_has_additional_properties_false(self, mock_payload):
+        payload = mock_payload
 
-    def test_validation_passes(self, vf_mocks):
-        vf_mocks["open"].side_effect = [
-            mock_open(read_data='{"s": "s"}').return_value,  # Schema loads ok
-            mock_open(read_data='{"e": 123}').return_value,  # File loads ok
-        ]
-        result = validate_file("valid_data.json", "simple_schema.json")
+        assert payload.get("additionalProperties") is False
 
-        assert result == {"e": 123}
-        # Should have loaded both schema and file
-        vf_mocks["json_load"].call_count == 2
-        assert vf_mocks["json_load_calls"][0] == '{"s": "s"}'
-        assert vf_mocks["json_load_calls"][1] == '{"e": 123}'
-        # Should have called validate without errors
-        vf_mocks["jsonschema_validate"].assert_called_once_with(
-            instance={"e": 123}, schema={"s": "s"}
+    def test_generated_row_schema_validates_valid_row(self, mock_payload):
+        payload = mock_payload
+
+        validate(
+            {"time": 5, "furnace_centre/temperature": 500, "mass_spec/mass_spec": 50},
+            payload,
         )
 
+    def test_generated_row_schema_rejects_out_of_range(self, mock_payload):
+        payload = mock_payload
 
-class TestSecondaryValidators:
+        with pytest.raises(ValidationError):
+            validate(
+                {
+                    "time": 5,
+                    "furnace_centre/temperature": 9999,
+                    "mass_spec/mass_spec": 50,
+                },
+                payload,
+            )
+
+    def test_generated_row_schema_rejects_missing_required_field(self, mock_payload):
+        payload = mock_payload
+
+        with pytest.raises(ValidationError):
+            validate({"time": 5}, payload)
+
+    def test_generated_row_schema_rejects_wrong_instrument(self, mock_payload):
+        payload = mock_payload
+
+        with pytest.raises(ValidationError):
+            validate(
+                {
+                    "time": 5,
+                    "furnace_centre/temperature": 500,
+                    "mass_spec/mass_spec": 50,
+                    "unknown/thing": 0,
+                },
+                payload,
+            )
+
+
+class TestValidateExperiment:
+
     @pytest.fixture
-    def sv_mocks(self):
-        with patch("src.validation.validate_file") as mock_validate, patch(
-            "builtins.print"
-        ) as mock_print, patch("builtins.exit") as mock_exit:
+    def valid_experiment_json(self):
+        return json.dumps(
+            {
+                "id": "test-123",
+                "config": {"resolution": 0.1},
+                "experiment_definition": [
+                    {
+                        "time": 0,
+                        "furnace_centre/temperature": 500,
+                        "mass_spec/mass_spec": 50,
+                    },
+                    {
+                        "time": 10,
+                        "furnace_centre/temperature": 800,
+                        "mass_spec/mass_spec": 80,
+                    },
+                ],
+            }
+        )
+
+    @pytest.fixture(autouse=True)
+    def validate_experiment_mocks(self, valid_experiment_json):
+        with (
+            patch("builtins.open") as mock_open,
+            patch("src.validation.generate_row_schema") as mock_gen,
+            patch("src.validation.validate_message") as mock_val,
+        ):
+            mock_open.return_value.__enter__.return_value.read.return_value = (
+                valid_experiment_json
+            )
+            mock_gen.return_value = None
+            mock_val.return_value = None
+            mock_config = MagicMock()
+
             yield {
-                "validate_file": mock_validate,
-                "print": mock_print,
-                "exit": mock_exit,
+                "experiment": valid_experiment_json,
+                "open": mock_open,
+                "generate_row_schema": mock_gen,
+                "validate_message": mock_val,
+                "config": mock_config,
             }
 
-    def test_validate_file_print_errors_fails(self, sv_mocks):
-        sv_mocks["validate_file"].side_effect = ValidationException(
-            "Some validation error"
+    # ========================================
+
+    def test_raises_on_missing_file(self, validate_experiment_mocks):
+        mocks = validate_experiment_mocks
+        mocks["open"].side_effect = FileNotFoundError()
+
+        with pytest.raises(ExperimentValidationError) as e:
+            validate_experiment("/nonexistent/path", mocks["config"])
+
+        assert "Experiment file not found" in str(e.value)
+
+    def test_raises_on_invalid_structure(self, validate_experiment_mocks):
+        mocks = validate_experiment_mocks
+        mocks["validate_message"].side_effect = MQTTValidationException(
+            "Invalid structure"
         )
-        validate_file_print_errors("some_file.json", "some_schema.json")
 
-        sv_mocks["print"].assert_called_once_with("Some validation error")
-        assert "Some validation error" in sv_mocks["print"].call_args[0][0]
-        sv_mocks["exit"].assert_called_once_with(1)
+        with pytest.raises(ExperimentValidationError) as e:
+            validate_experiment("/fake/path", mocks["config"])
 
-    def test_validate_file_print_errors_passes(self, sv_mocks):
-        sv_mocks["validate_file"].return_value = {"valid": True}
-        result = validate_file_print_errors("some_file.json", "some_schema.json")
+        assert "Experiment validation failed" in str(e.value)
+        assert "Invalid structure" in str(e.value)
+        mocks["open"].assert_called_once_with("/fake/path")
+        mocks["generate_row_schema"].assert_not_called()
 
-        assert result == {"valid": True}
-        sv_mocks["print"].assert_not_called()
-        sv_mocks["exit"].assert_not_called()
+    def test_raises_on_row_schema_generation_failure(self, validate_experiment_mocks):
+        mocks = validate_experiment_mocks
+        mocks["generate_row_schema"].side_effect = Exception("Schema generation failed")
 
-    def test_validate_file_soft_fails(self, sv_mocks):
-        sv_mocks["validate_file"].side_effect = ValidationException(
-            "Some validation error"
+        with pytest.raises(ExperimentValidationError) as e:
+            validate_experiment("/fake/path", mocks["config"])
+
+        assert "Failed to generate row schema" in str(e.value)
+        assert "Schema generation failed" in str(e.value)
+        mocks["open"].assert_called_once_with("/fake/path")
+        mocks["validate_message"].assert_called_once_with(
+            "ui/start", mocks["experiment"]
         )
-        result, err = validate_file_soft("some_file.json", "some_schema.json")
+        mocks["generate_row_schema"].assert_called_once_with(mocks["config"])
 
-        assert result is None
-        assert err == "Some validation error"
-        sv_mocks["print"].assert_not_called()
-        sv_mocks["exit"].assert_not_called()
-
-    def test_validate_file_soft_passes(self, sv_mocks):
-        sv_mocks["validate_file"].return_value = {"valid": True}
-        result, err = validate_file_soft("some_file.json", "some_schema.json")
-
-        assert result == {"valid": True}
-        assert err is None
-        sv_mocks["print"].assert_not_called()
-        sv_mocks["exit"].assert_not_called()
-
-
-class TestValidateDict:
-
-    def test_schema_not_found(self, validate_mocks):
-        validate_mocks["open"].side_effect = FileNotFoundError()
-        with pytest.raises(ValidationException) as e:
-            validate_dict({"some": "d", "to": "val"}, "non_existent_schema.json")
-
-        assert "ERROR: File not found - non_existent_schema.json" in e.value.args
-        validate_mocks["json_load"].assert_not_called()
-        validate_mocks["jsonschema_validate"].assert_not_called()
-
-    def test_invalid_schema(self, validate_mocks):
-        validate_mocks["open"].side_effect = (
-            mock_open(read_data="{ invalid json ").return_value,
-        )
-        with pytest.raises(ValidationException) as e:
-            validate_dict({"some": "d", "to": "val"}, "invalid_schema.json")
-
-        assert "ERROR: Cannot decode JSON: invalid_schema.json" in e.value.args[0]
-        # Should have tried to load schema
-        validate_mocks["json_load"].assert_called_once()
-        assert validate_mocks["json_load_calls"][0] == "{ invalid json "
-        validate_mocks["jsonschema_validate"].assert_not_called()
-
-    def test_validation_errors(self, validate_mocks):
-        validate_mocks["open"].side_effect = (
-            mock_open(read_data='{"s": "s"}').return_value,  # Schema loads ok
-        )
-        validate_mocks["jsonschema_validate"].side_effect = ValidationError(
-            "Some error"
-        )
-        with patch("jsonschema.Draft7Validator") as mock_validator:
-            mvc = MagicMock()
-            mvc.iter_errors.return_value = [
-                MagicMock(json_path="$.a", message="Invalid here"),
-                MagicMock(json_path="$.b", message="Invalid there"),
-            ]
-            mock_validator.return_value = mvc
-            with pytest.raises(ValidationException) as e:
-                validate_dict({"some": "d", "to": "val"}, "simple_schema.json")
-
-        assert "Validation errors:" in e.value.args[0]
-        assert "$.a -> Invalid here" in e.value.args[0]
-        assert "$.b -> Invalid there" in e.value.args[0]
-        # Should have loaded both schema and file
-        validate_mocks["json_load"].call_count == 1
-        assert validate_mocks["json_load_calls"][0] == '{"s": "s"}'
-
-    def test_validation_passes(self, validate_mocks):
-        validate_mocks["open"].side_effect = [
-            mock_open(read_data='{"s": "s"}').return_value,  # Schema loads ok
+    def test_raises_on_row_validation_failure(self, validate_experiment_mocks):
+        mocks = validate_experiment_mocks
+        mocks["validate_message"].side_effect = [
+            None,  # First call for "ui/start" passes
+            MQTTValidationException(
+                "Invalid row 1"
+            ),  # Second call for "experiment/row" fails
         ]
-        result = validate_dict({"some": "d", "to": "val"}, "simple_schema.json")
 
-        assert result == {"some": "d", "to": "val"}
-        # Should have loaded both schema and file
-        validate_mocks["json_load"].call_count == 1
-        assert validate_mocks["json_load_calls"][0] == '{"s": "s"}'
-        # Should have called validate without errors
-        validate_mocks["jsonschema_validate"].assert_called_once_with(
-            instance={"some": "d", "to": "val"}, schema={"s": "s"}
-        )
+        with pytest.raises(ExperimentValidationError) as e:
+            validate_experiment("/fake/path", mocks["config"])
 
+        assert "Experiment row validation failed" in str(e.value)
+        assert "Invalid row 1" in str(e.value)
+        mocks["open"].assert_called_once_with("/fake/path")
+        mocks["generate_row_schema"].assert_called_once_with(mocks["config"])
+        assert (
+            mocks["validate_message"].call_count == 2
+        ), "Expected 1 call for ui/start, and 1 for experiment row failure"
 
-class TestValidateExperimentDict:
-    VALID_ACTUATORS = {"furnace_centre/temperature", "mass_flow/mass_flow"}
-    VALID_EXPERIMENT = {
-        "id": "123",
-        "config": {"resolution": 0.1},
-        "experiment_definition": [
-            {"time": 0, "furnace_centre/temperature": 0, "mass_flow/mass_flow": 0},
-            {"time": 3, "furnace_centre/temperature": 100, "mass_flow/mass_flow": 50},
-        ],
-    }
+    def test_valid_experiment(self, validate_experiment_mocks):
+        mocks = validate_experiment_mocks
 
-    @pytest.fixture(autouse=True)
-    def mock_schema(self):
-        with patch("src.validation._get_experiment_schema", return_value=EXPERIMENT_SCHEMA):
-            yield
+        result = validate_experiment("/fake/path", mocks["config"])
 
-    def test_valid_experiment(self):
-        result = validate_experiment_dict(self.VALID_EXPERIMENT, self.VALID_ACTUATORS)
-        assert result == self.VALID_EXPERIMENT
+        mocks["open"].assert_called_once_with("/fake/path")
+        mocks["generate_row_schema"].assert_called_once_with(mocks["config"])
+        assert (
+            mocks["validate_message"].call_count == 3
+        ), "Expected 1 call for ui/start, and 2 for experiment rows"
 
-    def test_missing_id(self):
-        data = {"config": {}, "experiment_definition": [{"time": 0}]}
-        with pytest.raises(ValidationException, match="'id' is a required property"):
-            validate_experiment_dict(data, self.VALID_ACTUATORS)
-
-    def test_non_string_id(self):
-        data = {"id": 123, "config": {}, "experiment_definition": [{"time": 0}]}
-        with pytest.raises(ValidationException, match="not of type 'string'"):
-            validate_experiment_dict(data, self.VALID_ACTUATORS)
-
-    def test_missing_config(self):
-        data = {"id": "123", "experiment_definition": [{"time": 0}]}
-        with pytest.raises(ValidationException, match="'config' is a required property"):
-            validate_experiment_dict(data, self.VALID_ACTUATORS)
-
-    def test_missing_experiment_definition(self):
-        data = {"id": "123", "config": {}}
-        with pytest.raises(ValidationException, match="'experiment_definition' is a required property"):
-            validate_experiment_dict(data, self.VALID_ACTUATORS)
-
-    def test_empty_experiment_definition(self):
-        data = {"id": "123", "config": {}, "experiment_definition": []}
-        with pytest.raises(ValidationException, match="non-empty 'experiment_definition'"):
-            validate_experiment_dict(data, self.VALID_ACTUATORS)
-
-    def test_row_missing_time(self):
-        data = {
-            "id": "123",
-            "config": {},
-            "experiment_definition": [{"furnace_centre/temperature": 0}],
-        }
-        with pytest.raises(ValidationException, match="must have a numeric 'time' key"):
-            validate_experiment_dict(data, self.VALID_ACTUATORS)
-
-    def test_row_non_numeric_time(self):
-        data = {
-            "id": "123",
-            "config": {},
-            "experiment_definition": [{"time": "now", "furnace_centre/temperature": 0}],
-        }
-        with pytest.raises(ValidationException, match="must have a numeric 'time' key"):
-            validate_experiment_dict(data, self.VALID_ACTUATORS)
-
-    def test_negative_time(self):
-        data = {
-            "id": "123",
-            "config": {},
-            "experiment_definition": [{"time": -1, "furnace_centre/temperature": 0}],
-        }
-        with pytest.raises(ValidationException, match="negative 'time'"):
-            validate_experiment_dict(data, self.VALID_ACTUATORS)
-
-    def test_unknown_actuator_column(self):
-        data = {
-            "id": "123",
-            "config": {},
-            "experiment_definition": [{"time": 0, "unknown/var": 100}],
-        }
-        with pytest.raises(ValidationException, match="not a known actuator variable"):
-            validate_experiment_dict(data, self.VALID_ACTUATORS)
-
-    def test_missing_required_actuator(self):
-        data = {
-            "id": "123",
-            "config": {},
-            "experiment_definition": [
-                {"time": 0, "furnace_centre/temperature": 0},
-            ],
-        }
-        with pytest.raises(ValidationException, match="Actuator.*missing.*mass_flow/mass_flow"):
-            validate_experiment_dict(data, self.VALID_ACTUATORS)
-
-    def test_row_is_not_dict(self):
-        data = {
-            "id": "123",
-            "config": {},
-            "experiment_definition": ["not a dict"],
-        }
-        with pytest.raises(ValidationException, match="not of type 'object'"):
-            validate_experiment_dict(data, self.VALID_ACTUATORS)
-
-
-class TestValidateExperimentFile:
-    VALID_ACTUATORS = {"furnace_centre/temperature", "mass_flow/mass_flow"}
-
-    @pytest.fixture(autouse=True)
-    def mock_schema(self):
-        with patch("src.validation._get_experiment_schema", return_value=EXPERIMENT_SCHEMA):
-            yield
-
-    def test_file_not_found(self):
-        with patch("builtins.open", side_effect=FileNotFoundError):
-            with pytest.raises(ValidationException, match="File not found"):
-                validate_experiment_file("nonexistent.json", self.VALID_ACTUATORS)
-
-    def test_invalid_json(self):
-        m = mock_open(read_data="{ invalid json")
-        m.return_value.__enter__.return_value.read.return_value = "{ invalid json"
-        with patch("builtins.open", return_value=m.return_value):
-            with pytest.raises(ValidationException, match="Cannot decode JSON"):
-                validate_experiment_file("bad.json", self.VALID_ACTUATORS)
-
-    def test_valid_file(self):
-        data = {
-            "id": "123",
-            "config": {"resolution": 0.1},
-            "experiment_definition": [
-                {"time": 0, "furnace_centre/temperature": 0, "mass_flow/mass_flow": 0},
-            ],
-        }
-        m = mock_open(read_data=json.dumps(data))
-        with patch("builtins.open", return_value=m.return_value):
-            result = validate_experiment_file("valid.json", self.VALID_ACTUATORS)
-        assert result == data
+        assert result == json.loads(mocks["experiment"])

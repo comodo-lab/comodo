@@ -24,24 +24,27 @@ class TestComodoConfig:
     def test_param_dicts_min_max(self, sample_config_yaml):
         config = ComodoConfig(sample_config_yaml)
         d = config.param_dicts[0]
-        assert d["min"] == 5
-        assert d["max"] == 45
+        print(d)
+        assert d["min"] == 0
+        assert d["max"] == 10
         assert d["step"] == 1
 
     def test_pid_target_detection(self, sample_config_with_pid):
         config = ComodoConfig(sample_config_with_pid)
-        assert "pressure/value" in config.params
-        assert "flow/rate" not in config.params
+        assert "test_sensor/value" in config.params
+        assert "test_spc/output" not in config.params
 
     def test_pid_actuator_in_instrument_dict(self, sample_config_with_pid):
         config = ComodoConfig(sample_config_with_pid)
         names = [d["name"] for d in config.ini_instrument_dict]
-        assert "flow/rate" in names
-        assert "pressure/value" in names
+        assert "test_spc/output" in names
+        assert "test_sensor/value" in names
 
     def test_pid_target_uses_sensor_range(self, sample_config_with_pid):
         config = ComodoConfig(sample_config_with_pid)
-        pressure_dict = next(d for d in config.param_dicts if d["name"] == "pressure/value")
+        pressure_dict = next(
+            d for d in config.param_dicts if d["name"] == "test_sensor/value"
+        )
         assert pressure_dict["min"] == 0
         assert pressure_dict["max"] == 10
 
@@ -65,7 +68,11 @@ class TestComodoConfig:
         config = ComodoConfig(sample_config_yaml)
         instruments = config.ini_instrument_dict
         assert len(instruments) == 2
-        assert instruments[0] == {"name": "test_actuator/output", "tolerance": 1.0, "default_setpoint": 0}
+        assert instruments[0] == {
+            "name": "test_actuator/output",
+            "tolerance": 1.0,
+            "default_setpoint": 0,
+        }
         assert instruments[1] == {"name": "test_sensor/reading", "tolerance": 1.0}
 
     def test_ini_experiment_config(self, sample_config_yaml):

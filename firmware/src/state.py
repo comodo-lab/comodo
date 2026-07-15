@@ -123,6 +123,6 @@ class InstrumentState(object):
             self.client.callback = self.idle_cb
             self.status["state"] = "idle"
             self.status["setpoints"] = {}
-            print(f"Instrument {self.config['INSTRUMENT_ID']} idle.")
+            print(f"Instrument {self.config['INSTRUMENT_NAME']} idle.")
 
         return
