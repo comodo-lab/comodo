@@ -1,0 +1,220 @@
+id: https://example.org/experiment-schema
+name: ExperimentSchema
+prefixes:
+  linkml: https://w3id.org/linkml/
+  ex: https://example.org/
+imports:
+  - linkml:types
+default_prefix: ex
+
+classes:
+  Experiment:
+    tree_root: true
+    slots:
+      - global
+      - instruments
+      - visualisations
+
+  GlobalSettings:
+    slots:
+      - heartbeat
+      - instrument_setup
+      - watchdog
+
+  HeartbeatConfig:
+    slots:
+      - interval
+    slot_usage:
+      interval:
+        required: true
+        range: float
+
+  InstrumentSetupConfig:
+    slots:
+      - wait
+    slot_usage:
+      wait:
+        required: true
+        range: float
+
+  WatchdogConfig:
+    slots:
+      - timeout
+      - interval
+    slot_usage:
+      timeout:
+        required: true
+        range: float
+      interval:
+        required: true
+        range: float
+
+  Instrument:
+    slots:
+      - firmware
+      - address
+      - simulate
+      - id
+      - variables
+
+  Variable:
+    slots:
+      - id
+      - sensor
+      - actuator
+      - setpoint_controller
+
+  SensorConfig:
+    slots:
+      - interval
+      - type
+      - min
+      - max
+      - unit
+    slot_usage:
+      interval:
+        required: true
+
+  ActuatorConfig:
+    slots:
+      - type
+      - min
+      - max
+      - unit
+      - default_setpoint
+      - tolerance
+    slot_usage:
+      default_setpoint:
+        required: true
+      tolerance:
+        required: true
+
+  SetpointControllerConfig:
+    slots:
+      - external_sensor
+      - K_P
+      - K_I
+      - K_D
+      - K_DF
+      - K_AW
+
+  Visualisation:
+    abstract: true
+    slots:
+      - id
+      - title
+      - type
+
+  Graph:
+    is_a: Visualisation
+    slots:
+      - y_values
+
+  Gauge:
+    is_a: Visualisation
+    slots:
+      - value
+
+slots:
+  id:
+    range: string
+    identifier: true
+
+  global:
+    range: GlobalSettings
+
+  instruments:
+    range: Instrument
+    multivalued: true
+    inlined: true
+    inlined_as_list: false
+
+  variables:
+    range: Variable
+    multivalued: true
+    inlined: true
+    inlined_as_list: false
+
+  sensor:
+    range: SensorConfig
+    inlined: true
+
+  actuator:
+    range: ActuatorConfig
+    inlined: true
+
+  setpoint_controller:
+    range: SetpointControllerConfig
+    inlined: true
+
+  heartbeat:
+    range: HeartbeatConfig
+    inlined: true
+
+  instrument_setup:
+    range: InstrumentSetupConfig
+    inlined: true
+
+  watchdog:
+    range: WatchdogConfig
+    inlined: true
+
+  timeout:
+    range: float
+
+  interval:
+    range: float
+
+  wait:
+    range: float
+
+  firmware:
+    range: string
+
+  address:
+    range: string
+
+  simulate:
+    range: boolean
+
+  type:
+    range: string
+  min:
+    range: float
+  max:
+    range: float
+  unit:
+    range: string
+  default_setpoint:
+    range: float
+  tolerance:
+    range: float
+
+  external_sensor:
+    range: string
+    pattern: "^[^/]+/[^/]+$"
+  K_P:
+    range: float
+  K_I:
+    range: float
+  K_D:
+    range: float
+  K_DF:
+    range: float
+  K_AW:
+    range: float
+
+  visualisations:
+    range: Visualisation
+    multivalued: true
+    inlined: true
+    inlined_as_list: false
+
+  title:
+    range: string
+  y_values:
+    multivalued: true
+    range: string
+  value:
+    multivalued: true
+    range: string

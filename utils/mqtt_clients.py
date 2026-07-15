@@ -9,6 +9,14 @@ import time
 import random
 
 
+class MQTTMessageError(Exception):
+    """Custom exception for MQTT message errors."""
+
+    def __init__(self, message):
+        print(f"MQTT message error: {message}")
+        super().__init__(message)
+
+
 def print_message(client, msg, timestamped=False):
     """
     Print the message received from the MQTT client to the console in the format:
@@ -72,7 +80,12 @@ def mqtt_publish_exceptions(name, func):
             try:
                 MQTTPublisher.get_instance().publish(
                     "error/mqtt",
-                    json.dumps({"error": f"Unhandled exception in {name}: {str(e)}"}),
+                    json.dumps(
+                        {
+                            "code": "unhandled_exception",
+                            "message": f"Unhandled exception in {name}: {str(e)}",
+                        }
+                    ),
                 )
             except Exception as e:
                 print(f"Error while reporting error! {e}")
@@ -81,7 +94,7 @@ def mqtt_publish_exceptions(name, func):
 
 
 def on_subscribe(client, userdata, mid, reason_code_list, properties):
-    print(f"Client '{userdata.get("id")}' succeded? {reason_code_list} in subscribing.")
+    print(f"Client '{userdata.get('id')}' succeded? {reason_code_list} in subscribing.")
     if all(rc <= 2 for rc in reason_code_list):
         print(f"Client '{userdata.get('id')}' successfully subscribed (mid {mid}).")
         userdata["successful_mids"].append(mid)
@@ -98,8 +111,8 @@ def on_subscribe(client, userdata, mid, reason_code_list, properties):
 
 
 def on_connect_fail(client, userdata):
-    print(f"Client '{userdata.get("id")}' failed to connect.")
-    raise RuntimeError(f"Client '{userdata.get("id")}' failed to connect.")
+    print(f"Client '{userdata.get('id')}' failed to connect.")
+    raise RuntimeError(f"Client '{userdata.get('id')}' failed to connect.")
 
 
 def on_connect(client, userdata, flags, rc, properties):
@@ -241,7 +254,10 @@ def load_message(msg):
     Decodes and loads the message received from the MQTT client as a JSON object.
     Exceptions need to be caught when calling this function.
     """
-    return json.loads(msg.payload.decode("utf-8"))
+    try:
+        return json.loads(msg.payload.decode("utf-8"))
+    except Exception as e:
+        raise MQTTMessageError(f"Error loading message as JSON: {e}")
 
 
 class MQTTPublisher:
@@ -302,7 +318,9 @@ class MQTTPublisher:
             try:
                 self.client.publish(topic, payload)
             except Exception as e:
-                print(f"Error publishing message {e}")
+                raise MQTTMessageError(
+                    f"Error publishing message to topic '{topic}': {e}"
+                )
 
     @classmethod
     def get_instance(cls, **kwargs):

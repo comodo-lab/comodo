@@ -14,3 +14,9 @@ services:
       RABBITMQ_DEFAULT_PASS: ${MQTT_PASS}
     ports:
       - '1883:1883'
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 2s
+      timeout: 5s
+      retries: 10
+      start_period: 5s

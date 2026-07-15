@@ -3,6 +3,7 @@ paho-mqtt
 
 # Testing
 pytest
+pytest-asyncio
 pytest-rerunfailures
 coverage
 
