@@ -13,8 +13,6 @@ x-templates:
     build:
       context: .
       dockerfile: firmware/Dockerfile
-    networks:
-      comodo-firmware:
     depends_on:
       mqtt-probe-firmware:
         condition: service_healthy
@@ -27,8 +25,6 @@ services:
     environment:
       <<: *mqtt-env
       MQTT_PROBE_ID: firmware
-    networks:
-      comodo-firmware:
 
 {% for name, instr in instruments.items() %}
   {{ name }}:
@@ -54,8 +50,6 @@ services:
     build:
       context: .
       dockerfile: setpoint_controller/Dockerfile
-    networks:
-      comodo-firmware:
     depends_on:
       mqtt-probe-firmware:
         condition: service_healthy
@@ -75,9 +69,6 @@ services:
 {%- endif %}
 {%- endfor -%}
 {% endfor %}
-networks:
-  comodo-firmware:
-    name: comodo-firmware
 
 {% if 'mass_flow' in instruments %}
 volumes:
