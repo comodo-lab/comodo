@@ -40,7 +40,7 @@ if [[ "$run_integration" == true ]]; then
     echo "Running integration tests..."
     integration_output=$(
         cd integration_tests && docker compose --env-file ../.env kill &&
-        docker compose --env-file ../.env up --build --attach test-runner --force-recreate 2>&1 | tee /dev/stderr &&
+        docker compose --env-file ../.env up --build --attach integration-test --force-recreate 2>&1 | tee /dev/stderr &&
         docker compose --env-file ../.env kill)
     all_output+=$'\n'"$integration_output"
 else

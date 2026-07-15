@@ -8,13 +8,10 @@ x-templates:
     MQTT_PASS: ${MQTT_PASS}
   instrument-env: &instrument-env
     <<: *mqtt-env
-    SIMULATE: ${SIMULATE_INSTRUMENTS:-false}
   python-instrument-template: &python-instrument-template
     build:
       context: .
       dockerfile: firmware/Dockerfile
-    networks:
-      comodo-firmware:
     depends_on:
       mqtt-probe-firmware:
         condition: service_healthy
@@ -23,13 +20,12 @@ name: comodo-firmware
 
 services:
   mqtt-probe-firmware:
-    image: comodolab/comodo-mqtt_probe:latest
+    build:
+      context: ./
+      dockerfile: mqtt_probe/Dockerfile
     environment:
       <<: *mqtt-env
       MQTT_PROBE_ID: firmware
-    networks:
-      comodo-firmware:
-
 
   furnace_centre:
     <<: *python-instrument-template
@@ -109,24 +105,10 @@ services:
       - "/dev/ttyUSB2:/dev/ttyUSB2"
     privileged: true
 
-  mass_spec:
-    <<: *python-instrument-template
-    environment:
-      <<: *instrument-env
-      INSTRUMENT_NAME: "mass_spec"
-      FIRMWARE: pfeiffer.prisma_pro
-      DEVICE_ADDRESS: "192.168.1.100"
-      ACTIVE_VARIABLES: '["mass_spec"]'
-      HEARTBEAT_INTERVAL: 1000
-      INTERVAL_MASS_SPEC: 1000
-
-
   spc-mass_flow-mass_flow:
     build:
       context: .
       dockerfile: setpoint_controller/Dockerfile
-    networks:
-      comodo-firmware:
     depends_on:
       mqtt-probe-firmware:
         condition: service_healthy
@@ -142,10 +124,6 @@ services:
       K_DF: 0.01
       OUT_MIN: 0
       OUT_MAX: 100
-networks:
-  comodo-firmware:
-    name: comodo-firmware
-
 
 volumes:
   massflow_read:

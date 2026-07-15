@@ -11,7 +11,7 @@ instruments:
   furnace_centre:
     firmware: carbolite_gero.tg3
     address: "192.168.111.222"
-    simulate: false
+    simulate: true
     variables:
       temperature:
         sensor:
@@ -30,7 +30,7 @@ instruments:
   furnace_left:
     firmware: carbolite_gero.tg3
     address: "192.168.111.224"
-    simulate: false
+    simulate: true
     variables:
       temperature:
         sensor:
@@ -42,7 +42,7 @@ instruments:
   furnace_right:
     firmware: carbolite_gero.tg3
     address: "192.168.111.225"
-    simulate: false
+    simulate: true
     variables:
       temperature:
         sensor:
@@ -54,7 +54,7 @@ instruments:
   pressure_downstream:
     firmware: pfeiffer.mpt200
     address: "/dev/ttyUSB0"
-    simulate: false
+    simulate: true
     variables:
       pressure:
         sensor:
@@ -66,7 +66,7 @@ instruments:
   pressure_upstream:
     firmware: pfeiffer.mpt200
     address: "/dev/ttyUSB1"
-    simulate: false
+    simulate: true
     variables:
       pressure:
         sensor:
@@ -78,7 +78,7 @@ instruments:
   mass_flow:
     firmware: bronkhorst.el_flow_select
     address: "/dev/ttyUSB2"
-    simulate: false
+    simulate: true
     variables:
       mass_flow:
         sensor:
@@ -122,15 +122,6 @@ instruments:
           min: 0
           max: 10
           unit: bar
-  mass_spec:
-    firmware: pfeiffer.prisma_pro
-    address: "192.168.1.100"
-    simulate: false
-    variables:
-      mass_spec:
-        sensor:
-          interval: 1
-          type: array
 
 visualisations:
   temperature_graph:

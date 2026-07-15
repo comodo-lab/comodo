@@ -152,7 +152,7 @@ def main():
         print(f"Controller failed to start. watchdog unhealthy.")
     while wdog["healthy"]:
         controller.publish("controller/heartbeat", f"{state}")
-        t.sleep(wdog["interval"])
+        t.sleep(config.globals["heartbeat_interval"])
 
     print(f"Exiting...")
 

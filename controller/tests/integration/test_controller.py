@@ -1,7 +1,7 @@
 import json
 import pytest
 import time as t
-from unittest.mock import patch, ANY
+from unittest.mock import patch
 
 from tests.conftest import (
     MockMessage,
@@ -95,15 +95,18 @@ def test_control_loop(
     )
     t.sleep(0.1)
 
-    mock_validate.assert_called_once_with("some_file", ANY)
+    mock_validate.assert_called_once_with("some_file", state.config)
     # Should go through c_idle and c_starting, then expect instruments to respond
     assert state._status_history == ["validating", "starting", "awaiting_instruments"]
     assert state.experiment_uid == "123"
-    instrument_names = sorted(["furnace_centre", "furnace_left", "mass_flow"])
-    actuator_names = sorted([
-        name for name, instr in state.config.instruments.items()
-        if any("actuator" in v for v in instr["variables"].values())
-    ])
+    instrument_names = sorted([ins for ins in state.config.instruments.keys()])
+    actuator_names = sorted(
+        [
+            name
+            for name, instr in state.config.instruments.items()
+            if any("actuator" in v for v in instr["variables"].values())
+        ]
+    )
     messages = message_bus.get_messages()
     # expected_messages = validate + passed + start + timer
     expected_messages = 4
@@ -112,7 +115,10 @@ def test_control_loop(
     assert messages[1].topic == "controller/validator/passed"
     assert messages[2].topic == "controller/command/start"
     assert messages[3].topic == "controller/timer/command/start"
-    assert json.loads(messages[3].payload) == {"source": "instrument_setup", "experiment_id": "123"}
+    assert json.loads(messages[3].payload) == {
+        "source": "instrument_setup",
+        "experiment_id": "123",
+    }
     checked_messages += expected_messages
     assert state.instruments_ready is False
     assert state.status == "awaiting_instruments"
@@ -123,11 +129,18 @@ def test_control_loop(
     for instrument in instrument_names:
         msg = MockMessage(
             topic=f"instruments/{instrument}/heartbeat",
-            payload=json.dumps({
-                "state": "ready",
-                "setpoints": {},
-                "config": {"firmware": "test", "device_address": "1.2.3.4", "simulate": True, "variables": []}
-            }),
+            payload=json.dumps(
+                {
+                    "state": "ready",
+                    "setpoints": {},
+                    "config": {
+                        "firmware": "test",
+                        "device_address": "1.2.3.4",
+                        "simulate": True,
+                        "variables": [],
+                    },
+                }
+            ),
         )
         message_bus.publish(msg.topic, msg.payload.decode())
     t.sleep(0.1)
@@ -142,7 +155,7 @@ def test_control_loop(
     messages = message_bus.get_messages()[checked_messages:]
     # expected_messages = heartbeats + ready + run + setpoints + timer
     expected_messages = len(instrument_names) + 2 + len(actuator_names) + 1
-    assert len(messages) == expected_messages 
+    assert len(messages) == expected_messages
     heartbeat_instruments = []
     for i, msg in enumerate(messages[: len(instrument_names)]):
         topic_parts = msg.topic.split("/")
@@ -153,11 +166,13 @@ def test_control_loop(
     assert sorted(heartbeat_instruments) == instrument_names
     assert messages[len(instrument_names)].topic == "controller/event/ready"
     assert messages[len(instrument_names) + 1].topic == "controller/command/run"
-    assert json.loads(messages[len(instrument_names) + 1].payload) == {"experiment_id": "D123-456"}
+    assert json.loads(messages[len(instrument_names) + 1].payload) == {
+        "experiment_id": "D123-456"
+    }
     # Setpoint messages (for each instrument) then timer
     setpoint_start = len(instrument_names) + 2
     setpoint_instruments = []
-    for i, msg in enumerate(messages[setpoint_start : -1]):
+    for i, msg in enumerate(messages[setpoint_start:-1]):
         topic_parts = msg.topic.split("/")
         assert len(topic_parts) == 4
         assert topic_parts[0] == "instruments"
@@ -172,7 +187,9 @@ def test_control_loop(
     # Simulate setpoint timer ticks
     n_setpoints = len(state.setpoints)
     past_setpoints = len(state.past_setpoints)
-    message_bus.publish("controller/command/run", json.dumps({"experiment_id": "D123-456"}))
+    message_bus.publish(
+        "controller/command/run", json.dumps({"experiment_id": "D123-456"})
+    )
     t.sleep(0.1)
     messages = message_bus.get_messages()[checked_messages:]
     # expected_messages = run + setpoints + timer
@@ -194,14 +211,18 @@ def test_control_loop(
     assert len(state.past_setpoints) == past_setpoints + 1
     # Continue simulating setpoint timer ticks until done
     for _ in range(n_setpoints - 1):
-        message_bus.publish("controller/command/run", json.dumps({"experiment_id": "D123-456"}))
+        message_bus.publish(
+            "controller/command/run", json.dumps({"experiment_id": "D123-456"})
+        )
         t.sleep(0.01)
     assert state.setpoints == []
     assert len(state.past_setpoints) == n_setpoints
     checked_messages += (n_setpoints - 1) * (1 + len(actuator_names) + 1)
 
     # Final timer tick to end experiment
-    message_bus.publish("controller/command/run", json.dumps({"experiment_id": "D123-456"}))
+    message_bus.publish(
+        "controller/command/run", json.dumps({"experiment_id": "D123-456"})
+    )
     t.sleep(2)
 
     # Should go from c_running to c_stopping

@@ -1,6 +1,6 @@
 import pytest
 import json
-from unittest.mock import patch, ANY
+from unittest.mock import patch
 
 from tests.conftest import (
     MockMessage,
@@ -128,7 +128,7 @@ class TestIdle:
             )
             c_idle(controller_client, msg, state)
 
-            mock_validate.assert_called_once_with("missing_file.json", ANY)
+            mock_validate.assert_called_once_with("missing_file.json", state.config)
 
         assert state._status_history == ["validating", "idle"]
         assert state.experiment_uid == None
@@ -197,7 +197,7 @@ class TestIdle:
             )
             c_idle(controller_client, msg, state)
 
-            mock_validate.assert_called_once_with("valid_file.json", ANY)
+            mock_validate.assert_called_once_with("valid_file.json", state.config)
             # Split setpoints called
             mock_split_setpoints.assert_called_once_with(["some data"], 42)
 
@@ -236,7 +236,7 @@ class TestIdle:
             )
             c_idle(controller_client, msg, state)
 
-            mock_validate.assert_called_once_with("valid_file.json", ANY)
+            mock_validate.assert_called_once_with("valid_file.json", state.config)
             # Split setpoints called
             mock_split_setpoints.assert_called_once_with(["some data"], 42)
 
@@ -316,7 +316,7 @@ class TestStarting:
         assert state.status == "validating"
         assert controller_client.callback == c_starting
 
-        instrument_names = ["furnace_centre", "furnace_left", "mass_flow"]
+        instrument_names = [ins for ins in state.config.instruments.keys()]
 
         msg = MockMessage(
             topic="controller/command/start", payload=json.dumps({"id": "123"})
@@ -331,19 +331,16 @@ class TestStarting:
         assert state.status == "awaiting_instruments"
         assert controller_client.callback == mock_c_ready
         # Instrument config list updated correctly
-        assert len(state.instruments) == len(instrument_names)
+        assert len(state.instrument_states) == len(instrument_names)
         assert state.instruments_ready == False
-        for instrument_name, instrument in state.instruments.items():
+        for instrument_name, instrument in state.instrument_states.items():
             assert instrument_name in instrument_names
-
-            assert "last_contact" in instrument
-            assert instrument["last_contact"] is None
-            assert "config" in instrument
-            assert instrument["config"] is None
-            assert "state" in instrument
-            assert instrument["state"] is None
-            assert "setpoints" in instrument
-            assert instrument["setpoints"] is None
+            assert instrument == {
+                "last_contact": None,
+                "config": None,
+                "state": None,
+                "setpoints": None,
+            }
         # Timer message sent
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 1

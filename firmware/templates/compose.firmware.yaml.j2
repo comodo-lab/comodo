@@ -8,13 +8,10 @@ x-templates:
     MQTT_PASS: ${MQTT_PASS}
   instrument-env: &instrument-env
     <<: *mqtt-env
-    SIMULATE: ${SIMULATE_INSTRUMENTS:-false}
   python-instrument-template: &python-instrument-template
     build:
       context: .
       dockerfile: firmware/Dockerfile
-    networks:
-      comodo-firmware:
     depends_on:
       mqtt-probe-firmware:
         condition: service_healthy
@@ -23,12 +20,12 @@ name: comodo-firmware
 
 services:
   mqtt-probe-firmware:
-    image: comodolab/comodo-mqtt_probe:latest
+    build:
+      context: ./
+      dockerfile: mqtt_probe/Dockerfile
     environment:
       <<: *mqtt-env
       MQTT_PROBE_ID: firmware
-    networks:
-      comodo-firmware:
 
 {% for name, instr in instruments.items() %}
   {{ name }}:
@@ -54,8 +51,6 @@ services:
     build:
       context: .
       dockerfile: setpoint_controller/Dockerfile
-    networks:
-      comodo-firmware:
     depends_on:
       mqtt-probe-firmware:
         condition: service_healthy
@@ -75,9 +70,6 @@ services:
 {%- endif %}
 {%- endfor -%}
 {% endfor %}
-networks:
-  comodo-firmware:
-    name: comodo-firmware
 
 {% if 'mass_flow' in instruments %}
 volumes:

@@ -149,7 +149,12 @@ class TestMain:
             call(
                 id="watchdog",
                 callback=mocks["callbacks"]["on_watchdog_message"],
-                topics=["watchdog/timer/event/+", "watchdog/timer/command/+", "controller/heartbeat", "error/exception"],
+                topics=[
+                    "watchdog/timer/event/+",
+                    "watchdog/timer/command/+",
+                    "controller/heartbeat",
+                    "error/exception",
+                ],
                 obj=wdog,
                 broker_address="test_host",
                 user="test_user",
@@ -233,7 +238,8 @@ class TestMain:
     def test_watchdog_loop(self, main_mocks, mqtt_mocks, message_bus, capsys):
         mocks = main_mocks
         mocks["loaded_config"].globals = {
-            "watchdog_interval": 2,
+            "heartbeat_interval": 2,
+            "watchdog_interval": 1,
             "watchdog_timeout": 6,
         }
 
@@ -256,7 +262,7 @@ class TestMain:
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 4
         assert messages[0].topic == "watchdog/timer/command/start"
-        assert json.loads(messages[0].payload) == {"timeout": 6, "interval": 2}
+        assert json.loads(messages[0].payload) == {"timeout": 6, "interval": 1}
         assert messages[1].topic == "controller/heartbeat"
         assert messages[2].topic == "controller/heartbeat"
         assert messages[3].topic == "controller/heartbeat"
@@ -270,7 +276,8 @@ class TestMain:
     ):
         mocks = main_mocks
         mocks["loaded_config"].globals = {
-            "watchdog_interval": 2,
+            "heartbeat_interval": 2,
+            "watchdog_interval": 1,
             "watchdog_timeout": 6,
         }
 

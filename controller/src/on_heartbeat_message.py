@@ -29,57 +29,37 @@ def on_heartbeat_message(client, msg, obj):
         return
 
     if obj.status in ["idle", "validating", "starting"]:
+        # maintain a clean slate for instruments before the awaiting_instruments state
         return
 
     instrument_name = msg.topic.split("/")[1]
     payload = json.loads(msg.payload)
-    if instrument_name in obj.instruments:
+    if instrument_name in obj.instrument_states.keys():
         handle_instrument_heartbeat(obj, payload, instrument_name)
-    elif instrument_name in obj.sensor_instruments:
-        return
     else:
         unconfigured_instrument(msg, instrument_name)
         return
 
 
 def handle_instrument_heartbeat(obj, heartbeat, instrument_name):
-    obj_instrument = obj.instruments[instrument_name]
-    obj_instrument["last_contact"] = t.time()
+    # Update instrument state and setpoints
+    obj.instrument_states[instrument_name]["last_contact"] = t.time()
+    if not heartbeat_valid(obj, heartbeat, instrument_name):
+        return
+    obj.instrument_states[instrument_name]["state"] = heartbeat["state"]
+    obj.instrument_states[instrument_name]["setpoints"] = heartbeat["setpoints"]
+    obj.instrument_states[instrument_name]["config"] = heartbeat["config"]
     if obj.status == "awaiting_instruments":
         # Assert state and config match, otherwise stop experiment
         if heartbeat["state"] == "idle":
             return
-        expected = obj.config.get_expected_heartbeat(instrument_name)
-        if heartbeat["config"] != expected:
-            e = (
-                f"Instrument '{instrument_name}' misconfigured. "
-                f"Expected {expected}, received {heartbeat['config']}."
-            )
-
-            print(f"ERROR: {e} Stopping experiment.")
-
-            mqtt.MQTTPublisher.get_instance().publish(
-                "error/instrument",
-                json.dumps({"code": "configuration", "message": e}),
-            )
-            mqtt.MQTTPublisher.get_instance().publish(
-                "controller/command/stop", json.dumps({"id": obj.experiment_uid})
-            )
-            return
-
-        # Update instrument state and setpoints
-        obj_instrument["state"] = heartbeat["state"]
-        obj_instrument["setpoints"] = heartbeat["setpoints"]
-        obj_instrument["config"] = heartbeat["config"]
-
         # Check if all instruments are ready (not idle) and if so:
         # set the configured flag and publish ready event
 
-        heartbeats_ready = True
-        for instrument in obj.instruments.values():
-            if instrument["state"] in [None, "idle", "error"]:
-                heartbeats_ready = False
-                break
+        heartbeats_ready = all(
+            instrument["state"] in ["ready", "adjusting"]
+            for instrument in obj.instrument_states.values()
+        )
 
         if heartbeats_ready and not obj.instruments_ready:
             obj.instruments_ready = True
@@ -87,8 +67,25 @@ def handle_instrument_heartbeat(obj, heartbeat, instrument_name):
                 "controller/event/ready",
                 json.dumps({"experiment_id": obj.experiment_uid}),
             )
-    else:
-        # Update instrument state and setpoints
-        obj_instrument["state"] = heartbeat["state"]
-        obj_instrument["setpoints"] = heartbeat["setpoints"]
-        obj_instrument["config"] = heartbeat["config"]
+
+
+def heartbeat_valid(obj, heartbeat, instrument_name):
+    expected = obj.config.get_expected_heartbeat(instrument_name)
+
+    if heartbeat["config"] != expected:
+        e = (
+            f"Instrument '{instrument_name}' misconfigured. "
+            f"Expected: {expected}; Received: {heartbeat['config']}."
+        )
+
+        print(f"ERROR: {e} Stopping experiment.")
+
+        mqtt.MQTTPublisher.get_instance().publish(
+            "error/instrument",
+            json.dumps({"code": "configuration", "message": e}),
+        )
+        mqtt.MQTTPublisher.get_instance().publish(
+            "controller/command/stop", json.dumps({"id": obj.experiment_uid})
+        )
+        return False
+    return True

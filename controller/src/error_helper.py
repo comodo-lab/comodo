@@ -76,7 +76,7 @@ def experiment_validation_error(error, uid):
     print(f"ERROR: {error_msg}")
     mqtt.MQTTPublisher.get_instance().publish(
         "error/validator",
-        json.dumps({"code": "experiment_validation", "message": e}),
+        json.dumps({"code": "experiment_validation", "message": error_msg}),
     )
 
 

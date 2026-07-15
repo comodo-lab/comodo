@@ -1,61 +1,24 @@
 # This compose file runs the integration tests for the comodo stack and exits when done.
 # To run the tests, cd into integration_tests/ and execute:
-#   docker compose --env-file ../.env up --build --attach test-runner --force-recreate
+#   docker compose --env-file ../.env up --build --attach integration-test --force-recreate
 #   docker compose --env-file ../.env kill
 #
 # Note that pytest captures prints from the runner.py code, not from the stack itself.
 # If debugging code in the stack, you need to attach to the service being debugged, e.g.:
-#   docker compose --env-file ../.env up --build --attach test-runner --attach monitor --force-recreate
+#   docker compose --env-file ../.env up --build --attach integration-test  --attach monitor --force-recreate
 # and then exit with Ctrl-C when done.
+# Alternatively, you can just attach to everything except rabbitmq, e.g.:
+#   docker compose --env-file ../.env up --build --no-attach rabbitmq --force-recreate
 
 include:
+  # - path: ../compose.debug.yaml
   - path: ../compose.yaml
-  #- path: ../compose.data.yaml
-  - path: compose.firmware.yaml
+  # - path: ../compose.data.yaml
   - path: ../compose.mqtt.yaml
+  - path: ../compose.firmware.yaml
 
 services:
-
-  rabbitmq:
-    networks:
-      - default
-      - comodo-core
-
-  mqtt-probe-core:
-    environment:
-      MQTT_HOST: rabbitmq
-      MQTT_USER: comodo
-      MQTT_PASS: comodo
-
-  controller:
-    environment:
-      MQTT_HOST: rabbitmq
-      MQTT_USER: comodo
-      MQTT_PASS: comodo
-    volumes:
-      - ./fixtures/comodo.yaml:/app/comodo.yaml:ro
-
-  ui:
-    environment:
-      MQTT_HOST: rabbitmq
-      MQTT_USER: comodo
-      MQTT_PASS: comodo
-    volumes:
-      - ./fixtures/comodo.yaml:/app/comodo.yaml:ro
-
-  monitor:
-    environment:
-      MQTT_HOST: rabbitmq
-      MQTT_USER: comodo
-      MQTT_PASS: comodo
-
-  # influxdb:
-  #   environment:
-  #     DOCKER_INFLUXDB_INIT_ORG: ${INFLUX_ORG:-comodo}
-  #     DOCKER_INFLUXDB_INIT_BUCKET: ${INFLUX_BUCKET:-comodo}
-  #     DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: ${INFLUX_TOKEN:-devtoken}
-
-  test-runner:
+  integration-test:
     build:
       context: .
       dockerfile: Dockerfile
@@ -63,9 +26,6 @@ services:
     env_file:
       - ../.env
     environment:
-      MQTT_HOST: rabbitmq
-      MQTT_USER: comodo
-      MQTT_PASS: comodo
       HEARTBEAT_TIMEOUT: ${HEARTBEAT_TIMEOUT:-20}
       EXPERIMENT_TIMEOUT: ${EXPERIMENT_TIMEOUT:-40}
     volumes:
