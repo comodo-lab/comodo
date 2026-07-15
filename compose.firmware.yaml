@@ -20,7 +20,9 @@ name: comodo-firmware
 
 services:
   mqtt-probe-firmware:
-    image: comodolab/comodo-mqtt_probe:latest
+    build:
+      context: ./
+      dockerfile: mqtt_probe/Dockerfile
     environment:
       <<: *mqtt-env
       MQTT_PROBE_ID: firmware
@@ -102,17 +104,6 @@ services:
     devices:
       - "/dev/ttyUSB2:/dev/ttyUSB2"
     privileged: true
-
-  mass_spec:
-    <<: *python-instrument-template
-    environment:
-      <<: *instrument-env
-      INSTRUMENT_NAME: "mass_spec"
-      FIRMWARE: pfeiffer.prisma_pro
-      DEVICE_ADDRESS: "192.168.1.100"
-      ACTIVE_VARIABLES: '["mass_spec"]'
-      HEARTBEAT_INTERVAL: 1000
-      INTERVAL_MASS_SPEC: 1000
 
   spc-mass_flow-mass_flow:
     build:

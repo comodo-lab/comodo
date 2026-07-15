@@ -313,7 +313,7 @@ setpoint controller, and a test runner — then runs a full experiment cycle:
 
 To run, move into the integration_tests directory and execute:
 ```
-docker compose --env-file ../.env up --build --attach test-runner --force-recreate
+docker compose --env-file ../.env up --build --attach integration-test --force-recreate
 ```
 
 ### Temporary experiment trigger:

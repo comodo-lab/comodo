@@ -20,7 +20,9 @@ name: comodo-firmware
 
 services:
   mqtt-probe-firmware:
-    image: comodolab/comodo-mqtt_probe:latest
+    build:
+      context: ./
+      dockerfile: mqtt_probe/Dockerfile
     environment:
       <<: *mqtt-env
       MQTT_PROBE_ID: firmware
