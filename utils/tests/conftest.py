@@ -8,6 +8,8 @@ from utils.tests.mocks.mock_mqtt_clients import (
     mqtt_mocks,
     parse_message_args,
 )
+from utils.tests.mocks.mock_comodo_config import mock_comodo_config
+from utils.tests.mocks.mock_comodo_yaml import mock_comodo_yaml
 
 
 @pytest.fixture
