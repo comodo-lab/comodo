@@ -145,13 +145,6 @@ class TestPopulateGlobals:
         )
         assert f"Missing {missing} in configuration" in str(e.value)
 
-        assert config.globals == {
-            "heartbeat_interval": None,
-            "watchdog_interval": None,
-            "watchdog_timeout": None,
-            "instrument_setup_wait": None,
-        }
-
     def test_with_0_values(self, mocks_for_globals):
         config = mocks_for_globals["config_with_raw"]
         config.raw["global"]["instrument_setup"]["wait"] = 0

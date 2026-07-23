@@ -85,10 +85,6 @@ class ComodoConfig:
         ]
         missing_params = find_missing_params(self.raw, req_params)
         if missing_params:
-            self.globals["heartbeat_interval"] = None
-            self.globals["watchdog_interval"] = None
-            self.globals["watchdog_timeout"] = None
-            self.globals["instrument_setup_wait"] = None
             raise KeyError(f"Missing {missing_params} in configuration.")
 
         glob = self.raw["global"]
