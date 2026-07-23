@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch, MagicMock, call
 
 from comodo_config import find_missing_params, ComodoConfig
 from tests.conftest import (
-    mock_comodo_yaml,
+    mock_comodo_yaml_dict,
     mock_comodo_config,
 )
 
@@ -69,7 +69,7 @@ class TestInit:
 
 class TestLoad:
     @pytest.fixture
-    def mocks_for_load(self, mock_comodo_yaml):
+    def mocks_for_load(self, mock_comodo_yaml_dict):
         with (
             patch("builtins.open") as mock_open,
             patch("yaml.safe_load") as mock_yaml_load,
@@ -84,7 +84,7 @@ class TestLoad:
             ) as mock_populate_vars,
         ):
 
-            mock_yaml_load.return_value = mock_comodo_yaml
+            mock_yaml_load.return_value = mock_comodo_yaml_dict
 
             # Yield mocks for use in tests
             yield {
@@ -95,13 +95,13 @@ class TestLoad:
                 "mock_populate_vars": mock_populate_vars,
             }
 
-    def test_full_comodo_yaml(self, mocks_for_load, mock_comodo_yaml):
+    def test_full_comodo_yaml(self, mocks_for_load, mock_comodo_yaml_dict):
         config = ComodoConfig()
         result = config.load()
 
         mocks_for_load["mock_open"].assert_called_once_with("/app/comodo.yaml", "r")
         mocks_for_load["mock_yaml_load"].assert_called_once()
-        assert config.raw == mock_comodo_yaml
+        assert config.raw == mock_comodo_yaml_dict
         mocks_for_load["mock_populate_globals"].assert_called_once()
         mocks_for_load["mock_populate_instruments"].assert_called_once()
         mocks_for_load["mock_populate_vars"].assert_called_once()
@@ -111,12 +111,12 @@ class TestLoad:
 
 class TestPopulateGlobals:
     @pytest.fixture
-    def mocks_for_globals(self, mock_comodo_yaml):
+    def mocks_for_globals(self, mock_comodo_yaml_dict):
         with patch("comodo_config.find_missing_params") as mock_find_missing_params:
             mock_find_missing_params.return_value = None
 
             config_with_raw = ComodoConfig()
-            config_with_raw.raw = mock_comodo_yaml
+            config_with_raw.raw = mock_comodo_yaml_dict
 
             yield {
                 "config_with_raw": config_with_raw,
@@ -192,12 +192,12 @@ class TestPopulateGlobals:
 
 class TestPopulateInstruments:
     @pytest.fixture
-    def mocks_for_inst(self, mock_comodo_yaml, mock_comodo_config):
+    def mocks_for_inst(self, mock_comodo_yaml_dict, mock_comodo_config):
         with patch("comodo_config.find_missing_params") as mock_find_missing_params:
             mock_find_missing_params.return_value = None
 
             config_with_raw = ComodoConfig()
-            config_with_raw.raw = mock_comodo_yaml
+            config_with_raw.raw = mock_comodo_yaml_dict
             expected_instruments = mock_comodo_config.instruments
 
             yield {
@@ -501,7 +501,7 @@ class TestPopulateSensorsActuatorsSPCs:
 
 class TestGetExpectedHeartbeat:
     @pytest.fixture
-    def mocks_for_gehb(self, mock_comodo_yaml, mock_comodo_config):
+    def mocks_for_gehb(self, mock_comodo_yaml_dict, mock_comodo_config):
         config_with_insts = ComodoConfig()
         config_with_insts.instruments = mock_comodo_config.instruments
 

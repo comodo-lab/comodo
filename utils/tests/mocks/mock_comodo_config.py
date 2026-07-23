@@ -4,15 +4,15 @@ import pytest
 from unittest.mock import MagicMock
 
 from utils.comodo_config import ComodoConfig
-from utils.tests.mocks.mock_comodo_yaml import mock_comodo_yaml
+from utils.tests.mocks.mock_comodo_yaml_dict import mock_comodo_yaml_dict
 
 
 @pytest.fixture
-def mock_comodo_config(mock_comodo_yaml):
+def mock_comodo_config(mock_comodo_yaml_dict):
     """Returns a mock comodo config object."""
     mock_config = MagicMock(spec=ComodoConfig)
     mock_config.path = "/app/comodo.yaml"
-    mock_config.raw = mock_comodo_yaml
+    mock_config.raw = mock_comodo_yaml_dict
     mock_config.globals = {
         "heartbeat_interval": 1,
         "watchdog_interval": 1,

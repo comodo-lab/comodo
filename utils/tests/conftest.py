@@ -9,7 +9,7 @@ from utils.tests.mocks.mock_mqtt_clients import (
     parse_message_args,
 )
 from utils.tests.mocks.mock_comodo_config import mock_comodo_config
-from utils.tests.mocks.mock_comodo_yaml import mock_comodo_yaml
+from utils.tests.mocks.mock_comodo_yaml_dict import mock_comodo_yaml_dict
 
 
 @pytest.fixture
