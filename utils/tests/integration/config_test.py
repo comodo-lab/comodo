@@ -1,133 +1,52 @@
 from comodo_config import ComodoConfig
 
+from tests.conftest import (
+    mock_comodo_yaml_dict,
+    mock_comodo_config,
+)
+
 
 class TestConfigLoad:
-    def test_config_load(self):
+    def test_config_load(self, mock_comodo_yaml_dict, mock_comodo_config):
         # ----------------------------------------------------------------------
-        # Load config and assert is non-none
+        # Load config and check object was populated correctly
 
-        config = ComodoConfig(path="/utils/tests/file_fixtures/comodo.yaml")
-        config.load()
+        config = ComodoConfig(path="/utils/tests/mocks/comodo.yaml")
         assert config is not None
+        config.load()
 
-        # ----------------------------------------------------------------------
-        # Check global settings
+        assert config.raw == mock_comodo_yaml_dict
 
-        assert config.globals == {
-            "heartbeat_interval": 1.0,
-            "watchdog_interval": 1.0,
-            "watchdog_timeout": 5.0,
-            "instrument_setup_wait": 10.0,
-        }, "Config failed to load global settings correctly"
+        assert (
+            config.globals == mock_comodo_config.globals
+        ), "Config failed to load global settings correctly"
 
-        # ----------------------------------------------------------------------
-        # Check instrument parsing
+        assert (
+            config.instruments == mock_comodo_config.instruments
+        ), "Config failed to load instruments correctly"
 
-        assert config.instruments.keys() == {
-            "furnace_centre",
-            "furnace_left",
-            "furnace_right",
-            "pressure_downstream",
-            "pressure_upstream",
-            "mass_flow",
-            "mass_spec",
-        }, "Config failed to load instruments correctly"
+        assert (
+            config.actuators == mock_comodo_config.actuators
+        ), "Config failed to load actuators correctly"
 
-        assert config.instruments["furnace_centre"] == {
-            "firmware": "carbolite_gero.tg3",
-            "address": "192.168.111.222",
-            "simulate": True,
-            "variables": {
-                "temperature": {
-                    "sensor": {
-                        "interval": 1,
-                        "type": "float",
-                        "min": 0,
-                        "max": 1000,
-                        "unit": "C",
-                    },
-                    "actuator": {
-                        "type": "float",
-                        "min": 0,
-                        "max": 1000,
-                        "unit": "C",
-                        "default_setpoint": 0,
-                        "tolerance": 1,
-                    },
-                },
-            },
-        }, "Config failed to load instrument setup correctly"
+        assert (
+            config.sensors == mock_comodo_config.sensors
+        ), "Config failed to load sensors correctly"
 
-        # ----------------------------------------------------------------------
-        # Check variable parsing
-
-        assert config.actuators.keys() == {
-            "furnace_centre/temperature",
-            "mass_flow/mass_flow",
-        }, "Config failed to load actuators correctly"
-
-        assert config.sensors.keys() == {
-            "furnace_centre/temperature",
-            "furnace_left/temperature",
-            "furnace_right/temperature",
-            "pressure_downstream/pressure",
-            "pressure_upstream/pressure",
-            "mass_flow/temperature",
-            "mass_flow/pressure_upstream",
-            "mass_flow/pressure_downstream",
-            "mass_flow/mass_flow",
-            "mass_spec/mass_spec",
-        }, "Config failed to load sensors correctly"
-
-        assert config.actuators["furnace_centre/temperature"] == {
-            "type": "float",
-            "min": 0,
-            "max": 1000,
-            "unit": "C",
-            "default_setpoint": 0,
-            "tolerance": 1.0,
-        }, "Config failed to load actuator setup correctly"
-
-        assert config.sensors["pressure_downstream/pressure"] == {
-            "interval": 1.0,
-            "type": "float",
-            "min": 0,
-            "max": 10,
-            "unit": "bar",
-        }, "Config failed to load sensor setup correctly"
-
-        # ----------------------------------------------------------------------
-        # Check SPC listings
-
-        assert len(config.spcs) == 1, "Config failed to load the correct number of SPCs"
-
-        spc = config.spcs[0]
-        assert spc == {
-            "K_P": 10.0,
-            "K_I": 1.0,
-            "K_D": 0.1,
-            "K_AW": 0.05,
-            "K_DF": 0.01,
-            "actuator": "mass_flow/mass_flow",
-            "external_sensor": "pressure_upstream/pressure",
-        }, "Config failed to load SPC setup correctly"
+        assert (
+            config.spcs == mock_comodo_config.spcs
+        ), "Config failed to load SPCs correctly"
 
         # ----------------------------------------------------------------------
         # Check default experiment derivation
 
-        assert config.get_default_experiment() == [
-            {
-                "time": 0,
-                "furnace_centre/temperature": 0,
-                "furnace_centre/temperature_profile": "linear",
-                "mass_flow/mass_flow": 0,
-                "mass_flow/mass_flow_profile": "linear",
-            }
-        ], "Config failed to load default experiment correctly"
+        assert (
+            config.get_default_experiment()
+            == mock_comodo_config.get_default_experiment()
+        ), "Config failed to load default experiment correctly"
 
-    def test_get_expected_heartbeat_makes_variables_into_flat_list(self):
-        config = ComodoConfig(path="/utils/tests/file_fixtures/comodo.yaml")
-        config.load()
+        # ----------------------------------------------------------------------
+        # Check heartbeat makes variables into flat list
 
         expected_heartbeat = {
             "firmware": "carbolite_gero.tg3",
@@ -136,5 +55,5 @@ class TestConfigLoad:
             "variables": ["temperature"],
         }
         assert (
-            config.get_expected_heartbeat("furnace_centre") == expected_heartbeat
+            config.get_expected_heartbeat("furnace") == expected_heartbeat
         ), "Config failed to load expected heartbeat correctly"
