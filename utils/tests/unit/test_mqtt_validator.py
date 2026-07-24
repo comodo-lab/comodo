@@ -13,7 +13,7 @@ from utils.mqtt_validator import (
     check_message_valid,
     MQTTValidationException,
 )
-from utils.tests.conftest import mock_topic_map
+from utils.tests.mocks.mock_topic_map import mock_topic_map
 
 
 class TestMatchTopic:
