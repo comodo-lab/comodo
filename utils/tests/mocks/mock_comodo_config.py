@@ -55,8 +55,8 @@ def mock_comodo_config(mock_comodo_yaml_dict):
                     "sensor": {
                         "interval": 1,
                         "type": "float",
-                        "min": 0,
-                        "max": 10,
+                        "min": 1,
+                        "max": 200,
                         "unit": "bar",
                         "default_setpoint": 1,
                     },
@@ -115,8 +115,8 @@ def mock_comodo_config(mock_comodo_yaml_dict):
         },
         "pressure/pressure": {
             "interval": 1,
-            "max": 10,
-            "min": 0,
+            "max": 200,
+            "min": 1,
             "type": "float",
             "unit": "bar",
             "default_setpoint": 1,

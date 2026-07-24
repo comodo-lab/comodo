@@ -44,8 +44,8 @@ def mock_comodo_yaml_dict():
                         "sensor": {
                             "interval": 1,
                             "type": "float",
-                            "min": 0,
-                            "max": 10,
+                            "min": 1,
+                            "max": 200,
                             "unit": "bar",
                             "default_setpoint": 1,
                         }
