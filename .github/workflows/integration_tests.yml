@@ -37,7 +37,7 @@ jobs:
 
       - name: Generate firmware compose file
         run: |
-          cp integration_tests/fixtures/comodo.yaml ./
+          cp utils/tests/mocks/comodo.yaml ./
           docker compose -f "./firmware/compose.gen.yaml" run --rm compose-gen
 
       - name: Run integration tests

@@ -20,16 +20,14 @@ include:
 services:
   integration-test:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ../
+      dockerfile: integration_tests/Dockerfile
     container_name: integration-test
     env_file:
       - ../.env
     environment:
       HEARTBEAT_TIMEOUT: ${HEARTBEAT_TIMEOUT:-20}
       EXPERIMENT_TIMEOUT: ${EXPERIMENT_TIMEOUT:-40}
-    volumes:
-      - ./fixtures/start.json:/app/experiment.json:ro
     depends_on:
       mqtt-probe-core:
         condition: service_healthy

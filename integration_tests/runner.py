@@ -5,23 +5,32 @@ import time
 import paho.mqtt.client as mqtt
 import pytest
 
+from utils.tests.mocks.mock_comodo_yaml_dict import mock_comodo_yaml_dict
+from utils.tests.mocks.mock_comodo_config import mock_comodo_config
+from utils.tests.mocks.mock_experiment import mock_experiment_dict
+
 MQTT_HOST = os.environ["MQTT_HOST"]
 MQTT_USER = os.environ["MQTT_USER"]
 MQTT_PASS = os.environ["MQTT_PASS"]
 
-EXPECTED_HEARTBEATS = [
-    "controller/heartbeat",
-    "instruments/furnace_centre/heartbeat",
-    "instruments/furnace_left/heartbeat",
-    "instruments/furnace_right/heartbeat",
-    "instruments/pressure_downstream/heartbeat",
-    "instruments/pressure_upstream/heartbeat",
-    "instruments/mass_flow/heartbeat",
-    "setpoint_controller/pressure_upstream-pressure--mass_flow-mass_flow/heartbeat",
-]
 
 HEARTBEAT_TIMEOUT = int(os.environ.get("HEARTBEAT_TIMEOUT", 60))
 EXPERIMENT_TIMEOUT = int(os.environ.get("EXPERIMENT_TIMEOUT", 120))
+
+
+@pytest.fixture
+def expected_heartbeats(mock_comodo_config):
+    INSTRUMENT_TOPICS = [
+        f"instruments/{ins}" for ins in mock_comodo_config.instruments.keys()
+    ]
+    SPC_TOPICS = [
+        f"setpoint_controller/{spc}" for spc in mock_comodo_config.spcs.keys()
+    ]
+    return (
+        ["controller/heartbeat"]
+        + [f"{topic}/heartbeat" for topic in INSTRUMENT_TOPICS]
+        + [f"{topic}/heartbeat" for topic in SPC_TOPICS]
+    )
 
 
 @pytest.fixture(scope="module")
@@ -72,16 +81,17 @@ def test_services_ready(bus):
             return
         now = time.time()
         if now - last_report >= 5:
-            print(f"  heartbeats: {len(received)}/{len(EXPECTED_HEARTBEATS)} — missing: {sorted(missing)}")
+            print(
+                f"  heartbeats: {len(received)}/{len(EXPECTED_HEARTBEATS)} — missing: {sorted(missing)}"
+            )
             last_report = now
         time.sleep(1)
     pytest.fail(f"Missing heartbeats: {missing}")
 
 
 @pytest.mark.order(2)
-def test_experiment_completes(bus):
-    with open("/app/experiment.json") as f:
-        experiment = json.load(f)
+def test_experiment_completes(bus, mock_experiment_dict):
+    experiment = mock_experiment_dict
 
     bus["c"].publish("ui/start", json.dumps(experiment))
     print(f"  → ui/start published")
