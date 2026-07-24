@@ -238,6 +238,38 @@ class TestHandleInstrumentHeartbeat:
         messages = handle_i_hb_mocks["messages"]()
         assert len(messages) == 0
 
+    def test_valid_heartbeat_instrument_idle(self, handle_i_hb_mocks):
+        state = handle_i_hb_mocks["state"]
+        handle_i_hb_mocks["hb_valid"].return_value = True
+        assert len(state.instrument_states) > 1
+        for instrument in state.instrument_states.values():
+            instrument["state"] = "None"
+        assert state.instrument_states["furnace"]["last_contact"] is None
+        assert state.instruments_ready == False
+
+        heartbeat = {
+            "state": "idle",
+            "setpoints": {},
+            "config": {"tolerance": 1, "experiment_id": None},
+        }
+        handle_instrument_heartbeat(state, heartbeat, "furnace")
+
+        assert state.instrument_states["furnace"]["last_contact"] is not None
+        handle_i_hb_mocks["hb_valid"].assert_called_once_with(
+            state, heartbeat, "furnace"
+        )
+        # Should update instrument state
+        assert state.instrument_states["furnace"]["state"] == "idle"
+        assert state.instrument_states["furnace"]["setpoints"] == {}
+        assert state.instrument_states["furnace"]["config"] == {
+            "tolerance": 1,
+            "experiment_id": None,
+        }
+        # Because it is idle, should not set instruments_ready
+        assert state.instruments_ready == False
+        messages = handle_i_hb_mocks["messages"]()
+        assert len(messages) == 0
+
     def test_valid_heartbeat_awaiting_not_all_ready(self, handle_i_hb_mocks):
         state = handle_i_hb_mocks["state"]
         handle_i_hb_mocks["hb_valid"].return_value = True
