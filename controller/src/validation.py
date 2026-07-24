@@ -15,33 +15,62 @@ class ExperimentValidationError(Exception):
         super().__init__(message)
 
 
-def generate_row_schema(config):
+def generate_row_schema(config, output_file="/app/schemas/experiment_row.yaml"):
     # --------------------------------------------------------------------------
-    # Load template directory
+    # Empty schema
+    schema = {
+        "channels": {
+            "experimentRow": {
+                "address": "experiment/row",
+                "messages": {
+                    "experimentRow": {
+                        "payload": {
+                            "type": "object",
+                            "additionalProperties": False,
+                            "required": ["time"],
+                            "properties": {
+                                "time": {
+                                    "type": "number",
+                                    "minimum": 0,
+                                }
+                            },
+                        }
+                    }
+                },
+            }
+        }
+    }
 
-    try:
-        env = Environment(loader=FileSystemLoader("/app/schemas"))
-        template = env.get_template("experiment_schema.yaml.j2")
-    except FileNotFoundError:
-        raise ExperimentValidationError("experiment_schema.yaml.j2 file not found")
+    payload = schema["channels"]["experimentRow"]["messages"]["experimentRow"][
+        "payload"
+    ]
 
     # --------------------------------------------------------------------------
-    # Fetch instruments and render
+    # Populate schema with actuator
     try:
-        instruments = config.raw.get("instruments", {})
-        rendered = template.render(instruments=instruments)
+        for driving_sensor in [a["driving_sensor"] for a in config.actuators.values()]:
+            payload["required"].append(driving_sensor)
+            payload["properties"][driving_sensor] = {
+                "type": "number",
+                "minimum": config.sensors[driving_sensor]["min"],
+                "maximum": config.sensors[driving_sensor]["max"],
+            }
+            payload["properties"][f"{driving_sensor}_profile"] = {
+                "type": "string",
+                "enum": ["linear", "exponential", "logarithmic", "step"],
+            }
     except KeyError as e:
-        raise ExperimentValidationError(f"Missing instruments in config: {e}")
+        raise ExperimentValidationError(f"Wrong comodo yaml config: {e}")
 
     # --------------------------------------------------------------------------
     # Write rendered schema to file
     try:
-        with open("/app/schemas/experiment_row.yaml", "w") as f:
-            f.write(rendered)
+        with open(output_file, "w") as f:
+            yaml.safe_dump(schema, f, sort_keys=False)
     except Exception as e:
-        raise ExperimentValidationError(f"Failed to write rendered schema: {e}")
+        raise ExperimentValidationError(f"Failed to write row schema: {e}")
 
-    return
+    return schema
 
 
 def validate_experiment(file_path, config):

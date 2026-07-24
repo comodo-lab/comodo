@@ -7,29 +7,32 @@ channels:
           type: object
           additionalProperties: false
           required:
-            - time
-
-            - furnace_centre/temperature
-
-            - mass_flow/mass_flow
-
+          - time
+          - furnace/temperature
+          - pressure/pressure
           properties:
             time:
               type: number
               minimum: 0
-
-            furnace_centre/temperature:
+            furnace/temperature:
               type: number
               minimum: 0
               maximum: 1000
-            furnace_centre/temperature_profile:
+            furnace/temperature_profile:
               type: string
-              enum: ["linear", "exponential", "logarithmic", "step"]
-
-            mass_flow/mass_flow:
+              enum:
+              - linear
+              - exponential
+              - logarithmic
+              - step
+            pressure/pressure:
               type: number
               minimum: 0
-              maximum: 100
-            mass_flow/mass_flow_profile:
+              maximum: 10
+            pressure/pressure_profile:
               type: string
-              enum: ["linear", "exponential", "logarithmic", "step"]
+              enum:
+              - linear
+              - exponential
+              - logarithmic
+              - step

@@ -2,120 +2,163 @@ import json
 
 import pytest
 import yaml
-from jsonschema import ValidationError, validate
-from jinja2 import Template
-from unittest.mock import mock_open, patch, MagicMock
+import jsonschema
+from unittest.mock import patch, MagicMock
 
-from src.validation import validate_experiment, ExperimentValidationError
+from src.validation import (
+    validate_experiment,
+    generate_row_schema,
+    ExperimentValidationError,
+)
 from utils.mqtt_validator import MQTTValidationException
 
 
 class TestGenerateRowSchema:
 
-    @pytest.fixture
-    def mock_actuator_instruments(self):
-        return {
-            "I_A": {"variables": {"V_A": {"actuator": {"min": 0, "max": 1000}}}},
-            "I_B": {"variables": {"V_B": {"actuator": {"min": 0, "max": 100}}}},
-        }
+    @pytest.fixture(autouse=True)
+    def grs_mocks(self):
+        with patch("builtins.open") as mock_open:
+            mock_config = MagicMock()
+            mock_config.actuators = {
+                "I_A": {"driving_sensor": "I_A/V_A"},
+                "I_C": {"driving_sensor": "I_B/V_B"},
+            }
+            mock_config.sensors = {
+                "I_A/V_A": {"min": 1, "max": 10},
+                "I_B/V_B": {"min": 2, "max": 20},
+                "I_C/V_C": {"min": 3, "max": 30},
+            }
 
-    @staticmethod
-    def load_payload(instruments):
-        with open("/app/schemas/experiment_schema.yaml.j2") as f:
-            rendered = Template(f.read()).render(instruments=instruments)
-        return yaml.safe_load(rendered)["channels"]["experimentRow"]["messages"][
-            "experimentRow"
-        ]["payload"]
-
-    @pytest.fixture
-    def mock_payload(self, mock_actuator_instruments):
-        return TestGenerateRowSchema.load_payload(mock_actuator_instruments)
+            yield {
+                "open": mock_open,
+                "config": mock_config,
+            }
 
     # ========================================
 
-    def test_generated_row_schema_contains_actuators(self, mock_payload):
-        payload = mock_payload
+    def test_missing_driving_sensors(self, grs_mocks):
+        config = grs_mocks["config"]
+        config.actuators = {"I_A": {"some": "config"}}
 
-        assert payload["required"] == [
-            "time",
-            "I_A/V_A",
-            "I_B/V_B",
+        with pytest.raises(ExperimentValidationError) as e:
+            generate_row_schema(grs_mocks["config"])
+
+        assert e.value.args[0].startswith("Wrong comodo yaml config")
+        grs_mocks["open"].assert_not_called()
+
+    def test_missing_sensor(self, grs_mocks):
+        config = grs_mocks["config"]
+        config.sensors = {"I_A": {"some": "config"}}
+
+        with pytest.raises(ExperimentValidationError) as e:
+            generate_row_schema(grs_mocks["config"])
+
+        assert e.value.args[0].startswith("Wrong comodo yaml config")
+        grs_mocks["open"].assert_not_called()
+
+    def test_write_error(self, grs_mocks):
+        mock_open = grs_mocks["open"]
+        mock_open.side_effect = Exception("Write error")
+
+        with pytest.raises(ExperimentValidationError) as e:
+            generate_row_schema(grs_mocks["config"])
+
+        assert e.value.args[0].startswith("Failed to write row schema")
+        mock_open.assert_called_once_with("/app/schemas/experiment_row.yaml", "w")
+
+    def test_expected_fields(self, grs_mocks):
+        mock_open = grs_mocks["open"]
+
+        schema = generate_row_schema(grs_mocks["config"])
+
+        mock_open.assert_called_once_with("/app/schemas/experiment_row.yaml", "w")
+        handle = mock_open.return_value.__enter__.return_value
+        written_content = "".join(call.args[0] for call in handle.write.call_args_list)
+        assert schema == yaml.safe_load(written_content)
+
+        assert "channels" in schema
+        assert "experimentRow" in schema["channels"]
+        assert "messages" in schema["channels"]["experimentRow"]
+        assert "experimentRow" in schema["channels"]["experimentRow"]["messages"]
+        payload = schema["channels"]["experimentRow"]["messages"]["experimentRow"][
+            "payload"
         ]
-        assert payload["properties"]["I_A/V_A"] == {
+
+        # Check additionalProperties
+        assert payload.get("additionalProperties") is False
+
+        # Check required fields
+        required_fields = payload.get("required", [])
+        assert "time" in required_fields
+        assert "I_A/V_A" in required_fields
+        assert "I_B/V_B" in required_fields
+
+        # Check time field properties
+        properties = payload.get("properties", {})
+        assert "time" in properties
+        assert properties["time"] == {"type": "number", "minimum": 0}
+
+        # Check driving sensor properties
+        assert "I_A/V_A" in properties
+        assert properties["I_A/V_A"] == {
             "type": "number",
-            "minimum": 0,
-            "maximum": 1000,
+            "minimum": 1,
+            "maximum": 10,
         }
-        assert payload["properties"]["I_B/V_B"] == {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 100,
-        }
+        assert "I_B/V_B" in properties
+        assert properties["I_B/V_B"] == {"type": "number", "minimum": 2, "maximum": 20}
 
-    def test_generated_row_schema_excludes_sensors(self):
-        instruments = {
-            "I_A": {"variables": {"V_A": {"actuator": {"min": 0, "max": 500}}}},
-            "I_B": {"variables": {"V_B": {"actuator": {"min": 0, "max": 100}}}},
-        }
-        payload = TestGenerateRowSchema.load_payload(instruments)
-
-        assert "I_A/V_A" in payload["required"]
-        assert "sensor/reading" not in payload["required"]
-        assert "sensor/reading" not in payload["properties"]
-
-    def test_generated_row_schema_has_profile_fields(self, mock_payload):
-        payload = mock_payload
-
-        assert "I_A/V_A_profile" in payload["properties"]
-        assert payload["properties"]["I_A/V_A_profile"] == {
+        # Check driving sensor profile properties
+        assert properties["I_A/V_A_profile"] == {
             "type": "string",
             "enum": ["linear", "exponential", "logarithmic", "step"],
         }
-        assert "I_B/V_B_profile" in payload["properties"]
+        assert properties["I_B/V_B_profile"] == {
+            "type": "string",
+            "enum": ["linear", "exponential", "logarithmic", "step"],
+        }
 
-    def test_generated_row_schema_has_additional_properties_false(self, mock_payload):
-        payload = mock_payload
+    def test_generated_row_schema_validates_valid_row(self, grs_mocks):
+        schema = generate_row_schema(grs_mocks["config"])
+        payload = schema["channels"]["experimentRow"]["messages"]["experimentRow"][
+            "payload"
+        ]
 
-        assert payload.get("additionalProperties") is False
-
-    def test_generated_row_schema_validates_valid_row(self, mock_payload):
-        payload = mock_payload
-
-        validate(
-            {"time": 5, "I_A/V_A": 500, "I_B/V_B": 50},
+        jsonschema.validate(
+            {"time": 5, "I_A/V_A": 5, "I_B/V_B": 10},
             payload,
         )
 
-    def test_generated_row_schema_rejects_out_of_range(self, mock_payload):
-        payload = mock_payload
+    def test_generated_row_schema_rejects_out_of_range(self, grs_mocks):
+        schema = generate_row_schema(grs_mocks["config"])
+        payload = schema["channels"]["experimentRow"]["messages"]["experimentRow"][
+            "payload"
+        ]
 
-        with pytest.raises(ValidationError):
-            validate(
-                {
-                    "time": 5,
-                    "I_A/V_A": 9999,
-                    "I_B/V_B": 50,
-                },
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(
+                {"time": 5, "I_A/V_A": 99, "I_B/V_B": 10},
                 payload,
             )
 
-    def test_generated_row_schema_rejects_missing_required_field(self, mock_payload):
-        payload = mock_payload
+    def test_generated_row_schema_rejects_missing_required_field(self, grs_mocks):
+        schema = generate_row_schema(grs_mocks["config"])
+        payload = schema["channels"]["experimentRow"]["messages"]["experimentRow"][
+            "payload"
+        ]
 
-        with pytest.raises(ValidationError):
-            validate({"time": 5}, payload)
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate({"time": 5}, payload)
 
-    def test_generated_row_schema_rejects_wrong_instrument(self, mock_payload):
-        payload = mock_payload
+    def test_generated_row_schema_rejects_wrong_instrument(self, grs_mocks):
+        schema = generate_row_schema(grs_mocks["config"])
+        payload = schema["channels"]["experimentRow"]["messages"]["experimentRow"][
+            "payload"
+        ]
 
-        with pytest.raises(ValidationError):
-            validate(
-                {
-                    "time": 5,
-                    "I_A/V_A": 500,
-                    "I_B/V_B": 50,
-                    "unknown/thing": 0,
-                },
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(
+                {"time": 5, "I_A/V_A": 5, "I_B/V_B": 10, "I_C/V_C": 0},
                 payload,
             )
 
