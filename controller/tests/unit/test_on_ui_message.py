@@ -17,7 +17,7 @@ from src.on_ui_message import on_ui_message
 
 
 @pytest.fixture
-def state(mock_experiment_dict, mock_setpoints):
+def state(mock_state, mock_experiment_dict, mock_setpoints):
     return mock_state("idle", mock_experiment_dict, mock_setpoints)
 
 

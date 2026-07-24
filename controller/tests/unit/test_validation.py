@@ -15,12 +15,8 @@ class TestGenerateRowSchema:
     @pytest.fixture
     def mock_actuator_instruments(self):
         return {
-            "furnace_centre": {
-                "variables": {"temperature": {"actuator": {"min": 0, "max": 1000}}}
-            },
-            "mass_spec": {
-                "variables": {"mass_spec": {"actuator": {"min": 0, "max": 100}}}
-            },
+            "I_A": {"variables": {"V_A": {"actuator": {"min": 0, "max": 1000}}}},
+            "I_B": {"variables": {"V_B": {"actuator": {"min": 0, "max": 100}}}},
         }
 
     @staticmethod
@@ -42,15 +38,15 @@ class TestGenerateRowSchema:
 
         assert payload["required"] == [
             "time",
-            "furnace_centre/temperature",
-            "mass_spec/mass_spec",
+            "I_A/V_A",
+            "I_B/V_B",
         ]
-        assert payload["properties"]["furnace_centre/temperature"] == {
+        assert payload["properties"]["I_A/V_A"] == {
             "type": "number",
             "minimum": 0,
             "maximum": 1000,
         }
-        assert payload["properties"]["mass_spec/mass_spec"] == {
+        assert payload["properties"]["I_B/V_B"] == {
             "type": "number",
             "minimum": 0,
             "maximum": 100,
@@ -58,24 +54,24 @@ class TestGenerateRowSchema:
 
     def test_generated_row_schema_excludes_sensors(self):
         instruments = {
-            "furnace": {"variables": {"temp": {"actuator": {"min": 0, "max": 500}}}},
-            "sensor": {"variables": {"reading": {}}},
+            "I_A": {"variables": {"V_A": {"actuator": {"min": 0, "max": 500}}}},
+            "I_B": {"variables": {"V_B": {"actuator": {"min": 0, "max": 100}}}},
         }
         payload = TestGenerateRowSchema.load_payload(instruments)
 
-        assert "furnace/temp" in payload["required"]
+        assert "I_A/V_A" in payload["required"]
         assert "sensor/reading" not in payload["required"]
         assert "sensor/reading" not in payload["properties"]
 
     def test_generated_row_schema_has_profile_fields(self, mock_payload):
         payload = mock_payload
 
-        assert "furnace_centre/temperature_profile" in payload["properties"]
-        assert payload["properties"]["furnace_centre/temperature_profile"] == {
+        assert "I_A/V_A_profile" in payload["properties"]
+        assert payload["properties"]["I_A/V_A_profile"] == {
             "type": "string",
             "enum": ["linear", "exponential", "logarithmic", "step"],
         }
-        assert "mass_spec/mass_spec_profile" in payload["properties"]
+        assert "I_B/V_B_profile" in payload["properties"]
 
     def test_generated_row_schema_has_additional_properties_false(self, mock_payload):
         payload = mock_payload
@@ -86,7 +82,7 @@ class TestGenerateRowSchema:
         payload = mock_payload
 
         validate(
-            {"time": 5, "furnace_centre/temperature": 500, "mass_spec/mass_spec": 50},
+            {"time": 5, "I_A/V_A": 500, "I_B/V_B": 50},
             payload,
         )
 
@@ -97,8 +93,8 @@ class TestGenerateRowSchema:
             validate(
                 {
                     "time": 5,
-                    "furnace_centre/temperature": 9999,
-                    "mass_spec/mass_spec": 50,
+                    "I_A/V_A": 9999,
+                    "I_B/V_B": 50,
                 },
                 payload,
             )
@@ -116,8 +112,8 @@ class TestGenerateRowSchema:
             validate(
                 {
                     "time": 5,
-                    "furnace_centre/temperature": 500,
-                    "mass_spec/mass_spec": 50,
+                    "I_A/V_A": 500,
+                    "I_B/V_B": 50,
                     "unknown/thing": 0,
                 },
                 payload,
@@ -135,13 +131,13 @@ class TestValidateExperiment:
                 "experiment_definition": [
                     {
                         "time": 0,
-                        "furnace_centre/temperature": 500,
-                        "mass_spec/mass_spec": 50,
+                        "I_A/V_A": 500,
+                        "I_B/V_B": 50,
                     },
                     {
                         "time": 10,
-                        "furnace_centre/temperature": 800,
-                        "mass_spec/mass_spec": 80,
+                        "I_A/V_A": 800,
+                        "I_B/V_B": 80,
                     },
                 ],
             }

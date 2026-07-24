@@ -110,7 +110,7 @@ class TestGetEnvOrSecret:
 
 class TestAssignSerialID:
     @pytest.fixture
-    def state(self, mock_experiment_dict, mock_setpoints):
+    def state(self, mock_state, mock_experiment_dict, mock_setpoints):
         state = mock_state("ready", mock_experiment_dict, mock_setpoints)
         return state
 
@@ -195,7 +195,7 @@ class TestAssignSerialID:
 class TestDatabaseDump:
 
     @pytest.fixture
-    def state(self, mock_experiment_dict, mock_setpoints):
+    def state(self, mock_state, mock_experiment_dict, mock_setpoints):
         state = mock_state("running", mock_experiment_dict, mock_setpoints)
         return state
 

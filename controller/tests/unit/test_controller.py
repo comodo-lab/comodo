@@ -14,7 +14,7 @@ from controller import main
 
 class TestMain:
     @pytest.fixture
-    def main_mocks(self, mqtt_mocks):
+    def main_mocks(self, mock_state, mqtt_mocks):
         with patch("os.environ") as mock_environ, patch(
             "os.getenv"
         ) as mock_getenv, patch(

@@ -22,6 +22,7 @@ def test_cstate_initialization():
     assert state.past_setpoints == []
     assert state.instrument_states == {}
     assert state.instruments_ready == False
+    assert state.config == None
 
 
 def test_cannot_add_new_attribute(state):
