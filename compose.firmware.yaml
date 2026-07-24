@@ -27,44 +27,23 @@ services:
       <<: *mqtt-env
       MQTT_PROBE_ID: firmware
 
-  furnace_centre:
+
+  furnace:
     <<: *python-instrument-template
     environment:
       <<: *instrument-env
-      INSTRUMENT_NAME: "furnace_centre"
+      INSTRUMENT_NAME: "furnace"
       FIRMWARE: carbolite_gero.tg3
       DEVICE_ADDRESS: "192.168.111.222"
       ACTIVE_VARIABLES: '["temperature"]'
       HEARTBEAT_INTERVAL: 1000
       INTERVAL_TEMPERATURE: 1000
 
-  furnace_left:
+  pressure:
     <<: *python-instrument-template
     environment:
       <<: *instrument-env
-      INSTRUMENT_NAME: "furnace_left"
-      FIRMWARE: carbolite_gero.tg3
-      DEVICE_ADDRESS: "192.168.111.224"
-      ACTIVE_VARIABLES: '["temperature"]'
-      HEARTBEAT_INTERVAL: 1000
-      INTERVAL_TEMPERATURE: 1000
-
-  furnace_right:
-    <<: *python-instrument-template
-    environment:
-      <<: *instrument-env
-      INSTRUMENT_NAME: "furnace_right"
-      FIRMWARE: carbolite_gero.tg3
-      DEVICE_ADDRESS: "192.168.111.225"
-      ACTIVE_VARIABLES: '["temperature"]'
-      HEARTBEAT_INTERVAL: 1000
-      INTERVAL_TEMPERATURE: 1000
-
-  pressure_downstream:
-    <<: *python-instrument-template
-    environment:
-      <<: *instrument-env
-      INSTRUMENT_NAME: "pressure_downstream"
+      INSTRUMENT_NAME: "pressure"
       FIRMWARE: pfeiffer.mpt200
       DEVICE_ADDRESS: "/dev/ttyUSB0"
       ACTIVE_VARIABLES: '["pressure"]'
@@ -74,20 +53,6 @@ services:
       - "/dev/ttyUSB0:/dev/ttyUSB0"
     privileged: true
 
-  pressure_upstream:
-    <<: *python-instrument-template
-    environment:
-      <<: *instrument-env
-      INSTRUMENT_NAME: "pressure_upstream"
-      FIRMWARE: pfeiffer.mpt200
-      DEVICE_ADDRESS: "/dev/ttyUSB1"
-      ACTIVE_VARIABLES: '["pressure"]'
-      HEARTBEAT_INTERVAL: 1000
-      INTERVAL_PRESSURE: 500
-    devices:
-      - "/dev/ttyUSB1:/dev/ttyUSB1"
-    privileged: true
-
   mass_flow:
     <<: *python-instrument-template
     environment:
@@ -95,15 +60,13 @@ services:
       INSTRUMENT_NAME: "mass_flow"
       FIRMWARE: bronkhorst.el_flow_select
       DEVICE_ADDRESS: "/dev/ttyUSB2"
-      ACTIVE_VARIABLES: '["mass_flow", "temperature", "pressure_upstream", "pressure_downstream"]'
+      ACTIVE_VARIABLES: '["mass_flow"]'
       HEARTBEAT_INTERVAL: 1000
       INTERVAL_MASS_FLOW: 1000
-      INTERVAL_TEMPERATURE: 1000
-      INTERVAL_PRESSURE_UPSTREAM: 1000
-      INTERVAL_PRESSURE_DOWNSTREAM: 1000
     devices:
       - "/dev/ttyUSB2:/dev/ttyUSB2"
     privileged: true
+
 
   spc-mass_flow-mass_flow:
     build:
@@ -115,7 +78,7 @@ services:
     environment:
       <<: *mqtt-env
       HEARTBEAT_INTERVAL: 1000
-      SENSOR: "pressure_upstream/pressure"
+      SENSOR: "pressure/pressure"
       ACTUATOR: "mass_flow/mass_flow"
       K_P: 10.0
       K_I: 1.0
@@ -124,6 +87,7 @@ services:
       K_DF: 0.01
       OUT_MIN: 0
       OUT_MAX: 100
+
 
 volumes:
   massflow_read:
