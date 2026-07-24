@@ -165,34 +165,31 @@ class TestGenerateRowSchema:
 
 class TestValidateExperiment:
 
-    @pytest.fixture
-    def valid_experiment_json(self):
-        return json.dumps(
-            {
-                "id": "test-123",
-                "config": {"resolution": 0.1},
-                "experiment_definition": [
-                    {
-                        "time": 0,
-                        "I_A/V_A": 500,
-                        "I_B/V_B": 50,
-                    },
-                    {
-                        "time": 10,
-                        "I_A/V_A": 800,
-                        "I_B/V_B": 80,
-                    },
-                ],
-            }
-        )
-
     @pytest.fixture(autouse=True)
-    def validate_experiment_mocks(self, valid_experiment_json):
+    def ve_mocks(self):
         with (
             patch("builtins.open") as mock_open,
             patch("src.validation.generate_row_schema") as mock_gen,
             patch("src.validation.validate_message") as mock_val,
         ):
+            valid_experiment_json = json.dumps(
+                {
+                    "id": "test-123",
+                    "config": {"resolution": 0.1},
+                    "experiment_definition": [
+                        {
+                            "time": 0,
+                            "I_A/V_A": 500,
+                            "I_B/V_B": 50,
+                        },
+                        {
+                            "time": 10,
+                            "I_A/V_A": 800,
+                            "I_B/V_B": 80,
+                        },
+                    ],
+                }
+            )
             mock_open.return_value.__enter__.return_value.read.return_value = (
                 valid_experiment_json
             )
@@ -210,47 +207,57 @@ class TestValidateExperiment:
 
     # ========================================
 
-    def test_raises_on_missing_file(self, validate_experiment_mocks):
-        mocks = validate_experiment_mocks
-        mocks["open"].side_effect = FileNotFoundError()
+    def test_raises_on_missing_file(self, ve_mocks):
+        ve_mocks["open"].side_effect = FileNotFoundError()
 
         with pytest.raises(ExperimentValidationError) as e:
-            validate_experiment("/nonexistent/path", mocks["config"])
+            validate_experiment("/nonexistent/path", ve_mocks["config"])
 
         assert "Experiment file not found" in str(e.value)
 
-    def test_raises_on_invalid_structure(self, validate_experiment_mocks):
-        mocks = validate_experiment_mocks
-        mocks["validate_message"].side_effect = MQTTValidationException(
+    def test_raises_on_invalid_structure(self, ve_mocks):
+        ve_mocks["validate_message"].side_effect = MQTTValidationException(
             "Invalid structure"
         )
 
         with pytest.raises(ExperimentValidationError) as e:
-            validate_experiment("/fake/path", mocks["config"])
+            validate_experiment("/fake/path", ve_mocks["config"])
 
         assert "Experiment validation failed" in str(e.value)
         assert "Invalid structure" in str(e.value)
-        mocks["open"].assert_called_once_with("/fake/path")
-        mocks["generate_row_schema"].assert_not_called()
+        ve_mocks["open"].assert_called_once_with("/fake/path")
+        ve_mocks["generate_row_schema"].assert_not_called()
 
-    def test_raises_on_row_schema_generation_failure(self, validate_experiment_mocks):
-        mocks = validate_experiment_mocks
-        mocks["generate_row_schema"].side_effect = Exception("Schema generation failed")
+    def test_raises_on_row_schema_generation_failure(self, ve_mocks):
+        ve_mocks["generate_row_schema"].side_effect = Exception(
+            "Schema generation failed"
+        )
 
         with pytest.raises(ExperimentValidationError) as e:
-            validate_experiment("/fake/path", mocks["config"])
+            validate_experiment("/fake/path", ve_mocks["config"])
 
         assert "Failed to generate row schema" in str(e.value)
         assert "Schema generation failed" in str(e.value)
-        mocks["open"].assert_called_once_with("/fake/path")
-        mocks["validate_message"].assert_called_once_with(
-            "ui/start", mocks["experiment"]
+        ve_mocks["open"].assert_called_once_with("/fake/path")
+        ve_mocks["validate_message"].assert_called_once_with(
+            "ui/start", ve_mocks["experiment"]
         )
-        mocks["generate_row_schema"].assert_called_once_with(mocks["config"])
+        ve_mocks["generate_row_schema"].assert_called_once_with(ve_mocks["config"])
 
-    def test_raises_on_row_validation_failure(self, validate_experiment_mocks):
-        mocks = validate_experiment_mocks
-        mocks["validate_message"].side_effect = [
+    def test_raises_on_missing_experiment_definition(self, ve_mocks):
+        ve_mocks["open"].return_value.__enter__.return_value.read.return_value = (
+            json.dumps({"id": "test-123", "config": {"resolution": 0.1}})
+        )
+
+        with pytest.raises(ExperimentValidationError) as e:
+            validate_experiment("/fake/path", ve_mocks["config"])
+
+        assert "Missing experiment definition" in str(e.value)
+        ve_mocks["open"].assert_called_once_with("/fake/path")
+        ve_mocks["generate_row_schema"].assert_called_once_with(ve_mocks["config"])
+
+    def test_raises_on_row_validation_failure(self, ve_mocks):
+        ve_mocks["validate_message"].side_effect = [
             None,  # First call for "ui/start" passes
             MQTTValidationException(
                 "Invalid row 1"
@@ -258,25 +265,23 @@ class TestValidateExperiment:
         ]
 
         with pytest.raises(ExperimentValidationError) as e:
-            validate_experiment("/fake/path", mocks["config"])
+            validate_experiment("/fake/path", ve_mocks["config"])
 
         assert "Experiment row validation failed" in str(e.value)
         assert "Invalid row 1" in str(e.value)
-        mocks["open"].assert_called_once_with("/fake/path")
-        mocks["generate_row_schema"].assert_called_once_with(mocks["config"])
+        ve_mocks["open"].assert_called_once_with("/fake/path")
+        ve_mocks["generate_row_schema"].assert_called_once_with(ve_mocks["config"])
         assert (
-            mocks["validate_message"].call_count == 2
+            ve_mocks["validate_message"].call_count == 2
         ), "Expected 1 call for ui/start, and 1 for experiment row failure"
 
-    def test_valid_experiment(self, validate_experiment_mocks):
-        mocks = validate_experiment_mocks
+    def test_valid_experiment(self, ve_mocks):
+        result = validate_experiment("/fake/path", ve_mocks["config"])
 
-        result = validate_experiment("/fake/path", mocks["config"])
-
-        mocks["open"].assert_called_once_with("/fake/path")
-        mocks["generate_row_schema"].assert_called_once_with(mocks["config"])
+        ve_mocks["open"].assert_called_once_with("/fake/path")
+        ve_mocks["generate_row_schema"].assert_called_once_with(ve_mocks["config"])
         assert (
-            mocks["validate_message"].call_count == 3
+            ve_mocks["validate_message"].call_count == 3
         ), "Expected 1 call for ui/start, and 2 for experiment rows"
 
-        assert result == json.loads(mocks["experiment"])
+        assert result == json.loads(ve_mocks["experiment"])
