@@ -72,7 +72,7 @@ def bus():
 
 @pytest.mark.order(1)
 def test_services_ready(bus, expected_heartbeats):
-    missing_heartbeats = expected_heartbeats
+    missing_heartbeats = expected_heartbeats.copy()
     unexpected_heartbeats = []
     deadline = time.time() + HEARTBEAT_TIMEOUT
     last_report = 0.0
@@ -114,12 +114,14 @@ def test_experiment_completes(bus, mock_experiment_dict):
     deadline = time.time() + EXPERIMENT_TIMEOUT
     last_report = 0.0
     while time.time() < deadline:
+        if bus["errors"]:
+            pytest.fail(f"Error received: {bus['errors']}")
         if bus["end"] is not None:
             print(f"  ← controller/event/end received")
             return
         now = time.time()
         elapsed = int(now - (deadline - EXPERIMENT_TIMEOUT))
-        if now - last_report >= 10:
+        if now - last_report >= 3:
             print(f"  waiting for controller/event/end... ({elapsed}s)")
             last_report = now
         time.sleep(0.5)
