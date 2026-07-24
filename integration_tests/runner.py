@@ -71,22 +71,37 @@ def bus():
 
 
 @pytest.mark.order(1)
-def test_services_ready(bus):
+def test_services_ready(bus, expected_heartbeats):
+    missing_heartbeats = expected_heartbeats
+    unexpected_heartbeats = []
     deadline = time.time() + HEARTBEAT_TIMEOUT
     last_report = 0.0
     while time.time() < deadline:
         received = set(bus["heartbeats"].keys())
-        missing = set(EXPECTED_HEARTBEATS) - received
-        if not missing:
+        for hb_topic in received:
+            if hb_topic in missing_heartbeats:
+                missing_heartbeats.remove(hb_topic)
+            elif hb_topic not in expected_heartbeats:
+                unexpected_heartbeats += [hb_topic]
+        if unexpected_heartbeats:
+            pytest.fail(
+                f"Unexpected heartbeats received."
+                f"\n  Expected: {sorted(expected_heartbeats)}"
+                f"\n  Missing: {sorted(missing_heartbeats)}"
+                f"\n  Unexpected: {sorted(unexpected_heartbeats)}"
+            )
+        if not missing_heartbeats:
             return
         now = time.time()
-        if now - last_report >= 5:
-            print(
-                f"  heartbeats: {len(received)}/{len(EXPECTED_HEARTBEATS)} — missing: {sorted(missing)}"
-            )
+        if now - last_report >= 3:
+            print(f"  Waiting for heartbeats: {sorted(missing_heartbeats)}")
             last_report = now
         time.sleep(1)
-    pytest.fail(f"Missing heartbeats: {missing}")
+    pytest.fail(
+        f"Missing heartbeats."
+        f"\n  Expected: {sorted(expected_heartbeats)}"
+        f"\n  Missing: {sorted(missing_heartbeats)}"
+    )
 
 
 @pytest.mark.order(2)
