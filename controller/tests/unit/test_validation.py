@@ -17,22 +17,21 @@ class TestGenerateRowSchema:
 
     @pytest.fixture(autouse=True)
     def grs_mocks(self):
-        with patch("builtins.open") as mock_open:
-            mock_config = MagicMock()
-            mock_config.actuators = {
-                "I_A": {"driving_sensor": "I_A/V_A"},
-                "I_C": {"driving_sensor": "I_B/V_B"},
-            }
-            mock_config.sensors = {
-                "I_A/V_A": {"min": 1, "max": 10},
-                "I_B/V_B": {"min": 2, "max": 20},
-                "I_C/V_C": {"min": 3, "max": 30},
-            }
 
-            yield {
-                "open": mock_open,
-                "config": mock_config,
-            }
+        mock_config = MagicMock()
+        mock_config.actuators = {
+            "I_A": {"driving_sensor": "I_A/V_A"},
+            "I_C": {"driving_sensor": "I_B/V_B"},
+        }
+        mock_config.sensors = {
+            "I_A/V_A": {"min": 1, "max": 10},
+            "I_B/V_B": {"min": 2, "max": 20},
+            "I_C/V_C": {"min": 3, "max": 30},
+        }
+
+        yield {
+            "config": mock_config,
+        }
 
     # ========================================
 
@@ -44,7 +43,6 @@ class TestGenerateRowSchema:
             generate_row_schema(grs_mocks["config"])
 
         assert e.value.args[0].startswith("Wrong comodo yaml config")
-        grs_mocks["open"].assert_not_called()
 
     def test_missing_sensor(self, grs_mocks):
         config = grs_mocks["config"]
@@ -54,47 +52,21 @@ class TestGenerateRowSchema:
             generate_row_schema(grs_mocks["config"])
 
         assert e.value.args[0].startswith("Wrong comodo yaml config")
-        grs_mocks["open"].assert_not_called()
-
-    def test_write_error(self, grs_mocks):
-        mock_open = grs_mocks["open"]
-        mock_open.side_effect = Exception("Write error")
-
-        with pytest.raises(ExperimentValidationError) as e:
-            generate_row_schema(grs_mocks["config"])
-
-        assert e.value.args[0].startswith("Failed to write row schema")
-        mock_open.assert_called_once_with("/app/schemas/experiment_row.yaml", "w")
 
     def test_expected_fields(self, grs_mocks):
-        mock_open = grs_mocks["open"]
-
-        schema = generate_row_schema(grs_mocks["config"])
-
-        mock_open.assert_called_once_with("/app/schemas/experiment_row.yaml", "w")
-        handle = mock_open.return_value.__enter__.return_value
-        written_content = "".join(call.args[0] for call in handle.write.call_args_list)
-        assert schema == yaml.safe_load(written_content)
-
-        assert "channels" in schema
-        assert "experimentRow" in schema["channels"]
-        assert "messages" in schema["channels"]["experimentRow"]
-        assert "experimentRow" in schema["channels"]["experimentRow"]["messages"]
-        payload = schema["channels"]["experimentRow"]["messages"]["experimentRow"][
-            "payload"
-        ]
+        json_schema = generate_row_schema(grs_mocks["config"])
 
         # Check additionalProperties
-        assert payload.get("additionalProperties") is False
+        assert json_schema.get("additionalProperties") is False
 
         # Check required fields
-        required_fields = payload.get("required", [])
+        required_fields = json_schema.get("required", [])
         assert "time" in required_fields
         assert "I_A/V_A" in required_fields
         assert "I_B/V_B" in required_fields
 
         # Check time field properties
-        properties = payload.get("properties", {})
+        properties = json_schema.get("properties", {})
         assert "time" in properties
         assert properties["time"] == {"type": "number", "minimum": 0}
 
@@ -119,47 +91,29 @@ class TestGenerateRowSchema:
         }
 
     def test_generated_row_schema_validates_valid_row(self, grs_mocks):
-        schema = generate_row_schema(grs_mocks["config"])
-        payload = schema["channels"]["experimentRow"]["messages"]["experimentRow"][
-            "payload"
-        ]
+        json_schema = generate_row_schema(grs_mocks["config"])
 
-        jsonschema.validate(
-            {"time": 5, "I_A/V_A": 5, "I_B/V_B": 10},
-            payload,
-        )
+        jsonschema.validate({"time": 5, "I_A/V_A": 5, "I_B/V_B": 10}, json_schema)
 
     def test_generated_row_schema_rejects_out_of_range(self, grs_mocks):
-        schema = generate_row_schema(grs_mocks["config"])
-        payload = schema["channels"]["experimentRow"]["messages"]["experimentRow"][
-            "payload"
-        ]
+        json_schema = generate_row_schema(grs_mocks["config"])
 
         with pytest.raises(jsonschema.ValidationError):
-            jsonschema.validate(
-                {"time": 5, "I_A/V_A": 99, "I_B/V_B": 10},
-                payload,
-            )
+            jsonschema.validate({"time": 5, "I_A/V_A": 99, "I_B/V_B": 10}, json_schema)
 
     def test_generated_row_schema_rejects_missing_required_field(self, grs_mocks):
-        schema = generate_row_schema(grs_mocks["config"])
-        payload = schema["channels"]["experimentRow"]["messages"]["experimentRow"][
-            "payload"
-        ]
+        json_schema = generate_row_schema(grs_mocks["config"])
 
         with pytest.raises(jsonschema.ValidationError):
-            jsonschema.validate({"time": 5}, payload)
+            jsonschema.validate({"time": 5}, json_schema)
 
     def test_generated_row_schema_rejects_wrong_instrument(self, grs_mocks):
-        schema = generate_row_schema(grs_mocks["config"])
-        payload = schema["channels"]["experimentRow"]["messages"]["experimentRow"][
-            "payload"
-        ]
+        json_schema = generate_row_schema(grs_mocks["config"])
 
         with pytest.raises(jsonschema.ValidationError):
             jsonschema.validate(
                 {"time": 5, "I_A/V_A": 5, "I_B/V_B": 10, "I_C/V_C": 0},
-                payload,
+                json_schema,
             )
 
 
@@ -171,6 +125,7 @@ class TestValidateExperiment:
             patch("builtins.open") as mock_open,
             patch("src.validation.generate_row_schema") as mock_gen,
             patch("src.validation.validate_message") as mock_val,
+            patch("src.validation.jsonschema.validate") as mock_json_validate,
         ):
             valid_experiment_json = json.dumps(
                 {
@@ -202,6 +157,7 @@ class TestValidateExperiment:
                 "open": mock_open,
                 "generate_row_schema": mock_gen,
                 "validate_message": mock_val,
+                "json_validate": mock_json_validate,
                 "config": mock_config,
             }
 
@@ -228,22 +184,6 @@ class TestValidateExperiment:
         ve_mocks["open"].assert_called_once_with("/fake/path")
         ve_mocks["generate_row_schema"].assert_not_called()
 
-    def test_raises_on_row_schema_generation_failure(self, ve_mocks):
-        ve_mocks["generate_row_schema"].side_effect = Exception(
-            "Schema generation failed"
-        )
-
-        with pytest.raises(ExperimentValidationError) as e:
-            validate_experiment("/fake/path", ve_mocks["config"])
-
-        assert "Failed to generate row schema" in str(e.value)
-        assert "Schema generation failed" in str(e.value)
-        ve_mocks["open"].assert_called_once_with("/fake/path")
-        ve_mocks["validate_message"].assert_called_once_with(
-            "ui/start", ve_mocks["experiment"]
-        )
-        ve_mocks["generate_row_schema"].assert_called_once_with(ve_mocks["config"])
-
     def test_raises_on_missing_experiment_definition(self, ve_mocks):
         ve_mocks["open"].return_value.__enter__.return_value.read.return_value = (
             json.dumps({"id": "test-123", "config": {"resolution": 0.1}})
@@ -257,11 +197,8 @@ class TestValidateExperiment:
         ve_mocks["generate_row_schema"].assert_called_once_with(ve_mocks["config"])
 
     def test_raises_on_row_validation_failure(self, ve_mocks):
-        ve_mocks["validate_message"].side_effect = [
-            None,  # First call for "ui/start" passes
-            MQTTValidationException(
-                "Invalid row 1"
-            ),  # Second call for "experiment/row" fails
+        ve_mocks["json_validate"].side_effect = [
+            jsonschema.ValidationError("Invalid row 1")
         ]
 
         with pytest.raises(ExperimentValidationError) as e:
@@ -271,17 +208,24 @@ class TestValidateExperiment:
         assert "Invalid row 1" in str(e.value)
         ve_mocks["open"].assert_called_once_with("/fake/path")
         ve_mocks["generate_row_schema"].assert_called_once_with(ve_mocks["config"])
-        assert (
-            ve_mocks["validate_message"].call_count == 2
-        ), "Expected 1 call for ui/start, and 1 for experiment row failure"
+        ve_mocks["validate_message"].assert_called_once_with(
+            "ui/start", ve_mocks["experiment"]
+        )
+        ve_mocks["json_validate"].assert_called_once_with(
+            {"time": 0, "I_A/V_A": 500, "I_B/V_B": 50}, None
+        )
 
     def test_valid_experiment(self, ve_mocks):
         result = validate_experiment("/fake/path", ve_mocks["config"])
 
         ve_mocks["open"].assert_called_once_with("/fake/path")
         ve_mocks["generate_row_schema"].assert_called_once_with(ve_mocks["config"])
-        assert (
-            ve_mocks["validate_message"].call_count == 3
-        ), "Expected 1 call for ui/start, and 2 for experiment rows"
+        ve_mocks["validate_message"].assert_called_once_with(
+            "ui/start", ve_mocks["experiment"]
+        )
+        assert ve_mocks["json_validate"].call_args_list == [
+            (({"time": 0, "I_A/V_A": 500, "I_B/V_B": 50}, None),),
+            (({"time": 10, "I_A/V_A": 800, "I_B/V_B": 80}, None),),
+        ]
 
         assert result == json.loads(ve_mocks["experiment"])

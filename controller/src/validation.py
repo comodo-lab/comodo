@@ -1,9 +1,6 @@
 import json
-import os
-import yaml
-from jinja2 import Environment, FileSystemLoader
+import jsonschema
 
-from utils import mqtt_validator
 from utils.mqtt_validator import validate_message, MQTTValidationException
 
 
@@ -15,62 +12,39 @@ class ExperimentValidationError(Exception):
         super().__init__(message)
 
 
-def generate_row_schema(config, output_file="/app/schemas/experiment_row.yaml"):
+def generate_row_schema(config):
     # --------------------------------------------------------------------------
     # Empty schema
-    schema = {
-        "channels": {
-            "experimentRow": {
-                "address": "experiment/row",
-                "messages": {
-                    "experimentRow": {
-                        "payload": {
-                            "type": "object",
-                            "additionalProperties": False,
-                            "required": ["time"],
-                            "properties": {
-                                "time": {
-                                    "type": "number",
-                                    "minimum": 0,
-                                }
-                            },
-                        }
-                    }
-                },
+    json_schema = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["time"],
+        "properties": {
+            "time": {
+                "type": "number",
+                "minimum": 0,
             }
-        }
+        },
     }
-
-    payload = schema["channels"]["experimentRow"]["messages"]["experimentRow"][
-        "payload"
-    ]
 
     # --------------------------------------------------------------------------
     # Populate schema with actuator
     try:
         for driving_sensor in [a["driving_sensor"] for a in config.actuators.values()]:
-            payload["required"].append(driving_sensor)
-            payload["properties"][driving_sensor] = {
+            json_schema["required"].append(driving_sensor)
+            json_schema["properties"][driving_sensor] = {
                 "type": "number",
                 "minimum": config.sensors[driving_sensor]["min"],
                 "maximum": config.sensors[driving_sensor]["max"],
             }
-            payload["properties"][f"{driving_sensor}_profile"] = {
+            json_schema["properties"][f"{driving_sensor}_profile"] = {
                 "type": "string",
                 "enum": ["linear", "exponential", "logarithmic", "step"],
             }
     except KeyError as e:
         raise ExperimentValidationError(f"Wrong comodo yaml config: {e}")
 
-    # --------------------------------------------------------------------------
-    # Write rendered schema to file
-    try:
-        with open(output_file, "w") as f:
-            yaml.safe_dump(schema, f, sort_keys=False)
-    except Exception as e:
-        raise ExperimentValidationError(f"Failed to write row schema: {e}")
-
-    return schema
+    return json_schema
 
 
 def validate_experiment(file_path, config):
@@ -94,20 +68,15 @@ def validate_experiment(file_path, config):
     # --------------------------------------------------------------------------
     # Perform specific validation (compare instruments with comodo.yaml)
 
-    try:
-        generate_row_schema(config)
-    except Exception as e:
-        raise ExperimentValidationError(f"Failed to generate row schema: {e}")
+    json_schema = generate_row_schema(config)
 
     try:
         experiment_dict = json.loads(experiment_json)
         for row in experiment_dict["experiment_definition"]:
-            validate_message(
-                "experiment/row", json.dumps(row), schema_name="experiment_row"
-            )
+            jsonschema.validate(row, json_schema)
     except KeyError as e:
         raise ExperimentValidationError(f"Missing experiment definition: {e}")
-    except MQTTValidationException as e:
+    except jsonschema.ValidationError as e:
         raise ExperimentValidationError(f"Experiment row validation failed: {e}")
 
     # --------------------------------------------------------------------------
