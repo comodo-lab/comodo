@@ -71,6 +71,7 @@ classes:
       - min
       - max
       - unit
+      - default_setpoint
     slot_usage:
       interval:
         required: true
@@ -81,10 +82,10 @@ classes:
       - min
       - max
       - unit
-      - default_setpoint
+      - safe_stop_setpoint
       - tolerance
     slot_usage:
-      default_setpoint:
+      safe_stop_setpoint:
         required: true
       tolerance:
         required: true
@@ -97,6 +98,9 @@ classes:
       - K_D
       - K_DF
       - K_AW
+    slot_usage:
+      external_sensor:
+        required: true
 
   Visualisation:
     abstract: true
@@ -186,6 +190,8 @@ slots:
   unit:
     range: string
   default_setpoint:
+    range: float
+  safe_stop_setpoint:
     range: float
   tolerance:
     range: float
