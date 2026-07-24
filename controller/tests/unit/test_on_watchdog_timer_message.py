@@ -13,30 +13,30 @@ from src.on_watchdog_timer_message import on_wd_timer_message
 class TestOnWatchdogTimerMessage:
 
     @pytest.fixture
-    def wd_state(self):
-        return {
+    def owdtm_mocks(self, mqtt_mocks):
+        wd_state = {
             "interval": 0.2,
             "timeout": 1,
             "timer": 1,
             "healthy": True,
         }
-
-    @pytest.fixture
-    def wd_timer_client(self, mqtt_mocks):
         mqtt_mocks["client_class"](
             id="wd_timer",
             topics="watchdog/timer/command/start",
             callback=on_wd_timer_message,
         )
-        return mqtt_mocks["client_instance"]
+        yield {
+            "wd_state": wd_state,
+            "wdt_client": mqtt_mocks["client_instance"],
+        }
 
     # ========================================
 
-    def test_incompatible_topic(self, message_bus, wd_timer_client, wd_state):
+    def test_incompatible_topic(self, message_bus, owdtm_mocks):
         msg = MockMessage(
             topic="watchdog/timer/command/run", payload=json.dumps({"not": "important"})
         )
-        on_wd_timer_message(wd_timer_client, msg, wd_state)
+        on_wd_timer_message(owdtm_mocks["wdt_client"], msg, owdtm_mocks["wd_state"])
 
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 1
@@ -46,9 +46,9 @@ class TestOnWatchdogTimerMessage:
             in messages[0].payload
         )
 
-    def test_wrong_json(self, message_bus, wd_timer_client, wd_state, capsys):
+    def test_wrong_json(self, message_bus, owdtm_mocks, capsys):
         msg = MockMessage(topic="watchdog/timer/command/start", payload="not json")
-        on_wd_timer_message(wd_timer_client, msg, wd_state)
+        on_wd_timer_message(owdtm_mocks["wdt_client"], msg, owdtm_mocks["wd_state"])
 
         # Printed error
         captured = capsys.readouterr()
@@ -61,14 +61,14 @@ class TestOnWatchdogTimerMessage:
         assert messages[0].topic == "error/controller"
         exp_err = "Cannot decode watchdog/timer/command/start message, wrong JSON:"
         assert exp_err in messages[0].payload
-        assert wd_state["healthy"] == False
+        assert owdtm_mocks["wd_state"]["healthy"] == False
         assert f"ERROR: {exp_err}" in captured.out
 
-    def test_missing_keys(self, message_bus, wd_timer_client, wd_state, capsys):
+    def test_missing_keys(self, message_bus, owdtm_mocks, capsys):
         msg = MockMessage(
             topic="watchdog/timer/command/start", payload=json.dumps({"timeout": 1})
         )
-        on_wd_timer_message(wd_timer_client, msg, wd_state)
+        on_wd_timer_message(owdtm_mocks["wdt_client"], msg, owdtm_mocks["wd_state"])
 
         # Printed error
         captured = capsys.readouterr()
@@ -82,17 +82,18 @@ class TestOnWatchdogTimerMessage:
         exp_err = "Cannot decode watchdog/timer/command/start message, missing:"
         assert exp_err in messages[0].payload
         assert "interval" in messages[0].payload
-        assert wd_state["healthy"] == False
+        assert owdtm_mocks["wd_state"]["healthy"] == False
         assert f"ERROR: {exp_err}" in captured.out
 
-    def test_incompatible_values(self, message_bus, wd_timer_client, wd_state, capsys):
+    def test_incompatible_values(self, message_bus, owdtm_mocks, capsys):
+        wd_state = owdtm_mocks["wd_state"]
         assert wd_state["timeout"] == 1
         assert wd_state["interval"] == 0.2
         msg = MockMessage(
             topic="watchdog/timer/command/start",
             payload=json.dumps({"timeout": 1, "interval": 1}),
         )
-        on_wd_timer_message(wd_timer_client, msg, wd_state)
+        on_wd_timer_message(owdtm_mocks["wdt_client"], msg, wd_state)
 
         # Printed error
         captured = capsys.readouterr()
@@ -107,16 +108,15 @@ class TestOnWatchdogTimerMessage:
         assert "Expected interval 0.2, but got 1" in messages[0].payload
         assert wd_state["healthy"] == False
 
-    def test_correct_start_and_timeout(
-        self, message_bus, wd_timer_client, wd_state, capsys
-    ):
+    def test_correct_start_and_timeout(self, message_bus, owdtm_mocks, capsys):
+        wd_state = owdtm_mocks["wd_state"]
         assert wd_state["timeout"] == 1
         assert wd_state["interval"] == 0.2
         msg = MockMessage(
             topic="watchdog/timer/command/start",
             payload=json.dumps({"timeout": 1, "interval": 0.2}),
         )
-        on_wd_timer_message(wd_timer_client, msg, wd_state)
+        on_wd_timer_message(owdtm_mocks["wdt_client"], msg, wd_state)
 
         assert "Watchdog running." in capsys.readouterr().out
         messages = message_bus.get_messages(decoded=True)
