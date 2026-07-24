@@ -19,11 +19,12 @@ from utils.tests.mocks.mock_mqtt_clients import (
 )
 from utils.tests.mocks.mock_comodo_yaml_dict import mock_comodo_yaml_dict
 from utils.tests.mocks.mock_comodo_config import mock_comodo_config
+from utils.tests.mocks.mock_experiment import mock_experiment_dict, mock_setpoints
 
 
 @pytest.fixture
-def mock_state(mock_comodo_config):
-    def _mock_state(status, mock_experiment_dict={}, mock_setpoints=[]):
+def mock_state(mock_comodo_config, mock_experiment_dict, mock_setpoints):
+    def _mock_state(status):
         """
         Factory to create a cstate fixture in the state it would be right before a callback is called.
         It expects a string corresponding to the callback to be tested, which should be one of:
@@ -145,34 +146,6 @@ def mock_state(mock_comodo_config):
         return state_obj
 
     return _mock_state
-
-
-@pytest.fixture
-def mock_experiment_dict():
-    """Fixture that returns a valid experiment configuration dictionary."""
-    data = {
-        "id": "123",
-        "config": {"resolution": 0.1},
-        "experiment_definition": [
-            {"time": 0, "furnace/temperature": 0, "pressure/pressure": 10},
-            {"time": 3, "furnace/temperature": 0, "pressure/pressure": 150},
-            {"time": 6, "furnace/temperature": 500, "pressure/pressure": 150},
-            {"time": 9, "furnace/temperature": 500, "pressure/pressure": 10},
-            {"time": 12, "furnace/temperature": 0, "pressure/pressure": 10},
-        ],
-    }
-    return data
-
-
-@pytest.fixture
-def mock_setpoints():
-    """Fixture that returns a list of setpoints as expected from split_setpoints."""
-    return [
-        {"duration": 9, "furnace/temperature": 20, "pressure/pressure": 200},
-        {"duration": 5, "furnace/temperature": 80, "pressure/pressure": 800},
-        {"duration": 7, "furnace/temperature": 50, "pressure/pressure": 500},
-        {"duration": 4, "furnace/temperature": 30, "pressure/pressure": 300},
-    ]
 
 
 @pytest.fixture

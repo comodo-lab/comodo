@@ -69,7 +69,7 @@ services:
 
   monitor:
     build:
-      context: .
+      context: ./
       dockerfile: monitor/Dockerfile
     depends_on:
       mqtt-probe-core:

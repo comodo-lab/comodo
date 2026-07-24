@@ -8,8 +8,6 @@ from tests.conftest import (
     message_bus,
     mqtt_mocks,
     mock_state,
-    mock_experiment_dict,
-    mock_setpoints,
 )
 
 from src.on_heartbeat_message import (
@@ -23,8 +21,8 @@ from src.on_heartbeat_message import (
 
 
 @pytest.fixture
-def state(mock_state, mock_experiment_dict, mock_setpoints):
-    return mock_state("awaiting_instruments", mock_experiment_dict, mock_setpoints)
+def state(mock_state):
+    return mock_state("awaiting_instruments")
 
 
 @pytest.fixture

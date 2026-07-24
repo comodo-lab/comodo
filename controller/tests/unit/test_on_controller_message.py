@@ -7,7 +7,6 @@ from tests.conftest import (
     message_bus,
     mqtt_mocks,
     mock_state,
-    mock_experiment_dict,
     mock_setpoints,
     mock_c_stopping,
 )
@@ -25,8 +24,8 @@ from src.validation import ExperimentValidationError
 
 class TestIdle:
     @pytest.fixture
-    def state(self, mock_state, mock_experiment_dict, mock_setpoints):
-        return mock_state("idle", mock_experiment_dict, mock_setpoints)
+    def state(self, mock_state):
+        return mock_state("idle")
 
     @pytest.fixture
     def controller_client(self, mqtt_mocks, state):
@@ -254,8 +253,8 @@ class TestIdle:
 
 class TestStarting:
     @pytest.fixture
-    def state(self, mock_state, mock_experiment_dict, mock_setpoints):
-        return mock_state("starting", mock_experiment_dict, mock_setpoints)
+    def state(self, mock_state):
+        return mock_state("starting")
 
     @pytest.fixture
     def controller_client(self, mqtt_mocks, state):
@@ -352,8 +351,8 @@ class TestStarting:
 
 class TestReady:
     @pytest.fixture
-    def state(self, mock_state, mock_experiment_dict, mock_setpoints):
-        return mock_state("ready", mock_experiment_dict, mock_setpoints)
+    def state(self, mock_state):
+        return mock_state("ready")
 
     @pytest.fixture
     def controller_client(self, mqtt_mocks, state):
@@ -439,8 +438,8 @@ class TestReady:
 
 class TestRunning:
     @pytest.fixture
-    def state(self, mock_state, mock_experiment_dict, mock_setpoints):
-        return mock_state("running", mock_experiment_dict, mock_setpoints)
+    def state(self, mock_state):
+        return mock_state("running")
 
     @pytest.fixture
     def controller_client(self, mqtt_mocks, state):
@@ -657,8 +656,8 @@ class TestRunning:
 
 class TestStopping:
     @pytest.fixture
-    def state(self, mock_state, mock_experiment_dict, mock_setpoints):
-        return mock_state("end", mock_experiment_dict, mock_setpoints)
+    def state(self, mock_state):
+        return mock_state("end")
 
     @pytest.fixture
     def controller_client(self, mqtt_mocks, state):
