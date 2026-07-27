@@ -50,13 +50,17 @@ def on_timer_message(client, msg, obj):
         # Wait for instruments to be ready or timeout
         instrument_setup_wait = obj.config.globals["instrument_setup_wait"]
         if instrument_setup_wait is None:
-            print(
-                "ERROR: instrument_setup_wait is not set in the config. Stopping experiment."
+            err = "Instrument_setup_wait is not set in the config. Stopping experiment."
+            print(f"ERROR: {err}")
+            mqtt.MQTTPublisher.get_instance().publish(
+                "error/controller",
+                json.dumps({"experiment_id": message["experiment_id"], "error": err}),
             )
             mqtt.MQTTPublisher.get_instance().publish(
                 "controller/command/stop",
                 json.dumps({"id": message["experiment_id"]}),
             )
+            return
         t0 = t.time()
         while (not obj.instruments_ready) and obj.status == "awaiting_instruments":
             t.sleep(timer_check_frequency)
