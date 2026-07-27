@@ -103,7 +103,7 @@ def test_timeout(timer_client, message_bus, state):
     assert state.experiment_uid == "123"
     assert state.status == "awaiting_instruments"
     assert state.instruments_ready == False
-    state.instrument_setup_wait = 0.1
+    state.config.globals["instrument_setup_wait"] = 0.1
 
     with patch("src.on_timer_message.timer_check_frequency", 0.01):
         msg = MockMessage(

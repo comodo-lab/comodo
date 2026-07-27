@@ -66,7 +66,7 @@ class TestOnWatchdogTimerMessage:
 
     def test_missing_keys(self, message_bus, owdtm_mocks, capsys):
         msg = MockMessage(
-            topic="watchdog/timer/command/start", payload=json.dumps({"timeout": 1})
+            topic="watchdog/timer/command/start", payload=json.dumps({"timeout": 0.1})
         )
         on_wd_timer_message(owdtm_mocks["wdt_client"], msg, owdtm_mocks["wd_state"])
 
