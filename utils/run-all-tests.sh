@@ -1,7 +1,7 @@
 # A bash script to test all the components of Comodo
 
 #!/bin/bash
-set -euo pipefail
+set -uo pipefail
 
 run_integration=true
 for arg in "$@"; do
@@ -25,45 +25,95 @@ echo "Running tests for Comodo"
 
 # List of components to test
 components=("controller" "firmware" "setpoint_controller" "ui" "utils" "monitor")
-
-all_output=""
+separator="================================================================================================"
 
 # Loop through each component and run its tests
+declare -A outputs
+declare -A exit_codes
+
+run_component() {
+    local name="$1"
+    shift
+
+    echo
+    echo "$separator"
+    echo "Testing $name..."
+    echo "$separator"
+
+    set +e
+    output=$(
+        "$@" 2>&1 | tee /dev/stderr
+    )
+    status=$?
+    set -e
+
+    outputs["$name"]="$output"
+    exit_codes["$name"]=$status
+}
+
 for component in "${components[@]}"; do
-    echo "Testing $component..."
-    component_output=$(cd "$component" && docker compose up --build 2>&1 | tee /dev/stderr)
-    all_output+=$'\n'"$component_output"
+    run_component \
+        "$component" \
+        bash -c "cd '$component' && docker compose up --build"
 done
 
 if [[ "$run_integration" == true ]]; then
-    # Run integration tests
-    echo "Running integration tests..."
-    integration_output=$(
-        cd integration_tests && docker compose --env-file ../.env kill &&
-        docker compose --env-file ../.env up --build --attach integration-test --force-recreate 2>&1 | tee /dev/stderr &&
-        docker compose --env-file ../.env kill)
-    all_output+=$'\n'"$integration_output"
+    run_component \
+        integration \
+        bash -c "
+            cd integration_tests &&
+            docker compose --env-file ../.env kill >/dev/null 2>&1 || true &&
+            docker compose --env-file ../.env up \
+                --build \
+                --attach integration-test \
+                --force-recreate &&
+            docker compose --env-file ../.env kill >/dev/null 2>&1 || true
+        "
 else
     echo "Skipping integration tests."
 fi
 
 # Print summary of test results
-summary_lines=$(printf '%s\n' "$all_output" | grep -E "test[^|]*[[:space:]]+\|[[:space:]]+={3,} .* in [0-9.]+s ={3,}" || true)
-separator="================================================================="
-if [[ -n "$summary_lines" ]]; then
-    printf '%s\n' "$separator"
-    printf '%s\n' "$separator"
-    printf '%s\n' "$summary_lines" | awk -F'|' '
-        {
-            service = $1
-            gsub(/^[[:space:]]+|[[:space:]]+$/, "", service)
-            result = $2
-            sub(/^[[:space:]]*=+[[:space:]]*/, "", result)
-            sub(/[[:space:]]*=+[[:space:]]*$/, "", result)
-            gsub(/^[[:space:]]+|[[:space:]]+$/, "", result)
-            printf "%-24s |  %s\n", service, result
-        }
-    '
-    printf '%s\n' "$separator"
-    printf '%s\n' "$separator"
-fi
+echo
+echo "$separator"
+printf "%-24s | %-36s | %-10s\n" "Component" "Result" "Coverage"
+echo "$separator"
+for name in "${components[@]}" $( [[ "$run_integration" == true ]] && echo integration ); do
+    output="${outputs[$name]}"
+    exit_code="${exit_codes[$name]}"
+
+    # Get pytest output or error exit code
+    summary=$(printf '%s\n' "$output" |
+        grep -E "={3,} .* in [0-9.]+s ={3,}" |
+        tail -1 || true)
+    if [[ -n "$summary" ]]; then
+        result=$(printf '%s\n' "$summary" |
+        awk -F'|' '
+            {
+                result = $2
+                sub(/^[[:space:]]*=+[[:space:]]*/, "", result)
+                sub(/[[:space:]]*=+[[:space:]]*$/, "", result)
+                gsub(/^[[:space:]]+|[[:space:]]+$/, "", result)
+                print result
+            }')
+    else
+        result="ERROR (exit code $exit_code)"
+    fi
+
+    # Get coverage percentage from pytest-cov output
+    cov_sum=$(printf '%s\n' "$output" |
+        grep -E "\| TOTAL.*[0-9]+%$" |
+        tail -1 || true)
+    if [[ -z "$cov_sum" ]]; then
+        coverage="---"
+    else
+        coverage=$(printf '%s\n' "$cov_sum" | awk '{print $NF}')
+    fi
+
+    # Print the result for this component
+    printf "%-24s | %-36s | %-10s\n" \
+        "$name" \
+        "$result" \
+        "$coverage"
+done
+echo "$separator"
