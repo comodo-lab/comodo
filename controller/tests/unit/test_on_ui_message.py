@@ -13,7 +13,7 @@ from src.on_ui_message import on_ui_message
 from utils.mqtt_validator import MQTTValidationException
 
 
-class TestOnWatchdogMessage:
+class TestOnUIMessage:
 
     @pytest.fixture
     def ouim_mocks(self, mqtt_mocks, mock_state):
