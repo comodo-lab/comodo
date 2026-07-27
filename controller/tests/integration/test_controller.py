@@ -55,6 +55,15 @@ def mock_validate(mock_experiment_dict):
 
 
 @pytest.fixture
+def mock_mqtt_validator():
+    with (
+        patch("src.on_heartbeat_message.validate_message"),
+        patch("src.on_ui_message.validate_message"),
+    ):
+        yield
+
+
+@pytest.fixture
 def mock_serial_id():
     with patch("src.on_controller_message.assign_serial_id") as mock_assign_serial_id:
 
@@ -79,6 +88,7 @@ def test_control_loop(
     controller_client,
     heartbeat_client,
     mock_validate,
+    mock_mqtt_validator,
     mock_serial_id,
     mock_dump,
     capsys,
