@@ -16,21 +16,18 @@ def mock_comodo_yaml_dict():
                 "simulate": True,
                 "variables": {
                     "temperature": {
+                        "min": 0,
+                        "max": 1000,
+                        "unit": "C",
+                        "default_setpoint": 25,
+                        "tolerance": 1,
                         "sensor": {
                             "interval": 1,
                             "type": "float",
-                            "min": 0,
-                            "max": 1000,
-                            "unit": "C",
-                            "default_setpoint": 25,
                         },
                         "actuator": {
                             "type": "float",
-                            "min": 0,
-                            "max": 1000,
-                            "unit": "C",
                             "safe_stop_setpoint": 0,
-                            "tolerance": 1,
                         },
                     }
                 },
@@ -41,14 +38,15 @@ def mock_comodo_yaml_dict():
                 "simulate": True,
                 "variables": {
                     "pressure": {
+                        "min": 1,
+                        "max": 200,
+                        "unit": "bar",
+                        "tolerance": 0.5,
+                        "default_setpoint": 1,
                         "sensor": {
                             "interval": 1,
                             "type": "float",
-                            "min": 1,
-                            "max": 200,
-                            "unit": "bar",
-                            "default_setpoint": 1,
-                        }
+                        },
                     }
                 },
             },
@@ -58,20 +56,16 @@ def mock_comodo_yaml_dict():
                 "simulate": True,
                 "variables": {
                     "mass_flow": {
+                        "min": 0,
+                        "max": 100,
+                        "unit": "\\%",
                         "sensor": {
                             "interval": 1,
                             "type": "float",
-                            "min": 0,
-                            "max": 100,
-                            "unit": "\\%",
                         },
                         "actuator": {
                             "type": "float",
-                            "min": 0,
-                            "max": 100,
-                            "unit": "\\%",
                             "safe_stop_setpoint": 0,
-                            "tolerance": 1,
                         },
                         "setpoint_controller": {
                             "external_sensor": "pressure/pressure",

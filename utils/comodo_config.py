@@ -149,9 +149,25 @@ class ComodoConfig:
                 # Create a unique key for each variable
                 var_key = f"{instrument_name}/{variable_name}"
 
+                missing_params = find_missing_params(variable_data, ["min", "max"])
+                if missing_params:
+                    raise KeyError(
+                        f"Missing {missing_params} for variable '{var_key}' in configuration."
+                    )
+
                 # If there is a relevant tag, add the variable to the appropriate dictionary
                 if "sensor" in variable_data:
                     self.sensors[var_key] = variable_data["sensor"].copy()
+                    self.sensors[var_key]["min"] = variable_data["min"]
+                    self.sensors[var_key]["max"] = variable_data["max"]
+                    if "unit" in variable_data:
+                        self.sensors[var_key]["unit"] = variable_data["unit"]
+                    if "default_setpoint" in variable_data:
+                        self.sensors[var_key]["default_setpoint"] = variable_data[
+                            "default_setpoint"
+                        ]
+                    if "tolerance" in variable_data:
+                        self.sensors[var_key]["tolerance"] = variable_data["tolerance"]
                 if "actuator" in variable_data:
                     self.actuators[var_key] = variable_data["actuator"].copy()
                     self.actuators[var_key]["driving_sensor"] = var_key
@@ -176,7 +192,7 @@ class ComodoConfig:
                     spc_id = f"{spc_sensor}--{var_key}".replace("/", "-")
                     self.spcs[spc_id] = spc_data
 
-        # Make sure each actuator has a safe_stop_setpoint and a default setpoint for its driving sensor
+        # Make sure each actuator has a safe_stop_setpoint, and each driving sensor is defined with a default_setpoint and tolerance
         for actuator_key, actuator_data in self.actuators.items():
             if "safe_stop_setpoint" not in actuator_data:
                 raise KeyError(
@@ -190,6 +206,10 @@ class ComodoConfig:
             if "default_setpoint" not in self.sensors[driving_sensor_key]:
                 raise KeyError(
                     f"Driving sensor '{driving_sensor_key}' for actuator '{actuator_key}' does not have a 'default_setpoint' defined."
+                )
+            if "tolerance" not in self.sensors[driving_sensor_key]:
+                raise KeyError(
+                    f"Driving sensor '{driving_sensor_key}' for actuator '{actuator_key}' does not have a 'tolerance' defined."
                 )
 
     def get_expected_heartbeat(self, instrument_name):

@@ -265,22 +265,47 @@ class TestPopulateSensorsActuatorsSPCs:
                 "expected_spcs": expected_spcs,
             }
 
+    def test_missing_variable_data(self, mocks_for_saspcs):
+        config = ComodoConfig()
+        config.instruments = {
+            "I_A": {"variables": {"V_A": {"actuator": {"some": "config"}}}}
+        }
+        missing = "'min' parameter"
+        mock_missing_params = mocks_for_saspcs["mock_find_missing_params"]
+        mock_missing_params.return_value = missing
+
+        with pytest.raises(KeyError) as e:
+            config.populate_sensors_actuators_spcs()
+
+        assert mock_missing_params.called_once_with(
+            {"actuator": {"some": "config"}}, ["min", "max", "sensor"]
+        )
+        assert f"Missing {missing} for variable 'I_A/V_A'" in str(e.value)
+
     def test_sensor_only(self, mocks_for_saspcs):
         config = ComodoConfig()
         config.instruments = {
-            "I_A": {"variables": {"V_A": {"sensor": {"some": "config"}}}}
+            "I_A": {
+                "variables": {
+                    "V_A": {"min": 0, "max": 100, "sensor": {"some": "config"}}
+                }
+            }
         }
 
         config.populate_sensors_actuators_spcs()
 
-        assert config.sensors == {"I_A/V_A": {"some": "config"}}
+        assert config.sensors == {"I_A/V_A": {"some": "config", "min": 0, "max": 100}}
         assert config.actuators == {}
         assert config.spcs == {}
 
     def test_actuator_missing_safe_stop_setpoint(self, mocks_for_saspcs):
         config = ComodoConfig()
         config.instruments = {
-            "I_A": {"variables": {"V_A": {"actuator": {"some": "config"}}}}
+            "I_A": {
+                "variables": {
+                    "V_A": {"min": 0, "max": 100, "actuator": {"some": "config"}}
+                }
+            }
         }
 
         with pytest.raises(KeyError) as e:
@@ -291,7 +316,15 @@ class TestPopulateSensorsActuatorsSPCs:
     def test_actuator_missing_driving_sensor(self, mocks_for_saspcs):
         config = ComodoConfig()
         config.instruments = {
-            "I_A": {"variables": {"V_A": {"actuator": {"safe_stop_setpoint": 0}}}}
+            "I_A": {
+                "variables": {
+                    "V_A": {
+                        "min": 0,
+                        "max": 100,
+                        "actuator": {"safe_stop_setpoint": 0},
+                    }
+                }
+            }
         }
 
         with pytest.raises(KeyError) as e:
@@ -310,6 +343,8 @@ class TestPopulateSensorsActuatorsSPCs:
             "I_A": {
                 "variables": {
                     "V_A": {
+                        "min": 0,
+                        "max": 100,
                         "sensor": {"some": "config"},
                         "actuator": {"safe_stop_setpoint": 0},
                     }
@@ -325,13 +360,41 @@ class TestPopulateSensorsActuatorsSPCs:
             in str(e.value)
         )
 
+    def test_actuator_with_driving_sensor_missing_tolerance(self, mocks_for_saspcs):
+        config = ComodoConfig()
+        config.instruments = {
+            "I_A": {
+                "variables": {
+                    "V_A": {
+                        "min": 0,
+                        "max": 100,
+                        "default_setpoint": 0,
+                        "sensor": {"some": "config"},
+                        "actuator": {"safe_stop_setpoint": 0},
+                    }
+                }
+            }
+        }
+
+        with pytest.raises(KeyError) as e:
+            config.populate_sensors_actuators_spcs()
+
+        assert (
+            "Driving sensor 'I_A/V_A' for actuator 'I_A/V_A' does not have a 'tolerance'"
+            in str(e.value)
+        )
+
     def test_actuator_with_full_driving_sensor(self, mocks_for_saspcs):
         config = ComodoConfig()
         config.instruments = {
             "I_A": {
                 "variables": {
                     "V_A": {
-                        "sensor": {"default_setpoint": 0},
+                        "min": 0,
+                        "max": 100,
+                        "default_setpoint": 0,
+                        "tolerance": 0.1,
+                        "sensor": {"some": "config"},
                         "actuator": {"safe_stop_setpoint": 0},
                     }
                 }
@@ -340,7 +403,15 @@ class TestPopulateSensorsActuatorsSPCs:
 
         config.populate_sensors_actuators_spcs()
 
-        assert config.sensors == {"I_A/V_A": {"default_setpoint": 0}}
+        assert config.sensors == {
+            "I_A/V_A": {
+                "some": "config",
+                "min": 0,
+                "max": 100,
+                "default_setpoint": 0,
+                "tolerance": 0.1,
+            }
+        }
         assert config.actuators == {
             "I_A/V_A": {
                 "safe_stop_setpoint": 0,
@@ -355,9 +426,9 @@ class TestPopulateSensorsActuatorsSPCs:
             "I_A": {
                 "variables": {
                     "V_A": {
-                        "setpoint_controller": {
-                            "external_sensor": "mass_flow/mass_flow"
-                        }
+                        "min": 0,
+                        "max": 100,
+                        "setpoint_controller": {"external_sensor": "I_C/V_C"},
                     }
                 }
             }
@@ -378,17 +449,18 @@ class TestPopulateSensorsActuatorsSPCs:
             "I_A": {
                 "variables": {
                     "V_A": {
+                        "min": 0,
+                        "max": 100,
                         "actuator": {"safe_stop_setpoint": 0},
-                        "setpoint_controller": {
-                            "external_sensor": "mass_flow/mass_flow"
-                        },
+                        "setpoint_controller": {"external_sensor": "I_C/V_C"},
                     }
                 }
             }
         }
         missing = "'external_sensor' parameter"
         mock_missing_params = mocks_for_saspcs["mock_find_missing_params"]
-        mock_missing_params.return_value = missing
+        # pass first call (for var data), fail second call (for SPC data)
+        mock_missing_params.side_effect = [None, missing]
 
         with pytest.raises(KeyError) as e:
             config.populate_sensors_actuators_spcs()
@@ -404,6 +476,8 @@ class TestPopulateSensorsActuatorsSPCs:
             "I_A": {
                 "variables": {
                     "V_A": {
+                        "min": 0,
+                        "max": 100,
                         "actuator": {"safe_stop_setpoint": 0},
                         "setpoint_controller": {"external_sensor": "I_B/V_B"},
                     },
@@ -424,6 +498,8 @@ class TestPopulateSensorsActuatorsSPCs:
             "I_A": {
                 "variables": {
                     "V_A": {
+                        "min": 0,
+                        "max": 100,
                         "actuator": {"safe_stop_setpoint": 0},
                         "setpoint_controller": {"external_sensor": "I_B/V_B"},
                     }
@@ -432,6 +508,8 @@ class TestPopulateSensorsActuatorsSPCs:
             "I_B": {
                 "variables": {
                     "V_B": {
+                        "min": 0,
+                        "max": 100,
                         "sensor": {"some": "config"},
                     }
                 }
@@ -452,6 +530,8 @@ class TestPopulateSensorsActuatorsSPCs:
             "I_A": {
                 "variables": {
                     "V_A": {
+                        "min": 0,
+                        "max": 100,
                         "actuator": {"safe_stop_setpoint": 0},
                         "setpoint_controller": {"external_sensor": "I_B/V_B"},
                     }
@@ -460,7 +540,11 @@ class TestPopulateSensorsActuatorsSPCs:
             "I_B": {
                 "variables": {
                     "V_B": {
-                        "sensor": {"default_setpoint": 0},
+                        "min": 0,
+                        "max": 100,
+                        "tolerance": 0.1,
+                        "default_setpoint": 0,
+                        "sensor": {"some": "config"},
                     }
                 }
             },
@@ -468,7 +552,15 @@ class TestPopulateSensorsActuatorsSPCs:
 
         config.populate_sensors_actuators_spcs()
 
-        assert config.sensors == {"I_B/V_B": {"default_setpoint": 0}}
+        assert config.sensors == {
+            "I_B/V_B": {
+                "min": 0,
+                "max": 100,
+                "tolerance": 0.1,
+                "default_setpoint": 0,
+                "some": "config",
+            }
+        }
         assert config.actuators == {
             "I_A/V_A": {
                 "safe_stop_setpoint": 0,

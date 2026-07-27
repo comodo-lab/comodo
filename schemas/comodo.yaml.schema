@@ -13,12 +13,24 @@ classes:
     slots:
       - global
       - instruments
+    slot_usage:
+      global:
+        required: true
+      instruments:
+        required: true
 
   GlobalSettings:
     slots:
       - heartbeat
       - instrument_setup
       - watchdog
+    slot_usage:
+      heartbeat:
+        required: true
+      instrument_setup:
+        required: true
+      watchdog:
+        required: true
 
   HeartbeatConfig:
     slots:
@@ -26,7 +38,6 @@ classes:
     slot_usage:
       interval:
         required: true
-        range: float
 
   InstrumentSetupConfig:
     slots:
@@ -34,7 +45,6 @@ classes:
     slot_usage:
       wait:
         required: true
-        range: float
 
   WatchdogConfig:
     slots:
@@ -43,50 +53,59 @@ classes:
     slot_usage:
       timeout:
         required: true
-        range: float
       interval:
         required: true
-        range: float
 
   Instrument:
     slots:
+      - id
       - firmware
       - address
-      - simulate
-      - id
       - variables
+      - simulate
+    slot_usage:
+      id:
+        required: true
+      firmware:
+        required: true
+      address:
+        required: true
+      variables:
+        required: true
 
   Variable:
     slots:
       - id
+      - min
+      - max
+      - unit
+      - default_setpoint
+      - tolerance
       - sensor
       - actuator
       - setpoint_controller
+    slot_usage:
+      id:
+        required: true
+      min:
+        required: true
+      max:
+        required: true
 
   SensorConfig:
     slots:
       - interval
       - type
-      - min
-      - max
-      - unit
-      - default_setpoint
     slot_usage:
       interval:
         required: true
 
   ActuatorConfig:
     slots:
-      - type
-      - min
-      - max
-      - unit
       - safe_stop_setpoint
-      - tolerance
+      - type
     slot_usage:
       safe_stop_setpoint:
-        required: true
-      tolerance:
         required: true
 
   SetpointControllerConfig:

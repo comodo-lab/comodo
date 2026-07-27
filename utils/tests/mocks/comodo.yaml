@@ -14,52 +14,46 @@ instruments:
     simulate: true
     variables:
       temperature:
+        min: 0
+        max: 1000
+        unit: C
+        tolerance: 1
+        default_setpoint: 25
         sensor:
           interval: 1
           type: float
-          min: 0
-          max: 1000
-          unit: C
-          default_setpoint: 25
         actuator:
           type: float
-          min: 0
-          max: 1000
-          unit: C
           safe_stop_setpoint: 0
-          tolerance: 1
   pressure:
     firmware: pfeiffer.mpt200
     address: "/dev/ttyUSB0"
     simulate: true
     variables:
       pressure:
+        min: 1
+        max: 200
+        unit: bar
+        tolerance: 0.5
+        default_setpoint: 1
         sensor:
           interval: 1
           type: float
-          min: 1
-          max: 200
-          unit: bar
-          default_setpoint: 1
   mass_flow:
     firmware: bronkhorst.el_flow_select
     address: "/dev/ttyUSB2"
     simulate: true
     variables:
       mass_flow:
+        min: 0
+        max: 100
+        unit: \%
         sensor:
           interval: 1
           type: float
-          min: 0
-          max: 100
-          unit: \%
         actuator:
           type: float
-          min: 0
-          max: 100
-          unit: \%
           safe_stop_setpoint: 0
-          tolerance: 1
         setpoint_controller:
           external_sensor: pressure/pressure
           K_P: 10.0

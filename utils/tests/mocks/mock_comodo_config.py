@@ -27,23 +27,20 @@ def mock_comodo_config(mock_comodo_yaml_dict):
             "simulate": True,
             "variables": {
                 "temperature": {
+                    "min": 0,
+                    "max": 1000,
+                    "unit": "C",
+                    "default_setpoint": 25,
+                    "tolerance": 1,
                     "sensor": {
                         "interval": 1,
                         "type": "float",
-                        "min": 0,
-                        "max": 1000,
-                        "unit": "C",
-                        "default_setpoint": 25,
                     },
                     "actuator": {
                         "type": "float",
-                        "min": 0,
-                        "max": 1000,
-                        "unit": "C",
                         "safe_stop_setpoint": 0,
-                        "tolerance": 1,
                     },
-                },
+                }
             },
         },
         "pressure": {
@@ -52,15 +49,16 @@ def mock_comodo_config(mock_comodo_yaml_dict):
             "simulate": True,
             "variables": {
                 "pressure": {
+                    "min": 1,
+                    "max": 200,
+                    "unit": "bar",
+                    "tolerance": 0.5,
+                    "default_setpoint": 1,
                     "sensor": {
                         "interval": 1,
                         "type": "float",
-                        "min": 1,
-                        "max": 200,
-                        "unit": "bar",
-                        "default_setpoint": 1,
                     },
-                },
+                }
             },
         },
         "mass_flow": {
@@ -69,20 +67,16 @@ def mock_comodo_config(mock_comodo_yaml_dict):
             "simulate": True,
             "variables": {
                 "mass_flow": {
+                    "min": 0,
+                    "max": 100,
+                    "unit": "\\%",
                     "sensor": {
                         "interval": 1,
                         "type": "float",
-                        "min": 0,
-                        "max": 100,
-                        "unit": "\\%",
                     },
                     "actuator": {
                         "type": "float",
-                        "min": 0,
-                        "max": 100,
-                        "unit": "\\%",
                         "safe_stop_setpoint": 0,
-                        "tolerance": 1,
                     },
                     "setpoint_controller": {
                         "external_sensor": "pressure/pressure",
@@ -92,54 +86,48 @@ def mock_comodo_config(mock_comodo_yaml_dict):
                         "K_AW": 0.05,
                         "K_DF": 0.01,
                     },
-                },
+                }
             },
         },
     }
 
     mock_config.sensors = {
         "furnace/temperature": {
-            "interval": 1,
-            "max": 1000,
             "min": 0,
-            "type": "float",
+            "max": 1000,
             "unit": "C",
+            "tolerance": 1,
             "default_setpoint": 25,
+            "interval": 1,
+            "type": "float",
         },
         "mass_flow/mass_flow": {
-            "interval": 1,
-            "max": 100,
             "min": 0,
-            "type": "float",
+            "max": 100,
             "unit": "\\%",
+            "interval": 1,
+            "type": "float",
         },
         "pressure/pressure": {
-            "interval": 1,
-            "max": 200,
             "min": 1,
-            "type": "float",
+            "max": 200,
             "unit": "bar",
             "default_setpoint": 1,
+            "tolerance": 0.5,
+            "interval": 1,
+            "type": "float",
         },
     }
     mock_config.actuators = {
         "furnace/temperature": {
             "driving_sensor": "furnace/temperature",
             "type": "float",
-            "min": 0,
-            "max": 1000,
-            "unit": "C",
             "safe_stop_setpoint": 0,
-            "tolerance": 1,
         },
         "mass_flow/mass_flow": {
             "driving_sensor": "pressure/pressure",
             "type": "float",
-            "min": 0,
-            "max": 100,
-            "unit": "\\%",
             "safe_stop_setpoint": 0,
-            "tolerance": 1,
         },
     }
     mock_config.spcs = {
