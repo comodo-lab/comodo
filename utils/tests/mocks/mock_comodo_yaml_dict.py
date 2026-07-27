@@ -85,21 +85,4 @@ def mock_comodo_yaml_dict():
                 },
             },
         },
-        "visualisations": {
-            "temperature_graph": {
-                "title": "Temperature",
-                "type": "graph",
-                "y_values": ["temperature"],
-            },
-            "pressure_graph": {
-                "title": "Pressure",
-                "type": "graph",
-                "y_values": ["pressure"],
-            },
-            "mass_flow_gauge": {
-                "title": "Mass Flow",
-                "type": "gauge",
-                "value": ["mass_flow"],
-            },
-        },
     }

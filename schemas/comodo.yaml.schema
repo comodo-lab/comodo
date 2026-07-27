@@ -13,7 +13,6 @@ classes:
     slots:
       - global
       - instruments
-      - visualisations
 
   GlobalSettings:
     slots:
@@ -102,22 +101,6 @@ classes:
       external_sensor:
         required: true
 
-  Visualisation:
-    abstract: true
-    slots:
-      - id
-      - title
-      - type
-
-  Graph:
-    is_a: Visualisation
-    slots:
-      - y_values
-
-  Gauge:
-    is_a: Visualisation
-    slots:
-      - value
 
 slots:
   id:
@@ -209,18 +192,3 @@ slots:
     range: float
   K_AW:
     range: float
-
-  visualisations:
-    range: Visualisation
-    multivalued: true
-    inlined: true
-    inlined_as_list: false
-
-  title:
-    range: string
-  y_values:
-    multivalued: true
-    range: string
-  value:
-    multivalued: true
-    range: string
