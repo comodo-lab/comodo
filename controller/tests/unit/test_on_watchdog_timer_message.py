@@ -15,9 +15,9 @@ class TestOnWatchdogTimerMessage:
     @pytest.fixture
     def owdtm_mocks(self, mqtt_mocks):
         wd_state = {
-            "interval": 0.2,
-            "timeout": 1,
-            "timer": 1,
+            "interval": 0.02,
+            "timeout": 0.1,
+            "timer": 0.1,
             "healthy": True,
         }
         mqtt_mocks["client_class"](
@@ -87,11 +87,11 @@ class TestOnWatchdogTimerMessage:
 
     def test_incompatible_values(self, message_bus, owdtm_mocks, capsys):
         wd_state = owdtm_mocks["wd_state"]
-        assert wd_state["timeout"] == 1
-        assert wd_state["interval"] == 0.2
+        assert wd_state["timeout"] == 0.1
+        assert wd_state["interval"] == 0.02
         msg = MockMessage(
             topic="watchdog/timer/command/start",
-            payload=json.dumps({"timeout": 1, "interval": 1}),
+            payload=json.dumps({"timeout": 0.1, "interval": 0.01}),
         )
         on_wd_timer_message(owdtm_mocks["wdt_client"], msg, wd_state)
 
@@ -105,16 +105,16 @@ class TestOnWatchdogTimerMessage:
         assert len(messages) == 1
         assert messages[0].topic == "error/watchdog_timer"
         assert "WATCHDOG_TIMER incompatible values:" in messages[0].payload
-        assert "Expected interval 0.2, but got 1" in messages[0].payload
+        assert "Expected interval 0.02, but got 0.01" in messages[0].payload
         assert wd_state["healthy"] == False
 
     def test_correct_start_and_timeout(self, message_bus, owdtm_mocks, capsys):
         wd_state = owdtm_mocks["wd_state"]
-        assert wd_state["timeout"] == 1
-        assert wd_state["interval"] == 0.2
+        assert wd_state["timeout"] == 0.1
+        assert wd_state["interval"] == 0.02
         msg = MockMessage(
             topic="watchdog/timer/command/start",
-            payload=json.dumps({"timeout": 1, "interval": 0.2}),
+            payload=json.dumps({"timeout": 0.1, "interval": 0.02}),
         )
         on_wd_timer_message(owdtm_mocks["wdt_client"], msg, wd_state)
 
@@ -123,6 +123,6 @@ class TestOnWatchdogTimerMessage:
         assert len(messages) == 1
         assert messages[0].topic == "watchdog/timer/event/timeout"
         assert wd_state["timer"] <= 0
-        assert wd_state["interval"] == 0.2
-        assert wd_state["timeout"] == 1
+        assert wd_state["interval"] == 0.02
+        assert wd_state["timeout"] == 0.1
         assert wd_state["healthy"] == True
