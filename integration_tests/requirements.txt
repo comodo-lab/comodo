@@ -1,0 +1,6 @@
+paho-mqtt
+pyyaml
+
+pytest
+pytest-timeout
+pytest-order

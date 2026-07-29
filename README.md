@@ -13,7 +13,6 @@ This repo contains everything you need to get started using Comodo for automatin
         - [Sensors](#sensors)
         - [Actuators](#actuators)
         - [Setpoint Controllers](#setpoint-controllers)
-    - [Visualizations](#visualizations)
   - [Automatic deployment](#automatic-deployment)
   - [Manual deployment](#manual-deployment)
     - [Requirements:](#requirements)
@@ -41,7 +40,7 @@ The stack consists of:
   - The instruments of an experiment (physical devices).
   - The variables measured by the instruments.
   - The sensor for each variable, and optionally their actuators and potential relationships between variables.
-  - Desired monitoring visualizations.
+  <!-- - Desired monitoring visualizations. -->
 - The [user interface](controller/ui/README.md), which allows users to configure and control experiments through a graphical interface (web app).
   The UI also contains an embedded Grafana dashboard to monitor the experiments.
 - The [controller](controller/README.md), which is responsible for orchestrating experiments.
@@ -80,14 +79,14 @@ instruments: # Define physical devices in your experiment
         sensor: # Defines the way in which the variable is measured.
         actuator: # Defines the way in which the variable is controlled.
         setpoint_controller:  # Defines relationships between variables.
-visualizations: # Definitions of monitoring visualizations
 ```
+<!-- visualizations: # Definitions of monitoring visualizations -->
 
-That is, at the top level, the file is divided into three main sections: `global`, `instruments`, and `visualizations`.
+That is, at the top level, the file is divided into two main sections: `global` and `instruments`.
 - The [`global`](#global-settings) section contains settings that apply to the entire experiment.
 - The [`instruments`](#instruments) section is where you define each instrument in the experiment.
   Each *instrument* should represent a (connection to a) physical device and can be composed of multiple [`variables`](#variables).
-- The [`visualizations`](#visualizations) section defines how the data from the experiment will be monitored in the UI.
+<!-- - The [`visualizations`](#visualizations) section defines how the data from the experiment will be monitored in the UI. -->
 
 ### Global Settings
 Experiment global settings are defined in the `global` section of the `comodo.yml` file.
@@ -162,13 +161,13 @@ A setpoint controller can have the following properties:
 - `D`: [required] The derivative gain of the controller.
 - `output_function`: [required] The function used to compute the actuator output based on the controller's calculations. <!-- not sure what this will be, really -->
 
-### Visualizations
+<!-- ### Visualizations
 The `visualizations` section is where you define how the data from the experiment will be monitored.
 
 Each visualization can have the following properties:
 - `id`: [required] The unique identifier for the visualization.
 - `title`: [optional] A human-readable title for the visualization.
-- `type`: [required] The type of visualization (e.g., graph, gauge).
+- `type`: [required] The type of visualization (e.g., graph, gauge). -->
 <!-- lots to specify here still -->
 
 ## Automatic deployment

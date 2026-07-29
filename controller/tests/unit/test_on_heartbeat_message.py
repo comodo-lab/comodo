@@ -8,8 +8,6 @@ from tests.conftest import (
     message_bus,
     mqtt_mocks,
     mock_state,
-    mock_experiment_dict,
-    mock_setpoints,
 )
 
 from src.on_heartbeat_message import (
@@ -23,8 +21,8 @@ from src.on_heartbeat_message import (
 
 
 @pytest.fixture
-def state(mock_experiment_dict, mock_setpoints):
-    return mock_state("awaiting_instruments", mock_experiment_dict, mock_setpoints)
+def state(mock_state):
+    return mock_state("awaiting_instruments")
 
 
 @pytest.fixture
@@ -101,7 +99,7 @@ class TestOnHeartbeatMessage:
             state.status = pre_state
 
             msg = MockMessage(
-                topic="instruments/furnace_left/heartbeat",
+                topic="instruments/furnace/heartbeat",
                 payload=json.dumps({"state": "ready"}),
             )
             on_heartbeat_message(heartbeat_client, msg, state)
@@ -147,7 +145,7 @@ class TestOnHeartbeatMessage:
         heartbeat_client = on_heartbeat_message_mocks["heartbeat_client"]
         assert state.experiment_uid == "123"
         assert state.status == "awaiting_instruments"
-        assert "furnace_centre" in state.instrument_states
+        assert "furnace" in state.instrument_states
 
         msg_payload = {
             "state": "ready",
@@ -155,7 +153,7 @@ class TestOnHeartbeatMessage:
             "config": {"tolerance": 1, "experiment_id": None},
         }
         msg = MockMessage(
-            topic="instruments/furnace_centre/heartbeat",
+            topic="instruments/furnace/heartbeat",
             payload=json.dumps(msg_payload),
         )
         on_heartbeat_message(heartbeat_client, msg, state)
@@ -167,7 +165,7 @@ class TestOnHeartbeatMessage:
         on_heartbeat_message_mocks["hb_val_err"].assert_not_called()
         on_heartbeat_message_mocks["unconfigured_i"].assert_not_called()
         on_heartbeat_message_mocks["handle_i_hb"].assert_called_once_with(
-            state, msg_payload, "furnace_centre"
+            state, msg_payload, "furnace"
         )
 
 
@@ -193,17 +191,17 @@ class TestHandleInstrumentHeartbeat:
     def test_invalid_heartbeat(self, handle_i_hb_mocks):
         state = handle_i_hb_mocks["state"]
         handle_i_hb_mocks["hb_valid"].return_value = False
-        assert state.instrument_states["furnace_centre"]["last_contact"] is None
-        assert state.instrument_states["furnace_centre"]["state"] is None
+        assert state.instrument_states["furnace"]["last_contact"] is None
+        assert state.instrument_states["furnace"]["state"] is None
 
         heartbeat = "nonsense"
-        handle_instrument_heartbeat(state, heartbeat, "furnace_centre")
+        handle_instrument_heartbeat(state, heartbeat, "furnace")
 
-        assert state.instrument_states["furnace_centre"]["last_contact"] == 1234.56
+        assert state.instrument_states["furnace"]["last_contact"] == 1234.56
         handle_i_hb_mocks["hb_valid"].assert_called_once_with(
-            state, heartbeat, "furnace_centre"
+            state, heartbeat, "furnace"
         )
-        assert state.instrument_states["furnace_centre"]["state"] is None
+        assert state.instrument_states["furnace"]["state"] is None
         messages = handle_i_hb_mocks["messages"]()
         assert len(messages) == 0
 
@@ -213,8 +211,8 @@ class TestHandleInstrumentHeartbeat:
         state.status = "starting"
         for instrument in state.instrument_states.values():
             instrument["state"] = "ready"
-        state.instrument_states["furnace_centre"]["state"] = None
-        assert state.instrument_states["furnace_centre"]["last_contact"] is None
+        state.instrument_states["furnace"]["state"] = None
+        assert state.instrument_states["furnace"]["last_contact"] is None
         assert state.instruments_ready == False
 
         heartbeat = {
@@ -222,20 +220,52 @@ class TestHandleInstrumentHeartbeat:
             "setpoints": {},
             "config": {"tolerance": 1, "experiment_id": None},
         }
-        handle_instrument_heartbeat(state, heartbeat, "furnace_centre")
+        handle_instrument_heartbeat(state, heartbeat, "furnace")
 
-        assert state.instrument_states["furnace_centre"]["last_contact"] == 1234.56
+        assert state.instrument_states["furnace"]["last_contact"] == 1234.56
         handle_i_hb_mocks["hb_valid"].assert_called_once_with(
-            state, heartbeat, "furnace_centre"
+            state, heartbeat, "furnace"
         )
         # Should update instrument state
-        assert state.instrument_states["furnace_centre"]["state"] == "ready"
-        assert state.instrument_states["furnace_centre"]["setpoints"] == {}
-        assert state.instrument_states["furnace_centre"]["config"] == {
+        assert state.instrument_states["furnace"]["state"] == "ready"
+        assert state.instrument_states["furnace"]["setpoints"] == {}
+        assert state.instrument_states["furnace"]["config"] == {
             "tolerance": 1,
             "experiment_id": None,
         }
         # Because not in awaiting_instruments, should not set instruments_ready
+        assert state.instruments_ready == False
+        messages = handle_i_hb_mocks["messages"]()
+        assert len(messages) == 0
+
+    def test_valid_heartbeat_instrument_idle(self, handle_i_hb_mocks):
+        state = handle_i_hb_mocks["state"]
+        handle_i_hb_mocks["hb_valid"].return_value = True
+        assert len(state.instrument_states) > 1
+        for instrument in state.instrument_states.values():
+            instrument["state"] = "None"
+        assert state.instrument_states["furnace"]["last_contact"] is None
+        assert state.instruments_ready == False
+
+        heartbeat = {
+            "state": "idle",
+            "setpoints": {},
+            "config": {"tolerance": 1, "experiment_id": None},
+        }
+        handle_instrument_heartbeat(state, heartbeat, "furnace")
+
+        assert state.instrument_states["furnace"]["last_contact"] is not None
+        handle_i_hb_mocks["hb_valid"].assert_called_once_with(
+            state, heartbeat, "furnace"
+        )
+        # Should update instrument state
+        assert state.instrument_states["furnace"]["state"] == "idle"
+        assert state.instrument_states["furnace"]["setpoints"] == {}
+        assert state.instrument_states["furnace"]["config"] == {
+            "tolerance": 1,
+            "experiment_id": None,
+        }
+        # Because it is idle, should not set instruments_ready
         assert state.instruments_ready == False
         messages = handle_i_hb_mocks["messages"]()
         assert len(messages) == 0
@@ -246,7 +276,7 @@ class TestHandleInstrumentHeartbeat:
         assert len(state.instrument_states) > 1
         for instrument in state.instrument_states.values():
             instrument["state"] = "None"
-        assert state.instrument_states["furnace_centre"]["last_contact"] is None
+        assert state.instrument_states["furnace"]["last_contact"] is None
         assert state.instruments_ready == False
 
         heartbeat = {
@@ -254,16 +284,16 @@ class TestHandleInstrumentHeartbeat:
             "setpoints": {},
             "config": {"tolerance": 1, "experiment_id": None},
         }
-        handle_instrument_heartbeat(state, heartbeat, "furnace_centre")
+        handle_instrument_heartbeat(state, heartbeat, "furnace")
 
-        assert state.instrument_states["furnace_centre"]["last_contact"] is not None
+        assert state.instrument_states["furnace"]["last_contact"] is not None
         handle_i_hb_mocks["hb_valid"].assert_called_once_with(
-            state, heartbeat, "furnace_centre"
+            state, heartbeat, "furnace"
         )
         # Should update instrument state
-        assert state.instrument_states["furnace_centre"]["state"] == "ready"
-        assert state.instrument_states["furnace_centre"]["setpoints"] == {}
-        assert state.instrument_states["furnace_centre"]["config"] == {
+        assert state.instrument_states["furnace"]["state"] == "ready"
+        assert state.instrument_states["furnace"]["setpoints"] == {}
+        assert state.instrument_states["furnace"]["config"] == {
             "tolerance": 1,
             "experiment_id": None,
         }
@@ -278,8 +308,8 @@ class TestHandleInstrumentHeartbeat:
         assert len(state.instrument_states) > 1
         for instrument in state.instrument_states.values():
             instrument["state"] = "ready"
-        state.instrument_states["furnace_centre"]["state"] = "None"
-        assert state.instrument_states["furnace_centre"]["last_contact"] is None
+        state.instrument_states["furnace"]["state"] = "None"
+        assert state.instrument_states["furnace"]["last_contact"] is None
         assert state.instruments_ready == False
 
         heartbeat = {
@@ -287,16 +317,16 @@ class TestHandleInstrumentHeartbeat:
             "setpoints": {},
             "config": {"tolerance": 1, "experiment_id": None},
         }
-        handle_instrument_heartbeat(state, heartbeat, "furnace_centre")
+        handle_instrument_heartbeat(state, heartbeat, "furnace")
 
-        assert state.instrument_states["furnace_centre"]["last_contact"] is not None
+        assert state.instrument_states["furnace"]["last_contact"] is not None
         handle_i_hb_mocks["hb_valid"].assert_called_once_with(
-            state, heartbeat, "furnace_centre"
+            state, heartbeat, "furnace"
         )
         # Should update instrument state
-        assert state.instrument_states["furnace_centre"]["state"] == "ready"
-        assert state.instrument_states["furnace_centre"]["setpoints"] == {}
-        assert state.instrument_states["furnace_centre"]["config"] == {
+        assert state.instrument_states["furnace"]["state"] == "ready"
+        assert state.instrument_states["furnace"]["setpoints"] == {}
+        assert state.instrument_states["furnace"]["config"] == {
             "tolerance": 1,
             "experiment_id": None,
         }
@@ -330,7 +360,7 @@ class TestHeartbeatValid:
     def test_valid_heartbeat(self, hb_valid_mocks):
         state = hb_valid_mocks["state"]
         heartbeat = {"config": hb_valid_mocks["expected_hb_config"]}
-        res = heartbeat_valid(state, heartbeat, "furnace_centre")
+        res = heartbeat_valid(state, heartbeat, "furnace")
         assert res == True
         messages = hb_valid_mocks["messages"]()
         assert len(messages) == 0
@@ -338,10 +368,10 @@ class TestHeartbeatValid:
     def test_invalid_heartbeat(self, hb_valid_mocks, capsys):
         state = hb_valid_mocks["state"]
         heartbeat = {"config": {"some": "nonsense"}}
-        res = heartbeat_valid(state, heartbeat, "furnace_centre")
+        res = heartbeat_valid(state, heartbeat, "furnace")
         assert res == False
         captured = capsys.readouterr()
-        assert "ERROR: Instrument 'furnace_centre'" in captured.out
+        assert "ERROR: Instrument 'furnace'" in captured.out
         assert "Expected: {" in captured.out
         assert "; Received: {" in captured.out
         assert "Stopping experiment." in captured.out

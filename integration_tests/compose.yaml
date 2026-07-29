@@ -1,4 +1,7 @@
 # This compose file runs the integration tests for the comodo stack and exits when done.
+# Before running the tests, make sure you have copied the latest mock comodo yaml and regenerated the firmware compose:
+#   cp utils/tests/mocks/comodo.yaml ./
+#   docker compose -f "./firmware/compose.gen.yaml" run --rm compose-gen
 # To run the tests, cd into integration_tests/ and execute:
 #   docker compose --env-file ../.env up --build --attach integration-test --force-recreate
 #   docker compose --env-file ../.env kill
@@ -20,16 +23,14 @@ include:
 services:
   integration-test:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ../
+      dockerfile: integration_tests/Dockerfile
     container_name: integration-test
     env_file:
       - ../.env
     environment:
       HEARTBEAT_TIMEOUT: ${HEARTBEAT_TIMEOUT:-20}
       EXPERIMENT_TIMEOUT: ${EXPERIMENT_TIMEOUT:-40}
-    volumes:
-      - ./fixtures/start.json:/app/experiment.json:ro
     depends_on:
       mqtt-probe-core:
         condition: service_healthy

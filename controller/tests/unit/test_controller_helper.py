@@ -6,10 +6,9 @@ import pytest
 from unittest.mock import MagicMock, patch, call
 
 from tests.conftest import (
-    mock_state,
-    mock_experiment_dict,
-    mock_setpoints,
     message_bus,
+    mqtt_mocks,
+    mock_state,
 )
 
 from src.controller_helper import (
@@ -110,8 +109,8 @@ class TestGetEnvOrSecret:
 
 class TestAssignSerialID:
     @pytest.fixture
-    def state(self, mock_experiment_dict, mock_setpoints):
-        state = mock_state("ready", mock_experiment_dict, mock_setpoints)
+    def state(self, mock_state):
+        state = mock_state("ready")
         return state
 
     def test_updates_serial_id_correctly_empty_dir(self, state, data_path):
@@ -195,8 +194,8 @@ class TestAssignSerialID:
 class TestDatabaseDump:
 
     @pytest.fixture
-    def state(self, mock_experiment_dict, mock_setpoints):
-        state = mock_state("running", mock_experiment_dict, mock_setpoints)
+    def state(self, mock_state):
+        state = mock_state("running")
         return state
 
     @pytest.fixture(autouse=True)

@@ -8,8 +8,6 @@ from tests.conftest import (
     message_bus,
     mqtt_mocks,
     mock_state,
-    mock_experiment_dict,
-    mock_setpoints,
 )
 
 from src.on_controller_message import (
@@ -23,8 +21,8 @@ from src.on_heartbeat_message import on_heartbeat_message
 
 
 @pytest.fixture
-def state(mock_experiment_dict, mock_setpoints):
-    return mock_state("idle", mock_experiment_dict, mock_setpoints)
+def state(mock_state):
+    return mock_state("idle")
 
 
 @pytest.fixture
@@ -57,6 +55,15 @@ def mock_validate(mock_experiment_dict):
 
 
 @pytest.fixture
+def mock_mqtt_validator():
+    with (
+        patch("src.on_heartbeat_message.validate_message"),
+        patch("src.on_ui_message.validate_message"),
+    ):
+        yield
+
+
+@pytest.fixture
 def mock_serial_id():
     with patch("src.on_controller_message.assign_serial_id") as mock_assign_serial_id:
 
@@ -81,6 +88,7 @@ def test_control_loop(
     controller_client,
     heartbeat_client,
     mock_validate,
+    mock_mqtt_validator,
     mock_serial_id,
     mock_dump,
     capsys,
@@ -100,11 +108,10 @@ def test_control_loop(
     assert state._status_history == ["validating", "starting", "awaiting_instruments"]
     assert state.experiment_uid == "123"
     instrument_names = sorted([ins for ins in state.config.instruments.keys()])
-    actuator_names = sorted(
+    driving_sensors = sorted(
         [
-            name
-            for name, instr in state.config.instruments.items()
-            if any("actuator" in v for v in instr["variables"].values())
+            actuator_config["driving_sensor"]
+            for actuator_name, actuator_config in state.config.actuators.items()
         ]
     )
     messages = message_bus.get_messages()
@@ -134,10 +141,10 @@ def test_control_loop(
                     "state": "ready",
                     "setpoints": {},
                     "config": {
-                        "firmware": "test",
+                        "firmware": "test_firmware",
                         "device_address": "1.2.3.4",
                         "simulate": True,
-                        "variables": [],
+                        "variables": ["V_A", "V_B"],
                     },
                 }
             ),
@@ -154,7 +161,7 @@ def test_control_loop(
     assert state.status == "running"
     messages = message_bus.get_messages()[checked_messages:]
     # expected_messages = heartbeats + ready + run + setpoints + timer
-    expected_messages = len(instrument_names) + 2 + len(actuator_names) + 1
+    expected_messages = len(instrument_names) + 2 + len(driving_sensors) + 1
     assert len(messages) == expected_messages
     heartbeat_instruments = []
     for i, msg in enumerate(messages[: len(instrument_names)]):
@@ -171,14 +178,14 @@ def test_control_loop(
     }
     # Setpoint messages (for each instrument) then timer
     setpoint_start = len(instrument_names) + 2
-    setpoint_instruments = []
+    setpoint_sensors = []
     for i, msg in enumerate(messages[setpoint_start:-1]):
         topic_parts = msg.topic.split("/")
         assert len(topic_parts) == 4
         assert topic_parts[0] == "instruments"
-        setpoint_instruments.append(topic_parts[1])
+        setpoint_sensors.append(f"{topic_parts[1]}/{topic_parts[2]}")
         assert topic_parts[3] == "setpoint"
-    assert sorted(setpoint_instruments) == actuator_names
+    assert sorted(setpoint_sensors) == driving_sensors
     assert messages[-1].topic == "controller/timer/command/start"
     assert json.loads(messages[-1].payload)["source"] == "setpoint"
     assert json.loads(messages[-1].payload)["experiment_id"] == "D123-456"
@@ -193,16 +200,16 @@ def test_control_loop(
     t.sleep(0.1)
     messages = message_bus.get_messages()[checked_messages:]
     # expected_messages = run + setpoints + timer
-    expected_messages = 1 + len(actuator_names) + 1
+    expected_messages = 1 + len(driving_sensors) + 1
     assert len(messages) == expected_messages
     assert messages[0].topic == "controller/command/run"
-    setpoint_instruments = []
+    setpoint_sensors = []
     for i, msg in enumerate(messages[1:-1]):
         topic_parts = msg.topic.split("/")
         assert len(topic_parts) == 4
-        setpoint_instruments.append(topic_parts[1])
+        setpoint_sensors.append(f"{topic_parts[1]}/{topic_parts[2]}")
         assert topic_parts[3] == "setpoint"
-    assert sorted(setpoint_instruments) == actuator_names
+    assert sorted(setpoint_sensors) == driving_sensors
     assert messages[-1].topic == "controller/timer/command/start"
     assert json.loads(messages[-1].payload)["source"] == "setpoint"
     assert json.loads(messages[-1].payload)["experiment_id"] == "D123-456"
@@ -217,7 +224,7 @@ def test_control_loop(
         t.sleep(0.01)
     assert state.setpoints == []
     assert len(state.past_setpoints) == n_setpoints
-    checked_messages += (n_setpoints - 1) * (1 + len(actuator_names) + 1)
+    checked_messages += (n_setpoints - 1) * (1 + len(driving_sensors) + 1)
 
     # Final timer tick to end experiment
     message_bus.publish(

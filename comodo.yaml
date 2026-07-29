@@ -8,131 +8,56 @@ global:
     interval: 1
 
 instruments:
-  furnace_centre:
+  furnace:
     firmware: carbolite_gero.tg3
     address: "192.168.111.222"
     simulate: true
     variables:
       temperature:
+        min: 0
+        max: 1000
+        unit: C
+        tolerance: 1
+        default_setpoint: 25
         sensor:
           interval: 1
           type: float
-          min: 0
-          max: 1000
-          unit: C
         actuator:
           type: float
-          min: 0
-          max: 1000
-          unit: C
-          default_setpoint: 0
-          tolerance: 1
-  furnace_left:
-    firmware: carbolite_gero.tg3
-    address: "192.168.111.224"
-    simulate: true
-    variables:
-      temperature:
-        sensor:
-          interval: 1
-          type: float
-          min: 0
-          max: 1000
-          unit: C
-  furnace_right:
-    firmware: carbolite_gero.tg3
-    address: "192.168.111.225"
-    simulate: true
-    variables:
-      temperature:
-        sensor:
-          interval: 1
-          type: float
-          min: 0
-          max: 1000
-          unit: C
-  pressure_downstream:
+          safe_stop_setpoint: 0
+  pressure:
     firmware: pfeiffer.mpt200
     address: "/dev/ttyUSB0"
     simulate: true
     variables:
       pressure:
+        min: 1
+        max: 200
+        unit: bar
+        tolerance: 0.5
+        default_setpoint: 1
         sensor:
           interval: 1
           type: float
-          min: 0
-          max: 10
-          unit: bar
-  pressure_upstream:
-    firmware: pfeiffer.mpt200
-    address: "/dev/ttyUSB1"
-    simulate: true
-    variables:
-      pressure:
-        sensor:
-          interval: 0.5
-          type: float
-          min: 0
-          max: 10
-          unit: bar
   mass_flow:
     firmware: bronkhorst.el_flow_select
     address: "/dev/ttyUSB2"
     simulate: true
     variables:
       mass_flow:
+        min: 0
+        max: 100
+        unit: \%
         sensor:
           interval: 1
           type: float
-          min: 0
-          max: 100
-          unit: \%
         actuator:
           type: float
-          min: 0
-          max: 100
-          unit: \%
-          default_setpoint: 0
-          tolerance: 1
+          safe_stop_setpoint: 0
         setpoint_controller:
-          external_sensor: pressure_upstream/pressure
+          external_sensor: pressure/pressure
           K_P: 10.0
           K_I: 1.0
           K_D: 0.1
           K_AW: 0.05
           K_DF: 0.01
-      temperature:
-        sensor:
-          interval: 1
-          type: float
-          min: 0
-          max: 100
-          unit: C
-      pressure_upstream:
-        sensor:
-          interval: 1
-          type: float
-          min: 0
-          max: 10
-          unit: bar
-      pressure_downstream:
-        sensor:
-          interval: 1
-          type: float
-          min: 0
-          max: 10
-          unit: bar
-
-visualisations:
-  temperature_graph:
-    title: Temperature Control
-    type: graph
-    y_values:
-      - temperature_left
-      - temperature_centre
-      - temperature_right
-  gauge_1:
-    id: gauge_1
-    type: gauge
-    value:
-      - temperature_centre

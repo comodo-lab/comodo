@@ -2,158 +2,149 @@ import json
 
 import pytest
 import yaml
-from jsonschema import ValidationError, validate
-from jinja2 import Template
-from unittest.mock import mock_open, patch, MagicMock
+import jsonschema
+from unittest.mock import patch, MagicMock
 
-from src.validation import validate_experiment, ExperimentValidationError
+from src.validation import (
+    validate_experiment,
+    generate_row_schema,
+    ExperimentValidationError,
+)
 from utils.mqtt_validator import MQTTValidationException
 
 
 class TestGenerateRowSchema:
 
-    @pytest.fixture
-    def mock_actuator_instruments(self):
-        return {
-            "furnace_centre": {
-                "variables": {"temperature": {"actuator": {"min": 0, "max": 1000}}}
-            },
-            "mass_spec": {
-                "variables": {"mass_spec": {"actuator": {"min": 0, "max": 100}}}
-            },
+    @pytest.fixture(autouse=True)
+    def grs_mocks(self):
+
+        mock_config = MagicMock()
+        mock_config.actuators = {
+            "I_A": {"driving_sensor": "I_A/V_A"},
+            "I_C": {"driving_sensor": "I_B/V_B"},
+        }
+        mock_config.sensors = {
+            "I_A/V_A": {"min": 1, "max": 10},
+            "I_B/V_B": {"min": 2, "max": 20},
+            "I_C/V_C": {"min": 3, "max": 30},
         }
 
-    @staticmethod
-    def load_payload(instruments):
-        with open("/app/schemas/experiment_schema.yaml.j2") as f:
-            rendered = Template(f.read()).render(instruments=instruments)
-        return yaml.safe_load(rendered)["channels"]["experimentRow"]["messages"][
-            "experimentRow"
-        ]["payload"]
-
-    @pytest.fixture
-    def mock_payload(self, mock_actuator_instruments):
-        return TestGenerateRowSchema.load_payload(mock_actuator_instruments)
+        yield {
+            "config": mock_config,
+        }
 
     # ========================================
 
-    def test_generated_row_schema_contains_actuators(self, mock_payload):
-        payload = mock_payload
+    def test_missing_driving_sensors(self, grs_mocks):
+        config = grs_mocks["config"]
+        config.actuators = {"I_A": {"some": "config"}}
 
-        assert payload["required"] == [
-            "time",
-            "furnace_centre/temperature",
-            "mass_spec/mass_spec",
-        ]
-        assert payload["properties"]["furnace_centre/temperature"] == {
+        with pytest.raises(ExperimentValidationError) as e:
+            generate_row_schema(grs_mocks["config"])
+
+        assert e.value.args[0].startswith("Wrong comodo yaml config")
+
+    def test_missing_sensor(self, grs_mocks):
+        config = grs_mocks["config"]
+        config.sensors = {"I_A": {"some": "config"}}
+
+        with pytest.raises(ExperimentValidationError) as e:
+            generate_row_schema(grs_mocks["config"])
+
+        assert e.value.args[0].startswith("Wrong comodo yaml config")
+
+    def test_expected_fields(self, grs_mocks):
+        json_schema = generate_row_schema(grs_mocks["config"])
+
+        # Check additionalProperties
+        assert json_schema.get("additionalProperties") is False
+
+        # Check required fields
+        required_fields = json_schema.get("required", [])
+        assert "time" in required_fields
+        assert "I_A/V_A" in required_fields
+        assert "I_B/V_B" in required_fields
+
+        # Check time field properties
+        properties = json_schema.get("properties", {})
+        assert "time" in properties
+        assert properties["time"] == {"type": "number", "minimum": 0}
+
+        # Check driving sensor properties
+        assert "I_A/V_A" in properties
+        assert properties["I_A/V_A"] == {
             "type": "number",
-            "minimum": 0,
-            "maximum": 1000,
+            "minimum": 1,
+            "maximum": 10,
         }
-        assert payload["properties"]["mass_spec/mass_spec"] == {
-            "type": "number",
-            "minimum": 0,
-            "maximum": 100,
-        }
+        assert "I_B/V_B" in properties
+        assert properties["I_B/V_B"] == {"type": "number", "minimum": 2, "maximum": 20}
 
-    def test_generated_row_schema_excludes_sensors(self):
-        instruments = {
-            "furnace": {"variables": {"temp": {"actuator": {"min": 0, "max": 500}}}},
-            "sensor": {"variables": {"reading": {}}},
-        }
-        payload = TestGenerateRowSchema.load_payload(instruments)
-
-        assert "furnace/temp" in payload["required"]
-        assert "sensor/reading" not in payload["required"]
-        assert "sensor/reading" not in payload["properties"]
-
-    def test_generated_row_schema_has_profile_fields(self, mock_payload):
-        payload = mock_payload
-
-        assert "furnace_centre/temperature_profile" in payload["properties"]
-        assert payload["properties"]["furnace_centre/temperature_profile"] == {
+        # Check driving sensor profile properties
+        assert properties["I_A/V_A_profile"] == {
             "type": "string",
             "enum": ["linear", "exponential", "logarithmic", "step"],
         }
-        assert "mass_spec/mass_spec_profile" in payload["properties"]
+        assert properties["I_B/V_B_profile"] == {
+            "type": "string",
+            "enum": ["linear", "exponential", "logarithmic", "step"],
+        }
 
-    def test_generated_row_schema_has_additional_properties_false(self, mock_payload):
-        payload = mock_payload
+    def test_generated_row_schema_validates_valid_row(self, grs_mocks):
+        json_schema = generate_row_schema(grs_mocks["config"])
 
-        assert payload.get("additionalProperties") is False
+        jsonschema.validate({"time": 5, "I_A/V_A": 5, "I_B/V_B": 10}, json_schema)
 
-    def test_generated_row_schema_validates_valid_row(self, mock_payload):
-        payload = mock_payload
+    def test_generated_row_schema_rejects_out_of_range(self, grs_mocks):
+        json_schema = generate_row_schema(grs_mocks["config"])
 
-        validate(
-            {"time": 5, "furnace_centre/temperature": 500, "mass_spec/mass_spec": 50},
-            payload,
-        )
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate({"time": 5, "I_A/V_A": 99, "I_B/V_B": 10}, json_schema)
 
-    def test_generated_row_schema_rejects_out_of_range(self, mock_payload):
-        payload = mock_payload
+    def test_generated_row_schema_rejects_missing_required_field(self, grs_mocks):
+        json_schema = generate_row_schema(grs_mocks["config"])
 
-        with pytest.raises(ValidationError):
-            validate(
-                {
-                    "time": 5,
-                    "furnace_centre/temperature": 9999,
-                    "mass_spec/mass_spec": 50,
-                },
-                payload,
-            )
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate({"time": 5}, json_schema)
 
-    def test_generated_row_schema_rejects_missing_required_field(self, mock_payload):
-        payload = mock_payload
+    def test_generated_row_schema_rejects_wrong_instrument(self, grs_mocks):
+        json_schema = generate_row_schema(grs_mocks["config"])
 
-        with pytest.raises(ValidationError):
-            validate({"time": 5}, payload)
-
-    def test_generated_row_schema_rejects_wrong_instrument(self, mock_payload):
-        payload = mock_payload
-
-        with pytest.raises(ValidationError):
-            validate(
-                {
-                    "time": 5,
-                    "furnace_centre/temperature": 500,
-                    "mass_spec/mass_spec": 50,
-                    "unknown/thing": 0,
-                },
-                payload,
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(
+                {"time": 5, "I_A/V_A": 5, "I_B/V_B": 10, "I_C/V_C": 0},
+                json_schema,
             )
 
 
 class TestValidateExperiment:
 
-    @pytest.fixture
-    def valid_experiment_json(self):
-        return json.dumps(
-            {
-                "id": "test-123",
-                "config": {"resolution": 0.1},
-                "experiment_definition": [
-                    {
-                        "time": 0,
-                        "furnace_centre/temperature": 500,
-                        "mass_spec/mass_spec": 50,
-                    },
-                    {
-                        "time": 10,
-                        "furnace_centre/temperature": 800,
-                        "mass_spec/mass_spec": 80,
-                    },
-                ],
-            }
-        )
-
     @pytest.fixture(autouse=True)
-    def validate_experiment_mocks(self, valid_experiment_json):
+    def ve_mocks(self):
         with (
             patch("builtins.open") as mock_open,
             patch("src.validation.generate_row_schema") as mock_gen,
             patch("src.validation.validate_message") as mock_val,
+            patch("src.validation.jsonschema.validate") as mock_json_validate,
         ):
+            valid_experiment_json = json.dumps(
+                {
+                    "id": "test-123",
+                    "config": {"resolution": 0.1},
+                    "experiment_definition": [
+                        {
+                            "time": 0,
+                            "I_A/V_A": 500,
+                            "I_B/V_B": 50,
+                        },
+                        {
+                            "time": 10,
+                            "I_A/V_A": 800,
+                            "I_B/V_B": 80,
+                        },
+                    ],
+                }
+            )
             mock_open.return_value.__enter__.return_value.read.return_value = (
                 valid_experiment_json
             )
@@ -166,78 +157,75 @@ class TestValidateExperiment:
                 "open": mock_open,
                 "generate_row_schema": mock_gen,
                 "validate_message": mock_val,
+                "json_validate": mock_json_validate,
                 "config": mock_config,
             }
 
     # ========================================
 
-    def test_raises_on_missing_file(self, validate_experiment_mocks):
-        mocks = validate_experiment_mocks
-        mocks["open"].side_effect = FileNotFoundError()
+    def test_raises_on_missing_file(self, ve_mocks):
+        ve_mocks["open"].side_effect = FileNotFoundError()
 
         with pytest.raises(ExperimentValidationError) as e:
-            validate_experiment("/nonexistent/path", mocks["config"])
+            validate_experiment("/nonexistent/path", ve_mocks["config"])
 
         assert "Experiment file not found" in str(e.value)
 
-    def test_raises_on_invalid_structure(self, validate_experiment_mocks):
-        mocks = validate_experiment_mocks
-        mocks["validate_message"].side_effect = MQTTValidationException(
+    def test_raises_on_invalid_structure(self, ve_mocks):
+        ve_mocks["validate_message"].side_effect = MQTTValidationException(
             "Invalid structure"
         )
 
         with pytest.raises(ExperimentValidationError) as e:
-            validate_experiment("/fake/path", mocks["config"])
+            validate_experiment("/fake/path", ve_mocks["config"])
 
         assert "Experiment validation failed" in str(e.value)
         assert "Invalid structure" in str(e.value)
-        mocks["open"].assert_called_once_with("/fake/path")
-        mocks["generate_row_schema"].assert_not_called()
+        ve_mocks["open"].assert_called_once_with("/fake/path")
+        ve_mocks["generate_row_schema"].assert_not_called()
 
-    def test_raises_on_row_schema_generation_failure(self, validate_experiment_mocks):
-        mocks = validate_experiment_mocks
-        mocks["generate_row_schema"].side_effect = Exception("Schema generation failed")
+    def test_raises_on_missing_experiment_definition(self, ve_mocks):
+        ve_mocks["open"].return_value.__enter__.return_value.read.return_value = (
+            json.dumps({"id": "test-123", "config": {"resolution": 0.1}})
+        )
 
         with pytest.raises(ExperimentValidationError) as e:
-            validate_experiment("/fake/path", mocks["config"])
+            validate_experiment("/fake/path", ve_mocks["config"])
 
-        assert "Failed to generate row schema" in str(e.value)
-        assert "Schema generation failed" in str(e.value)
-        mocks["open"].assert_called_once_with("/fake/path")
-        mocks["validate_message"].assert_called_once_with(
-            "ui/start", mocks["experiment"]
-        )
-        mocks["generate_row_schema"].assert_called_once_with(mocks["config"])
+        assert "Missing experiment definition" in str(e.value)
+        ve_mocks["open"].assert_called_once_with("/fake/path")
+        ve_mocks["generate_row_schema"].assert_called_once_with(ve_mocks["config"])
 
-    def test_raises_on_row_validation_failure(self, validate_experiment_mocks):
-        mocks = validate_experiment_mocks
-        mocks["validate_message"].side_effect = [
-            None,  # First call for "ui/start" passes
-            MQTTValidationException(
-                "Invalid row 1"
-            ),  # Second call for "experiment/row" fails
+    def test_raises_on_row_validation_failure(self, ve_mocks):
+        ve_mocks["json_validate"].side_effect = [
+            jsonschema.ValidationError("Invalid row 1")
         ]
 
         with pytest.raises(ExperimentValidationError) as e:
-            validate_experiment("/fake/path", mocks["config"])
+            validate_experiment("/fake/path", ve_mocks["config"])
 
         assert "Experiment row validation failed" in str(e.value)
         assert "Invalid row 1" in str(e.value)
-        mocks["open"].assert_called_once_with("/fake/path")
-        mocks["generate_row_schema"].assert_called_once_with(mocks["config"])
-        assert (
-            mocks["validate_message"].call_count == 2
-        ), "Expected 1 call for ui/start, and 1 for experiment row failure"
+        ve_mocks["open"].assert_called_once_with("/fake/path")
+        ve_mocks["generate_row_schema"].assert_called_once_with(ve_mocks["config"])
+        ve_mocks["validate_message"].assert_called_once_with(
+            "ui/start", ve_mocks["experiment"]
+        )
+        ve_mocks["json_validate"].assert_called_once_with(
+            {"time": 0, "I_A/V_A": 500, "I_B/V_B": 50}, None
+        )
 
-    def test_valid_experiment(self, validate_experiment_mocks):
-        mocks = validate_experiment_mocks
+    def test_valid_experiment(self, ve_mocks):
+        result = validate_experiment("/fake/path", ve_mocks["config"])
 
-        result = validate_experiment("/fake/path", mocks["config"])
+        ve_mocks["open"].assert_called_once_with("/fake/path")
+        ve_mocks["generate_row_schema"].assert_called_once_with(ve_mocks["config"])
+        ve_mocks["validate_message"].assert_called_once_with(
+            "ui/start", ve_mocks["experiment"]
+        )
+        assert ve_mocks["json_validate"].call_args_list == [
+            (({"time": 0, "I_A/V_A": 500, "I_B/V_B": 50}, None),),
+            (({"time": 10, "I_A/V_A": 800, "I_B/V_B": 80}, None),),
+        ]
 
-        mocks["open"].assert_called_once_with("/fake/path")
-        mocks["generate_row_schema"].assert_called_once_with(mocks["config"])
-        assert (
-            mocks["validate_message"].call_count == 3
-        ), "Expected 1 call for ui/start, and 2 for experiment rows"
-
-        assert result == json.loads(mocks["experiment"])
+        assert result == json.loads(ve_mocks["experiment"])

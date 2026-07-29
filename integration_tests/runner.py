@@ -5,23 +5,32 @@ import time
 import paho.mqtt.client as mqtt
 import pytest
 
+from utils.tests.mocks.mock_comodo_yaml_dict import mock_comodo_yaml_dict
+from utils.tests.mocks.mock_comodo_config import mock_comodo_config
+from utils.tests.mocks.mock_experiment import mock_experiment_dict
+
 MQTT_HOST = os.environ["MQTT_HOST"]
 MQTT_USER = os.environ["MQTT_USER"]
 MQTT_PASS = os.environ["MQTT_PASS"]
 
-EXPECTED_HEARTBEATS = [
-    "controller/heartbeat",
-    "instruments/furnace_centre/heartbeat",
-    "instruments/furnace_left/heartbeat",
-    "instruments/furnace_right/heartbeat",
-    "instruments/pressure_downstream/heartbeat",
-    "instruments/pressure_upstream/heartbeat",
-    "instruments/mass_flow/heartbeat",
-    "setpoint_controller/pressure_upstream-pressure--mass_flow-mass_flow/heartbeat",
-]
 
 HEARTBEAT_TIMEOUT = int(os.environ.get("HEARTBEAT_TIMEOUT", 60))
 EXPERIMENT_TIMEOUT = int(os.environ.get("EXPERIMENT_TIMEOUT", 120))
+
+
+@pytest.fixture
+def expected_heartbeats(mock_comodo_config):
+    INSTRUMENT_TOPICS = [
+        f"instruments/{ins}" for ins in mock_comodo_config.instruments.keys()
+    ]
+    SPC_TOPICS = [
+        f"setpoint_controller/{spc}" for spc in mock_comodo_config.spcs.keys()
+    ]
+    return (
+        ["controller/heartbeat"]
+        + [f"{topic}/heartbeat" for topic in INSTRUMENT_TOPICS]
+        + [f"{topic}/heartbeat" for topic in SPC_TOPICS]
+    )
 
 
 @pytest.fixture(scope="module")
@@ -62,26 +71,42 @@ def bus():
 
 
 @pytest.mark.order(1)
-def test_services_ready(bus):
+def test_services_ready(bus, expected_heartbeats):
+    missing_heartbeats = expected_heartbeats.copy()
+    unexpected_heartbeats = []
     deadline = time.time() + HEARTBEAT_TIMEOUT
     last_report = 0.0
     while time.time() < deadline:
         received = set(bus["heartbeats"].keys())
-        missing = set(EXPECTED_HEARTBEATS) - received
-        if not missing:
+        for hb_topic in received:
+            if hb_topic in missing_heartbeats:
+                missing_heartbeats.remove(hb_topic)
+            elif hb_topic not in expected_heartbeats:
+                unexpected_heartbeats += [hb_topic]
+        if unexpected_heartbeats:
+            pytest.fail(
+                f"Unexpected heartbeats received."
+                f"\n  Expected: {sorted(expected_heartbeats)}"
+                f"\n  Missing: {sorted(missing_heartbeats)}"
+                f"\n  Unexpected: {sorted(unexpected_heartbeats)}"
+            )
+        if not missing_heartbeats:
             return
         now = time.time()
-        if now - last_report >= 5:
-            print(f"  heartbeats: {len(received)}/{len(EXPECTED_HEARTBEATS)} — missing: {sorted(missing)}")
+        if now - last_report >= 3:
+            print(f"  Waiting for heartbeats: {sorted(missing_heartbeats)}")
             last_report = now
         time.sleep(1)
-    pytest.fail(f"Missing heartbeats: {missing}")
+    pytest.fail(
+        f"Missing heartbeats."
+        f"\n  Expected: {sorted(expected_heartbeats)}"
+        f"\n  Missing: {sorted(missing_heartbeats)}"
+    )
 
 
 @pytest.mark.order(2)
-def test_experiment_completes(bus):
-    with open("/app/experiment.json") as f:
-        experiment = json.load(f)
+def test_experiment_completes(bus, mock_experiment_dict):
+    experiment = mock_experiment_dict
 
     bus["c"].publish("ui/start", json.dumps(experiment))
     print(f"  → ui/start published")
@@ -89,12 +114,14 @@ def test_experiment_completes(bus):
     deadline = time.time() + EXPERIMENT_TIMEOUT
     last_report = 0.0
     while time.time() < deadline:
+        if bus["errors"]:
+            pytest.fail(f"Error received: {bus['errors']}")
         if bus["end"] is not None:
             print(f"  ← controller/event/end received")
             return
         now = time.time()
         elapsed = int(now - (deadline - EXPERIMENT_TIMEOUT))
-        if now - last_report >= 10:
+        if now - last_report >= 3:
             print(f"  waiting for controller/event/end... ({elapsed}s)")
             last_report = now
         time.sleep(0.5)

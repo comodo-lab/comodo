@@ -4,7 +4,7 @@ from unittest.mock import patch
 from jsonschema import ValidationError
 import pytest
 
-from app import on_message
+from monitor import on_message
 
 from utils.mqtt_validator import MQTTValidationException
 from utils.tests.mocks.mock_mqtt_clients import (
@@ -17,7 +17,7 @@ from utils.tests.mocks.mock_mqtt_clients import (
 class TestOnMessage:
     @pytest.fixture
     def on_message_mocks(self):
-        with (patch("app.validate_message") as mock_val_msg,):
+        with (patch("monitor.validate_message") as mock_val_msg,):
             mocks = {
                 "mock_validate_message": mock_val_msg,
             }

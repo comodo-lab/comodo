@@ -1,9 +1,6 @@
 import json
-import os
-import yaml
-from jinja2 import Environment, FileSystemLoader
+import jsonschema
 
-from utils import mqtt_validator
 from utils.mqtt_validator import validate_message, MQTTValidationException
 
 
@@ -17,31 +14,37 @@ class ExperimentValidationError(Exception):
 
 def generate_row_schema(config):
     # --------------------------------------------------------------------------
-    # Load template directory
-
-    try:
-        env = Environment(loader=FileSystemLoader("/app/schemas"))
-        template = env.get_template("experiment_schema.yaml.j2")
-    except FileNotFoundError:
-        raise ExperimentValidationError("experiment_schema.yaml.j2 file not found")
+    # Empty schema
+    json_schema = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["time"],
+        "properties": {
+            "time": {
+                "type": "number",
+                "minimum": 0,
+            }
+        },
+    }
 
     # --------------------------------------------------------------------------
-    # Fetch instruments and render
+    # Populate schema with actuator
     try:
-        instruments = config.raw.get("instruments", {})
-        rendered = template.render(instruments=instruments)
+        for driving_sensor in [a["driving_sensor"] for a in config.actuators.values()]:
+            json_schema["required"].append(driving_sensor)
+            json_schema["properties"][driving_sensor] = {
+                "type": "number",
+                "minimum": config.sensors[driving_sensor]["min"],
+                "maximum": config.sensors[driving_sensor]["max"],
+            }
+            json_schema["properties"][f"{driving_sensor}_profile"] = {
+                "type": "string",
+                "enum": ["linear", "exponential", "logarithmic", "step"],
+            }
     except KeyError as e:
-        raise ExperimentValidationError(f"Missing instruments in config: {e}")
+        raise ExperimentValidationError(f"Wrong comodo yaml config: {e}")
 
-    # --------------------------------------------------------------------------
-    # Write rendered schema to file
-    try:
-        with open("/app/schemas/experiment_row.yaml", "w") as f:
-            f.write(rendered)
-    except Exception as e:
-        raise ExperimentValidationError(f"Failed to write rendered schema: {e}")
-
-    return
+    return json_schema
 
 
 def validate_experiment(file_path, config):
@@ -65,20 +68,15 @@ def validate_experiment(file_path, config):
     # --------------------------------------------------------------------------
     # Perform specific validation (compare instruments with comodo.yaml)
 
-    try:
-        generate_row_schema(config)
-    except Exception as e:
-        raise ExperimentValidationError(f"Failed to generate row schema: {e}")
+    json_schema = generate_row_schema(config)
 
     try:
         experiment_dict = json.loads(experiment_json)
         for row in experiment_dict["experiment_definition"]:
-            validate_message(
-                "experiment/row", json.dumps(row), schema_name="experiment_row"
-            )
+            jsonschema.validate(row, json_schema)
     except KeyError as e:
         raise ExperimentValidationError(f"Missing experiment definition: {e}")
-    except MQTTValidationException as e:
+    except jsonschema.ValidationError as e:
         raise ExperimentValidationError(f"Experiment row validation failed: {e}")
 
     # --------------------------------------------------------------------------
