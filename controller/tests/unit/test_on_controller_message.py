@@ -594,119 +594,110 @@ class TestRunning:
 
 class TestStopping:
     @pytest.fixture
-    def state(self, mock_state):
-        return mock_state("end")
-
-    @pytest.fixture
-    def controller_client(self, mqtt_mocks, state):
-        mqtt_mocks["client_class"](
-            id="controller",
-            topics="controller/#",
-            callback=c_stopping,
-            obj=state,
-        )
-        return mqtt_mocks["client_instance"]
-
-    @pytest.fixture(autouse=True)
-    def mock_c_idle(
-        self,
-    ):
-        with patch("src.on_controller_message.c_idle") as mock_c_idle:
+    def stp_mocks(self, message_bus, mock_state, mqtt_mocks):
+        with (
+            patch("src.on_controller_message.pe") as mock_publish_error,
+            patch("src.on_controller_message.c_idle") as mock_c_idle,
+            patch(
+                "src.on_controller_message.dump_database_for_experiment"
+            ) as mock_dump,
+        ):
+            state = mock_state("end")
+            mqtt_mocks["client_class"](
+                id="controller",
+                topics="controller/#",
+                callback=c_stopping,
+                obj=state,
+            )
             mock_c_idle.return_value = None
             mock_c_idle.__name__ = "mock_c_idle"
-            yield mock_c_idle
-
-    @pytest.fixture(autouse=True)
-    def mock_dump(
-        self,
-    ):
-        with patch(
-            "src.on_controller_message.dump_database_for_experiment"
-        ) as mock_dump:
             mock_dump.return_value = None
-            yield mock_dump
+
+            def get_decoded_bus_messages(topic=None):
+                return message_bus.get_messages(topic=topic, decoded=True)
+
+            yield {
+                "pe": mock_publish_error,
+                "c_idle": mock_c_idle,
+                "state": state,
+                "controller_client": mqtt_mocks["client_instance"],
+                "messages": get_decoded_bus_messages,
+                "dump": mock_dump,
+            }
 
     # ========================================
 
-    def test_incompatible_controller_status(
-        self, message_bus, state, controller_client
-    ):
-        assert state.experiment_uid == "123"
-        assert state.status == "running"
-        assert controller_client.callback == c_stopping
+    def test_incompatible_controller_status(self, stp_mocks):
+        assert stp_mocks["state"].experiment_uid == "123"
+        assert stp_mocks["state"].status == "running"
+        assert stp_mocks["controller_client"].callback == c_stopping
 
         msg = MockMessage(
             topic="controller/command/something_else",
             payload=json.dumps({"id": "123"}),
         )
-        c_stopping(controller_client, msg, state)
+        c_stopping(stp_mocks["controller_client"], msg, stp_mocks["state"])
 
-        assert state.status == "running"
-        messages = message_bus.get_messages(decoded=True)
-        assert len(messages) == 1
-        assert messages[-1].topic == "error/controller"
-        assert (
-            "Controller status is running. Cannot act on controller/command/something_else."
-            in messages[-1].payload
+        assert stp_mocks["state"].status == "running"
+        stp_mocks["pe"].incompatible_controller_status.assert_called_once_with(
+            stp_mocks["state"], msg
         )
+        messages = stp_mocks["messages"]()
+        assert len(messages) == 0
 
-    def test_checks_uid(self, message_bus, state, controller_client):
-        assert state.experiment_uid == "123"
-        assert state.status == "running"
-        assert controller_client.callback == c_stopping
+    def test_checks_uid(self, stp_mocks):
+        assert stp_mocks["state"].experiment_uid == "123"
+        assert stp_mocks["state"].status == "running"
+        assert stp_mocks["controller_client"].callback == c_stopping
 
         msg = MockMessage(
             topic="controller/command/stop",
             payload=json.dumps({"id": "456"}),
         )
-        c_stopping(controller_client, msg, state)
+        c_stopping(stp_mocks["controller_client"], msg, stp_mocks["state"])
 
-        assert state.status == "running"
-        messages = message_bus.get_messages(decoded=True)
-        assert len(messages) == 1
-        assert messages[-1].topic == "error/controller"
-        assert (
-            "Current experiment is 123. Controller cannot act on controller/command/stop for experiment 456."
-            in messages[-1].payload
+        assert stp_mocks["state"].status == "running"
+        stp_mocks["pe"].incompatible_uid.assert_called_once_with(
+            stp_mocks["state"], msg, "456", "controller"
         )
+        messages = stp_mocks["messages"]()
+        assert len(messages) == 0
 
-    def test_valid_end(self, message_bus, state, controller_client, mock_dump, capsys):
-        assert state.experiment_uid == "123"
-        assert state.status == "running"
-        assert controller_client.callback == c_stopping
+    def test_valid_end(self, stp_mocks, capsys):
+        assert stp_mocks["state"].experiment_uid == "123"
+        assert stp_mocks["state"].status == "running"
+        assert stp_mocks["controller_client"].callback == c_stopping
 
         msg = MockMessage(
             topic="controller/event/end", payload=json.dumps({"experiment_id": "123"})
         )
-        c_stopping(controller_client, msg, state)
+        c_stopping(stp_mocks["controller_client"], msg, stp_mocks["state"])
 
-        assert state._status_history == ["stopping", "idle"]
-        assert state.status == "idle"
-        mock_dump.assert_called_once()
-        state.reset.assert_called_once()
-        assert controller_client.callback.__name__ == "mock_c_idle"
-        messages = message_bus.get_messages(decoded=True)
+        assert stp_mocks["state"]._status_history == ["stopping", "idle"]
+        assert stp_mocks["state"].status == "idle"
+        stp_mocks["dump"].assert_called_once()
+        stp_mocks["state"].reset.assert_called_once()
+        assert stp_mocks["controller_client"].callback == stp_mocks["c_idle"]
+        messages = stp_mocks["messages"]()
         assert len(messages) == 0
         stop_message = f"Experiment 123 finished and the controller has been reset."
         assert stop_message in capsys.readouterr().out
 
-    def test_valid_stop_from_any_callback(
-        self, message_bus, state, controller_client, mock_dump, capsys
-    ):
-        assert state.experiment_uid == "123"
-        assert state.status == "running"
-        controller_client.callback = "mock_callback"
+    def test_valid_stop_from_any_callback(self, stp_mocks, capsys):
+        assert stp_mocks["state"].experiment_uid == "123"
+        assert stp_mocks["state"].status == "running"
+        stp_mocks["controller_client"].callback = "mock_callback"
 
         msg = MockMessage(
             topic="controller/command/stop", payload=json.dumps({"id": "123"})
         )
-        c_stopping(controller_client, msg, state)
+        c_stopping(stp_mocks["controller_client"], msg, stp_mocks["state"])
 
-        assert state._status_history == ["stopping", "idle"]
-        assert state.status == "idle"
-        mock_dump.assert_called_once()
-        state.reset.assert_called_once()
-        messages = message_bus.get_messages(decoded=True)
+        assert stp_mocks["state"]._status_history == ["stopping", "idle"]
+        assert stp_mocks["state"].status == "idle"
+        stp_mocks["dump"].assert_called_once()
+        stp_mocks["state"].reset.assert_called_once()
+        messages = stp_mocks["messages"]()
         assert len(messages) == 0
         stop_message = f"Experiment 123 was stopped and the controller has been reset."
         assert stop_message in capsys.readouterr().out
