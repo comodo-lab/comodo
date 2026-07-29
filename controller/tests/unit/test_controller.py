@@ -216,20 +216,23 @@ class TestMain:
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 1
         assert messages[0].topic == "watchdog/timer/command/start"
-        assert json.loads(messages[0].payload) == {"timeout": 6, "interval": 2}
+        assert json.loads(messages[0].payload) == {}
 
     def test_watchdog_loop_not_started_if_unhealthy(
         self, main_mocks, message_bus, capsys
     ):
         mocks = main_mocks
         mocks["sleep"].side_effect = [1, 2, 3, SystemExit]  # Just in case loop starts
+        mocks["callbacks"]["on_wd_timer_message"].side_effect = (
+            lambda client, msg, obj: obj.__setitem__("healthy", False)
+        )
 
         main()
 
         mocks["sleep"].assert_called_once_with(1)  # Only initial sleep before wd starts
         messages = message_bus.get_messages(decoded=True)
         assert messages[0].topic == "watchdog/timer/command/start"
-        assert json.loads(messages[0].payload) == {"timeout": 5, "interval": 1}
+        assert json.loads(messages[0].payload) == {}
         captured = capsys.readouterr()
         assert "Creating clients..." in captured.out
         assert "Controller failed to start. watchdog unhealthy." in captured.out
@@ -262,7 +265,7 @@ class TestMain:
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 4
         assert messages[0].topic == "watchdog/timer/command/start"
-        assert json.loads(messages[0].payload) == {"timeout": 6, "interval": 1}
+        assert json.loads(messages[0].payload) == {}
         assert messages[1].topic == "controller/heartbeat"
         assert messages[2].topic == "controller/heartbeat"
         assert messages[3].topic == "controller/heartbeat"

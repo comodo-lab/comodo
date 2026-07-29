@@ -136,15 +136,7 @@ def main():
     )
     # measurement = mqtt.MQTTClient("measurement", on_client_message, topics="measurement/#")
 
-    publisher.client.publish(
-        "watchdog/timer/command/start",
-        json.dumps(
-            {
-                "timeout": wdog_state["timeout"],
-                "interval": wdog_state["interval"],
-            }
-        ),
-    )
+    publisher.client.publish("watchdog/timer/command/start", json.dumps({}))
     t.sleep(1)
     if wdog_state["healthy"]:
         print(f"Controller started successfully.")
