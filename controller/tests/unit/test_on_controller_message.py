@@ -200,86 +200,85 @@ class TestIdle:
 
 class TestStarting:
     @pytest.fixture
-    def state(self, mock_state):
-        return mock_state("starting")
-
-    @pytest.fixture
-    def controller_client(self, mqtt_mocks, state):
-        mqtt_mocks["client_class"](
-            id="controller",
-            topics="controller/#",
-            callback=c_starting,
-            obj=state,
-        )
-        return mqtt_mocks["client_instance"]
-
-    @pytest.fixture(autouse=True)
-    def mock_c_ready(self):
-        with patch("src.on_controller_message.c_ready") as mock_c_ready:
+    def s_mocks(self, message_bus, mock_state, mqtt_mocks):
+        with (
+            patch("src.on_controller_message.pe") as mock_publish_error,
+            patch("src.on_controller_message.c_ready") as mock_c_ready,
+            patch("src.on_controller_message.c_stopping") as mock_c_stopping,
+        ):
+            state = mock_state("starting")
+            mqtt_mocks["client_class"](
+                id="controller",
+                topics="controller/#",
+                callback=c_starting,
+                obj=state,
+            )
             mock_c_ready.return_value = None
             mock_c_ready.__name__ = "mock_c_ready"
-            yield mock_c_ready
+
+            def get_decoded_bus_messages(topic=None):
+                return message_bus.get_messages(topic=topic, decoded=True)
+
+            yield {
+                "pe": mock_publish_error,
+                "c_ready": mock_c_ready,
+                "c_stopping": mock_c_stopping,
+                "state": state,
+                "controller_client": mqtt_mocks["client_instance"],
+                "messages": get_decoded_bus_messages,
+            }
 
     # ========================================
 
-    def test_incompatible_controller_status(
-        self, message_bus, state, controller_client
-    ):
-        assert state.experiment_uid == "123"
-        assert state.status == "validating"
-        assert controller_client.callback == c_starting
+    def test_incompatible_controller_status(self, s_mocks):
+        assert s_mocks["state"].experiment_uid == "123"
+        assert s_mocks["state"].status == "validating"
+        assert s_mocks["controller_client"].callback == c_starting
 
         msg = MockMessage(topic="controller/command/run", payload="not important")
-        c_starting(controller_client, msg, state)
+        c_starting(s_mocks["controller_client"], msg, s_mocks["state"])
 
-        messages = message_bus.get_messages(decoded=True)
-        assert len(messages) == 1
-        assert messages[0].topic == "error/controller"
-        assert (
-            "Controller status is validating. Cannot act on controller/command/run."
-            in messages[0].payload
+        s_mocks["pe"].incompatible_controller_status.assert_called_once_with(
+            s_mocks["state"], msg
         )
+        messages = s_mocks["messages"]()
+        assert len(messages) == 0
 
-    def test_accepts_stop_signal(self, state, controller_client, mock_c_stopping):
-        assert state.experiment_uid == "123"
-        assert state.status == "validating"
-        assert controller_client.callback == c_starting
+    def test_accepts_stop_signal(self, s_mocks):
+        assert s_mocks["state"].experiment_uid == "123"
+        assert s_mocks["state"].status == "validating"
+        assert s_mocks["controller_client"].callback == c_starting
 
         msg = MockMessage(topic="controller/command/stop", payload="not important")
-        c_starting(controller_client, msg, state)
+        c_starting(s_mocks["controller_client"], msg, s_mocks["state"])
 
-        assert mock_c_stopping.called
+        assert s_mocks["c_stopping"].called
+        messages = s_mocks["messages"]()
+        assert len(messages) == 0
 
-    def test_valid_start(
-        self,
-        message_bus,
-        state,
-        controller_client,
-        mock_experiment_dict,
-        mock_c_ready,
-    ):
-        assert state.experiment_uid == "123"
-        assert state.status == "validating"
-        assert controller_client.callback == c_starting
+    def test_valid_start(self, s_mocks):
+        assert s_mocks["state"].experiment_uid == "123"
+        assert s_mocks["state"].status == "validating"
+        assert s_mocks["controller_client"].callback == c_starting
 
-        instrument_names = [ins for ins in state.config.instruments.keys()]
+        instrument_names = [ins for ins in s_mocks["state"].config.instruments.keys()]
 
         msg = MockMessage(
             topic="controller/command/start", payload=json.dumps({"id": "123"})
         )
-        c_starting(controller_client, msg, state)
+        c_starting(s_mocks["controller_client"], msg, s_mocks["state"])
 
         # goes through starting to awaiting_instruments
-        assert state._status_history == ["starting", "awaiting_instruments"]
+        assert s_mocks["state"]._status_history == ["starting", "awaiting_instruments"]
         # State object updated correctly
-        assert state.experiment_uid == "123"
-        assert state.setpoints is not None
-        assert state.status == "awaiting_instruments"
-        assert controller_client.callback == mock_c_ready
+        assert s_mocks["state"].experiment_uid == "123"
+        assert s_mocks["state"].setpoints is not None
+        assert s_mocks["state"].status == "awaiting_instruments"
+        assert s_mocks["controller_client"].callback == s_mocks["c_ready"]
         # Instrument config list updated correctly
-        assert len(state.instrument_states) == len(instrument_names)
-        assert state.instruments_ready == False
-        for instrument_name, instrument in state.instrument_states.items():
+        assert len(s_mocks["state"].instrument_states) == len(instrument_names)
+        assert s_mocks["state"].instruments_ready == False
+        for instrument_name, instrument in s_mocks["state"].instrument_states.items():
             assert instrument_name in instrument_names
             assert instrument == {
                 "last_contact": None,
@@ -288,7 +287,7 @@ class TestStarting:
                 "setpoints": None,
             }
         # Timer message sent
-        messages = message_bus.get_messages(decoded=True)
+        messages = s_mocks["messages"]()
         assert len(messages) == 1
         assert messages[0].topic == "controller/timer/command/start"
         assert messages[0].payload == json.dumps(
