@@ -24,226 +24,173 @@ from src.validation import ExperimentValidationError
 
 class TestIdle:
     @pytest.fixture
-    def state(self, mock_state):
-        return mock_state("idle")
-
-    @pytest.fixture
-    def controller_client(self, mqtt_mocks, state):
-        mqtt_mocks["client_class"](
-            id="controller",
-            topics="controller/#",
-            callback=c_idle,
-            obj=state,
-        )
-        return mqtt_mocks["client_instance"]
-
-    @pytest.fixture(autouse=True)
-    def mock_split_setpoints(self, mock_setpoints):
-        with patch("src.on_controller_message.split_setpoints") as mock_split_setpoints:
+    def idle_mocks(self, message_bus, mock_state, mqtt_mocks, mock_setpoints):
+        with (
+            patch("src.on_controller_message.pe") as mock_publish_error,
+            patch("src.on_controller_message.validate_experiment") as mock_validate,
+            patch("src.on_controller_message.split_setpoints") as mock_split_setpoints,
+            patch("src.on_controller_message.c_starting") as mock_c_starting,
+        ):
+            state = mock_state("idle")
+            mqtt_mocks["client_class"](
+                id="controller",
+                topics="controller/#",
+                callback=c_idle,
+                obj=state,
+            )
+            mock_validate_message = MockMessage(
+                topic="controller/command/validate",
+                payload=json.dumps({"id": "123", "file": "valid_file.json"}),
+            )
             mock_split_setpoints.return_value = mock_setpoints
-            yield mock_split_setpoints
-
-    @pytest.fixture(autouse=True)
-    def mock_c_starting(self):
-        with patch("src.on_controller_message.c_starting") as mock_c_starting:
             mock_c_starting.return_value = None
             mock_c_starting.__name__ = "mock_c_starting"
-            yield mock_c_starting
+            mock_validate.return_value = {
+                "id": "123",
+                "experiment_definition": ["some data"],
+                "config": {"resolution": 42},
+            }
+
+            def get_decoded_bus_messages(topic=None):
+                return message_bus.get_messages(topic=topic, decoded=True)
+
+            yield {
+                "pe": mock_publish_error,
+                "msg": mock_validate_message,
+                "validate_experiment": mock_validate,
+                "split_setpoints": mock_split_setpoints,
+                "c_starting": mock_c_starting,
+                "state": state,
+                "controller_client": mqtt_mocks["client_instance"],
+                "messages": get_decoded_bus_messages,
+            }
 
     # ========================================
 
-    def test_incompatible_controller_status(
-        self, message_bus, state, controller_client
-    ):
-        assert state.experiment_uid == None
-        assert state.status == "idle"
-
+    def test_incompatible_controller_status(self, idle_mocks):
+        assert idle_mocks["state"].experiment_uid == None
+        assert idle_mocks["state"].status == "idle"
         msg = MockMessage(topic="controller/command/run", payload="not important")
-        c_idle(controller_client, msg, state)
 
-        assert state.experiment_uid == None
-        assert state.status == "idle"
-        assert controller_client.callback == c_idle
-        messages = message_bus.get_messages(decoded=True)
-        assert len(messages) == 1
-        assert messages[0].topic == "error/controller"
-        assert (
-            "Controller status is idle. Cannot act on controller/command/run."
-            in messages[0].payload
+        c_idle(idle_mocks["controller_client"], msg, idle_mocks["state"])
+
+        assert idle_mocks["state"].experiment_uid == None
+        assert idle_mocks["state"].status == "idle"
+        assert idle_mocks["controller_client"].callback == c_idle
+        idle_mocks["pe"].incompatible_controller_status.assert_called_once_with(
+            idle_mocks["state"], msg
+        )
+        idle_mocks["validate_experiment"].assert_not_called()
+
+    def test_wrong_json(self, idle_mocks):
+        assert idle_mocks["state"].experiment_uid == None
+        assert idle_mocks["state"].status == "idle"
+        idle_mocks["msg"].payload = "this is not json"
+
+        c_idle(idle_mocks["controller_client"], idle_mocks["msg"], idle_mocks["state"])
+
+        assert idle_mocks["state"].experiment_uid == None
+        assert idle_mocks["state"].status == "idle"
+        assert idle_mocks["controller_client"].callback == c_idle
+        idle_mocks["pe"].wrong_json.assert_called_once()
+        idle_mocks["validate_experiment"].assert_not_called()
+
+    def test_json_missing_file_key(self, idle_mocks):
+        assert idle_mocks["state"].experiment_uid == None
+        assert idle_mocks["state"].status == "idle"
+        idle_mocks["msg"].payload = json.dumps({"id": "123"})
+
+        c_idle(idle_mocks["controller_client"], idle_mocks["msg"], idle_mocks["state"])
+
+        assert idle_mocks["state"].experiment_uid == None
+        assert idle_mocks["state"].status == "idle"
+        assert idle_mocks["controller_client"].callback == c_idle
+        idle_mocks["pe"].missing_keys.assert_called_once()
+        idle_mocks["validate_experiment"].assert_not_called()
+
+    def test_missing_file(self, idle_mocks):
+        assert idle_mocks["state"].experiment_uid == None
+        assert idle_mocks["state"].status == "idle"
+        mock_validate = idle_mocks["validate_experiment"]
+        mock_validate.side_effect = ExperimentValidationError(
+            "Experiment file not found - valid_file.json"
         )
 
-    def test_wrong_json(self, message_bus, state, controller_client, capsys):
-        assert state.experiment_uid == None
-        assert state.status == "idle"
+        c_idle(idle_mocks["controller_client"], idle_mocks["msg"], idle_mocks["state"])
 
-        msg = MockMessage(
-            topic="controller/command/validate", payload="this is not json"
+        mock_validate.assert_called_once_with(
+            "valid_file.json", idle_mocks["state"].config
         )
-        c_idle(controller_client, msg, state)
-
-        assert state.experiment_uid == None
-        assert state.status == "idle"
-        assert controller_client.callback == c_idle
-        messages = message_bus.get_messages(decoded=True)
-        assert len(messages) == 1
-        assert messages[0].topic == "error/controller"
-        exp_err = "Cannot decode controller/command/validate message, wrong JSON:"
-        assert exp_err in messages[0].payload
-        assert f"ERROR: {exp_err}" in capsys.readouterr().out
-
-    def test_json_missing_file_key(self, message_bus, state, controller_client, capsys):
-        assert state.experiment_uid == None
-        assert state.status == "idle"
-
-        msg = MockMessage(
-            topic="controller/command/validate", payload=json.dumps({"id": "123"})
+        assert idle_mocks["state"]._status_history == ["validating", "idle"]
+        assert idle_mocks["state"].experiment_uid == None
+        assert idle_mocks["state"].status == "idle"
+        assert idle_mocks["controller_client"].callback == c_idle
+        idle_mocks["pe"].experiment_validation_error.assert_called_once_with(
+            mock_validate.side_effect, "123"
         )
-        c_idle(controller_client, msg, state)
+        messages = idle_mocks["messages"]()
+        assert len(messages) == 0
 
-        assert state.experiment_uid == None
-        assert state.status == "idle"
-        assert controller_client.callback == c_idle
-        messages = message_bus.get_messages(decoded=True)
-        assert len(messages) == 1
-        assert messages[0].topic == "error/controller"
-        exp_err = (
-            "Cannot decode controller/command/validate message, missing: \n   'file'"
+    def test_invalid_file(self, idle_mocks):
+        assert idle_mocks["state"].experiment_uid == None
+        assert idle_mocks["state"].experiment_start_time == None
+        assert idle_mocks["state"].status == "idle"
+        mock_validate = idle_mocks["validate_experiment"]
+        mock_validate.side_effect = ExperimentValidationError("Test validation error")
+
+        c_idle(idle_mocks["controller_client"], idle_mocks["msg"], idle_mocks["state"])
+
+        idle_mocks["split_setpoints"].assert_not_called()
+        assert idle_mocks["state"]._status_history == ["validating", "idle"]
+        assert idle_mocks["state"].experiment_uid == None
+        assert idle_mocks["state"].status == "idle"
+        assert idle_mocks["controller_client"].callback == c_idle
+        idle_mocks["pe"].experiment_validation_error.assert_called_once_with(
+            mock_validate.side_effect, "123"
         )
-        m = json.loads(messages[0].payload)
-        assert exp_err in m["message"]
-        assert f"ERROR: {exp_err}" in capsys.readouterr().out
+        messages = idle_mocks["messages"]()
+        assert len(messages) == 0
 
-    def test_missing_file(self, message_bus, state, controller_client):
-        assert state.experiment_uid == None
-        assert state.status == "idle"
+    def test_invalid_setpoints(self, idle_mocks):
+        assert idle_mocks["state"].experiment_uid == None
+        assert idle_mocks["state"].experiment_start_time == None
+        assert idle_mocks["state"].status == "idle"
+        idle_mocks["split_setpoints"].side_effect = ValueError("Test setpoints error")
 
-        msg = MockMessage(
-            topic="controller/command/validate",
-            payload=json.dumps({"id": "123", "file": "missing_file.json"}),
+        c_idle(idle_mocks["controller_client"], idle_mocks["msg"], idle_mocks["state"])
+
+        idle_mocks["validate_experiment"].assert_called_once_with(
+            "valid_file.json", idle_mocks["state"].config
         )
-        with patch("src.on_controller_message.validate_experiment") as mock_validate:
-            mock_validate.side_effect = ExperimentValidationError(
-                "Experiment file not found - missing_file.json"
-            )
-            c_idle(controller_client, msg, state)
+        idle_mocks["split_setpoints"].assert_called_once_with(["some data"], 42)
+        assert idle_mocks["state"]._status_history == ["validating", "idle"]
+        assert idle_mocks["state"].experiment_uid == None
+        assert idle_mocks["state"].status == "idle"
+        assert idle_mocks["controller_client"].callback == c_idle
+        idle_mocks["pe"].experiment_validation_error.assert_called_once_with(
+            idle_mocks["split_setpoints"].side_effect, "123"
+        )
+        messages = idle_mocks["messages"]()
+        assert len(messages) == 0
 
-            mock_validate.assert_called_once_with("missing_file.json", state.config)
+    def test_valid_file(self, idle_mocks):
+        assert idle_mocks["state"].experiment_uid == None
+        assert idle_mocks["state"].experiment_start_time == None
+        assert idle_mocks["state"].status == "idle"
 
-        assert state._status_history == ["validating", "idle"]
-        assert state.experiment_uid == None
-        assert state.status == "idle"
-        assert controller_client.callback == c_idle
-        messages = message_bus.get_messages(decoded=True)
-        assert len(messages) == 1
-        assert messages[0].topic == "error/validator"
-        assert "Experiment file not found" in messages[0].payload
+        c_idle(idle_mocks["controller_client"], idle_mocks["msg"], idle_mocks["state"])
 
-    def test_invalid_file(
-        self,
-        message_bus,
-        state,
-        controller_client,
-        mock_split_setpoints,
-    ):
-        assert state.experiment_uid == None
-        assert state.experiment_start_time == None
-        assert state.status == "idle"
+        idle_mocks["validate_experiment"].assert_called_once_with(
+            "valid_file.json", idle_mocks["state"].config
+        )
+        # Split setpoints called
+        idle_mocks["split_setpoints"].assert_called_once_with(["some data"], 42)
 
-        with patch("src.on_controller_message.validate_experiment") as mock_validate:
-            mock_validate.side_effect = ExperimentValidationError(
-                "Test validation error"
-            )
-            msg = MockMessage(
-                topic="controller/command/validate",
-                payload=json.dumps({"id": "123", "file": "invalid_file.json"}),
-            )
-            c_idle(controller_client, msg, state)
-
-        mock_split_setpoints.assert_not_called()
-        assert state._status_history == ["validating", "idle"]
-        assert state.experiment_uid == None
-        assert state.status == "idle"
-        assert controller_client.callback == c_idle
-        messages = message_bus.get_messages(decoded=True)
-        assert len(messages) == 1
-        assert messages[0].topic == "error/validator"
-        m = json.loads(messages[0].payload)
-        assert m["code"] == "experiment_validation"
-        assert "Test validation error" in m["message"]
-
-    def test_invalid_setpoints(
-        self,
-        message_bus,
-        state,
-        controller_client,
-        mock_c_starting,
-        mock_split_setpoints,
-    ):
-        assert state.experiment_uid == None
-        assert state.experiment_start_time == None
-        assert state.status == "idle"
-
-        with patch("src.on_controller_message.validate_experiment") as mock_validate:
-            mock_validate.return_value = {
-                "id": "123",
-                "experiment_definition": ["some data"],
-                "config": {"resolution": 42},
-            }
-            mock_split_setpoints.side_effect = ValueError("Test setpoints error")
-            msg = MockMessage(
-                topic="controller/command/validate",
-                payload=json.dumps({"id": "123", "file": "valid_file.json"}),
-            )
-            c_idle(controller_client, msg, state)
-
-            mock_validate.assert_called_once_with("valid_file.json", state.config)
-            # Split setpoints called
-            mock_split_setpoints.assert_called_once_with(["some data"], 42)
-
-        assert state._status_history == ["validating", "idle"]
-        assert state.experiment_uid == None
-        assert state.status == "idle"
-        assert controller_client.callback == c_idle
-        messages = message_bus.get_messages(decoded=True)
-        assert len(messages) == 1
-        assert messages[0].topic == "error/validator"
-        m = json.loads(messages[0].payload)
-        assert m["code"] == "experiment_validation"
-        assert "Test setpoints error" in m["message"]
-
-    def test_valid_file(
-        self,
-        message_bus,
-        state,
-        controller_client,
-        mock_c_starting,
-        mock_split_setpoints,
-    ):
-        assert state.experiment_uid == None
-        assert state.experiment_start_time == None
-        assert state.status == "idle"
-
-        with patch("src.on_controller_message.validate_experiment") as mock_validate:
-            mock_validate.return_value = {
-                "id": "123",
-                "experiment_definition": ["some data"],
-                "config": {"resolution": 42},
-            }
-            msg = MockMessage(
-                topic="controller/command/validate",
-                payload=json.dumps({"id": "123", "file": "valid_file.json"}),
-            )
-            c_idle(controller_client, msg, state)
-
-            mock_validate.assert_called_once_with("valid_file.json", state.config)
-            # Split setpoints called
-            mock_split_setpoints.assert_called_once_with(["some data"], 42)
-
-        assert state.experiment_start_time != None
-        assert state.experiment_uid == "123"
-        assert state.status == "validating"
-        assert controller_client.callback == mock_c_starting
-        messages = message_bus.get_messages(decoded=True)
+        assert idle_mocks["state"].experiment_start_time != None
+        assert idle_mocks["state"].experiment_uid == "123"
+        assert idle_mocks["state"].status == "validating"
+        assert idle_mocks["controller_client"].callback == idle_mocks["c_starting"]
+        messages = idle_mocks["messages"]()
         assert len(messages) == 2
         assert messages[0].topic == "controller/validator/passed"
         assert '{"id": "123", "valid": true}' in messages[0].payload
