@@ -381,170 +381,169 @@ class TestReady:
 
 class TestRunning:
     @pytest.fixture
-    def state(self, mock_state):
-        return mock_state("running")
+    def r_mocks(self, message_bus, mock_state, mqtt_mocks):
+        with (
+            patch("src.on_controller_message.pe") as mock_publish_error,
+            patch("src.on_controller_message.c_stopping") as mock_c_stopping,
+        ):
+            state = mock_state("running")
+            mqtt_mocks["client_class"](
+                id="controller",
+                topics="controller/#",
+                callback=c_running,
+                obj=state,
+            )
 
-    @pytest.fixture
-    def controller_client(self, mqtt_mocks, state):
-        mqtt_mocks["client_class"](
-            id="controller",
-            topics="controller/#",
-            callback=c_running,
-            obj=state,
-        )
-        return mqtt_mocks["client_instance"]
+            def get_decoded_bus_messages(topic=None):
+                return message_bus.get_messages(topic=topic, decoded=True)
+
+            yield {
+                "pe": mock_publish_error,
+                "c_stopping": mock_c_stopping,
+                "state": state,
+                "controller_client": mqtt_mocks["client_instance"],
+                "messages": get_decoded_bus_messages,
+            }
 
     # ========================================
 
-    def test_incompatible_controller_status(
-        self, message_bus, state, controller_client
-    ):
-        assert state.experiment_uid == "123"
-        assert state.status == "ready"
-        assert controller_client.callback == c_running
+    def test_incompatible_controller_status(self, r_mocks):
+        assert r_mocks["state"].experiment_uid == "123"
+        assert r_mocks["state"].status == "ready"
+        assert r_mocks["controller_client"].callback == c_running
 
         msg = MockMessage(
             topic="controller/command/something_else", payload=json.dumps({"id": "123"})
         )
-        c_running(controller_client, msg, state)
+        c_running(r_mocks["controller_client"], msg, r_mocks["state"])
 
-        assert state.status == "ready"
-        messages = message_bus.get_messages(decoded=True)
-        assert len(messages) == 1
-        assert messages[0].topic == "error/controller"
-        assert (
-            "Controller status is ready. Cannot act on controller/command/something_else."
-            in messages[0].payload
+        assert r_mocks["state"].status == "ready"
+        r_mocks["pe"].incompatible_controller_status.assert_called_once_with(
+            r_mocks["state"], msg
         )
+        messages = r_mocks["messages"]()
+        assert len(messages) == 0
 
-    def test_accepts_stop_signal(
-        self, message_bus, state, controller_client, mock_c_stopping
-    ):
-        assert state.experiment_uid == "123"
-        assert state.status == "ready"
-        assert controller_client.callback == c_running
+    def test_accepts_stop_signal(self, r_mocks):
+        assert r_mocks["state"].experiment_uid == "123"
+        assert r_mocks["state"].status == "ready"
+        assert r_mocks["controller_client"].callback == c_running
 
         msg = MockMessage(topic="controller/command/stop", payload="not important")
-        c_running(controller_client, msg, state)
+        c_running(r_mocks["controller_client"], msg, r_mocks["state"])
 
-        assert mock_c_stopping.called
+        assert r_mocks["c_stopping"].called
+        messages = r_mocks["messages"]()
+        assert len(messages) == 0
 
-    def test_sends_end_signal_when_setpoints_empty(
-        self, message_bus, state, controller_client
-    ):
-        assert state.experiment_uid == "123"
-        assert controller_client.callback == c_running
-        state.setpoints = []
+    def test_sends_end_signal_when_setpoints_empty(self, r_mocks):
+        assert r_mocks["state"].experiment_uid == "123"
+        assert r_mocks["controller_client"].callback == c_running
+        r_mocks["state"].setpoints = []
 
         msg = MockMessage(
             topic="controller/command/run",
             payload=json.dumps({"experiment_id": "123"}),
         )
-        c_running(controller_client, msg, state)
+        c_running(r_mocks["controller_client"], msg, r_mocks["state"])
 
-        assert controller_client.callback.__name__ == "c_stopping"
-        messages = message_bus.get_messages(decoded=True)
+        assert r_mocks["controller_client"].callback == r_mocks["c_stopping"]
+        messages = r_mocks["messages"]()
         assert len(messages) == 1
         assert messages[0].topic == "controller/event/end"
         assert messages[0].payload == json.dumps({"experiment_id": "123"})
 
-    def test_updates_state_on_first_setpoint_only(
-        self, message_bus, state, controller_client
-    ):
-        assert state.experiment_uid == "123"
-        assert state.status == "ready"
-        assert controller_client.callback == c_running
-        assert state.current_setpoint is None
-        assert state.setpoints != []
+    def test_updates_state_on_first_setpoint_only(self, r_mocks):
+        assert r_mocks["state"].experiment_uid == "123"
+        assert r_mocks["state"].status == "ready"
+        assert r_mocks["controller_client"].callback == c_running
+        assert r_mocks["state"].current_setpoint is None
+        assert r_mocks["state"].setpoints != []
 
         msg = MockMessage(
             topic="controller/command/run", payload=json.dumps({"experiment_id": "123"})
         )
-        c_running(controller_client, msg, state)
+        c_running(r_mocks["controller_client"], msg, r_mocks["state"])
 
         # Should update state on first setpoint
-        assert state.status == "running"
-        assert state.current_setpoint is not None
+        assert r_mocks["state"].status == "running"
+        assert r_mocks["state"].current_setpoint is not None
 
         # Should not update state on second setpoint
-        state.status = "idle"
+        r_mocks["state"].status = "idle"
         msg = MockMessage(
             topic="controller/command/run", payload=json.dumps({"experiment_id": "123"})
         )
-        c_running(controller_client, msg, state)
+        c_running(r_mocks["controller_client"], msg, r_mocks["state"])
 
-        assert state.status == "idle"
+        assert r_mocks["state"].status == "idle"
 
-    def test_saves_past_setpoints(self, message_bus, state, controller_client):
-        assert state.experiment_uid == "123"
-        assert state.status == "ready"
-        assert controller_client.callback == c_running
-        assert state.current_setpoint is None
-        assert state.setpoints != []
+    def test_saves_past_setpoints(self, r_mocks):
+        assert r_mocks["state"].experiment_uid == "123"
+        assert r_mocks["state"].status == "ready"
+        assert r_mocks["controller_client"].callback == c_running
+        assert r_mocks["state"].current_setpoint is None
+        assert r_mocks["state"].setpoints != []
 
         msg = MockMessage(
             topic="controller/command/run", payload=json.dumps({"experiment_id": "123"})
         )
-        c_running(controller_client, msg, state)
+        c_running(r_mocks["controller_client"], msg, r_mocks["state"])
 
         # Should not have saved "None" as past setpoint
-        assert state.past_setpoints == []
-        assert state.current_setpoint is not None
-        new_sp = state.current_setpoint
+        assert r_mocks["state"].past_setpoints == []
+        assert r_mocks["state"].current_setpoint is not None
+        new_sp = r_mocks["state"].current_setpoint
 
         # Should save current setpoint on next run
-        c_running(controller_client, msg, state)
+        c_running(r_mocks["controller_client"], msg, r_mocks["state"])
 
-        assert state.past_setpoints == [new_sp]
+        assert r_mocks["state"].past_setpoints == [new_sp]
 
-    def test_sets_current_setpoint(self, message_bus, state, controller_client):
-        assert state.experiment_uid == "123"
-        assert state.status == "ready"
-        assert controller_client.callback == c_running
-        assert state.current_setpoint is None
-        all_setpoints = state.setpoints.copy()
+    def test_sets_current_setpoint(self, r_mocks):
+        assert r_mocks["state"].experiment_uid == "123"
+        assert r_mocks["state"].status == "ready"
+        assert r_mocks["controller_client"].callback == c_running
+        assert r_mocks["state"].current_setpoint is None
+        all_setpoints = r_mocks["state"].setpoints.copy()
         assert all_setpoints != []
 
         msg = MockMessage(
             topic="controller/command/run", payload=json.dumps({"experiment_id": "123"})
         )
-        c_running(controller_client, msg, state)
+        c_running(r_mocks["controller_client"], msg, r_mocks["state"])
 
-        assert state.current_setpoint == all_setpoints[0]
+        assert r_mocks["state"].current_setpoint == all_setpoints[0]
 
-    def test_drops_current_setpoint_from_list(
-        self, message_bus, state, controller_client
-    ):
-        assert state.experiment_uid == "123"
-        assert state.status == "ready"
-        assert controller_client.callback == c_running
-        assert state.current_setpoint is None
-        all_setpoints = state.setpoints.copy()
+    def test_drops_current_setpoint_from_list(self, r_mocks):
+        assert r_mocks["state"].experiment_uid == "123"
+        assert r_mocks["state"].status == "ready"
+        assert r_mocks["controller_client"].callback == c_running
+        assert r_mocks["state"].current_setpoint is None
+        all_setpoints = r_mocks["state"].setpoints.copy()
         assert all_setpoints != []
 
         msg = MockMessage(
             topic="controller/command/run", payload=json.dumps({"experiment_id": "123"})
         )
-        c_running(controller_client, msg, state)
+        c_running(r_mocks["controller_client"], msg, r_mocks["state"])
 
-        assert state.setpoints == all_setpoints[1:]
+        assert r_mocks["state"].setpoints == all_setpoints[1:]
 
-    def test_sends_setpoint(
-        self, message_bus, state, controller_client, mock_experiment_dict
-    ):
-        assert state.experiment_uid == "123"
-        assert state.status == "ready"
-        assert controller_client.callback == c_running
-        assert state.current_setpoint is None
-        first_sp = state.setpoints[0]
+    def test_sends_setpoint(self, r_mocks):
+        assert r_mocks["state"].experiment_uid == "123"
+        assert r_mocks["state"].status == "ready"
+        assert r_mocks["controller_client"].callback == c_running
+        assert r_mocks["state"].current_setpoint is None
+        first_sp = r_mocks["state"].setpoints[0]
         instruments = [k for k in first_sp if k != "duration"]
 
         msg = MockMessage(
             topic="controller/command/run", payload=json.dumps({"experiment_id": "123"})
         )
-        c_running(controller_client, msg, state)
+        c_running(r_mocks["controller_client"], msg, r_mocks["state"])
 
-        messages = message_bus.get_messages(decoded=True)
+        messages = r_mocks["messages"]()
         assert len(messages) == 1 + len(instruments)
 
         for i, column in enumerate(instruments):
@@ -554,22 +553,20 @@ class TestRunning:
                 "value": first_sp[column],
             }
 
-    def test_starts_setpoint_timer(
-        self, message_bus, state, controller_client, mock_experiment_dict
-    ):
-        assert state.experiment_uid == "123"
-        assert state.status == "ready"
-        assert controller_client.callback == c_running
-        assert state.current_setpoint is None
-        first_sp = state.setpoints[0]
+    def test_starts_setpoint_timer(self, r_mocks):
+        assert r_mocks["state"].experiment_uid == "123"
+        assert r_mocks["state"].status == "ready"
+        assert r_mocks["controller_client"].callback == c_running
+        assert r_mocks["state"].current_setpoint is None
+        first_sp = r_mocks["state"].setpoints[0]
         instruments = [k for k in first_sp if k != "duration"]
 
         msg = MockMessage(
             topic="controller/command/run", payload=json.dumps({"experiment_id": "123"})
         )
-        c_running(controller_client, msg, state)
+        c_running(r_mocks["controller_client"], msg, r_mocks["state"])
 
-        messages = message_bus.get_messages(decoded=True)
+        messages = r_mocks["messages"]()
         assert len(messages) == 1 + len(instruments)
         assert messages[-1].topic == "controller/timer/command/start"
         assert json.loads(messages[-1].payload) == {
@@ -578,23 +575,21 @@ class TestRunning:
             "duration": first_sp["duration"],
         }
 
-    def test_saves_and_clears_last_setpoint(
-        self, message_bus, state, controller_client
-    ):
-        assert state.experiment_uid == "123"
-        assert controller_client.callback == c_running
-        state.status == "running"
-        last_setpoint = state.setpoints[-1].copy()
-        state.current_setpoint = last_setpoint.copy()
-        state.setpoints = []
+    def test_saves_and_clears_last_setpoint(self, r_mocks):
+        assert r_mocks["state"].experiment_uid == "123"
+        assert r_mocks["controller_client"].callback == c_running
+        last_setpoint = r_mocks["state"].setpoints[-1].copy()
+        r_mocks["state"].current_setpoint = last_setpoint.copy()
+        r_mocks["state"].status = "running"
+        r_mocks["state"].setpoints = []
 
         msg = MockMessage(
             topic="controller/command/run", payload=json.dumps({"experiment_id": "123"})
         )
-        c_running(controller_client, msg, state)
+        c_running(r_mocks["controller_client"], msg, r_mocks["state"])
 
-        assert state.current_setpoint is None
-        assert state.past_setpoints == [last_setpoint]
+        assert r_mocks["state"].current_setpoint is None
+        assert r_mocks["state"].past_setpoints == [last_setpoint]
 
 
 class TestStopping:
