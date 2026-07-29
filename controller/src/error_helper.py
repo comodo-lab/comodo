@@ -34,6 +34,7 @@ def incompatible_controller_status(obj, msg):
     """
     topic = f"error/controller"
     error = f"Controller status is {obj.status}. Cannot act on {msg.topic}."
+    print(f"ERROR: {error}")
     mqtt.MQTTPublisher.get_instance().publish(
         topic,
         json.dumps({"code": "incompatible_controller_status", "message": error}),
@@ -47,6 +48,7 @@ def incompatible_topic(obj, msg, caller):
     caller = caller.lower()
     topic = f"error/{caller}"
     error = f"The {caller.replace('_', ' ')} cannot act on {msg.topic}."
+    print(f"ERROR: {error}")
     mqtt.MQTTPublisher.get_instance().publish(
         topic,
         json.dumps({"code": "incompatible_topic", "message": error}),
