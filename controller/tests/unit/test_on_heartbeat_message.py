@@ -42,20 +42,16 @@ class TestOnHeartbeatMessage:
     @pytest.fixture
     def on_heartbeat_message_mocks(self, state, heartbeat_client):
         with (
-            patch("src.on_heartbeat_message.incompatible_topic") as inc_topic,
+            patch("src.on_heartbeat_message.pe") as mock_publish_error,
             patch("src.on_heartbeat_message.validate_message") as validate_msg,
-            patch("src.on_heartbeat_message.heartbeat_validation_error") as hb_val_err,
             patch(
                 "src.on_heartbeat_message.handle_instrument_heartbeat"
             ) as handle_i_hb,
-            patch("src.on_heartbeat_message.unconfigured_instrument") as unconfigured_i,
         ):
             yield {
-                "inc_topic": inc_topic,
+                "pe": mock_publish_error,
                 "validate_msg": validate_msg,
-                "hb_val_err": hb_val_err,
                 "handle_i_hb": handle_i_hb,
-                "unconfigured_i": unconfigured_i,
                 "state": state,
                 "heartbeat_client": heartbeat_client,
             }
@@ -70,7 +66,7 @@ class TestOnHeartbeatMessage:
         )
         on_heartbeat_message(heartbeat_client, msg, state)
 
-        on_heartbeat_message_mocks["inc_topic"].assert_called_once_with(
+        on_heartbeat_message_mocks["pe"].incompatible_topic.assert_called_once_with(
             state, msg, "heartbeat_callback"
         )
         on_heartbeat_message_mocks["validate_msg"].assert_not_called()
@@ -84,11 +80,13 @@ class TestOnHeartbeatMessage:
         )
         on_heartbeat_message(heartbeat_client, msg, state)
 
-        on_heartbeat_message_mocks["inc_topic"].assert_not_called()
+        on_heartbeat_message_mocks["pe"].incompatible_topic.assert_not_called()
         on_heartbeat_message_mocks["validate_msg"].assert_called_once_with(
             msg.topic, msg.payload
         )
-        on_heartbeat_message_mocks["hb_val_err"].assert_called_once_with(msg, err)
+        on_heartbeat_message_mocks[
+            "pe"
+        ].heartbeat_validation_error.assert_called_once_with(msg, err)
 
     def test_hb_ignored_if_pre_awaiting_instruments(self, on_heartbeat_message_mocks):
         state = on_heartbeat_message_mocks["state"]
@@ -104,11 +102,13 @@ class TestOnHeartbeatMessage:
             )
             on_heartbeat_message(heartbeat_client, msg, state)
 
-            on_heartbeat_message_mocks["inc_topic"].assert_not_called()
+            on_heartbeat_message_mocks["pe"].incompatible_topic.assert_not_called()
             vm_calls.append(call(msg.topic, msg.payload))
             on_heartbeat_message_mocks["handle_i_hb"].assert_not_called()
-            on_heartbeat_message_mocks["hb_val_err"].assert_not_called()
-            on_heartbeat_message_mocks["unconfigured_i"].assert_not_called()
+            on_heartbeat_message_mocks[
+                "pe"
+            ].heartbeat_validation_error.assert_not_called()
+            on_heartbeat_message_mocks["pe"].unconfigured_instrument.assert_not_called()
         assert on_heartbeat_message_mocks["validate_msg"].call_args_list == vm_calls
 
     def test_unconfigured_instrument(self, on_heartbeat_message_mocks):
@@ -130,13 +130,15 @@ class TestOnHeartbeatMessage:
         )
         on_heartbeat_message(heartbeat_client, msg, state)
 
-        on_heartbeat_message_mocks["inc_topic"].assert_not_called()
+        on_heartbeat_message_mocks["pe"].incompatible_topic.assert_not_called()
         on_heartbeat_message_mocks["validate_msg"].assert_called_once_with(
             msg.topic, msg.payload
         )
-        on_heartbeat_message_mocks["hb_val_err"].assert_not_called()
+        on_heartbeat_message_mocks["pe"].heartbeat_validation_error.assert_not_called()
         on_heartbeat_message_mocks["handle_i_hb"].assert_not_called()
-        on_heartbeat_message_mocks["unconfigured_i"].assert_called_once_with(
+        on_heartbeat_message_mocks[
+            "pe"
+        ].unconfigured_instrument.assert_called_once_with(
             msg, "unconfigured_instrument"
         )
 
@@ -158,12 +160,12 @@ class TestOnHeartbeatMessage:
         )
         on_heartbeat_message(heartbeat_client, msg, state)
 
-        on_heartbeat_message_mocks["inc_topic"].assert_not_called()
+        on_heartbeat_message_mocks["pe"].incompatible_topic.assert_not_called()
         on_heartbeat_message_mocks["validate_msg"].assert_called_once_with(
             msg.topic, msg.payload
         )
-        on_heartbeat_message_mocks["hb_val_err"].assert_not_called()
-        on_heartbeat_message_mocks["unconfigured_i"].assert_not_called()
+        on_heartbeat_message_mocks["pe"].heartbeat_validation_error.assert_not_called()
+        on_heartbeat_message_mocks["pe"].unconfigured_instrument.assert_not_called()
         on_heartbeat_message_mocks["handle_i_hb"].assert_called_once_with(
             state, msg_payload, "furnace"
         )

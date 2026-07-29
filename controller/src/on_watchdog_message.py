@@ -2,7 +2,7 @@ import json
 
 from utils import mqtt_clients as mqtt
 
-from src.error_helper import incompatible_topic, wrong_json
+import src.publish_error as pe
 
 
 def on_watchdog_message(client, msg, obj):
@@ -18,7 +18,7 @@ def on_watchdog_message(client, msg, obj):
     try:
         message = mqtt.load_message(msg)
     except json.JSONDecodeError as e:
-        wrong_json(msg, e)
+        pe.wrong_json(msg, e)
         return
 
     if msg.topic == "controller/heartbeat":
@@ -51,4 +51,4 @@ def on_watchdog_message(client, msg, obj):
         return
 
     else:
-        incompatible_topic(obj, msg, "watchdog")
+        pe.incompatible_topic(obj, msg, "watchdog")

@@ -1,16 +1,10 @@
 import json
 import time as t
-from jsonschema import ValidationError
 
 from utils import mqtt_clients as mqtt
 from utils.mqtt_validator import validate_message, MQTTValidationException
 
-from src.error_helper import (
-    incompatible_topic,
-    wrong_json,
-    heartbeat_validation_error,
-    unconfigured_instrument,
-)
+import src.publish_error as pe
 
 
 def on_heartbeat_message(client, msg, obj):
@@ -19,13 +13,13 @@ def on_heartbeat_message(client, msg, obj):
     It expects a message compliant with the spec schema for that channel.
     """
     if "instruments" not in (msg.topic) or "heartbeat" not in msg.topic:
-        incompatible_topic(obj, msg, "heartbeat_callback")
+        pe.incompatible_topic(obj, msg, "heartbeat_callback")
         return
 
     try:
         validate_message(msg.topic, msg.payload)
     except MQTTValidationException as e:
-        heartbeat_validation_error(msg, e)
+        pe.heartbeat_validation_error(msg, e)
         return
 
     if obj.status in ["idle", "validating", "starting"]:
@@ -37,7 +31,7 @@ def on_heartbeat_message(client, msg, obj):
     if instrument_name in obj.instrument_states.keys():
         handle_instrument_heartbeat(obj, payload, instrument_name)
     else:
-        unconfigured_instrument(msg, instrument_name)
+        pe.unconfigured_instrument(msg, instrument_name)
         return
 
 

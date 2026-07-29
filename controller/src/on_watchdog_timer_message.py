@@ -3,11 +3,7 @@ import json
 
 from utils import mqtt_clients as mqtt
 
-from src.error_helper import (
-    incompatible_topic,
-    wrong_json,
-    missing_keys,
-)
+import src.publish_error as pe
 
 
 def on_wd_timer_message(client, msg, obj):
@@ -19,7 +15,7 @@ def on_wd_timer_message(client, msg, obj):
     try:
         message = mqtt.load_message(msg)
     except json.JSONDecodeError as e:
-        wrong_json(msg, e)
+        pe.wrong_json(msg, e)
         if msg.topic == "watchdog/timer/command/start":
             print("ERROR: Watchdog timer failed to start.")
             print(f"  Wrong json: {e}")
@@ -47,7 +43,7 @@ def on_wd_timer_message(client, msg, obj):
             obj["healthy"] = False
             return
         except KeyError as e:
-            missing_keys(msg, e)
+            pe.missing_keys(msg, e)
             print("ERROR: Watchdog timer failed to start.")
             print(f"Missing keys: {e}")
             obj["healthy"] = False
@@ -69,4 +65,4 @@ def on_wd_timer_message(client, msg, obj):
                 )
                 return
     else:
-        incompatible_topic(obj, msg, "watchdog_timer")
+        pe.incompatible_topic(obj, msg, "watchdog_timer")

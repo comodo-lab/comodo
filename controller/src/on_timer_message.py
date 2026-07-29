@@ -3,14 +3,7 @@ import json
 
 from utils import mqtt_clients as mqtt
 
-from src.error_helper import (
-    incompatible_uid,
-    wrong_json,
-    missing_keys,
-    controller_timeout,
-    controller_state_incompatible_with_timer,
-    incompatible_topic,
-)
+import src.publish_error as pe
 
 timer_check_frequency = 0.1
 
@@ -27,7 +20,7 @@ def on_timer_message(client, msg, obj):
     try:
         message = mqtt.load_message(msg)
     except json.JSONDecodeError as e:
-        wrong_json(msg, e)
+        pe.wrong_json(msg, e)
         return
 
     if msg.topic == "controller/timer/event/done":
@@ -37,10 +30,10 @@ def on_timer_message(client, msg, obj):
 
     try:
         if message["experiment_id"] != obj.experiment_uid:
-            incompatible_uid(obj, msg, message["experiment_id"], "controller_timer")
+            pe.incompatible_uid(obj, msg, message["experiment_id"], "controller_timer")
             return
     except KeyError as e:
-        missing_keys(msg, e)
+        pe.missing_keys(msg, e)
         return
 
     if (
@@ -65,7 +58,9 @@ def on_timer_message(client, msg, obj):
         while (not obj.instruments_ready) and obj.status == "awaiting_instruments":
             t.sleep(timer_check_frequency)
             if t.time() - t0 > instrument_setup_wait:
-                controller_timeout(message["experiment_id"], "instruments", "Stopping")
+                pe.controller_timeout(
+                    message["experiment_id"], "instruments", "Stopping"
+                )
                 mqtt.MQTTPublisher.get_instance().publish(
                     "controller/command/stop",
                     json.dumps({"id": message["experiment_id"]}),
@@ -90,7 +85,7 @@ def on_timer_message(client, msg, obj):
         try:
             duration = message["duration"]
         except KeyError as e:
-            missing_keys(msg, e)
+            pe.missing_keys(msg, e)
             return
         # Start timer for setpoint
         t0 = t.time()
@@ -103,7 +98,7 @@ def on_timer_message(client, msg, obj):
                 )
                 return
         if obj.status != "stopping":
-            controller_state_incompatible_with_timer(
+            pe.controller_state_incompatible_with_timer(
                 message["experiment_id"], "setpoint", "running", obj.status
             )
         else:
@@ -118,4 +113,4 @@ def on_timer_message(client, msg, obj):
                 ),
             )
     else:
-        incompatible_topic(obj, msg, "controller_timer")
+        pe.incompatible_topic(obj, msg, "controller_timer")
