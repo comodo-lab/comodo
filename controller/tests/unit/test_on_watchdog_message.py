@@ -17,7 +17,7 @@ class TestOnWatchdogMessage:
         wd_state = {
             "interval": 0.2,
             "timeout": 1,
-            "timer": 1,
+            "time_remaining": None,
             "healthy": True,
         }
         mqtt_mocks["client_class"](
@@ -74,13 +74,13 @@ class TestOnWatchdogMessage:
     def test_updates_timer_on_heartbeat(self, message_bus, owdm_mocks):
         wd_state = owdm_mocks["wd_state"]
         assert wd_state["timeout"] == 1
-        wd_state["timer"] = 0.3
+        wd_state["time_remaining"] = 0.3
         msg = MockMessage(topic="controller/heartbeat", payload='{"some": "data"}')
         on_watchdog_message(owdm_mocks["watchdog_client"], msg, wd_state)
 
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 0, "Call should be mqtt silent"
-        assert wd_state["timer"] == 1
+        assert wd_state["time_remaining"] == 1
 
     def test_handles_error_exception(self, message_bus, owdm_mocks, capsys):
         msg = MockMessage(

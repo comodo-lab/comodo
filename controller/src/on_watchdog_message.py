@@ -22,7 +22,7 @@ def on_watchdog_message(client, msg, obj):
         return
 
     if msg.topic == "controller/heartbeat":
-        obj["timer"] = obj["timeout"]
+        obj["time_remaining"] = obj["timeout"]
         return
 
     elif msg.topic == "error/exception":

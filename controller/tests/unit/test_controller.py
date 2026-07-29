@@ -131,7 +131,7 @@ class TestMain:
             "watchdog_interval": 2,
             "watchdog_timeout": 6,
         }
-        wdog = {"interval": 2, "timeout": 6, "timer": 6, "healthy": False}
+        wdog = {"interval": 2, "timeout": 6, "time_remaining": None, "healthy": False}
         state = mocks["cstate"].return_value
         mocks["sleep"].side_effect = SystemExit  # Exit early
 

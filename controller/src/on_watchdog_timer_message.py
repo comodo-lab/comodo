@@ -34,7 +34,7 @@ def on_wd_timer_message(client, msg, obj):
             assert (
                 message["interval"] == obj["interval"]
             ), f"Expected interval {obj['interval']}, but got {message['interval']}"
-            obj["timer"] = obj["timeout"]
+            obj["time_remaining"] = obj["timeout"]
             timer_interval = 0.6 * obj["interval"]
         except AssertionError as e:
             error = f"WATCHDOG_TIMER incompatible values: {e}"
@@ -57,8 +57,8 @@ def on_wd_timer_message(client, msg, obj):
         print("  Watchdog running.")
         while obj["healthy"]:
             t.sleep(timer_interval)
-            obj["timer"] = obj["timer"] - timer_interval
-            if obj["timer"] <= 0:
+            obj["time_remaining"] -= timer_interval
+            if obj["time_remaining"] <= 0:
                 mqtt.MQTTPublisher.get_instance().publish(
                     "watchdog/timer/event/timeout",
                     json.dumps(

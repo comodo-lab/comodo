@@ -17,7 +17,7 @@ class TestOnWatchdogTimerMessage:
         wd_state = {
             "interval": 0.02,
             "timeout": 0.1,
-            "timer": 0.1,
+            "time_remaining": None,
             "healthy": True,
         }
         mqtt_mocks["client_class"](
@@ -122,7 +122,7 @@ class TestOnWatchdogTimerMessage:
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 1
         assert messages[0].topic == "watchdog/timer/event/timeout"
-        assert wd_state["timer"] <= 0
+        assert wd_state["time_remaining"] <= 0
         assert wd_state["interval"] == 0.02
         assert wd_state["timeout"] == 0.1
         assert wd_state["healthy"] == True

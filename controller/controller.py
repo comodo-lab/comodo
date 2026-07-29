@@ -48,10 +48,10 @@ def main():
     # Load comodo.yaml
     config = comodo_config.ComodoConfig().load()
 
-    wdog = {
+    wdog_state = {
         "interval": config.globals["watchdog_interval"],
         "timeout": config.globals["watchdog_timeout"],
-        "timer": config.globals["watchdog_timeout"],
+        "time_remaining": None,
         "healthy": False,
     }
     # Initialize controller state
@@ -78,7 +78,7 @@ def main():
             "controller/heartbeat",
             "error/exception",
         ],
-        obj=wdog,
+        obj=wdog_state,
         broker_address=mqtt_host,
         user=mqtt_user,
         password=mqtt_pass,
@@ -88,7 +88,7 @@ def main():
         id="wd_timer",
         callback=on_wd_timer_message,
         topics="watchdog/timer/command/start",
-        obj=wdog,
+        obj=wdog_state,
         broker_address=mqtt_host,
         user=mqtt_user,
         password=mqtt_pass,
@@ -140,17 +140,17 @@ def main():
         "watchdog/timer/command/start",
         json.dumps(
             {
-                "timeout": wdog["timeout"],
-                "interval": wdog["interval"],
+                "timeout": wdog_state["timeout"],
+                "interval": wdog_state["interval"],
             }
         ),
     )
     t.sleep(1)
-    if wdog["healthy"]:
+    if wdog_state["healthy"]:
         print(f"Controller started successfully.")
     else:
         print(f"Controller failed to start. watchdog unhealthy.")
-    while wdog["healthy"]:
+    while wdog_state["healthy"]:
         controller.publish("controller/heartbeat", f"{state}")
         t.sleep(config.globals["heartbeat_interval"])
 
