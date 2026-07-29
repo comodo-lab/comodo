@@ -297,72 +297,69 @@ class TestStarting:
 
 class TestReady:
     @pytest.fixture
-    def state(self, mock_state):
-        return mock_state("ready")
-
-    @pytest.fixture
-    def controller_client(self, mqtt_mocks, state):
-        mqtt_mocks["client_class"](
-            id="controller",
-            topics="controller/#",
-            callback=c_ready,
-            obj=state,
-        )
-        return mqtt_mocks["client_instance"]
-
-    @pytest.fixture
-    def mock_c_running(self, autouse=True):
-        with patch("src.on_controller_message.c_running") as mock_c_running:
+    def rdy_mocks(self, message_bus, mock_state, mqtt_mocks):
+        with (
+            patch("src.on_controller_message.pe") as mock_publish_error,
+            patch("src.on_controller_message.c_running") as mock_c_running,
+            patch("src.on_controller_message.c_stopping") as mock_c_stopping,
+        ):
+            state = mock_state("ready")
+            mqtt_mocks["client_class"](
+                id="controller",
+                topics="controller/#",
+                callback=c_ready,
+                obj=state,
+            )
             mock_c_running.return_value = None
             mock_c_running.__name__ = "mock_c_running"
-            yield mock_c_running
+
+            def get_decoded_bus_messages(topic=None):
+                return message_bus.get_messages(topic=topic, decoded=True)
+
+            yield {
+                "pe": mock_publish_error,
+                "c_running": mock_c_running,
+                "c_stopping": mock_c_stopping,
+                "state": state,
+                "controller_client": mqtt_mocks["client_instance"],
+                "messages": get_decoded_bus_messages,
+            }
 
     # ========================================
 
-    def test_incompatible_controller_status(
-        self, message_bus, state, controller_client
-    ):
-        assert state.experiment_uid == "123"
-        assert state.status == "awaiting_instruments"
-        assert controller_client.callback == c_ready
+    def test_incompatible_controller_status(self, rdy_mocks):
+        assert rdy_mocks["state"].experiment_uid == "123"
+        assert rdy_mocks["state"].status == "awaiting_instruments"
+        assert rdy_mocks["controller_client"].callback == c_ready
 
         msg = MockMessage(
             topic="controller/command/something_else",
             payload=json.dumps({"id": "123"}),
         )
-        c_ready(controller_client, msg, state)
+        c_ready(rdy_mocks["controller_client"], msg, rdy_mocks["state"])
 
-        assert state.status == "awaiting_instruments"
-        messages = message_bus.get_messages(decoded=True)
-        assert len(messages) == 1
-        assert messages[0].topic == "error/controller"
-        assert (
-            "Controller status is awaiting_instruments. Cannot act on controller/command/something_else."
-            in messages[0].payload
+        rdy_mocks["pe"].incompatible_controller_status.assert_called_once_with(
+            rdy_mocks["state"], msg
         )
+        messages = rdy_mocks["messages"]()
+        assert len(messages) == 0
 
-    def test_accepts_stop_signal(
-        self, message_bus, state, controller_client, mock_c_stopping
-    ):
-        assert state.experiment_uid == "123"
-        assert state.status == "awaiting_instruments"
-        assert controller_client.callback == c_ready
+    def test_accepts_stop_signal(self, rdy_mocks):
+        assert rdy_mocks["state"].experiment_uid == "123"
+        assert rdy_mocks["state"].status == "awaiting_instruments"
+        assert rdy_mocks["controller_client"].callback == c_ready
 
         msg = MockMessage(topic="controller/command/stop", payload="not important")
-        c_ready(controller_client, msg, state)
+        c_ready(rdy_mocks["controller_client"], msg, rdy_mocks["state"])
 
-        assert mock_c_stopping.called
+        assert rdy_mocks["c_stopping"].called
+        messages = rdy_mocks["messages"]()
+        assert len(messages) == 0
 
-    def test_updates_states_correctly(
-        self,
-        message_bus,
-        state,
-        controller_client,
-        mock_c_running,
-    ):
-        assert state.experiment_uid == "123"
-        assert state.status == "awaiting_instruments"
-        assert controller_client.callback == c_ready
+    def test_updates_states_correctly(self, rdy_mocks):
+        assert rdy_mocks["state"].experiment_uid == "123"
+        assert rdy_mocks["state"].status == "awaiting_instruments"
+        assert rdy_mocks["controller_client"].callback == c_ready
 
         with patch("src.on_controller_message.assign_serial_id") as mock_assign:
             mock_assign.return_value = None
@@ -370,13 +367,13 @@ class TestReady:
                 topic="controller/event/ready",
                 payload=json.dumps({"experiment_id": "123"}),
             )
-            c_ready(controller_client, msg, state)
+            c_ready(rdy_mocks["controller_client"], msg, rdy_mocks["state"])
 
-            mock_assign.assert_called_once_with(state)
-            assert state.status == "ready"
-            assert state.experiment_uid == "123"
-            assert controller_client.callback == mock_c_running
-            messages = message_bus.get_messages(decoded=True)
+            mock_assign.assert_called_once_with(rdy_mocks["state"])
+            assert rdy_mocks["state"].status == "ready"
+            assert rdy_mocks["state"].experiment_uid == "123"
+            assert rdy_mocks["controller_client"].callback == rdy_mocks["c_running"]
+            messages = rdy_mocks["messages"]()
             assert len(messages) == 1
             assert messages[0].topic == "controller/command/run"
             assert messages[0].payload == '{"experiment_id": "123"}'
