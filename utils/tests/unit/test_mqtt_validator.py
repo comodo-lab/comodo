@@ -207,7 +207,10 @@ class TestValidateMessage:
         )
 
     def test_valid_message(self, validate_message_mocks):
-        validate_message(
+        mock_json_load = validate_message_mocks["mock_check_payload_json_validity"]
+        mock_json_load.return_value = {"key": "val"}
+
+        loaded = validate_message(
             topic="expected/topic",
             payload='{"key": "val"}',
             combine_exceptions=True,
@@ -216,14 +219,13 @@ class TestValidateMessage:
         assert validate_message_mocks["mock_check_topic_expected"].called_once_with(
             "asyncapi", "expected/topic"
         )
-        assert validate_message_mocks[
-            "mock_check_payload_json_validity"
-        ].called_once_with("expected/topic", '{"key": "val"}')
+        assert mock_json_load.called_once_with("expected/topic", '{"key": "val"}')
         assert validate_message_mocks["mock_check_message_valid"].called_once_with(
             validate_message_mocks["mock_check_topic_expected"].return_value,
             "expected/topic",
             '{"key": "val"}',
         )
+        assert loaded == mock_json_load.return_value
 
 
 class TestCheckTopicExpected:

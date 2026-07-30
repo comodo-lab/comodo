@@ -104,6 +104,8 @@ def validate_message(topic, payload, schema_name="asyncapi", combine_exceptions=
         else:
             raise e
 
+    return loaded_payload
+
 
 def check_topic_expected(schema_name, topic):
     """
