@@ -4,6 +4,17 @@ import textwrap
 from utils import mqtt_clients as mqtt
 
 
+def message_validation(error):
+    """
+    Publishes an error message when a validation error occurs on an mqtt message.
+    """
+    print(f"ERROR: {str(error)}")
+    mqtt.MQTTPublisher.get_instance().publish(
+        "error/controller",
+        json.dumps({"code": "message_validation", "message": str(error)}),
+    )
+
+
 def wrong_json(msg, e):
     """
     Publishes an error message when a JSON message cannot be decoded.
