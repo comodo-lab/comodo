@@ -10,6 +10,7 @@ from tests.conftest import (
 )
 
 from src.on_timer_message import on_timer_message
+from utils.mqtt_validator import MQTTValidationException
 
 
 class TestOnTimerMessage:
@@ -17,9 +18,11 @@ class TestOnTimerMessage:
     @pytest.fixture
     def ouim_mocks(self, message_bus, mqtt_mocks, mock_state):
         with (
+            patch("src.on_timer_message.mqtt_val.validate_message") as mock_mqtt_val,
             patch("src.on_ui_message.data_path", new="test_data"),
             patch("src.on_timer_message.pe") as mock_publish_error,
         ):
+            mock_mqtt_val.side_effect = lambda topic, payload: json.loads(payload)
             state = mock_state("awaiting_instruments")
 
             mqtt_mocks["client_class"](
@@ -33,6 +36,7 @@ class TestOnTimerMessage:
 
             yield {
                 "pe": mock_publish_error,
+                "mqtt_val": mock_mqtt_val,
                 "state": state,
                 "timer_client": mqtt_mocks["client_instance"],
                 "messages": get_decoded_bus_messages,
@@ -40,14 +44,18 @@ class TestOnTimerMessage:
 
     # ========================================
 
-    def test_wrong_json(self, ouim_mocks):
+    def test_invalid_message(self, ouim_mocks, capsys):
+        err = MQTTValidationException("Invalid JSON")
+        ouim_mocks["mqtt_val"].side_effect = err
+
         msg = MockMessage(
             topic="controller/timer/command/start",
             payload="not a json",
         )
         on_timer_message(ouim_mocks["timer_client"], msg, ouim_mocks["state"])
 
-        ouim_mocks["pe"].wrong_json.assert_called_once()
+        ouim_mocks["mqtt_val"].assert_called_once_with(msg.topic, msg.payload)
+        ouim_mocks["pe"].message_validation.assert_called_once_with(err)
         messages = ouim_mocks["messages"]()
         assert len(messages) == 0
 

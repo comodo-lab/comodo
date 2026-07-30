@@ -22,17 +22,6 @@ def message_validation(error):
     )
 
 
-def wrong_json(msg, e):
-    """
-    Publishes an error message when a JSON message cannot be decoded.
-    """
-    print_and_publish(
-        topic="error/controller",
-        code="malformed_json",
-        message=f"Cannot decode {msg.topic} message, wrong JSON: \n{textwrap.indent(str(e), '   ')}",
-    )
-
-
 def missing_keys(msg, e):
     """
     Publishes an error message when the key trying to be accessed is missing.

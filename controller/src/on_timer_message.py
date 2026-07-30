@@ -2,6 +2,7 @@ import time as t
 import json
 
 from utils import mqtt_clients as mqtt
+from utils import mqtt_validator as mqtt_val
 
 import src.publish_error as pe
 
@@ -18,9 +19,9 @@ def on_timer_message(client, msg, obj):
     and to wait for the setpoint duration before moving to the next setpoint.
     """
     try:
-        message = mqtt.load_message(msg)
-    except json.JSONDecodeError as e:
-        pe.wrong_json(msg, e)
+        message = mqtt_val.validate_message(msg.topic, msg.payload)
+    except mqtt_val.MQTTValidationException as e:
+        pe.message_validation(e)
         return
 
     if msg.topic == "controller/timer/event/done":

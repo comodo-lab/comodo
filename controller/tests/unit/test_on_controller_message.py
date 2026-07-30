@@ -19,6 +19,7 @@ from src.on_controller_message import (
     c_stopping,
     assign_serial_id,
 )
+from utils.mqtt_validator import MQTTValidationException
 from src.validation import ExperimentValidationError
 
 
@@ -26,8 +27,9 @@ class TestIdle:
     @pytest.fixture
     def idle_mocks(self, message_bus, mock_state, mqtt_mocks, mock_setpoints):
         with (
+            patch("src.on_watchdog_message.mqtt_val.validate_message") as mock_mqtt_val,
             patch("src.on_controller_message.pe") as mock_publish_error,
-            patch("src.on_controller_message.validate_experiment") as mock_validate,
+            patch("src.on_controller_message.val.validate_experiment") as mock_validate,
             patch("src.on_controller_message.split_setpoints") as mock_split_setpoints,
             patch("src.on_controller_message.c_starting") as mock_c_starting,
         ):
@@ -38,9 +40,11 @@ class TestIdle:
                 callback=c_idle,
                 obj=state,
             )
+            msg = {"file": "valid_file.json", "id": "123"}
+            mock_mqtt_val.return_value = msg
             mock_validate_message = MockMessage(
                 topic="controller/command/validate",
-                payload=json.dumps({"id": "123", "file": "valid_file.json"}),
+                payload=json.dumps(msg),
             )
             mock_split_setpoints.return_value = mock_setpoints
             mock_c_starting.return_value = None
@@ -56,6 +60,7 @@ class TestIdle:
 
             yield {
                 "pe": mock_publish_error,
+                "mqtt_val": mock_mqtt_val,
                 "msg": mock_validate_message,
                 "validate_experiment": mock_validate,
                 "split_setpoints": mock_split_setpoints,
@@ -82,30 +87,22 @@ class TestIdle:
         )
         idle_mocks["validate_experiment"].assert_not_called()
 
-    def test_wrong_json(self, idle_mocks):
+    def test_invalid_message(self, idle_mocks):
+        err = MQTTValidationException("Invalid JSON")
+        idle_mocks["mqtt_val"].side_effect = err
         assert idle_mocks["state"].experiment_uid == None
         assert idle_mocks["state"].status == "idle"
         idle_mocks["msg"].payload = "this is not json"
 
         c_idle(idle_mocks["controller_client"], idle_mocks["msg"], idle_mocks["state"])
 
+        idle_mocks["mqtt_val"].assert_called_once_with(
+            idle_mocks["msg"].topic, idle_mocks["msg"].payload
+        )
         assert idle_mocks["state"].experiment_uid == None
         assert idle_mocks["state"].status == "idle"
         assert idle_mocks["controller_client"].callback == c_idle
-        idle_mocks["pe"].wrong_json.assert_called_once()
-        idle_mocks["validate_experiment"].assert_not_called()
-
-    def test_json_missing_file_key(self, idle_mocks):
-        assert idle_mocks["state"].experiment_uid == None
-        assert idle_mocks["state"].status == "idle"
-        idle_mocks["msg"].payload = json.dumps({"id": "123"})
-
-        c_idle(idle_mocks["controller_client"], idle_mocks["msg"], idle_mocks["state"])
-
-        assert idle_mocks["state"].experiment_uid == None
-        assert idle_mocks["state"].status == "idle"
-        assert idle_mocks["controller_client"].callback == c_idle
-        idle_mocks["pe"].missing_keys.assert_called_once()
+        idle_mocks["pe"].message_validation.assert_called_once_with(err)
         idle_mocks["validate_experiment"].assert_not_called()
 
     def test_missing_file(self, idle_mocks):

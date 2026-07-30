@@ -49,7 +49,7 @@ def heartbeat_client(mqtt_mocks, state):
 
 @pytest.fixture
 def mock_validate(mock_experiment_dict):
-    with patch("src.on_controller_message.validate_experiment") as mock_validate:
+    with patch("src.on_controller_message.val.validate_experiment") as mock_validate:
         mock_validate.return_value = mock_experiment_dict
         yield mock_validate
 
@@ -57,10 +57,26 @@ def mock_validate(mock_experiment_dict):
 @pytest.fixture
 def mock_mqtt_validator():
     with (
-        patch("src.on_heartbeat_message.validate_message"),
-        patch("src.on_ui_message.validate_message"),
+        patch("src.on_controller_message.mqtt_val.validate_message") as controller,
+        patch("src.on_heartbeat_message.mqtt_val.validate_message") as heartbeat,
+        patch("src.on_timer_message.mqtt_val.validate_message") as timer,
+        patch("src.on_ui_message.mqtt_val.validate_message") as ui,
+        patch("src.on_watchdog_message.mqtt_val.validate_message") as watchdog,
+        patch("src.validation.mqtt_val.validate_message") as validation,
     ):
-        yield
+        mocks = {
+            "controller": controller,
+            "heartbeat": heartbeat,
+            "timer": timer,
+            "ui": ui,
+            "watchdog": watchdog,
+            "validation": validation,
+        }
+
+        for mock in mocks.values():
+            mock.side_effect = lambda topic, payload: json.loads(payload)
+
+        yield mocks
 
 
 @pytest.fixture

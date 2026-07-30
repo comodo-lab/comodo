@@ -20,7 +20,9 @@ class TestOnUIMessage:
         with (
             patch("src.on_ui_message.pe") as mock_publish_error,
             patch("src.on_ui_message.data_path", new="test_data"),
-            patch("src.on_ui_message.validate_message") as mock_validate_message,
+            patch(
+                "src.on_ui_message.mqtt_val.validate_message"
+            ) as mock_validate_message,
             patch("os.path.exists", return_value=False) as mock_path_exists,
             patch("os.makedirs", return_value=True) as mock_makedirs,
             patch("builtins.open", create=True) as mock_open,

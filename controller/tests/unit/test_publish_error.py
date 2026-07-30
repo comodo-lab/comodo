@@ -80,17 +80,6 @@ class TestPublishError:
             message=exp_err,
         )
 
-    def test_wrong_json(self, pe_mocks):
-        exp_err = f"Cannot decode {pe_mocks['msg'].topic} message, wrong JSON: \n   Invalid JSON: line 1 column 1 (char 0)"
-
-        pe.wrong_json(pe_mocks["msg"], json.JSONDecodeError("Invalid JSON", "", 0))
-
-        pe_mocks["print_and_publish"].assert_called_once_with(
-            topic="error/controller",
-            code="malformed_json",
-            message=exp_err,
-        )
-
     def test_missing_keys(self, pe_mocks):
         exp_err = f"Cannot decode {pe_mocks['msg'].topic} message, missing: \n   'id'"
 

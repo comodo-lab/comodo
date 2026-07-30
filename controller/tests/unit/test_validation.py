@@ -124,7 +124,7 @@ class TestValidateExperiment:
         with (
             patch("builtins.open") as mock_open,
             patch("src.validation.generate_row_schema") as mock_gen,
-            patch("src.validation.validate_message") as mock_val,
+            patch("src.validation.mqtt_val.validate_message") as mock_mqtt_val,
             patch("src.validation.jsonschema.validate") as mock_json_validate,
         ):
             valid_experiment_json = json.dumps(
@@ -149,14 +149,14 @@ class TestValidateExperiment:
                 valid_experiment_json
             )
             mock_gen.return_value = None
-            mock_val.return_value = None
+            mock_mqtt_val.return_value = None
             mock_config = MagicMock()
 
             yield {
                 "experiment": valid_experiment_json,
                 "open": mock_open,
                 "generate_row_schema": mock_gen,
-                "validate_message": mock_val,
+                "mqtt_val": mock_mqtt_val,
                 "json_validate": mock_json_validate,
                 "config": mock_config,
             }
@@ -172,9 +172,7 @@ class TestValidateExperiment:
         assert "Experiment file not found" in str(e.value)
 
     def test_raises_on_invalid_structure(self, ve_mocks):
-        ve_mocks["validate_message"].side_effect = MQTTValidationException(
-            "Invalid structure"
-        )
+        ve_mocks["mqtt_val"].side_effect = MQTTValidationException("Invalid structure")
 
         with pytest.raises(ExperimentValidationError) as e:
             validate_experiment("/fake/path", ve_mocks["config"])
@@ -208,9 +206,7 @@ class TestValidateExperiment:
         assert "Invalid row 1" in str(e.value)
         ve_mocks["open"].assert_called_once_with("/fake/path")
         ve_mocks["generate_row_schema"].assert_called_once_with(ve_mocks["config"])
-        ve_mocks["validate_message"].assert_called_once_with(
-            "ui/start", ve_mocks["experiment"]
-        )
+        ve_mocks["mqtt_val"].assert_called_once_with("ui/start", ve_mocks["experiment"])
         ve_mocks["json_validate"].assert_called_once_with(
             {"time": 0, "I_A/V_A": 500, "I_B/V_B": 50}, None
         )
@@ -220,9 +216,7 @@ class TestValidateExperiment:
 
         ve_mocks["open"].assert_called_once_with("/fake/path")
         ve_mocks["generate_row_schema"].assert_called_once_with(ve_mocks["config"])
-        ve_mocks["validate_message"].assert_called_once_with(
-            "ui/start", ve_mocks["experiment"]
-        )
+        ve_mocks["mqtt_val"].assert_called_once_with("ui/start", ve_mocks["experiment"])
         assert ve_mocks["json_validate"].call_args_list == [
             (({"time": 0, "I_A/V_A": 500, "I_B/V_B": 50}, None),),
             (({"time": 10, "I_A/V_A": 800, "I_B/V_B": 80}, None),),

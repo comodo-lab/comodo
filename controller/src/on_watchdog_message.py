@@ -1,6 +1,7 @@
 import json
 
 from utils import mqtt_clients as mqtt
+from utils import mqtt_validator as mqtt_val
 
 import src.publish_error as pe
 
@@ -16,9 +17,9 @@ def on_watchdog_message(client, msg, obj):
     Every heartbeat triggers a timer that, if not reset, will trigger an error.
     """
     try:
-        message = mqtt.load_message(msg)
-    except json.JSONDecodeError as e:
-        pe.wrong_json(msg, e)
+        message = mqtt_val.validate_message(msg.topic, msg.payload)
+    except mqtt_val.MQTTValidationException as e:
+        pe.message_validation(e)
         return
 
     if msg.topic == "controller/heartbeat":
@@ -26,8 +27,7 @@ def on_watchdog_message(client, msg, obj):
         return
 
     elif msg.topic == "error/exception":
-        error = mqtt.load_message(msg)["error"]
-        print(f"WATCHDOG: Received error: {error}")
+        print(f"WATCHDOG: Received error: {message['message']}")
         mqtt.MQTTPublisher.get_instance().publish(
             "watchdog/timer/event/restart_triggered",
             json.dumps({"message": "Restarting controller..."}),
@@ -37,7 +37,7 @@ def on_watchdog_message(client, msg, obj):
 
     elif msg.topic.startswith("watchdog/timer/event/"):
         if msg.topic == "watchdog/timer/event/timeout":
-            error = mqtt.load_message(msg)["message"]
+            error = message["message"]
             print(f"WATCHDOG: Timed out waiting for controller heartbeat. {error}")
             mqtt.MQTTPublisher.get_instance().publish(
                 "watchdog/timer/event/restart_triggered",

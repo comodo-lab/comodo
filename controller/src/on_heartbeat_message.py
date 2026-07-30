@@ -2,7 +2,7 @@ import json
 import time as t
 
 from utils import mqtt_clients as mqtt
-from utils.mqtt_validator import validate_message, MQTTValidationException
+import utils.mqtt_validator as mqtt_val
 
 import src.publish_error as pe
 
@@ -17,8 +17,8 @@ def on_heartbeat_message(client, msg, obj):
         return
 
     try:
-        validate_message(msg.topic, msg.payload)
-    except MQTTValidationException as e:
+        mqtt_val.validate_message(msg.topic, msg.payload)
+    except mqtt_val.MQTTValidationException as e:
         pe.heartbeat_validation_error(msg, e)
         return
 

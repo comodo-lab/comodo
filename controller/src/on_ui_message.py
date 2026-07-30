@@ -1,9 +1,8 @@
 import os
 import json
-from jsonschema import ValidationError
 
 from utils import mqtt_clients as mqtt
-from utils.mqtt_validator import validate_message, MQTTValidationException
+import utils.mqtt_validator as mqtt_val
 
 from src.controller_helper import data_path
 import src.publish_error as pe
@@ -30,8 +29,8 @@ def on_ui_message(client, msg, obj):
     """
 
     try:
-        experiment = validate_message(msg.topic, msg.payload)
-    except MQTTValidationException as e:
+        experiment = mqtt_val.validate_message(msg.topic, msg.payload)
+    except mqtt_val.MQTTValidationException as e:
         pe.message_validation(e)
         return
 

@@ -4,10 +4,11 @@ from datetime import datetime
 
 from utils import mqtt_clients as mqtt
 from utils.interpolation import split_setpoints
+from utils import mqtt_validator as mqtt_val
 
 from src.controller_helper import assign_serial_id, dump_database_for_experiment
 import src.publish_error as pe
-from src.validation import validate_experiment, ExperimentValidationError
+import src.validation as val
 
 
 def c_idle(client, msg, obj):
@@ -29,16 +30,13 @@ def c_idle(client, msg, obj):
     # Load and decode experiment file
     try:
         # Load experiment object
-        payload = mqtt.load_message(msg)
+        payload = mqtt_val.validate_message(msg.topic, msg.payload)
 
         # Set experiment file object and temp_uid
         obj.exp_file = payload["file"]
         temp_uid = payload["id"]
-    except json.JSONDecodeError as e:
-        pe.wrong_json(msg, e)
-        return
-    except KeyError as e:
-        pe.missing_keys(msg, e)
+    except mqtt_val.MQTTValidationException as e:
+        pe.message_validation(e)
         return
 
     obj.experiment_start_time = datetime.now()
@@ -46,7 +44,7 @@ def c_idle(client, msg, obj):
 
     # Validate experiment configuration
     try:
-        exp_config = validate_experiment(obj.exp_file, obj.config)
+        exp_config = val.validate_experiment(obj.exp_file, obj.config)
 
         # Compute intermediate setpoints
         obj.setpoints = split_setpoints(
@@ -67,7 +65,7 @@ def c_idle(client, msg, obj):
         mqtt.MQTTPublisher.get_instance().publish(
             "controller/command/start", json.dumps({"id": m["id"]})
         )
-    except (ExperimentValidationError, ValueError) as e:
+    except (val.ExperimentValidationError, ValueError) as e:
         pe.experiment_validation_error(e, temp_uid)
         obj.experiment_uid = None
         obj.status = "idle"
