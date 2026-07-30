@@ -5,7 +5,7 @@ import os
 import csv
 from datetime import datetime
 
-from utils import mqtt_clients as mqtt
+import src.publish_error as pe
 
 
 def get_env_or_secret(env_var, secret=None, default=None):
@@ -63,12 +63,7 @@ def dump_database_for_experiment(obj):
     influx_org = os.getenv("INFLUX_ORG", "comodo")
     influx_token = get_env_or_secret("INFLUX_TOKEN", "INFLUX_TOKEN_FILE", None)
     if influx_token is None:
-        error = f"Cannot dump influx database. INFLUX_TOKEN not set."
-        print(f"ERROR: {error}")
-        mqtt.MQTTPublisher.get_instance().publish(
-            "error/controller",
-            json.dumps({"code": "influx_config", "message": error}),
-        )
+        pe.database_error(f"Cannot dump influx database. INFLUX_TOKEN not set.")
         return
 
     t0 = obj.experiment_start_time
@@ -97,9 +92,4 @@ def dump_database_for_experiment(obj):
             f"  Influx database for experiment {obj.experiment_uid} saved at {exp_dir_path}."
         )
     except Exception as e:
-        error = f"Could not dump influx database: {e}"
-        print(f"ERROR: {error}")
-        mqtt.MQTTPublisher.get_instance().publish(
-            "error/controller",
-            json.dumps({"code": "influx_error", "message": error}),
-        )
+        pe.database_error(f"Could not dump influx database: {e}")

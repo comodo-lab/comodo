@@ -67,17 +67,8 @@ def heartbeat_valid(obj, heartbeat, instrument_name):
     expected = obj.config.get_expected_heartbeat(instrument_name)
 
     if heartbeat["config"] != expected:
-        e = (
-            f"Instrument '{instrument_name}' misconfigured. "
-            f"Expected: {expected}; Received: {heartbeat['config']}."
-        )
-
-        print(f"ERROR: {e} Stopping experiment.")
-
-        mqtt.MQTTPublisher.get_instance().publish(
-            "error/instrument",
-            json.dumps({"code": "configuration", "message": e}),
-        )
+        pe.invalid_instrument_config(instrument_name, expected, heartbeat["config"])
+        print("Stopping experiment...")
         mqtt.MQTTPublisher.get_instance().publish(
             "controller/command/stop", json.dumps({"id": obj.experiment_uid})
         )

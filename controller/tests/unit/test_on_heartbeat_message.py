@@ -342,22 +342,24 @@ class TestHandleInstrumentHeartbeat:
 class TestHeartbeatValid:
     @pytest.fixture
     def hb_valid_mocks(self, state, message_bus):
-        expected_hb_config = {
-            "firmware": "test_firmware",
-            "device_address": "test_address",
-            "simulate": "test_true",
-            "variables": ["some", "variables"],
-        }
-        state.config.get_expected_heartbeat.return_value = expected_hb_config
+        with patch("src.on_heartbeat_message.pe") as mock_publish_error:
+            expected_hb_config = {
+                "firmware": "test_firmware",
+                "device_address": "test_address",
+                "simulate": "test_true",
+                "variables": ["some", "variables"],
+            }
+            state.config.get_expected_heartbeat.return_value = expected_hb_config
 
-        def get_decoded_bus_messages(topic=None):
-            return message_bus.get_messages(topic=topic, decoded=True)
+            def get_decoded_bus_messages(topic=None):
+                return message_bus.get_messages(topic=topic, decoded=True)
 
-        yield {
-            "state": state,
-            "expected_hb_config": expected_hb_config,
-            "messages": get_decoded_bus_messages,
-        }
+            yield {
+                "pe": mock_publish_error,
+                "state": state,
+                "expected_hb_config": expected_hb_config,
+                "messages": get_decoded_bus_messages,
+            }
 
     def test_valid_heartbeat(self, hb_valid_mocks):
         state = hb_valid_mocks["state"]
@@ -372,15 +374,15 @@ class TestHeartbeatValid:
         heartbeat = {"config": {"some": "nonsense"}}
         res = heartbeat_valid(state, heartbeat, "furnace")
         assert res == False
+
+        hb_valid_mocks["pe"].invalid_instrument_config.assert_called_once_with(
+            "furnace",
+            hb_valid_mocks["expected_hb_config"],
+            heartbeat["config"],
+        )
         captured = capsys.readouterr()
-        assert "ERROR: Instrument 'furnace'" in captured.out
-        assert "Expected: {" in captured.out
-        assert "; Received: {" in captured.out
-        assert "Stopping experiment." in captured.out
+        assert "Stopping experiment..." in captured.out
         messages = hb_valid_mocks["messages"]()
-        assert len(messages) == 2
-        assert messages[0].topic == "error/instrument"
-        assert json.loads(messages[0].payload)["code"] == "configuration"
-        assert "misconfigured" in json.loads(messages[0].payload)["message"]
-        assert messages[1].topic == "controller/command/stop"
-        assert json.loads(messages[1].payload)["id"] == "123"
+        assert len(messages) == 1
+        assert messages[0].topic == "controller/command/stop"
+        assert json.loads(messages[0].payload)["id"] == "123"

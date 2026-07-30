@@ -136,3 +136,20 @@ def controller_state_incompatible_with_timer(uid, source, expected_state, state)
         code="timer_error",
         message=f"Timer for {source} exited unexpectedly. The controller state was found to be {state} instead of {expected_state}.",
     )
+
+
+def invalid_instrument_config(instrument_name, expected, received):
+    e = f"Instrument '{instrument_name}' misconfigured. Expected: {expected}; Received: {received}."
+    print_and_publish(
+        topic="error/instrument",
+        code="configuration",
+        message=e,
+    )
+
+
+def database_error(error):
+    print_and_publish(
+        topic="error/controller",
+        code="influx_error",
+        message=error,
+    )

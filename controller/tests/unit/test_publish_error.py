@@ -207,3 +207,27 @@ class TestPublishError:
             code="timer_error",
             message=exp_err,
         )
+
+    def test_invalid_instrument_config(self, pe_mocks):
+        exp_err = "Instrument 'test_inst' misconfigured. Expected: {'key': 'value'}; Received: {'key': 'wrong_value'}."
+
+        pe.invalid_instrument_config(
+            "test_inst", {"key": "value"}, {"key": "wrong_value"}
+        )
+
+        pe_mocks["print_and_publish"].assert_called_once_with(
+            topic="error/instrument",
+            code="configuration",
+            message=exp_err,
+        )
+
+    def test_database_error(self, pe_mocks):
+        exp_err = "Could not dump influx database: ConnectionError"
+
+        pe.database_error("Could not dump influx database: ConnectionError")
+
+        pe_mocks["print_and_publish"].assert_called_once_with(
+            topic="error/controller",
+            code="influx_error",
+            message=exp_err,
+        )
