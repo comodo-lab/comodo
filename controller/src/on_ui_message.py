@@ -30,45 +30,36 @@ def on_ui_message(client, msg, obj):
     """
 
     try:
-        experiment = mqtt.load_message(msg)
-        uid = experiment["id"]
-    except json.JSONDecodeError as e:
-        pe.wrong_json(msg, e)
-        return
-    except KeyError as e:
-        pe.missing_keys(msg, e)
+        experiment = validate_message(msg.topic, msg.payload)
+    except MQTTValidationException as e:
+        pe.message_validation(e)
         return
 
     if msg.topic == "ui/start":
-        try:
-            validate_message(msg.topic, msg.payload)
-        except MQTTValidationException as e:
-            pe.experiment_validation_error(e, uid)
-            return
-
-    if obj.status == "idle":
-        if msg.topic == "ui/start":
+        if obj.status == "idle":
             if not os.path.exists(f"{data_path}/tmp"):
                 os.makedirs(f"{data_path}/tmp")
 
-            exp_file = f"{data_path}/tmp/experiment_{uid}.json"
+            exp_file = f"{data_path}/tmp/experiment_{experiment['id']}.json"
             with open(exp_file, "w") as f:
                 json.dump(experiment, f)
 
             mqtt.MQTTPublisher.get_instance().publish(
                 "controller/command/validate",
-                json.dumps({"id": uid, "file": exp_file}),
+                json.dumps({"id": experiment["id"], "file": exp_file}),
             )
         else:
             pe.incompatible_controller_status(obj, msg)
-    else:
-        if msg.topic == "ui/stop":
-            if uid == obj.experiment_uid:
+    elif msg.topic == "ui/stop":
+        if obj.status != "idle":
+            if experiment["id"] == obj.experiment_uid:
                 mqtt.MQTTPublisher.get_instance().publish(
                     "controller/command/stop",
-                    json.dumps({"id": uid}),
+                    json.dumps({"id": experiment["id"]}),
                 )
             else:
-                pe.incompatible_uid(obj, msg, uid, "controller")
+                pe.incompatible_uid(obj, msg, experiment["id"], "controller")
         else:
             pe.incompatible_controller_status(obj, msg)
+    else:
+        pe.incompatible_topic(obj, msg)
