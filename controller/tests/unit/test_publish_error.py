@@ -14,217 +14,196 @@ from src.validation import ExperimentValidationError
 from utils.mqtt_validator import MQTTValidationException
 
 
-class TestErrorHelper:
+class TestPrintAndPublish:
+    def test_prints_and_publishes_default_err(self, message_bus, capsys):
+        topic = "test/topic"
+        code = "test_code"
+        message = "This is a test error message."
+
+        pe.print_and_publish(topic, code, message)
+
+        messages = message_bus.get_messages(decoded=True)
+        assert len(messages) == 1
+        assert messages[0].topic == topic
+        p = json.loads(messages[0].payload)
+        assert p["code"] == code
+        assert p["message"] == message
+
+        captured = capsys.readouterr().out.splitlines()
+        assert len(captured) == 1
+        assert captured[0] == f"ERROR: {message}"
+
+    def test_prints_and_publishes_uses_type(self, message_bus, capsys):
+        topic = "test/topic"
+        code = "test_code"
+        message = "This is a test error message."
+        type = "WARNING"
+
+        pe.print_and_publish(topic, code, message, type=type)
+
+        messages = message_bus.get_messages(decoded=True)
+        assert len(messages) == 1
+        assert messages[0].topic == topic
+        p = json.loads(messages[0].payload)
+        assert p["code"] == code
+        assert p["message"] == message
+
+        captured = capsys.readouterr().out.splitlines()
+        assert len(captured) == 1
+        assert captured[0] == f"WARNING: {message}"
+
+
+class TestPublishError:
     @pytest.fixture
-    def pe_mocks(self, message_bus, mock_state):
-        mock_cstate = mock_state("end")
-        mock_msg = MockMessage(
-            topic="controller/command/run",
-            payload=json.dumps({"id": "test_uid"}).encode("utf-8"),
-        )
+    def pe_mocks(self, mock_state):
+        with patch("src.publish_error.print_and_publish") as mock_pap:
+            mock_cstate = mock_state("end")
+            mock_msg = MockMessage(
+                topic="controller/command/run",
+                payload=json.dumps({"id": "test_uid"}).encode("utf-8"),
+            )
 
-        def get_decoded_bus_messages(topic=None):
-            return message_bus.get_messages(topic=topic, decoded=True)
+            yield {
+                "print_and_publish": mock_pap,
+                "cstate": mock_cstate,
+                "msg": mock_msg,
+            }
 
-        yield {
-            "cstate": mock_cstate,
-            "msg": mock_msg,
-            "messages": get_decoded_bus_messages,
-        }
-
-    def test_message_validation(self, capsys, pe_mocks):
+    def test_message_validation(self, pe_mocks):
         exp_err = "Invalid message format."
 
         pe.message_validation(MQTTValidationException(exp_err))
 
-        messages = pe_mocks["messages"]()
-        assert len(messages) == 1
-        assert messages[0].topic == "error/controller"
-        p = json.loads(messages[0].payload)
-        assert p["code"] == "message_validation"
-        assert p["message"] == exp_err
+        pe_mocks["print_and_publish"].assert_called_once_with(
+            topic="error/controller",
+            code="message_validation",
+            message=exp_err,
+        )
 
-        captured = capsys.readouterr().out.splitlines()
-        assert len(captured) == 2
-        assert captured[0] == f"MQTT validation error: {exp_err}"
-        assert captured[1] == f"ERROR: {exp_err}"
-
-    def test_wrong_json(self, capsys, pe_mocks):
-        exp_err_l1 = f"Cannot decode {pe_mocks['msg'].topic} message, wrong JSON: "
-        exp_err_l2 = "   Invalid JSON: line 1 column 1 (char 0)"
+    def test_wrong_json(self, pe_mocks):
+        exp_err = f"Cannot decode {pe_mocks['msg'].topic} message, wrong JSON: \n   Invalid JSON: line 1 column 1 (char 0)"
 
         pe.wrong_json(pe_mocks["msg"], json.JSONDecodeError("Invalid JSON", "", 0))
 
-        messages = pe_mocks["messages"]()
-        assert len(messages) == 1
-        assert messages[0].topic == "error/controller"
-        p = json.loads(messages[0].payload)
-        assert p["code"] == "malformed_json"
-        assert p["message"] == exp_err_l1 + "\n" + exp_err_l2
+        pe_mocks["print_and_publish"].assert_called_once_with(
+            topic="error/controller",
+            code="malformed_json",
+            message=exp_err,
+        )
 
-        captured = capsys.readouterr().out.splitlines()
-        assert len(captured) == 2
-        assert captured[0] == f"ERROR: {exp_err_l1}"
-        assert captured[1] == exp_err_l2
-
-    def test_missing_keys(self, capsys, pe_mocks):
-        exp_err_l1 = f"Cannot decode {pe_mocks['msg'].topic} message, missing: "
-        exp_err_l2 = "   'id'"
+    def test_missing_keys(self, pe_mocks):
+        exp_err = f"Cannot decode {pe_mocks['msg'].topic} message, missing: \n   'id'"
 
         pe.missing_keys(pe_mocks["msg"], KeyError("id"))
 
-        messages = pe_mocks["messages"]()
-        assert len(messages) == 1
-        assert messages[0].topic == "error/controller"
-        p = json.loads(messages[0].payload)
-        assert p["code"] == "missing_key"
-        assert p["message"] == exp_err_l1 + "\n" + exp_err_l2
+        pe_mocks["print_and_publish"].assert_called_once_with(
+            topic="error/controller",
+            code="missing_key",
+            message=exp_err,
+        )
 
-        captured = capsys.readouterr().out.splitlines()
-        assert len(captured) == 2
-        assert captured[0] == f"ERROR: {exp_err_l1}"
-        assert captured[1] == exp_err_l2
+    def test_missing_keys(self, pe_mocks):
+        exp_err = f"Cannot decode {pe_mocks['msg'].topic} message, missing: \n   'id'"
 
-    def test_incompatible_controller_status(self, capsys, pe_mocks):
+        pe.missing_keys(pe_mocks["msg"], KeyError("id"))
+
+        pe_mocks["print_and_publish"].assert_called_once_with(
+            topic="error/controller",
+            code="missing_key",
+            message=exp_err,
+        )
+
+    def test_incompatible_controller_status(self, pe_mocks):
         exp_err = f"Controller status is {pe_mocks['cstate'].status}. Cannot act on {pe_mocks['msg'].topic}."
 
         pe.incompatible_controller_status(pe_mocks["cstate"], pe_mocks["msg"])
 
-        messages = pe_mocks["messages"]()
-        assert len(messages) == 1
-        assert messages[0].topic == "error/controller"
-        p = json.loads(messages[0].payload)
-        assert p["code"] == "incompatible_controller_status"
-        assert p["message"] == exp_err
+        pe_mocks["print_and_publish"].assert_called_once_with(
+            topic="error/controller",
+            code="incompatible_controller_status",
+            message=exp_err,
+        )
 
-        captured = capsys.readouterr().out.splitlines()
-        assert len(captured) == 1
-        assert captured[0] == f"ERROR: {exp_err}"
-
-    def test_incompatible_topic(self, capsys, pe_mocks):
+    def test_incompatible_topic(self, pe_mocks):
         exp_err = f"The test caller cannot act on {pe_mocks['msg'].topic}."
 
         pe.incompatible_topic(pe_mocks["cstate"], pe_mocks["msg"], "test_caller")
 
-        messages = pe_mocks["messages"]()
-        assert len(messages) == 1
-        assert messages[0].topic == "error/test_caller"
-        p = json.loads(messages[0].payload)
-        assert p["code"] == "incompatible_topic"
-        assert p["message"] == exp_err
+        pe_mocks["print_and_publish"].assert_called_once_with(
+            topic="error/test_caller",
+            code="incompatible_topic",
+            message=exp_err,
+        )
 
-        captured = capsys.readouterr().out.splitlines()
-        assert len(captured) == 1
-        assert captured[0] == f"ERROR: {exp_err}"
-
-    def test_incompatible_uid(self, capsys, pe_mocks):
+    def test_incompatible_uid(self, pe_mocks):
         exp_err = f"Current experiment is {pe_mocks['cstate'].experiment_uid}. Test caller cannot act on {pe_mocks['msg'].topic} for experiment 567."
 
         pe.incompatible_uid(pe_mocks["cstate"], pe_mocks["msg"], 567, "test_caller")
 
-        messages = pe_mocks["messages"]()
-        assert len(messages) == 1
-        assert messages[0].topic == "error/test_caller"
-        p = json.loads(messages[0].payload)
-        assert p["code"] == "incompatible_uid"
-        assert p["message"] == exp_err
+        pe_mocks["print_and_publish"].assert_called_once_with(
+            topic="error/test_caller",
+            code="incompatible_uid",
+            message=exp_err,
+        )
 
-        captured = capsys.readouterr().out.splitlines()
-        assert len(captured) == 1
-        assert captured[0] == f"ERROR: {exp_err}"
-
-    def test_experiment_validation_error(self, capsys, pe_mocks):
+    def test_experiment_validation_error(self, pe_mocks):
         eve = ExperimentValidationError("Invalid experiment configuration.")
         exp_err = f"Validation failed for UID:test_uid. Error detials: ExperimentValidationError: Invalid experiment configuration."
 
         pe.experiment_validation_error(eve, "test_uid")
 
-        messages = pe_mocks["messages"]()
-        assert len(messages) == 1
-        assert messages[0].topic == "error/validator"
-        p = json.loads(messages[0].payload)
-        assert p["code"] == "experiment_validation"
-        assert p["message"] == exp_err
-
-        captured = capsys.readouterr().out.splitlines()
-        assert len(captured) == 2
-        assert (
-            captured[0]
-            == f"Experiment validation error: Invalid experiment configuration."
+        pe_mocks["print_and_publish"].assert_called_once_with(
+            topic="error/validator",
+            code="experiment_validation",
+            message=exp_err,
         )
 
-        assert captured[1] == f"ERROR: {exp_err}"
-
-    def test_heartbeat_validation_error(self, capsys, pe_mocks):
+    def test_heartbeat_validation_error(self, pe_mocks):
         mqttve = MQTTValidationException("Invalid heartbeat format.")
         msg = MockMessage(topic="ins/test_inst/hb", payload=json.dumps({"bad": "info"}))
         exp_err = 'Invalid heartbeat from test_inst: {"bad": "info"}. Invalid heartbeat format.'
 
         pe.heartbeat_validation_error(msg, mqttve)
 
-        messages = pe_mocks["messages"]()
-        assert len(messages) == 1
-        assert messages[0].topic == "error/heartbeat"
-        p = json.loads(messages[0].payload)
-        assert p["code"] == "heartbeat_validation"
-        assert p["message"] == exp_err
-
-        captured = capsys.readouterr().out.splitlines()
-        assert len(captured) == 2
-        assert captured[0] == f"MQTT validation error: Invalid heartbeat format."
-        assert captured[1] == f"ERROR: {exp_err}"
-
-    def test_unconfigured_instrument(self, capsys, pe_mocks):
-        msg = MockMessage(topic="ins/test_inst/hb", payload=json.dumps({"bad": "info"}))
-        exp_err_l1 = (
-            "Instrument test_inst is not configured. Unexpected heartbeat message:"
+        pe_mocks["print_and_publish"].assert_called_once_with(
+            topic="error/heartbeat",
+            code="heartbeat_validation",
+            message=exp_err,
         )
-        exp_err_l2 = '    ins/test_inst/hb  {"bad": "info"}'
+
+    def test_unconfigured_instrument(self, pe_mocks):
+        msg = MockMessage(topic="ins/test_inst/hb", payload=json.dumps({"bad": "info"}))
+        exp_err = 'Instrument test_inst is not configured. Unexpected heartbeat message:\n    ins/test_inst/hb  {"bad": "info"}'
 
         pe.unconfigured_instrument(msg, "test_inst")
 
-        messages = pe_mocks["messages"]()
-        assert len(messages) == 1
-        assert messages[0].topic == "error/heartbeat"
-        p = json.loads(messages[0].payload)
-        assert p["code"] == "unconfigured_instrument"
-        assert p["message"] == exp_err_l1 + "\n" + exp_err_l2
+        pe_mocks["print_and_publish"].assert_called_once_with(
+            topic="error/heartbeat",
+            code="unconfigured_instrument",
+            message=exp_err,
+            type="WARNING",
+        )
 
-        captured = capsys.readouterr().out.splitlines()
-        assert len(captured) == 2
-        assert captured[0] == f"WARNING: {exp_err_l1}"
-        assert captured[1] == exp_err_l2
-
-    def test_controller_timeout(self, capsys, pe_mocks):
+    def test_controller_timeout(self, pe_mocks):
         exp_err = "Timed out waiting for instruments. Stopping..."
 
         pe.controller_timeout("test_uid", "instruments", "Stopping")
 
-        messages = pe_mocks["messages"]()
-        assert len(messages) == 1
-        assert messages[0].topic == "error/controller"
-        p = json.loads(messages[0].payload)
-        assert p["code"] == "timeout"
-        assert p["message"] == exp_err
+        pe_mocks["print_and_publish"].assert_called_once_with(
+            topic="error/controller",
+            code="timeout",
+            message=exp_err,
+        )
 
-        captured = capsys.readouterr().out.splitlines()
-        assert len(captured) == 1
-        assert captured[0] == f"ERROR: {exp_err}"
-
-    def test_controller_state_incompatible_with_timer(self, capsys, pe_mocks):
+    def test_controller_state_incompatible_with_timer(self, pe_mocks):
         exp_err = "Timer for instrument_setup exited unexpectedly. The controller state was found to be running instead of awaiting_instruments."
 
         pe.controller_state_incompatible_with_timer(
             "test_uid", "instrument_setup", "awaiting_instruments", "running"
         )
 
-        messages = pe_mocks["messages"]()
-        assert len(messages) == 1
-        assert messages[0].topic == "error/controller"
-        p = json.loads(messages[0].payload)
-        assert p["code"] == "timer_error"
-        assert p["message"] == exp_err
-
-        captured = capsys.readouterr().out.splitlines()
-        assert len(captured) == 1
-        assert captured[0] == f"ERROR: {exp_err}"
+        pe_mocks["print_and_publish"].assert_called_once_with(
+            topic="error/controller",
+            code="timer_error",
+            message=exp_err,
+        )
