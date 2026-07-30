@@ -45,6 +45,7 @@ def on_timer_message(client, msg, obj):
         if not instrument_setup_wait:
             err = "Instrument_setup_wait is not set in the config. It must be a positive number. Stopping experiment."
             pe.missing_keys(msg, KeyError(err))
+            print("Stopping experiment...")
             mqtt.MQTTPublisher.get_instance().publish(
                 "controller/command/stop",
                 json.dumps({"id": message["experiment_id"]}),
@@ -54,9 +55,8 @@ def on_timer_message(client, msg, obj):
         while (not obj.instruments_ready) and obj.status == "awaiting_instruments":
             t.sleep(timer_check_frequency)
             if t.time() - t0 > instrument_setup_wait:
-                pe.controller_timeout(
-                    message["experiment_id"], "instruments", "Stopping"
-                )
+                pe.controller_timeout(message["experiment_id"], "instruments")
+                print("Stopping experiment...")
                 mqtt.MQTTPublisher.get_instance().publish(
                     "controller/command/stop",
                     json.dumps({"id": message["experiment_id"]}),

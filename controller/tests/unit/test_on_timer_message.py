@@ -92,7 +92,7 @@ class TestOnTimerMessage:
         messages = ouim_mocks["messages"]()
         assert len(messages) == 0
 
-    def test_missing_inst_setup_wait(self, ouim_mocks):
+    def test_missing_inst_setup_wait(self, ouim_mocks, capsys):
         assert ouim_mocks["state"].experiment_uid == "123"
         assert ouim_mocks["state"].status == "awaiting_instruments"
         assert ouim_mocks["state"].instruments_ready == False
@@ -105,12 +105,13 @@ class TestOnTimerMessage:
         on_timer_message(ouim_mocks["timer_client"], msg, ouim_mocks["state"])
 
         ouim_mocks["pe"].missing_keys.assert_called_once()
+        assert "Stopping experiment..." in capsys.readouterr().out
         messages = ouim_mocks["messages"]()
         assert len(messages) == 1
         assert messages[0].topic == "controller/command/stop"
         assert '{"id": "123"' in messages[0].payload
 
-    def test_timeout(self, ouim_mocks):
+    def test_timeout(self, ouim_mocks, capsys):
         assert ouim_mocks["state"].experiment_uid == "123"
         assert ouim_mocks["state"].status == "awaiting_instruments"
         assert ouim_mocks["state"].instruments_ready == False
@@ -127,8 +128,9 @@ class TestOnTimerMessage:
 
         messages = ouim_mocks["messages"]()
         ouim_mocks["pe"].controller_timeout.assert_called_once_with(
-            "123", "instruments", "Stopping"
+            "123", "instruments"
         )
+        assert "Stopping experiment..." in capsys.readouterr().out
         assert len(messages) == 1
         assert messages[0].topic == "controller/command/stop"
         assert '{"id": "123"' in messages[0].payload

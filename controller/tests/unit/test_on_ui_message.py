@@ -129,7 +129,7 @@ class TestOnUIMessage:
         messages = ouim_mocks["messages"]()
         assert len(messages) == 0
 
-    def test_valid_ui_stop(self, ouim_mocks):
+    def test_valid_ui_stop(self, ouim_mocks, capsys):
         ouim_mocks["state"].status = "running"
         ouim_mocks["state"].experiment_uid = "123"
 
@@ -139,6 +139,7 @@ class TestOnUIMessage:
         ouim_mocks["validate_message"].assert_called_once_with(
             "ui/stop", json.dumps({"id": "123"}).encode("utf-8")
         )
+        assert "Stopping experiment..." in capsys.readouterr().out
         messages = ouim_mocks["messages"]()
         assert len(messages) == 1
         assert messages[0].topic == "controller/command/stop"

@@ -116,14 +116,14 @@ def unconfigured_instrument(msg, instrument_name):
     )
 
 
-def controller_timeout(uid, who_timedout, consequence):
+def controller_timeout(uid, who_timedout):
     """
     Publishes an error message when a timeout occurs.
     """
     print_and_publish(
         topic="error/controller",
         code="timeout",
-        message=f"Timed out waiting for {who_timedout}. {consequence}...",
+        message=f"Timed out waiting for {who_timedout}.",
     )
 
 

@@ -185,9 +185,9 @@ class TestPublishError:
         )
 
     def test_controller_timeout(self, pe_mocks):
-        exp_err = "Timed out waiting for instruments. Stopping..."
+        exp_err = "Timed out waiting for instruments."
 
-        pe.controller_timeout("test_uid", "instruments", "Stopping")
+        pe.controller_timeout("test_uid", "instruments")
 
         pe_mocks["print_and_publish"].assert_called_once_with(
             topic="error/controller",

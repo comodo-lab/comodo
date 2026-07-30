@@ -53,6 +53,7 @@ def on_ui_message(client, msg, obj):
     elif msg.topic == "ui/stop":
         if obj.status != "idle":
             if experiment["id"] == obj.experiment_uid:
+                print("Stopping experiment...")
                 mqtt.MQTTPublisher.get_instance().publish(
                     "controller/command/stop",
                     json.dumps({"id": experiment["id"]}),
