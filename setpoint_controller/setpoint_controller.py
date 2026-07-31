@@ -5,6 +5,7 @@ import textwrap
 import time as t
 
 from utils import mqtt_clients as mqtt
+from utils import mqtt_validator as mqtt_val
 
 from src.pid import PID
 
@@ -254,14 +255,9 @@ class SetpointController:
     def on_message(client, msg, spc):
         """Callback function for handling sensor messages."""
         try:
-            message = mqtt.load_message(msg)
-        except json.JSONDecodeError as e:
-            error = f"Cannot decode {msg.topic} message, wrong JSON: \n{textwrap.indent(str(e), '   ')}"
-            print(f"ERROR: {error}")
-            mqtt.MQTTPublisher.get_instance().publish(
-                "error/setpoint_controller",
-                json.dumps({"code": "json_decode_error", "message": error}),
-            )
+            message = mqtt_val.validate_message(msg.topic, msg.payload)
+        except mqtt_val.MQTTValidationException as e:
+            mqtt_val.print_and_publish_error("error/setpoint_controller", e)
             spc.status.state = "error"
             spc.publish_heartbeat()
             return
