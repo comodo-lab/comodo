@@ -590,7 +590,7 @@ class TestRunning:
 
 class TestStopping:
     @pytest.fixture
-    def stp_mocks(self, message_bus, mock_state, mqtt_mocks):
+    def stp_mocks(self, message_bus, mock_state, mqtt_mocks, mqtt_validator_mocks):
         with (
             patch("src.on_controller_message.pe") as mock_publish_error,
             patch("src.on_controller_message.c_idle") as mock_c_idle,
@@ -617,11 +617,29 @@ class TestStopping:
                 "c_idle": mock_c_idle,
                 "state": state,
                 "controller_client": mqtt_mocks["client_instance"],
+                "validate_message": mqtt_validator_mocks["validate_message"],
                 "messages": get_decoded_bus_messages,
                 "dump": mock_dump,
             }
 
     # ========================================
+
+    def test_invalid_message(self, stp_mocks):
+        err = MQTTValidationException("Invalid JSON")
+        stp_mocks["validate_message"].side_effect = err
+        assert stp_mocks["state"].experiment_uid == "123"
+        assert stp_mocks["state"].status == "running"
+        stp_mocks["controller_client"].callback = c_stopping
+
+        msg = MockMessage(topic="controller/command/stop", payload="not json")
+        c_stopping(stp_mocks["controller_client"], msg, stp_mocks["state"])
+
+        stp_mocks["validate_message"].assert_called_once_with(msg.topic, msg.payload)
+        assert stp_mocks["state"].status == "running"
+        assert stp_mocks["controller_client"].callback == c_stopping
+        stp_mocks["pe"].message_validation.assert_called_once_with(err)
+        messages = stp_mocks["messages"]()
+        assert len(messages) == 0
 
     def test_incompatible_controller_status(self, stp_mocks):
         assert stp_mocks["state"].experiment_uid == "123"

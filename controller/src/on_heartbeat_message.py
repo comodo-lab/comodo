@@ -17,7 +17,7 @@ def on_heartbeat_message(client, msg, obj):
         return
 
     try:
-        mqtt_val.validate_message(msg.topic, msg.payload)
+        message = mqtt_val.validate_message(msg.topic, msg.payload)
     except mqtt_val.MQTTValidationException as e:
         pe.heartbeat_validation_error(msg, e)
         return
@@ -27,9 +27,8 @@ def on_heartbeat_message(client, msg, obj):
         return
 
     instrument_name = msg.topic.split("/")[1]
-    payload = json.loads(msg.payload)
     if instrument_name in obj.instrument_states.keys():
-        handle_instrument_heartbeat(obj, payload, instrument_name)
+        handle_instrument_heartbeat(obj, message, instrument_name)
     else:
         pe.unconfigured_instrument(msg, instrument_name)
         return

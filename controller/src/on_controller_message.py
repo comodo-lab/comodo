@@ -212,7 +212,11 @@ def c_stopping(client, msg, obj):
         if msg.topic.startswith("controller/command/"):
             pe.incompatible_controller_status(obj, msg)
         return
-    message = mqtt.load_message(msg)
+    try:
+        message = mqtt_val.validate_message(msg.topic, msg.payload)
+    except mqtt_val.MQTTValidationException as e:
+        pe.message_validation(e)
+        return
     msg_id = message.get("experiment_id") or message.get("id")
     if msg_id == obj.experiment_uid:
         obj.status = "stopping"
