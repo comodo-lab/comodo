@@ -25,9 +25,10 @@ from src.validation import ExperimentValidationError
 
 class TestIdle:
     @pytest.fixture
-    def idle_mocks(self, message_bus, mock_state, mqtt_mocks, mock_setpoints):
+    def idle_mocks(
+        self, message_bus, mock_state, mqtt_mocks, mqtt_validator_mocks, mock_setpoints
+    ):
         with (
-            patch("src.on_watchdog_message.mqtt_val.validate_message") as mock_mqtt_val,
             patch("src.on_controller_message.pe") as mock_publish_error,
             patch("src.on_controller_message.val.validate_experiment") as mock_validate,
             patch("src.on_controller_message.split_setpoints") as mock_split_setpoints,
@@ -40,11 +41,9 @@ class TestIdle:
                 callback=c_idle,
                 obj=state,
             )
-            msg = {"file": "valid_file.json", "id": "123"}
-            mock_mqtt_val.return_value = msg
             mock_validate_message = MockMessage(
                 topic="controller/command/validate",
-                payload=json.dumps(msg),
+                payload=json.dumps({"file": "valid_file.json", "id": "123"}),
             )
             mock_split_setpoints.return_value = mock_setpoints
             mock_c_starting.return_value = None
@@ -60,7 +59,7 @@ class TestIdle:
 
             yield {
                 "pe": mock_publish_error,
-                "mqtt_val": mock_mqtt_val,
+                "validate_message": mqtt_validator_mocks["validate_message"],
                 "msg": mock_validate_message,
                 "validate_experiment": mock_validate,
                 "split_setpoints": mock_split_setpoints,
@@ -89,14 +88,14 @@ class TestIdle:
 
     def test_invalid_message(self, idle_mocks):
         err = MQTTValidationException("Invalid JSON")
-        idle_mocks["mqtt_val"].side_effect = err
+        idle_mocks["validate_message"].side_effect = err
         assert idle_mocks["state"].experiment_uid == None
         assert idle_mocks["state"].status == "idle"
         idle_mocks["msg"].payload = "this is not json"
 
         c_idle(idle_mocks["controller_client"], idle_mocks["msg"], idle_mocks["state"])
 
-        idle_mocks["mqtt_val"].assert_called_once_with(
+        idle_mocks["validate_message"].assert_called_once_with(
             idle_mocks["msg"].topic, idle_mocks["msg"].payload
         )
         assert idle_mocks["state"].experiment_uid == None

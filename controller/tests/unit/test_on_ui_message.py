@@ -16,19 +16,15 @@ from utils.mqtt_validator import MQTTValidationException
 class TestOnUIMessage:
 
     @pytest.fixture
-    def ouim_mocks(self, message_bus, mqtt_mocks, mock_state):
+    def ouim_mocks(self, message_bus, mqtt_mocks, mqtt_validator_mocks, mock_state):
         with (
             patch("src.on_ui_message.pe") as mock_publish_error,
             patch("src.on_ui_message.data_path", new="test_data"),
-            patch(
-                "src.on_ui_message.mqtt_val.validate_message"
-            ) as mock_validate_message,
             patch("os.path.exists", return_value=False) as mock_path_exists,
             patch("os.makedirs", return_value=True) as mock_makedirs,
             patch("builtins.open", create=True) as mock_open,
             patch("src.on_ui_message.json.dump") as mock_json_dump,
         ):
-            mock_validate_message.return_value = {"id": "123"}
             state = mock_state("idle")
 
             mqtt_mocks["client_class"](
@@ -44,7 +40,7 @@ class TestOnUIMessage:
                 "pe": mock_publish_error,
                 "state": state,
                 "ui_client": mqtt_mocks["client_instance"],
-                "validate_message": mock_validate_message,
+                "validate_message": mqtt_validator_mocks["validate_message"],
                 "path_exists": mock_path_exists,
                 "makedirs": mock_makedirs,
                 "open": mock_open,

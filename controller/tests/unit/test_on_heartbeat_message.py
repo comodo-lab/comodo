@@ -40,19 +40,16 @@ def heartbeat_client(mqtt_mocks):
 
 class TestOnHeartbeatMessage:
     @pytest.fixture
-    def on_heartbeat_message_mocks(self, state, heartbeat_client):
+    def on_heartbeat_message_mocks(self, state, heartbeat_client, mqtt_validator_mocks):
         with (
             patch("src.on_heartbeat_message.pe") as mock_publish_error,
-            patch(
-                "src.on_heartbeat_message.mqtt_val.validate_message"
-            ) as mock_mqtt_val,
             patch(
                 "src.on_heartbeat_message.handle_instrument_heartbeat"
             ) as handle_i_hb,
         ):
             yield {
                 "pe": mock_publish_error,
-                "mqtt_val": mock_mqtt_val,
+                "validate_message": mqtt_validator_mocks["validate_message"],
                 "handle_i_hb": handle_i_hb,
                 "state": state,
                 "heartbeat_client": heartbeat_client,
@@ -71,11 +68,11 @@ class TestOnHeartbeatMessage:
         on_heartbeat_message_mocks["pe"].incompatible_topic.assert_called_once_with(
             state, msg, "heartbeat_callback"
         )
-        on_heartbeat_message_mocks["mqtt_val"].assert_not_called()
+        on_heartbeat_message_mocks["validate_message"].assert_not_called()
 
     def test_wrong_json(self, on_heartbeat_message_mocks):
         err = MQTTValidationException("Invalid JSON payload...")
-        on_heartbeat_message_mocks["mqtt_val"].side_effect = err
+        on_heartbeat_message_mocks["validate_message"].side_effect = err
         msg = MockMessage(
             topic="instruments/instrument_1/heartbeat",
             payload="not a json",
@@ -83,7 +80,7 @@ class TestOnHeartbeatMessage:
         on_heartbeat_message(heartbeat_client, msg, state)
 
         on_heartbeat_message_mocks["pe"].incompatible_topic.assert_not_called()
-        on_heartbeat_message_mocks["mqtt_val"].assert_called_once_with(
+        on_heartbeat_message_mocks["validate_message"].assert_called_once_with(
             msg.topic, msg.payload
         )
         on_heartbeat_message_mocks[
@@ -111,7 +108,7 @@ class TestOnHeartbeatMessage:
                 "pe"
             ].heartbeat_validation_error.assert_not_called()
             on_heartbeat_message_mocks["pe"].unconfigured_instrument.assert_not_called()
-        assert on_heartbeat_message_mocks["mqtt_val"].call_args_list == vm_calls
+        assert on_heartbeat_message_mocks["validate_message"].call_args_list == vm_calls
 
     def test_unconfigured_instrument(self, on_heartbeat_message_mocks):
         state = on_heartbeat_message_mocks["state"]
@@ -133,7 +130,7 @@ class TestOnHeartbeatMessage:
         on_heartbeat_message(heartbeat_client, msg, state)
 
         on_heartbeat_message_mocks["pe"].incompatible_topic.assert_not_called()
-        on_heartbeat_message_mocks["mqtt_val"].assert_called_once_with(
+        on_heartbeat_message_mocks["validate_message"].assert_called_once_with(
             msg.topic, msg.payload
         )
         on_heartbeat_message_mocks["pe"].heartbeat_validation_error.assert_not_called()
@@ -163,7 +160,7 @@ class TestOnHeartbeatMessage:
         on_heartbeat_message(heartbeat_client, msg, state)
 
         on_heartbeat_message_mocks["pe"].incompatible_topic.assert_not_called()
-        on_heartbeat_message_mocks["mqtt_val"].assert_called_once_with(
+        on_heartbeat_message_mocks["validate_message"].assert_called_once_with(
             msg.topic, msg.payload
         )
         on_heartbeat_message_mocks["pe"].heartbeat_validation_error.assert_not_called()

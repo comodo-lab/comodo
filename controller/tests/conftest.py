@@ -17,6 +17,7 @@ from utils.tests.mocks.mock_mqtt_clients import (
     mqtt_mocks,
     parse_message_args,
 )
+from utils.tests.mocks.mock_mqtt_validator import mqtt_validator_mocks
 from utils.tests.mocks.mock_comodo_yaml_dict import mock_comodo_yaml_dict
 from utils.tests.mocks.mock_comodo_config import mock_comodo_config
 from utils.tests.mocks.mock_experiment import mock_experiment_dict, mock_setpoints
