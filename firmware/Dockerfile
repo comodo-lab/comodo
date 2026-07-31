@@ -23,4 +23,5 @@ COPY ./firmware/tests ./tests
 COPY ./firmware/pytest.ini ./
 
 # Set the entry point
+COPY schemas/mqtt_schema.yaml   /schemas/mqtt_schema.yaml
 CMD ["python3", "-u", "main.py"]

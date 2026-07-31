@@ -11,9 +11,7 @@ class MQTTValidationException(Exception):
         super().__init__(message)
 
 
-schemas = {
-    "asyncapi": "/app/schemas/mqtt_schema.yaml",
-}
+schemas = {"asyncapi": "/schemas/mqtt_schema.yaml"}
 
 
 def match_topic(topic, topic_map):

@@ -7,6 +7,7 @@ WORKDIR /monitor
 COPY utils/mqtt_clients.py      /monitor/utils/mqtt_clients.py
 COPY utils/mqtt_validator.py    /monitor/utils/mqtt_validator.py
 COPY utils/tests/mocks          /monitor/utils/tests/mocks
+COPY schemas/mqtt_schema.yaml   /schemas/mqtt_schema.yaml
 
 COPY monitor/monitor.py /monitor/monitor.py
 COPY monitor/tests      /monitor/tests

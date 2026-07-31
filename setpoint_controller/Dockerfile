@@ -15,6 +15,7 @@ COPY ./setpoint_controller/src                      /setpoint_controller/src
 COPY ./setpoint_controller/tests                    /setpoint_controller/tests
 COPY ./setpoint_controller/pytest.ini               /setpoint_controller/
 COPY ./setpoint_controller/README.md                /setpoint_controller/
+COPY schemas/mqtt_schema.yaml                       /schemas/mqtt_schema.yaml
 
 # Start setpoint_controller
 CMD ["python", "-u", "setpoint_controller.py"]
