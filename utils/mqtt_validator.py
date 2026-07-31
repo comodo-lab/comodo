@@ -148,3 +148,13 @@ def check_message_valid(entry, loaded_payload):
         ValidationError: If the message does not conform to the schema
     """
     validate(loaded_payload, entry["schema"])
+
+
+def print_and_publish_error(topic, error):
+    """
+    Prints and publishes an error message when a validation error occurs on an mqtt message.
+    """
+    print(f"ERROR: {str(error)}")
+    mqtt_clients.MQTTPublisher.get_instance().publish(
+        topic, json.dumps({"code": "message_validation", "message": str(error)})
+    )

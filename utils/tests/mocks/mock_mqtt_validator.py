@@ -13,7 +13,10 @@ def mqtt_validator_mocks():
         - utils.mqtt_validator.validate_message
     and exposes the mock as 'mqtt_val' in the test context.
     """
-    with (patch("utils.mqtt_validator.validate_message") as mock_validate_message,):
+    with (
+        patch("utils.mqtt_validator.validate_message") as mock_validate_message,
+        patch("utils.mqtt_validator.print_and_publish_error") as mock_pap_error,
+    ):
         # -----------------------
         # Mock validate_message to return the loaded JSON message
         # -----------------------
@@ -24,4 +27,5 @@ def mqtt_validator_mocks():
         # -----------------------
         yield {
             "validate_message": mock_validate_message,
+            "print_and_publish_error": mock_pap_error,
         }
