@@ -56,7 +56,10 @@ class TestPrintAndPublish:
 class TestPublishError:
     @pytest.fixture
     def pe_mocks(self, mock_state):
-        with patch("src.publish_error.print_and_publish") as mock_pap:
+        with (
+            patch("src.publish_error.print_and_publish") as mock_pap,
+            patch("utils.mqtt_validator.print_and_publish_error") as mock_pap_error,
+        ):
             mock_cstate = mock_state("end")
             mock_msg = MockMessage(
                 topic="controller/command/run",
@@ -65,6 +68,7 @@ class TestPublishError:
 
             yield {
                 "print_and_publish": mock_pap,
+                "print_and_publish_error": mock_pap_error,
                 "cstate": mock_cstate,
                 "msg": mock_msg,
             }
@@ -74,9 +78,8 @@ class TestPublishError:
 
         pe.message_validation(MQTTValidationException(exp_err))
 
-        pe_mocks["print_and_publish"].assert_called_once_with(
+        pe_mocks["print_and_publish_error"].assert_called_once_with(
             topic="error/controller",
-            code="message_validation",
             message=exp_err,
         )
 

@@ -2,6 +2,7 @@ import json
 import textwrap
 
 from utils import mqtt_clients as mqtt
+from utils import mqtt_validator as mqtt_val
 
 
 def print_and_publish(topic, code, message, type="ERROR"):
@@ -15,9 +16,8 @@ def message_validation(error):
     """
     Publishes an error message when a validation error occurs on an mqtt message.
     """
-    print_and_publish(
+    mqtt_val.print_and_publish_error(
         topic="error/controller",
-        code="message_validation",
         message=str(error),
     )
 
