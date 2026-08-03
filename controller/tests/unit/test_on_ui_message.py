@@ -18,7 +18,7 @@ class TestOnUIMessage:
     @pytest.fixture
     def ouim_mocks(self, message_bus, mqtt_mocks, mqtt_validator_mocks, mock_state):
         with (
-            patch("src.on_ui_message.pe") as mock_publish_error,
+            patch("src.on_ui_message.pub_err") as mock_publish_error,
             patch("src.on_ui_message.data_path", new="test_data"),
             patch("os.path.exists", return_value=False) as mock_path_exists,
             patch("os.makedirs", return_value=True) as mock_makedirs,

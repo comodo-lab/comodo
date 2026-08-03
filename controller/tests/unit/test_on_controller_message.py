@@ -29,7 +29,7 @@ class TestIdle:
         self, message_bus, mock_state, mqtt_mocks, mqtt_validator_mocks, mock_setpoints
     ):
         with (
-            patch("src.on_controller_message.pe") as mock_publish_error,
+            patch("src.on_controller_message.pub_err") as mock_publish_error,
             patch("src.on_controller_message.val.validate_experiment") as mock_validate,
             patch("src.on_controller_message.split_setpoints") as mock_split_setpoints,
             patch("src.on_controller_message.c_starting") as mock_c_starting,
@@ -198,7 +198,7 @@ class TestStarting:
     @pytest.fixture
     def s_mocks(self, message_bus, mock_state, mqtt_mocks):
         with (
-            patch("src.on_controller_message.pe") as mock_publish_error,
+            patch("src.on_controller_message.pub_err") as mock_publish_error,
             patch("src.on_controller_message.c_ready") as mock_c_ready,
             patch("src.on_controller_message.c_stopping") as mock_c_stopping,
         ):
@@ -295,7 +295,7 @@ class TestReady:
     @pytest.fixture
     def rdy_mocks(self, message_bus, mock_state, mqtt_mocks):
         with (
-            patch("src.on_controller_message.pe") as mock_publish_error,
+            patch("src.on_controller_message.pub_err") as mock_publish_error,
             patch("src.on_controller_message.c_running") as mock_c_running,
             patch("src.on_controller_message.c_stopping") as mock_c_stopping,
         ):
@@ -379,7 +379,7 @@ class TestRunning:
     @pytest.fixture
     def r_mocks(self, message_bus, mock_state, mqtt_mocks):
         with (
-            patch("src.on_controller_message.pe") as mock_publish_error,
+            patch("src.on_controller_message.pub_err") as mock_publish_error,
             patch("src.on_controller_message.c_stopping") as mock_c_stopping,
         ):
             state = mock_state("running")
@@ -592,7 +592,7 @@ class TestStopping:
     @pytest.fixture
     def stp_mocks(self, message_bus, mock_state, mqtt_mocks, mqtt_validator_mocks):
         with (
-            patch("src.on_controller_message.pe") as mock_publish_error,
+            patch("src.on_controller_message.pub_err") as mock_publish_error,
             patch("src.on_controller_message.c_idle") as mock_c_idle,
             patch(
                 "src.on_controller_message.dump_database_for_experiment"

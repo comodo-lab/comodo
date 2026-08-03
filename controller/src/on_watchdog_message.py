@@ -3,7 +3,7 @@ import json
 from utils import mqtt_clients as mqtt
 from utils import mqtt_validator as mqtt_val
 
-import src.publish_error as pe
+import src.publish_error as pub_err
 
 
 def on_watchdog_message(client, msg, obj):
@@ -19,7 +19,7 @@ def on_watchdog_message(client, msg, obj):
     try:
         message = mqtt_val.validate_message(msg.topic, msg.payload)
     except mqtt_val.MQTTValidationException as e:
-        pe.message_validation(e)
+        pub_err.message_validation(e)
         return
 
     if msg.topic == "controller/heartbeat":
@@ -51,4 +51,4 @@ def on_watchdog_message(client, msg, obj):
         return
 
     else:
-        pe.incompatible_topic(obj, msg, "watchdog")
+        pub_err.incompatible_topic(obj, msg, "watchdog")

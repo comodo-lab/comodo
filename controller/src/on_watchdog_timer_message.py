@@ -3,7 +3,7 @@ import json
 
 from utils import mqtt_clients as mqtt
 
-import src.publish_error as pe
+import src.publish_error as pub_err
 
 
 def on_wd_timer_message(client, msg, obj):
@@ -17,7 +17,7 @@ def on_wd_timer_message(client, msg, obj):
             obj["time_remaining"] = obj["timeout"]
             timer_interval = 0.6 * obj["interval"]
         except KeyError as e:
-            pe.missing_keys(msg, e)
+            pub_err.missing_keys(msg, e)
             print("ERROR: Watchdog timer failed to start.")
             obj["healthy"] = False
             return
@@ -38,4 +38,4 @@ def on_wd_timer_message(client, msg, obj):
                 )
                 return
     else:
-        pe.incompatible_topic(obj, msg, "watchdog_timer")
+        pub_err.incompatible_topic(obj, msg, "watchdog_timer")

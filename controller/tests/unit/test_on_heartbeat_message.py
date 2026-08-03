@@ -42,7 +42,7 @@ class TestOnHeartbeatMessage:
     @pytest.fixture
     def on_heartbeat_message_mocks(self, state, heartbeat_client, mqtt_validator_mocks):
         with (
-            patch("src.on_heartbeat_message.pe") as mock_publish_error,
+            patch("src.on_heartbeat_message.pub_err") as mock_publish_error,
             patch(
                 "src.on_heartbeat_message.handle_instrument_heartbeat"
             ) as handle_i_hb,
@@ -341,7 +341,7 @@ class TestHandleInstrumentHeartbeat:
 class TestHeartbeatValid:
     @pytest.fixture
     def hb_valid_mocks(self, state, message_bus):
-        with patch("src.on_heartbeat_message.pe") as mock_publish_error:
+        with patch("src.on_heartbeat_message.pub_err") as mock_publish_error:
             expected_hb_config = {
                 "firmware": "test_firmware",
                 "device_address": "test_address",

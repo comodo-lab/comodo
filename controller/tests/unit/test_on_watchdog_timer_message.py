@@ -15,7 +15,7 @@ class TestOnWatchdogTimerMessage:
 
     @pytest.fixture
     def owdtm_mocks(self, message_bus, mqtt_mocks):
-        with patch("src.on_watchdog_timer_message.pe") as mock_publish_error:
+        with patch("src.on_watchdog_timer_message.pub_err") as mock_publish_error:
             wd_state = {
                 "interval": 0.02,
                 "timeout": 0.1,

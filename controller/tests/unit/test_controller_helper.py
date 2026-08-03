@@ -209,7 +209,7 @@ class TestDatabaseDump:
             patch("src.controller_helper.influxdb_client") as mock_influx,
             patch("os.path.exists") as mock_path_exists,
             patch("os.makedirs") as mock_makedirs,
-            patch("src.controller_helper.pe") as mock_publish_error,
+            patch("src.controller_helper.pub_err") as mock_publish_error,
         ):
             env_values = {
                 "INFLUX_BUCKET": "bucket1,bucket2,bucket3",
