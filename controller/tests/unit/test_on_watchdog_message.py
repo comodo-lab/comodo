@@ -39,7 +39,7 @@ class TestOnWatchdogMessage:
                 return message_bus.get_messages(topic=topic, decoded=True)
 
             yield {
-                "pe": mock_publish_error,
+                "pub_err": mock_publish_error,
                 "validate_message": mqtt_validator_mocks["validate_message"],
                 "wd_state": wd_state,
                 "watchdog_client": mqtt_mocks["client_instance"],
@@ -55,7 +55,7 @@ class TestOnWatchdogMessage:
         )
         on_watchdog_message(owdm_mocks["watchdog_client"], msg, owdm_mocks["wd_state"])
 
-        owdm_mocks["pe"].incompatible_topic.assert_called_once_with(
+        owdm_mocks["pub_err"].incompatible_topic.assert_called_once_with(
             owdm_mocks["wd_state"], msg, "watchdog"
         )
 
@@ -67,7 +67,7 @@ class TestOnWatchdogMessage:
         on_watchdog_message(owdm_mocks["watchdog_client"], msg, owdm_mocks["wd_state"])
 
         owdm_mocks["validate_message"].assert_called_once_with(msg.topic, msg.payload)
-        owdm_mocks["pe"].message_validation.assert_called_once_with(err)
+        owdm_mocks["pub_err"].message_validation.assert_called_once_with(err)
         messages = owdm_mocks["messages"]()
         assert len(messages) == 0
 

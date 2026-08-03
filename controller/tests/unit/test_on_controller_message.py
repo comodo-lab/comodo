@@ -58,7 +58,7 @@ class TestIdle:
                 return message_bus.get_messages(topic=topic, decoded=True)
 
             yield {
-                "pe": mock_publish_error,
+                "pub_err": mock_publish_error,
                 "validate_message": mqtt_validator_mocks["validate_message"],
                 "msg": mock_validate_message,
                 "validate_experiment": mock_validate,
@@ -81,7 +81,7 @@ class TestIdle:
         assert idle_mocks["state"].experiment_uid == None
         assert idle_mocks["state"].status == "idle"
         assert idle_mocks["controller_client"].callback == c_idle
-        idle_mocks["pe"].incompatible_controller_status.assert_called_once_with(
+        idle_mocks["pub_err"].incompatible_controller_status.assert_called_once_with(
             idle_mocks["state"], msg
         )
         idle_mocks["validate_experiment"].assert_not_called()
@@ -101,7 +101,7 @@ class TestIdle:
         assert idle_mocks["state"].experiment_uid == None
         assert idle_mocks["state"].status == "idle"
         assert idle_mocks["controller_client"].callback == c_idle
-        idle_mocks["pe"].message_validation.assert_called_once_with(err)
+        idle_mocks["pub_err"].message_validation.assert_called_once_with(err)
         idle_mocks["validate_experiment"].assert_not_called()
 
     def test_missing_file(self, idle_mocks):
@@ -121,7 +121,7 @@ class TestIdle:
         assert idle_mocks["state"].experiment_uid == None
         assert idle_mocks["state"].status == "idle"
         assert idle_mocks["controller_client"].callback == c_idle
-        idle_mocks["pe"].experiment_validation_error.assert_called_once_with(
+        idle_mocks["pub_err"].experiment_validation_error.assert_called_once_with(
             mock_validate.side_effect, "123"
         )
         messages = idle_mocks["messages"]()
@@ -141,7 +141,7 @@ class TestIdle:
         assert idle_mocks["state"].experiment_uid == None
         assert idle_mocks["state"].status == "idle"
         assert idle_mocks["controller_client"].callback == c_idle
-        idle_mocks["pe"].experiment_validation_error.assert_called_once_with(
+        idle_mocks["pub_err"].experiment_validation_error.assert_called_once_with(
             mock_validate.side_effect, "123"
         )
         messages = idle_mocks["messages"]()
@@ -163,7 +163,7 @@ class TestIdle:
         assert idle_mocks["state"].experiment_uid == None
         assert idle_mocks["state"].status == "idle"
         assert idle_mocks["controller_client"].callback == c_idle
-        idle_mocks["pe"].experiment_validation_error.assert_called_once_with(
+        idle_mocks["pub_err"].experiment_validation_error.assert_called_once_with(
             idle_mocks["split_setpoints"].side_effect, "123"
         )
         messages = idle_mocks["messages"]()
@@ -216,7 +216,7 @@ class TestStarting:
                 return message_bus.get_messages(topic=topic, decoded=True)
 
             yield {
-                "pe": mock_publish_error,
+                "pub_err": mock_publish_error,
                 "c_ready": mock_c_ready,
                 "c_stopping": mock_c_stopping,
                 "state": state,
@@ -234,7 +234,7 @@ class TestStarting:
         msg = MockMessage(topic="controller/command/run", payload="not important")
         c_starting(start_mocks["controller_client"], msg, start_mocks["state"])
 
-        start_mocks["pe"].incompatible_controller_status.assert_called_once_with(
+        start_mocks["pub_err"].incompatible_controller_status.assert_called_once_with(
             start_mocks["state"], msg
         )
         messages = start_mocks["messages"]()
@@ -314,7 +314,7 @@ class TestReady:
                 return message_bus.get_messages(topic=topic, decoded=True)
 
             yield {
-                "pe": mock_publish_error,
+                "pub_err": mock_publish_error,
                 "c_running": mock_c_running,
                 "c_stopping": mock_c_stopping,
                 "state": state,
@@ -335,7 +335,7 @@ class TestReady:
         )
         c_ready(ready_mocks["controller_client"], msg, ready_mocks["state"])
 
-        ready_mocks["pe"].incompatible_controller_status.assert_called_once_with(
+        ready_mocks["pub_err"].incompatible_controller_status.assert_called_once_with(
             ready_mocks["state"], msg
         )
         messages = ready_mocks["messages"]()
@@ -395,7 +395,7 @@ class TestRunning:
                 return message_bus.get_messages(topic=topic, decoded=True)
 
             yield {
-                "pe": mock_publish_error,
+                "pub_err": mock_publish_error,
                 "c_stopping": mock_c_stopping,
                 "state": state,
                 "controller_client": mqtt_mocks["client_instance"],
@@ -416,7 +416,7 @@ class TestRunning:
         c_running(run_mocks["controller_client"], msg, state)
 
         assert state.status == "ready"
-        run_mocks["pe"].incompatible_controller_status.assert_called_once_with(
+        run_mocks["pub_err"].incompatible_controller_status.assert_called_once_with(
             state, msg
         )
         messages = run_mocks["messages"]()
@@ -624,7 +624,7 @@ class TestStopping:
                 return message_bus.get_messages(topic=topic, decoded=True)
 
             yield {
-                "pe": mock_publish_error,
+                "pub_err": mock_publish_error,
                 "c_idle": mock_c_idle,
                 "state": state,
                 "controller_client": mqtt_mocks["client_instance"],
@@ -648,7 +648,7 @@ class TestStopping:
         stop_mocks["validate_message"].assert_called_once_with(msg.topic, msg.payload)
         assert stop_mocks["state"].status == "running"
         assert stop_mocks["controller_client"].callback == c_stopping
-        stop_mocks["pe"].message_validation.assert_called_once_with(err)
+        stop_mocks["pub_err"].message_validation.assert_called_once_with(err)
         messages = stop_mocks["messages"]()
         assert len(messages) == 0
 
@@ -664,7 +664,7 @@ class TestStopping:
         c_stopping(stop_mocks["controller_client"], msg, stop_mocks["state"])
 
         assert stop_mocks["state"].status == "running"
-        stop_mocks["pe"].incompatible_controller_status.assert_called_once_with(
+        stop_mocks["pub_err"].incompatible_controller_status.assert_called_once_with(
             stop_mocks["state"], msg
         )
         messages = stop_mocks["messages"]()
@@ -682,7 +682,7 @@ class TestStopping:
         c_stopping(stop_mocks["controller_client"], msg, stop_mocks["state"])
 
         assert stop_mocks["state"].status == "running"
-        stop_mocks["pe"].incompatible_uid.assert_called_once_with(
+        stop_mocks["pub_err"].incompatible_uid.assert_called_once_with(
             stop_mocks["state"], msg, "456", "controller"
         )
         messages = stop_mocks["messages"]()

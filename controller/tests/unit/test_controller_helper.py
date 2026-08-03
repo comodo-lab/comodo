@@ -233,7 +233,7 @@ class TestDatabaseDump:
             mock_query_csv.return_value = mock_csv_data
             mock_influx.InfluxDBClient.return_value = mock_influx_client
             yield {
-                "pe": mock_publish_error,
+                "pub_err": mock_publish_error,
                 "env_values": env_values,
                 "getenv": mock_getenv,
                 "get_secret": mock_get_secret,
@@ -258,7 +258,7 @@ class TestDatabaseDump:
         dump_mocks["get_secret"].assert_called_once_with(
             "INFLUX_TOKEN", "INFLUX_TOKEN_FILE", None
         )
-        dump_mocks["pe"].database_error.assert_called_once_with(
+        dump_mocks["pub_err"].database_error.assert_called_once_with(
             "Cannot dump influx database. INFLUX_TOKEN not set."
         )
 
@@ -274,7 +274,7 @@ class TestDatabaseDump:
         dump_mocks["get_secret"].assert_called_once_with(
             "INFLUX_TOKEN", "INFLUX_TOKEN_FILE", None
         )
-        dump_mocks["pe"].database_error.assert_called_once_with(
+        dump_mocks["pub_err"].database_error.assert_called_once_with(
             "Could not dump influx database: Database error"
         )
 

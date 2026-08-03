@@ -37,7 +37,7 @@ class TestOnUIMessage:
                 return message_bus.get_messages(topic=topic, decoded=True)
 
             yield {
-                "pe": mock_publish_error,
+                "pub_err": mock_publish_error,
                 "state": state,
                 "ui_client": mqtt_mocks["client_instance"],
                 "validate_message": mqtt_validator_mocks["validate_message"],
@@ -58,7 +58,7 @@ class TestOnUIMessage:
         on_ui_message(ouim_mocks["ui_client"], msg, ouim_mocks["state"])
 
         ouim_mocks["validate_message"].assert_called_once_with("ui/start", b"invalid")
-        ouim_mocks["pe"].message_validation.assert_called_once_with(mqtt_val_err)
+        ouim_mocks["pub_err"].message_validation.assert_called_once_with(mqtt_val_err)
         ouim_mocks["path_exists"].assert_not_called()
         messages = ouim_mocks["messages"]()
         assert len(messages) == 0
@@ -74,7 +74,7 @@ class TestOnUIMessage:
         ouim_mocks["validate_message"].assert_called_once_with(
             "ui/start", json.dumps(payload).encode("utf-8")
         )
-        ouim_mocks["pe"].incompatible_controller_status.assert_called_once_with(
+        ouim_mocks["pub_err"].incompatible_controller_status.assert_called_once_with(
             ouim_mocks["state"], msg
         )
         ouim_mocks["path_exists"].assert_not_called()
@@ -121,7 +121,7 @@ class TestOnUIMessage:
         ouim_mocks["validate_message"].assert_called_once_with(
             "ui/stop", json.dumps({"id": "123"}).encode("utf-8")
         )
-        ouim_mocks["pe"].incompatible_controller_status.assert_called_once_with(
+        ouim_mocks["pub_err"].incompatible_controller_status.assert_called_once_with(
             ouim_mocks["state"], msg
         )
         messages = ouim_mocks["messages"]()
@@ -153,7 +153,7 @@ class TestOnUIMessage:
         ouim_mocks["validate_message"].assert_called_once_with(
             "ui/stop", json.dumps({"id": "123"}).encode("utf-8")
         )
-        ouim_mocks["pe"].incompatible_uid.assert_called_once_with(
+        ouim_mocks["pub_err"].incompatible_uid.assert_called_once_with(
             ouim_mocks["state"],
             msg,
             "123",
@@ -169,7 +169,7 @@ class TestOnUIMessage:
         ouim_mocks["validate_message"].assert_called_once_with(
             "ui/unknown", json.dumps({"id": "123"}).encode("utf-8")
         )
-        ouim_mocks["pe"].incompatible_topic.assert_called_once_with(
+        ouim_mocks["pub_err"].incompatible_topic.assert_called_once_with(
             ouim_mocks["state"], msg
         )
         messages = ouim_mocks["messages"]()

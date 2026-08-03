@@ -48,7 +48,7 @@ class TestOnHeartbeatMessage:
             ) as handle_i_hb,
         ):
             yield {
-                "pe": mock_publish_error,
+                "pub_err": mock_publish_error,
                 "validate_message": mqtt_validator_mocks["validate_message"],
                 "handle_i_hb": handle_i_hb,
                 "state": state,
@@ -65,9 +65,9 @@ class TestOnHeartbeatMessage:
         )
         on_heartbeat_message(heartbeat_client, msg, state)
 
-        on_heartbeat_message_mocks["pe"].incompatible_topic.assert_called_once_with(
-            state, msg, "heartbeat_callback"
-        )
+        on_heartbeat_message_mocks[
+            "pub_err"
+        ].incompatible_topic.assert_called_once_with(state, msg, "heartbeat_callback")
         on_heartbeat_message_mocks["validate_message"].assert_not_called()
 
     def test_wrong_json(self, on_heartbeat_message_mocks):
@@ -79,12 +79,12 @@ class TestOnHeartbeatMessage:
         )
         on_heartbeat_message(heartbeat_client, msg, state)
 
-        on_heartbeat_message_mocks["pe"].incompatible_topic.assert_not_called()
+        on_heartbeat_message_mocks["pub_err"].incompatible_topic.assert_not_called()
         on_heartbeat_message_mocks["validate_message"].assert_called_once_with(
             msg.topic, msg.payload
         )
         on_heartbeat_message_mocks[
-            "pe"
+            "pub_err"
         ].heartbeat_validation_error.assert_called_once_with(msg, err)
 
     def test_hb_ignored_if_pre_awaiting_instruments(self, on_heartbeat_message_mocks):
@@ -101,13 +101,15 @@ class TestOnHeartbeatMessage:
             )
             on_heartbeat_message(heartbeat_client, msg, state)
 
-            on_heartbeat_message_mocks["pe"].incompatible_topic.assert_not_called()
+            on_heartbeat_message_mocks["pub_err"].incompatible_topic.assert_not_called()
             vm_calls.append(call(msg.topic, msg.payload))
             on_heartbeat_message_mocks["handle_i_hb"].assert_not_called()
             on_heartbeat_message_mocks[
-                "pe"
+                "pub_err"
             ].heartbeat_validation_error.assert_not_called()
-            on_heartbeat_message_mocks["pe"].unconfigured_instrument.assert_not_called()
+            on_heartbeat_message_mocks[
+                "pub_err"
+            ].unconfigured_instrument.assert_not_called()
         assert on_heartbeat_message_mocks["validate_message"].call_args_list == vm_calls
 
     def test_unconfigured_instrument(self, on_heartbeat_message_mocks):
@@ -129,14 +131,16 @@ class TestOnHeartbeatMessage:
         )
         on_heartbeat_message(heartbeat_client, msg, state)
 
-        on_heartbeat_message_mocks["pe"].incompatible_topic.assert_not_called()
+        on_heartbeat_message_mocks["pub_err"].incompatible_topic.assert_not_called()
         on_heartbeat_message_mocks["validate_message"].assert_called_once_with(
             msg.topic, msg.payload
         )
-        on_heartbeat_message_mocks["pe"].heartbeat_validation_error.assert_not_called()
+        on_heartbeat_message_mocks[
+            "pub_err"
+        ].heartbeat_validation_error.assert_not_called()
         on_heartbeat_message_mocks["handle_i_hb"].assert_not_called()
         on_heartbeat_message_mocks[
-            "pe"
+            "pub_err"
         ].unconfigured_instrument.assert_called_once_with(
             msg, "unconfigured_instrument"
         )
@@ -159,12 +163,16 @@ class TestOnHeartbeatMessage:
         )
         on_heartbeat_message(heartbeat_client, msg, state)
 
-        on_heartbeat_message_mocks["pe"].incompatible_topic.assert_not_called()
+        on_heartbeat_message_mocks["pub_err"].incompatible_topic.assert_not_called()
         on_heartbeat_message_mocks["validate_message"].assert_called_once_with(
             msg.topic, msg.payload
         )
-        on_heartbeat_message_mocks["pe"].heartbeat_validation_error.assert_not_called()
-        on_heartbeat_message_mocks["pe"].unconfigured_instrument.assert_not_called()
+        on_heartbeat_message_mocks[
+            "pub_err"
+        ].heartbeat_validation_error.assert_not_called()
+        on_heartbeat_message_mocks[
+            "pub_err"
+        ].unconfigured_instrument.assert_not_called()
         on_heartbeat_message_mocks["handle_i_hb"].assert_called_once_with(
             state, msg_payload, "furnace"
         )
@@ -354,7 +362,7 @@ class TestHeartbeatValid:
                 return message_bus.get_messages(topic=topic, decoded=True)
 
             yield {
-                "pe": mock_publish_error,
+                "pub_err": mock_publish_error,
                 "state": state,
                 "expected_hb_config": expected_hb_config,
                 "messages": get_decoded_bus_messages,
@@ -374,7 +382,7 @@ class TestHeartbeatValid:
         res = heartbeat_valid(state, heartbeat, "furnace")
         assert res == False
 
-        hb_valid_mocks["pe"].invalid_instrument_config.assert_called_once_with(
+        hb_valid_mocks["pub_err"].invalid_instrument_config.assert_called_once_with(
             "furnace",
             hb_valid_mocks["expected_hb_config"],
             heartbeat["config"],
