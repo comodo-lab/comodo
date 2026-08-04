@@ -5,7 +5,7 @@ import os
 import csv
 from datetime import datetime
 
-import src.publish_error as pe
+import src.publish_error as pub_err
 
 
 def get_env_or_secret(env_var, secret=None, default=None):
@@ -63,7 +63,7 @@ def dump_database_for_experiment(obj):
     influx_org = os.getenv("INFLUX_ORG", "comodo")
     influx_token = get_env_or_secret("INFLUX_TOKEN", "INFLUX_TOKEN_FILE", None)
     if influx_token is None:
-        pe.database_error(f"Cannot dump influx database. INFLUX_TOKEN not set.")
+        pub_err.database_error(f"Cannot dump influx database. INFLUX_TOKEN not set.")
         return
 
     t0 = obj.experiment_start_time
@@ -92,4 +92,4 @@ def dump_database_for_experiment(obj):
             f"  Influx database for experiment {obj.experiment_uid} saved at {exp_dir_path}."
         )
     except Exception as e:
-        pe.database_error(f"Could not dump influx database: {e}")
+        pub_err.database_error(f"Could not dump influx database: {e}")

@@ -11,9 +11,11 @@ from utils.mqtt_validator import (
     check_payload_json_validity,
     check_topic_expected,
     check_message_valid,
+    print_and_publish_error,
     MQTTValidationException,
 )
 from utils.tests.mocks.mock_topic_map import mock_topic_map
+from utils.tests.mocks.mock_mqtt_clients import message_bus, mqtt_mocks
 
 
 class TestMatchTopic:
@@ -316,3 +318,22 @@ class TestCheckMessageValid:
         }
         result = check_message_valid(entry, loaded_payload)
         assert result is None
+
+
+class TestPrintAndPublishError:
+
+    def test_print_and_publish_error(self, message_bus, mqtt_mocks, capsys):
+        print_and_publish_error(
+            "error/topic", MQTTValidationException("Test error message")
+        )
+
+        messages = message_bus.get_messages()
+        assert len(messages) == 1
+        assert messages[0].topic == "error/topic"
+        assert json.loads(messages[0].payload) == {
+            "code": "message_validation",
+            "message": "Test error message",
+        }
+
+        captured = capsys.readouterr()
+        assert "ERROR: Test error message" in captured.out

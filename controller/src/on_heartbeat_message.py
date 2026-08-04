@@ -2,9 +2,9 @@ import json
 import time as t
 
 from utils import mqtt_clients as mqtt
-from utils.mqtt_validator import validate_message, MQTTValidationException
+import utils.mqtt_validator as mqtt_val
 
-import src.publish_error as pe
+import src.publish_error as pub_err
 
 
 def on_heartbeat_message(client, msg, obj):
@@ -13,13 +13,13 @@ def on_heartbeat_message(client, msg, obj):
     It expects a message compliant with the spec schema for that channel.
     """
     if "instruments" not in (msg.topic) or "heartbeat" not in msg.topic:
-        pe.incompatible_topic(obj, msg, "heartbeat_callback")
+        pub_err.incompatible_topic(obj, msg, "heartbeat_callback")
         return
 
     try:
-        validate_message(msg.topic, msg.payload)
-    except MQTTValidationException as e:
-        pe.heartbeat_validation_error(msg, e)
+        message = mqtt_val.validate_message(msg.topic, msg.payload)
+    except mqtt_val.MQTTValidationException as e:
+        pub_err.heartbeat_validation_error(msg, e)
         return
 
     if obj.status in ["idle", "validating", "starting"]:
@@ -27,11 +27,10 @@ def on_heartbeat_message(client, msg, obj):
         return
 
     instrument_name = msg.topic.split("/")[1]
-    payload = json.loads(msg.payload)
     if instrument_name in obj.instrument_states.keys():
-        handle_instrument_heartbeat(obj, payload, instrument_name)
+        handle_instrument_heartbeat(obj, message, instrument_name)
     else:
-        pe.unconfigured_instrument(msg, instrument_name)
+        pub_err.unconfigured_instrument(msg, instrument_name)
         return
 
 
@@ -67,7 +66,9 @@ def heartbeat_valid(obj, heartbeat, instrument_name):
     expected = obj.config.get_expected_heartbeat(instrument_name)
 
     if heartbeat["config"] != expected:
-        pe.invalid_instrument_config(instrument_name, expected, heartbeat["config"])
+        pub_err.invalid_instrument_config(
+            instrument_name, expected, heartbeat["config"]
+        )
         print("Stopping experiment...")
         mqtt.MQTTPublisher.get_instance().publish(
             "controller/command/stop", json.dumps({"id": obj.experiment_uid})

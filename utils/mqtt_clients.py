@@ -249,17 +249,6 @@ class MQTTClient:
             pass
 
 
-def load_message(msg):
-    """
-    Decodes and loads the message received from the MQTT client as a JSON object.
-    Exceptions need to be caught when calling this function.
-    """
-    try:
-        return json.loads(msg.payload.decode("utf-8"))
-    except Exception as e:
-        raise MQTTMessageError(f"Error loading message as JSON: {e}")
-
-
 class MQTTPublisher:
     """
     A thread-safe singleton class for publishing MQTT messages.

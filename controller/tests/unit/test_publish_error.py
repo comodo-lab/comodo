@@ -9,7 +9,7 @@ from tests.conftest import (
     mock_state,
 )
 
-import src.publish_error as pe
+import src.publish_error as pub_err
 from src.validation import ExperimentValidationError
 from utils.mqtt_validator import MQTTValidationException
 
@@ -20,7 +20,7 @@ class TestPrintAndPublish:
         code = "test_code"
         message = "This is a test error message."
 
-        pe.print_and_publish(topic, code, message)
+        pub_err.print_and_publish(topic, code, message)
 
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 1
@@ -39,7 +39,7 @@ class TestPrintAndPublish:
         message = "This is a test error message."
         type = "WARNING"
 
-        pe.print_and_publish(topic, code, message, type=type)
+        pub_err.print_and_publish(topic, code, message, type=type)
 
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 1
@@ -56,7 +56,10 @@ class TestPrintAndPublish:
 class TestPublishError:
     @pytest.fixture
     def pe_mocks(self, mock_state):
-        with patch("src.publish_error.print_and_publish") as mock_pap:
+        with (
+            patch("src.publish_error.print_and_publish") as mock_pap,
+            patch("utils.mqtt_validator.print_and_publish_error") as mock_pap_error,
+        ):
             mock_cstate = mock_state("end")
             mock_msg = MockMessage(
                 topic="controller/command/run",
@@ -65,6 +68,7 @@ class TestPublishError:
 
             yield {
                 "print_and_publish": mock_pap,
+                "print_and_publish_error": mock_pap_error,
                 "cstate": mock_cstate,
                 "msg": mock_msg,
             }
@@ -72,29 +76,17 @@ class TestPublishError:
     def test_message_validation(self, pe_mocks):
         exp_err = "Invalid message format."
 
-        pe.message_validation(MQTTValidationException(exp_err))
+        pub_err.message_validation(MQTTValidationException(exp_err))
 
-        pe_mocks["print_and_publish"].assert_called_once_with(
+        pe_mocks["print_and_publish_error"].assert_called_once_with(
             topic="error/controller",
-            code="message_validation",
-            message=exp_err,
-        )
-
-    def test_wrong_json(self, pe_mocks):
-        exp_err = f"Cannot decode {pe_mocks['msg'].topic} message, wrong JSON: \n   Invalid JSON: line 1 column 1 (char 0)"
-
-        pe.wrong_json(pe_mocks["msg"], json.JSONDecodeError("Invalid JSON", "", 0))
-
-        pe_mocks["print_and_publish"].assert_called_once_with(
-            topic="error/controller",
-            code="malformed_json",
             message=exp_err,
         )
 
     def test_missing_keys(self, pe_mocks):
         exp_err = f"Cannot decode {pe_mocks['msg'].topic} message, missing: \n   'id'"
 
-        pe.missing_keys(pe_mocks["msg"], KeyError("id"))
+        pub_err.missing_keys(pe_mocks["msg"], KeyError("id"))
 
         pe_mocks["print_and_publish"].assert_called_once_with(
             topic="error/controller",
@@ -105,7 +97,7 @@ class TestPublishError:
     def test_missing_keys(self, pe_mocks):
         exp_err = f"Cannot decode {pe_mocks['msg'].topic} message, missing: \n   'id'"
 
-        pe.missing_keys(pe_mocks["msg"], KeyError("id"))
+        pub_err.missing_keys(pe_mocks["msg"], KeyError("id"))
 
         pe_mocks["print_and_publish"].assert_called_once_with(
             topic="error/controller",
@@ -116,7 +108,7 @@ class TestPublishError:
     def test_incompatible_controller_status(self, pe_mocks):
         exp_err = f"Controller status is {pe_mocks['cstate'].status}. Cannot act on {pe_mocks['msg'].topic}."
 
-        pe.incompatible_controller_status(pe_mocks["cstate"], pe_mocks["msg"])
+        pub_err.incompatible_controller_status(pe_mocks["cstate"], pe_mocks["msg"])
 
         pe_mocks["print_and_publish"].assert_called_once_with(
             topic="error/controller",
@@ -127,7 +119,7 @@ class TestPublishError:
     def test_incompatible_topic(self, pe_mocks):
         exp_err = f"The test caller cannot act on {pe_mocks['msg'].topic}."
 
-        pe.incompatible_topic(pe_mocks["cstate"], pe_mocks["msg"], "test_caller")
+        pub_err.incompatible_topic(pe_mocks["cstate"], pe_mocks["msg"], "test_caller")
 
         pe_mocks["print_and_publish"].assert_called_once_with(
             topic="error/test_caller",
@@ -138,7 +130,9 @@ class TestPublishError:
     def test_incompatible_uid(self, pe_mocks):
         exp_err = f"Current experiment is {pe_mocks['cstate'].experiment_uid}. Test caller cannot act on {pe_mocks['msg'].topic} for experiment 567."
 
-        pe.incompatible_uid(pe_mocks["cstate"], pe_mocks["msg"], 567, "test_caller")
+        pub_err.incompatible_uid(
+            pe_mocks["cstate"], pe_mocks["msg"], 567, "test_caller"
+        )
 
         pe_mocks["print_and_publish"].assert_called_once_with(
             topic="error/test_caller",
@@ -150,7 +144,7 @@ class TestPublishError:
         eve = ExperimentValidationError("Invalid experiment configuration.")
         exp_err = f"Validation failed for UID:test_uid. Error detials: ExperimentValidationError: Invalid experiment configuration."
 
-        pe.experiment_validation_error(eve, "test_uid")
+        pub_err.experiment_validation_error(eve, "test_uid")
 
         pe_mocks["print_and_publish"].assert_called_once_with(
             topic="error/validator",
@@ -163,7 +157,7 @@ class TestPublishError:
         msg = MockMessage(topic="ins/test_inst/hb", payload=json.dumps({"bad": "info"}))
         exp_err = 'Invalid heartbeat from test_inst: {"bad": "info"}. Invalid heartbeat format.'
 
-        pe.heartbeat_validation_error(msg, mqttve)
+        pub_err.heartbeat_validation_error(msg, mqttve)
 
         pe_mocks["print_and_publish"].assert_called_once_with(
             topic="error/heartbeat",
@@ -175,7 +169,7 @@ class TestPublishError:
         msg = MockMessage(topic="ins/test_inst/hb", payload=json.dumps({"bad": "info"}))
         exp_err = 'Instrument test_inst is not configured. Unexpected heartbeat message:\n    ins/test_inst/hb  {"bad": "info"}'
 
-        pe.unconfigured_instrument(msg, "test_inst")
+        pub_err.unconfigured_instrument(msg, "test_inst")
 
         pe_mocks["print_and_publish"].assert_called_once_with(
             topic="error/heartbeat",
@@ -187,7 +181,7 @@ class TestPublishError:
     def test_controller_timeout(self, pe_mocks):
         exp_err = "Timed out waiting for instruments."
 
-        pe.controller_timeout("test_uid", "instruments")
+        pub_err.controller_timeout("test_uid", "instruments")
 
         pe_mocks["print_and_publish"].assert_called_once_with(
             topic="error/controller",
@@ -198,7 +192,7 @@ class TestPublishError:
     def test_controller_state_incompatible_with_timer(self, pe_mocks):
         exp_err = "Timer for instrument_setup exited unexpectedly. The controller state was found to be running instead of awaiting_instruments."
 
-        pe.controller_state_incompatible_with_timer(
+        pub_err.controller_state_incompatible_with_timer(
             "test_uid", "instrument_setup", "awaiting_instruments", "running"
         )
 
@@ -211,7 +205,7 @@ class TestPublishError:
     def test_invalid_instrument_config(self, pe_mocks):
         exp_err = "Instrument 'test_inst' misconfigured. Expected: {'key': 'value'}; Received: {'key': 'wrong_value'}."
 
-        pe.invalid_instrument_config(
+        pub_err.invalid_instrument_config(
             "test_inst", {"key": "value"}, {"key": "wrong_value"}
         )
 
@@ -224,7 +218,7 @@ class TestPublishError:
     def test_database_error(self, pe_mocks):
         exp_err = "Could not dump influx database: ConnectionError"
 
-        pe.database_error("Could not dump influx database: ConnectionError")
+        pub_err.database_error("Could not dump influx database: ConnectionError")
 
         pe_mocks["print_and_publish"].assert_called_once_with(
             topic="error/controller",

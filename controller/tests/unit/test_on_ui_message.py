@@ -16,17 +16,15 @@ from utils.mqtt_validator import MQTTValidationException
 class TestOnUIMessage:
 
     @pytest.fixture
-    def ouim_mocks(self, message_bus, mqtt_mocks, mock_state):
+    def ouim_mocks(self, message_bus, mqtt_mocks, mqtt_validator_mocks, mock_state):
         with (
-            patch("src.on_ui_message.pe") as mock_publish_error,
+            patch("src.on_ui_message.pub_err") as mock_publish_error,
             patch("src.on_ui_message.data_path", new="test_data"),
-            patch("src.on_ui_message.validate_message") as mock_validate_message,
             patch("os.path.exists", return_value=False) as mock_path_exists,
             patch("os.makedirs", return_value=True) as mock_makedirs,
             patch("builtins.open", create=True) as mock_open,
             patch("src.on_ui_message.json.dump") as mock_json_dump,
         ):
-            mock_validate_message.return_value = {"id": "123"}
             state = mock_state("idle")
 
             mqtt_mocks["client_class"](
@@ -39,10 +37,10 @@ class TestOnUIMessage:
                 return message_bus.get_messages(topic=topic, decoded=True)
 
             yield {
-                "pe": mock_publish_error,
+                "pub_err": mock_publish_error,
                 "state": state,
                 "ui_client": mqtt_mocks["client_instance"],
-                "validate_message": mock_validate_message,
+                "validate_message": mqtt_validator_mocks["validate_message"],
                 "path_exists": mock_path_exists,
                 "makedirs": mock_makedirs,
                 "open": mock_open,
@@ -60,7 +58,7 @@ class TestOnUIMessage:
         on_ui_message(ouim_mocks["ui_client"], msg, ouim_mocks["state"])
 
         ouim_mocks["validate_message"].assert_called_once_with("ui/start", b"invalid")
-        ouim_mocks["pe"].message_validation.assert_called_once_with(mqtt_val_err)
+        ouim_mocks["pub_err"].message_validation.assert_called_once_with(mqtt_val_err)
         ouim_mocks["path_exists"].assert_not_called()
         messages = ouim_mocks["messages"]()
         assert len(messages) == 0
@@ -76,7 +74,7 @@ class TestOnUIMessage:
         ouim_mocks["validate_message"].assert_called_once_with(
             "ui/start", json.dumps(payload).encode("utf-8")
         )
-        ouim_mocks["pe"].incompatible_controller_status.assert_called_once_with(
+        ouim_mocks["pub_err"].incompatible_controller_status.assert_called_once_with(
             ouim_mocks["state"], msg
         )
         ouim_mocks["path_exists"].assert_not_called()
@@ -123,7 +121,7 @@ class TestOnUIMessage:
         ouim_mocks["validate_message"].assert_called_once_with(
             "ui/stop", json.dumps({"id": "123"}).encode("utf-8")
         )
-        ouim_mocks["pe"].incompatible_controller_status.assert_called_once_with(
+        ouim_mocks["pub_err"].incompatible_controller_status.assert_called_once_with(
             ouim_mocks["state"], msg
         )
         messages = ouim_mocks["messages"]()
@@ -155,7 +153,7 @@ class TestOnUIMessage:
         ouim_mocks["validate_message"].assert_called_once_with(
             "ui/stop", json.dumps({"id": "123"}).encode("utf-8")
         )
-        ouim_mocks["pe"].incompatible_uid.assert_called_once_with(
+        ouim_mocks["pub_err"].incompatible_uid.assert_called_once_with(
             ouim_mocks["state"],
             msg,
             "123",
@@ -171,7 +169,7 @@ class TestOnUIMessage:
         ouim_mocks["validate_message"].assert_called_once_with(
             "ui/unknown", json.dumps({"id": "123"}).encode("utf-8")
         )
-        ouim_mocks["pe"].incompatible_topic.assert_called_once_with(
+        ouim_mocks["pub_err"].incompatible_topic.assert_called_once_with(
             ouim_mocks["state"], msg
         )
         messages = ouim_mocks["messages"]()

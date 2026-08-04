@@ -1,12 +1,11 @@
 import os
 import json
-from jsonschema import ValidationError
 
 from utils import mqtt_clients as mqtt
-from utils.mqtt_validator import validate_message, MQTTValidationException
+import utils.mqtt_validator as mqtt_val
 
 from src.controller_helper import data_path
-import src.publish_error as pe
+import src.publish_error as pub_err
 
 
 def on_ui_message(client, msg, obj):
@@ -30,9 +29,9 @@ def on_ui_message(client, msg, obj):
     """
 
     try:
-        experiment = validate_message(msg.topic, msg.payload)
-    except MQTTValidationException as e:
-        pe.message_validation(e)
+        experiment = mqtt_val.validate_message(msg.topic, msg.payload)
+    except mqtt_val.MQTTValidationException as e:
+        pub_err.message_validation(e)
         return
 
     if msg.topic == "ui/start":
@@ -49,7 +48,7 @@ def on_ui_message(client, msg, obj):
                 json.dumps({"id": experiment["id"], "file": exp_file}),
             )
         else:
-            pe.incompatible_controller_status(obj, msg)
+            pub_err.incompatible_controller_status(obj, msg)
     elif msg.topic == "ui/stop":
         if obj.status != "idle":
             if experiment["id"] == obj.experiment_uid:
@@ -59,8 +58,8 @@ def on_ui_message(client, msg, obj):
                     json.dumps({"id": experiment["id"]}),
                 )
             else:
-                pe.incompatible_uid(obj, msg, experiment["id"], "controller")
+                pub_err.incompatible_uid(obj, msg, experiment["id"], "controller")
         else:
-            pe.incompatible_controller_status(obj, msg)
+            pub_err.incompatible_controller_status(obj, msg)
     else:
-        pe.incompatible_topic(obj, msg)
+        pub_err.incompatible_topic(obj, msg)

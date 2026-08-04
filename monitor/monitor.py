@@ -8,17 +8,17 @@ from jsonschema import ValidationError
 
 # Shared utils imports
 from utils import mqtt_clients as mqtt
-from utils.mqtt_validator import validate_message, MQTTValidationException
+import utils.mqtt_validator as mqtt_val
 
 
 def on_message(client, msg, obj):
     try:
-        validate_message(
+        mqtt_val.validate_message(
             topic=msg.topic,
             payload=msg.payload,
             combine_exceptions=False,
         )
-    except MQTTValidationException as e:
+    except mqtt_val.MQTTValidationException as e:
         mqtt.MQTTPublisher.get_instance().publish(
             "error/message",
             json.dumps(

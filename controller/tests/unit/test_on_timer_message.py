@@ -10,15 +10,16 @@ from tests.conftest import (
 )
 
 from src.on_timer_message import on_timer_message
+from utils.mqtt_validator import MQTTValidationException
 
 
 class TestOnTimerMessage:
 
     @pytest.fixture
-    def ouim_mocks(self, message_bus, mqtt_mocks, mock_state):
+    def ouim_mocks(self, message_bus, mqtt_mocks, mqtt_validator_mocks, mock_state):
         with (
             patch("src.on_ui_message.data_path", new="test_data"),
-            patch("src.on_timer_message.pe") as mock_publish_error,
+            patch("src.on_timer_message.pub_err") as mock_publish_error,
         ):
             state = mock_state("awaiting_instruments")
 
@@ -32,7 +33,8 @@ class TestOnTimerMessage:
                 return message_bus.get_messages(topic=topic, decoded=True)
 
             yield {
-                "pe": mock_publish_error,
+                "pub_err": mock_publish_error,
+                "validate_message": mqtt_validator_mocks["validate_message"],
                 "state": state,
                 "timer_client": mqtt_mocks["client_instance"],
                 "messages": get_decoded_bus_messages,
@@ -40,14 +42,18 @@ class TestOnTimerMessage:
 
     # ========================================
 
-    def test_wrong_json(self, ouim_mocks):
+    def test_invalid_message(self, ouim_mocks, capsys):
+        err = MQTTValidationException("Invalid JSON")
+        ouim_mocks["validate_message"].side_effect = err
+
         msg = MockMessage(
             topic="controller/timer/command/start",
             payload="not a json",
         )
         on_timer_message(ouim_mocks["timer_client"], msg, ouim_mocks["state"])
 
-        ouim_mocks["pe"].wrong_json.assert_called_once()
+        ouim_mocks["validate_message"].assert_called_once_with(msg.topic, msg.payload)
+        ouim_mocks["pub_err"].message_validation.assert_called_once_with(err)
         messages = ouim_mocks["messages"]()
         assert len(messages) == 0
 
@@ -58,7 +64,7 @@ class TestOnTimerMessage:
         )
         on_timer_message(ouim_mocks["timer_client"], msg, ouim_mocks["state"])
 
-        ouim_mocks["pe"].missing_keys.assert_called_once()
+        ouim_mocks["pub_err"].missing_keys.assert_called_once()
         messages = ouim_mocks["messages"]()
         assert len(messages) == 0
 
@@ -71,7 +77,7 @@ class TestOnTimerMessage:
         )
         on_timer_message(ouim_mocks["timer_client"], msg, ouim_mocks["state"])
 
-        ouim_mocks["pe"].incompatible_uid.assert_called_once_with(
+        ouim_mocks["pub_err"].incompatible_uid.assert_called_once_with(
             ouim_mocks["state"], msg, "999", "controller_timer"
         )
         messages = ouim_mocks["messages"]()
@@ -86,7 +92,7 @@ class TestOnTimerMessage:
         )
         on_timer_message(ouim_mocks["timer_client"], msg, ouim_mocks["state"])
 
-        ouim_mocks["pe"].incompatible_topic.assert_called_once_with(
+        ouim_mocks["pub_err"].incompatible_topic.assert_called_once_with(
             ouim_mocks["state"], msg, "controller_timer"
         )
         messages = ouim_mocks["messages"]()
@@ -104,7 +110,7 @@ class TestOnTimerMessage:
         )
         on_timer_message(ouim_mocks["timer_client"], msg, ouim_mocks["state"])
 
-        ouim_mocks["pe"].missing_keys.assert_called_once()
+        ouim_mocks["pub_err"].missing_keys.assert_called_once()
         assert "Stopping experiment..." in capsys.readouterr().out
         messages = ouim_mocks["messages"]()
         assert len(messages) == 1
@@ -127,7 +133,7 @@ class TestOnTimerMessage:
             on_timer_message(ouim_mocks["timer_client"], msg, ouim_mocks["state"])
 
         messages = ouim_mocks["messages"]()
-        ouim_mocks["pe"].controller_timeout.assert_called_once_with(
+        ouim_mocks["pub_err"].controller_timeout.assert_called_once_with(
             "123", "instruments"
         )
         assert "Stopping experiment..." in capsys.readouterr().out
@@ -236,7 +242,7 @@ class TestOnTimerMessage:
         )
         on_timer_message(ouim_mocks["timer_client"], msg, ouim_mocks["state"])
 
-        ouim_mocks["pe"].missing_keys.assert_called_once()
+        ouim_mocks["pub_err"].missing_keys.assert_called_once()
         messages = ouim_mocks["messages"]()
         assert len(messages) == 0
 
@@ -253,7 +259,7 @@ class TestOnTimerMessage:
         on_timer_message(ouim_mocks["timer_client"], msg, ouim_mocks["state"])
 
         ouim_mocks[
-            "pe"
+            "pub_err"
         ].controller_state_incompatible_with_timer.assert_called_once_with(
             "123", "setpoint", "running", "ready"
         )

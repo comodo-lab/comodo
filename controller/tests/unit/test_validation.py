@@ -120,11 +120,10 @@ class TestGenerateRowSchema:
 class TestValidateExperiment:
 
     @pytest.fixture(autouse=True)
-    def ve_mocks(self):
+    def ve_mocks(self, mqtt_validator_mocks):
         with (
             patch("builtins.open") as mock_open,
             patch("src.validation.generate_row_schema") as mock_gen,
-            patch("src.validation.validate_message") as mock_val,
             patch("src.validation.jsonschema.validate") as mock_json_validate,
         ):
             valid_experiment_json = json.dumps(
@@ -149,14 +148,13 @@ class TestValidateExperiment:
                 valid_experiment_json
             )
             mock_gen.return_value = None
-            mock_val.return_value = None
             mock_config = MagicMock()
 
             yield {
                 "experiment": valid_experiment_json,
                 "open": mock_open,
                 "generate_row_schema": mock_gen,
-                "validate_message": mock_val,
+                "validate_message": mqtt_validator_mocks["validate_message"],
                 "json_validate": mock_json_validate,
                 "config": mock_config,
             }

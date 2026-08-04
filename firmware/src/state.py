@@ -1,6 +1,7 @@
 import sys
 import json
 import utils.mqtt_clients as mqtt
+from utils import mqtt_validator as mqtt_val
 
 
 class InstrumentState(object):
@@ -100,7 +101,7 @@ class InstrumentState(object):
         _, _, variable, _ = msg.topic.split("/")
 
         # Parse incoming setpoint
-        params = mqtt.load_message(msg)
+        params = mqtt_val.validate_message(msg.topic, msg.payload)
         setpoint = params.get("value")
 
         # Check setpoint validity and store

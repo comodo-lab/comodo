@@ -15,7 +15,7 @@ class TestOnWatchdogTimerMessage:
 
     @pytest.fixture
     def owdtm_mocks(self, message_bus, mqtt_mocks):
-        with patch("src.on_watchdog_timer_message.pe") as mock_publish_error:
+        with patch("src.on_watchdog_timer_message.pub_err") as mock_publish_error:
             wd_state = {
                 "interval": 0.02,
                 "timeout": 0.1,
@@ -32,7 +32,7 @@ class TestOnWatchdogTimerMessage:
                 return message_bus.get_messages(topic=topic, decoded=True)
 
             yield {
-                "pe": mock_publish_error,
+                "pub_err": mock_publish_error,
                 "wd_state": wd_state,
                 "wdt_client": mqtt_mocks["client_instance"],
                 "messages": get_decoded_bus_messages,
@@ -45,7 +45,7 @@ class TestOnWatchdogTimerMessage:
 
         on_wd_timer_message(owdtm_mocks["wdt_client"], msg, owdtm_mocks["wd_state"])
 
-        owdtm_mocks["pe"].incompatible_topic.assert_called_once_with(
+        owdtm_mocks["pub_err"].incompatible_topic.assert_called_once_with(
             owdtm_mocks["wd_state"], msg, "watchdog_timer"
         )
 
@@ -55,7 +55,7 @@ class TestOnWatchdogTimerMessage:
 
         on_wd_timer_message(owdtm_mocks["wdt_client"], msg, owdtm_mocks["wd_state"])
 
-        owdtm_mocks["pe"].missing_keys.assert_called_once()
+        owdtm_mocks["pub_err"].missing_keys.assert_called_once()
         messages = owdtm_mocks["messages"]()
         assert len(messages) == 0
 

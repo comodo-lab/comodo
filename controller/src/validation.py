@@ -1,7 +1,7 @@
 import json
 import jsonschema
 
-from utils.mqtt_validator import validate_message, MQTTValidationException
+import utils.mqtt_validator as mqtt_val
 
 
 class ExperimentValidationError(Exception):
@@ -61,8 +61,8 @@ def validate_experiment(file_path, config):
     # Perform structural validation (is message the right shape)
 
     try:
-        validate_message("ui/start", experiment_json)
-    except MQTTValidationException as e:
+        mqtt_val.validate_message("ui/start", experiment_json)
+    except mqtt_val.MQTTValidationException as e:
         raise ExperimentValidationError(f"Experiment validation failed: {e}")
 
     # --------------------------------------------------------------------------
