@@ -75,7 +75,5 @@ services:
       mqtt-probe-core:
         condition: service_healthy
     restart: unless-stopped
-    volumes:
-      - ./schemas/mqtt_schema.yaml:/app/schemas/mqtt_schema.yaml
     environment:
       <<: [ *mqtt-env ]

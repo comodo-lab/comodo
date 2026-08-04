@@ -1,18 +1,11 @@
 import os
 import json
-from jsonschema import ValidationError
 
 from utils import mqtt_clients as mqtt
-from utils.mqtt_validator import validate_message, MQTTValidationException
+import utils.mqtt_validator as mqtt_val
 
 from src.controller_helper import data_path
-from src.error_helper import (
-    incompatible_controller_status,
-    wrong_json,
-    missing_keys,
-    incompatible_uid,
-    experiment_validation_error,
-)
+import src.publish_error as pub_err
 
 
 def on_ui_message(client, msg, obj):
@@ -36,45 +29,37 @@ def on_ui_message(client, msg, obj):
     """
 
     try:
-        experiment = mqtt.load_message(msg)
-        uid = experiment["id"]
-    except json.JSONDecodeError as e:
-        wrong_json(msg, e)
-        return
-    except KeyError as e:
-        missing_keys(msg, e)
+        experiment = mqtt_val.validate_message(msg.topic, msg.payload)
+    except mqtt_val.MQTTValidationException as e:
+        pub_err.message_validation(e)
         return
 
     if msg.topic == "ui/start":
-        try:
-            validate_message(msg.topic, msg.payload)
-        except MQTTValidationException as e:
-            experiment_validation_error(e, uid)
-            return
-
-    if obj.status == "idle":
-        if msg.topic == "ui/start":
+        if obj.status == "idle":
             if not os.path.exists(f"{data_path}/tmp"):
                 os.makedirs(f"{data_path}/tmp")
 
-            exp_file = f"{data_path}/tmp/experiment_{uid}.json"
+            exp_file = f"{data_path}/tmp/experiment_{experiment['id']}.json"
             with open(exp_file, "w") as f:
                 json.dump(experiment, f)
 
             mqtt.MQTTPublisher.get_instance().publish(
                 "controller/command/validate",
-                json.dumps({"id": uid, "file": exp_file}),
+                json.dumps({"id": experiment["id"], "file": exp_file}),
             )
         else:
-            incompatible_controller_status(obj, msg)
-    else:
-        if msg.topic == "ui/stop":
-            if uid == obj.experiment_uid:
+            pub_err.incompatible_controller_status(obj, msg)
+    elif msg.topic == "ui/stop":
+        if obj.status != "idle":
+            if experiment["id"] == obj.experiment_uid:
+                print("Stopping experiment...")
                 mqtt.MQTTPublisher.get_instance().publish(
                     "controller/command/stop",
-                    json.dumps({"id": uid}),
+                    json.dumps({"id": experiment["id"]}),
                 )
             else:
-                incompatible_uid(obj, msg, uid, "controller")
+                pub_err.incompatible_uid(obj, msg, experiment["id"], "controller")
         else:
-            incompatible_controller_status(obj, msg)
+            pub_err.incompatible_controller_status(obj, msg)
+    else:
+        pub_err.incompatible_topic(obj, msg)

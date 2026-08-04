@@ -119,9 +119,10 @@ class TestAssignSerialID:
         assert state.exp_file == None
         current_year = str(datetime.now().year)[-2:]
 
-        with patch("os.listdir", return_value=[]) as mock_listdir, patch(
-            "os.rename"
-        ) as mock_rename:
+        with (
+            patch("os.listdir", return_value=[]) as mock_listdir,
+            patch("os.rename") as mock_rename,
+        ):
             assign_serial_id(state)
 
             assert mock_listdir.called
@@ -200,15 +201,16 @@ class TestDatabaseDump:
 
     @pytest.fixture(autouse=True)
     def dump_mocks(self):
-        with patch("os.getenv") as mock_getenv, patch(
-            "src.controller_helper.get_env_or_secret", return_value=None
-        ) as mock_get_secret, patch(
-            "src.controller_helper.influxdb_client"
-        ) as mock_influx, patch(
-            "os.path.exists"
-        ) as mock_path_exists, patch(
-            "os.makedirs"
-        ) as mock_makedirs:
+        with (
+            patch("os.getenv") as mock_getenv,
+            patch(
+                "src.controller_helper.get_env_or_secret", return_value=None
+            ) as mock_get_secret,
+            patch("src.controller_helper.influxdb_client") as mock_influx,
+            patch("os.path.exists") as mock_path_exists,
+            patch("os.makedirs") as mock_makedirs,
+            patch("src.controller_helper.pub_err") as mock_publish_error,
+        ):
             env_values = {
                 "INFLUX_BUCKET": "bucket1,bucket2,bucket3",
                 "INFLUX_HOST": "localhost",
@@ -231,6 +233,7 @@ class TestDatabaseDump:
             mock_query_csv.return_value = mock_csv_data
             mock_influx.InfluxDBClient.return_value = mock_influx_client
             yield {
+                "pub_err": mock_publish_error,
                 "env_values": env_values,
                 "getenv": mock_getenv,
                 "get_secret": mock_get_secret,
@@ -242,7 +245,7 @@ class TestDatabaseDump:
                 "makedirs": mock_makedirs,
             }
 
-    def test_warns_on_missing_token(self, state, dump_mocks, message_bus, capsys):
+    def test_warns_on_missing_token(self, state, dump_mocks):
         assert dump_mocks["getenv"]("INFLUX_TOKEN") is None  # Adds a call to getenv
         dump_database_for_experiment(state)
 
@@ -255,18 +258,11 @@ class TestDatabaseDump:
         dump_mocks["get_secret"].assert_called_once_with(
             "INFLUX_TOKEN", "INFLUX_TOKEN_FILE", None
         )
-        assert (
-            "ERROR: Cannot dump influx database. INFLUX_TOKEN not set."
-            in capsys.readouterr().out
-        )
-        messages = message_bus.get_messages(decoded=True)
-        assert len(messages) == 1
-        assert messages[0].topic == "error/controller"
-        assert (
-            "Cannot dump influx database. INFLUX_TOKEN not set." in messages[0].payload
+        dump_mocks["pub_err"].database_error.assert_called_once_with(
+            "Cannot dump influx database. INFLUX_TOKEN not set."
         )
 
-    def test_database_dump_error(self, state, dump_mocks, message_bus, capsys):
+    def test_database_dump_error(self, state, dump_mocks):
         dump_mocks["get_secret"].return_value = "dummy_token"
         tmp_path = f"{data_path}/tmp/123.test_temp_exp.json"
         state.exp_file = tmp_path
@@ -278,12 +274,9 @@ class TestDatabaseDump:
         dump_mocks["get_secret"].assert_called_once_with(
             "INFLUX_TOKEN", "INFLUX_TOKEN_FILE", None
         )
-        expected_error = "Could not dump influx database: Database error"
-        assert f"ERROR: {expected_error}" in capsys.readouterr().out
-        messages = message_bus.get_messages(decoded=True)
-        assert len(messages) == 1
-        assert messages[0].topic == "error/controller"
-        assert expected_error in messages[0].payload
+        dump_mocks["pub_err"].database_error.assert_called_once_with(
+            "Could not dump influx database: Database error"
+        )
 
     def test_database_dump(self, state, dump_mocks, data_path):
         dump_mocks["get_secret"].return_value = "dummy_token"
@@ -296,13 +289,12 @@ class TestDatabaseDump:
         state.exp_file = tmp_path
         dump_mocks["path_exists"].return_value = False
         assert not os.path.exists(tmp_path)
-        with patch("src.controller_helper.datetime") as mock_datetime, patch(
-            "builtins.open", create=True
-        ) as mock_open, patch(
-            "src.controller_helper.csv.writer"
-        ) as mock_csv_writer, patch(
-            "builtins.print"
-        ) as mock_print:
+        with (
+            patch("src.controller_helper.datetime") as mock_datetime,
+            patch("builtins.open", create=True) as mock_open,
+            patch("src.controller_helper.csv.writer") as mock_csv_writer,
+            patch("builtins.print") as mock_print,
+        ):
             mock_datetime.now.return_value = tf
             cw_instance = MagicMock()
             mock_csv_writer.return_value = cw_instance

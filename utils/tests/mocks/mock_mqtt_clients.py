@@ -80,9 +80,7 @@ class InMemoryMessageBus:
                 history = self.message_history.copy()
             elif any(c in topic for c in "*?[]#+"):  # accept wildcard characters
                 history = [
-                    m
-                    for m in self.message_history
-                    if topic_matches_sub(topic, m.topic)
+                    m for m in self.message_history if topic_matches_sub(topic, m.topic)
                 ]
             else:
                 history = [m for m in self.message_history if m.topic == topic]
@@ -133,19 +131,16 @@ def mqtt_mocks(message_bus):
     Unified autouse fixture that patches:
         - utils.mqtt_clients.MQTTClient
         - utils.mqtt_clients.MQTTPublisher
-        - utils.mqtt_clients.load_message
 
     Exposes mocks for:
         - client_class
         - client_instance
         - publisher_class
         - publisher_instance
-        - load_message
     """
     with (
         patch("utils.mqtt_clients.MQTTClient") as mock_client_class,
         patch("utils.mqtt_clients.MQTTPublisher") as mock_publisher_class,
-        patch("utils.mqtt_clients.load_message") as mock_load,
     ):
         # -----------------------
         # Mock MQTTClient
@@ -228,18 +223,6 @@ def mqtt_mocks(message_bus):
         mock_publisher_class._instance = mock_publisher_instance
 
         # -----------------------
-        # Mock load_message
-        # -----------------------
-        def load_message(msg):
-            payload = msg.payload if hasattr(msg, "payload") else msg
-            if isinstance(payload, bytes):
-                return json.loads(payload.decode("utf-8"))
-            elif isinstance(payload, str):
-                return json.loads(payload)
-
-        mock_load.side_effect = load_message
-
-        # -----------------------
         # Expose mocks to tests
         # -----------------------
         yield {
@@ -247,7 +230,6 @@ def mqtt_mocks(message_bus):
             "client_instance": ClientProxy(),
             "publisher_class": mock_publisher_class,
             "publisher_instance": mock_publisher_instance,
-            "load_message": mock_load,
         }
 
 

@@ -3,6 +3,9 @@ import json
 from unittest.mock import Mock, patch, MagicMock, call
 
 from setpoint_controller import main, SetpointController
+
+from utils.mqtt_validator import MQTTValidationException
+
 from tests.conftest import (
     MockMessage,
     parse_message_args,
@@ -18,9 +21,10 @@ class Test_main:
     @pytest.fixture(autouse=True)
     def mocks_for_main(self):
         """Patch all functions used in main, to prevent repetition in test."""
-        with patch("os.getenv") as mock_getenv, patch(
-            "setpoint_controller.SetpointController"
-        ) as mock_spc_class:
+        with (
+            patch("os.getenv") as mock_getenv,
+            patch("setpoint_controller.SetpointController") as mock_spc_class,
+        ):
             # Configure the mocks
             mock_spc_instance = MagicMock()
             start_heartbeat_loop_mock = MagicMock()
@@ -193,11 +197,13 @@ class Test_SetpointController_init:
 
     @pytest.fixture(autouse=True)
     def mocks_for_spc_init(self, mqtt_mocks):
-        with patch("setpoint_controller.PID") as mock_pid_class, patch(
-            "setpoint_controller.t.sleep"
-        ) as mock_sleep, patch(
-            "setpoint_controller.SetpointController.publish_heartbeat"
-        ) as mock_publish_heartbeat:
+        with (
+            patch("setpoint_controller.PID") as mock_pid_class,
+            patch("setpoint_controller.t.sleep") as mock_sleep,
+            patch(
+                "setpoint_controller.SetpointController.publish_heartbeat"
+            ) as mock_publish_heartbeat,
+        ):
             # Configure the mocks
             mock_pid_instance = MagicMock()
             mock_pid_instance.healthy = True
@@ -406,8 +412,10 @@ class Test_SetpointController_State:
 
 class Test_on_message:
 
-    def test_invalid_json_publishes_error(self, mock_spc, mqtt_mocks, capsys):
+    def test_invalid_message_publishes_error(self, mock_spc, mqtt_validator_mocks):
         client = Mock()
+        err = MQTTValidationException("Invalid JSON")
+        mqtt_validator_mocks["validate_message"].side_effect = err
         msg = MockMessage(
             f"instruments/{mock_spc.sensor_instrument}/{mock_spc.sensor_variable}/setpoint",
             "this is not valid json {",
@@ -415,133 +423,136 @@ class Test_on_message:
 
         SetpointController.on_message(client, msg, mock_spc)
 
-        assert mock_spc.status.state == "error"
-        mqtt_mocks["publisher_instance"].publish.assert_called_once()
-        topic, message = parse_message_args(
-            mqtt_mocks["publisher_instance"].publish.call_args[0]
+        mqtt_validator_mocks["validate_message"].assert_called_once_with(
+            msg.topic, msg.payload
         )
-        assert topic == "error/setpoint_controller"
-        assert message["code"] == "json_decode_error"
-        exp_err = f"Cannot decode instruments/{mock_spc.sensor_instrument}/{mock_spc.sensor_variable}/setpoint message, wrong JSON:"
-        assert exp_err in message["message"]
-        assert f"ERROR: {exp_err}" in capsys.readouterr().out
+        mqtt_validator_mocks["print_and_publish_error"].assert_called_once_with(
+            "error/setpoint_controller", err
+        )
+        assert mock_spc.status.state == "error"
 
 
 class Test_on_setpoint_message:
 
-    def test_skips_if_not_enabled(self, mock_spc, mqtt_mocks):
+    @pytest.fixture
+    def osm_mocks(self, mock_spc, mqtt_mocks, mqtt_validator_mocks):
+        def make_msg(setpoint_value):
+            return MockMessage(
+                f"instruments/{mock_spc.sensor_instrument}/{mock_spc.sensor_variable}/setpoint",
+                json.dumps({"value": setpoint_value}),
+            )
+
+        return {
+            "client": Mock(),
+            "spc": mock_spc,
+            "publisher": mqtt_mocks["publisher_instance"],
+            "make_msg": make_msg,
+        }
+
+    def test_skips_if_not_enabled(self, osm_mocks):
+        mock_spc = osm_mocks["spc"]
         mock_spc.status.enabled = False
-        assert mock_spc.status.enabled == False
 
-        client = Mock()
-        msg = MockMessage(
-            f"instruments/{mock_spc.sensor_instrument}/{mock_spc.sensor_variable}/setpoint",
-            json.dumps({"value": 50.0}),
-        )
-
-        SetpointController.on_message(client, msg, mock_spc)
+        msg = osm_mocks["make_msg"](setpoint_value=50)
+        SetpointController.on_message(osm_mocks["client"], msg, mock_spc)
 
         assert mock_spc.status.state == "idle"
         assert mock_spc.status.sensor_setpoint == None
-        mqtt_mocks["publisher_instance"].publish.assert_not_called()
+        osm_mocks["publisher"].publish.assert_not_called()
 
-    def test_updates_sensor_setpoint(self, mock_spc, mqtt_mocks):
+    def test_updates_sensor_setpoint(self, osm_mocks):
+        mock_spc = osm_mocks["spc"]
+        setpoint = 50
         assert mock_spc.status.sensor_setpoint == None
-        client = Mock()
-        setpoint_value = 50.0
-        msg = MockMessage(
-            f"instruments/{mock_spc.sensor_instrument}/{mock_spc.sensor_variable}/setpoint",
-            json.dumps({"value": setpoint_value}),
-        )
 
-        SetpointController.on_message(client, msg, mock_spc)
+        msg = osm_mocks["make_msg"](setpoint_value=setpoint)
+        SetpointController.on_message(osm_mocks["client"], msg, mock_spc)
 
         assert mock_spc.status.state == "idle"
-        assert mock_spc.status.sensor_setpoint == setpoint_value
-        assert mqtt_mocks["publisher_instance"].publish.call_count == 0
+        assert mock_spc.status.sensor_setpoint == setpoint
+        assert osm_mocks["publisher"].publish.call_count == 0
 
-    def test_zero_is_valid_setpoint(self, mock_spc, mqtt_mocks):
-        client = Mock()
-        setpoint_value = 0.0
-        assert mock_spc.status.sensor_setpoint != setpoint_value
-        msg = MockMessage(
-            f"instruments/{mock_spc.sensor_instrument}/{mock_spc.sensor_variable}/setpoint",
-            json.dumps({"value": setpoint_value}),
-        )
+    def test_zero_is_valid_setpoint(self, osm_mocks):
+        mock_spc = osm_mocks["spc"]
+        setpoint = 0
+        assert mock_spc.status.sensor_setpoint != setpoint
 
-        SetpointController.on_message(client, msg, mock_spc)
+        msg = osm_mocks["make_msg"](setpoint_value=setpoint)
+        SetpointController.on_message(osm_mocks["client"], msg, mock_spc)
 
         assert mock_spc.status.state == "idle"
-        assert mock_spc.status.sensor_setpoint == setpoint_value
-        assert mqtt_mocks["publisher_instance"].publish.call_count == 0
+        assert mock_spc.status.sensor_setpoint == setpoint
+        assert osm_mocks["publisher"].publish.call_count == 0
 
-    def test_ignores_message_without_value(self, mock_spc, mqtt_mocks):
-        client = Mock()
+    def test_ignores_message_without_value(self, osm_mocks):
+        mock_spc = osm_mocks["spc"]
+
         msg = MockMessage(
             f"instruments/{mock_spc.sensor_instrument}/{mock_spc.sensor_variable}/setpoint",
             json.dumps({"some_other_key": 42.42}),
         )
-
-        SetpointController.on_message(client, msg, mock_spc)
+        SetpointController.on_message(osm_mocks["client"], msg, mock_spc)
 
         assert mock_spc.status.state == "idle"
         assert mock_spc.status.sensor_setpoint is None
-        assert mqtt_mocks["publisher_instance"].publish.call_count == 0
+        assert osm_mocks["publisher"].publish.call_count == 0
 
 
 class Test_on_measurement_message:
 
-    def test_skips_if_not_enabled(self, mock_spc, mqtt_mocks):
+    @pytest.fixture
+    def omm_mocks(self, mock_spc, mqtt_mocks, mqtt_validator_mocks):
+        def make_msg(measurement_value):
+            return MockMessage(
+                f"instruments/{mock_spc.sensor_instrument}/{mock_spc.sensor_variable}/measurement",
+                json.dumps({"value": measurement_value}),
+            )
+
+        return {
+            "client": Mock(),
+            "spc": mock_spc,
+            "publisher": mqtt_mocks["publisher_instance"],
+            "make_msg": make_msg,
+        }
+
+    def test_skips_if_not_enabled(self, omm_mocks):
+        mock_spc = omm_mocks["spc"]
         mock_spc.status.enabled = False
-        assert mock_spc.status.enabled == False
 
-        client = Mock()
-        msg = MockMessage(
-            f"instruments/{mock_spc.sensor_instrument}/{mock_spc.sensor_variable}/measurement",
-            json.dumps({"value": 50.0}),
-        )
-
-        SetpointController.on_message(client, msg, mock_spc)
+        msg = omm_mocks["make_msg"](measurement_value=50)
+        SetpointController.on_message(omm_mocks["client"], msg, mock_spc)
 
         assert mock_spc.status.state == "idle"
         assert mock_spc.status.sensor_measurement == None
-        mqtt_mocks["publisher_instance"].publish.assert_not_called()
+        omm_mocks["publisher"].publish.assert_not_called()
 
-    def test_skips_pid_step_if_setpoint_undefined(self, mock_spc, mqtt_mocks):
-        client = Mock()
+    def test_skips_pid_step_if_setpoint_undefined(self, omm_mocks):
+        mock_spc = omm_mocks["spc"]
         assert mock_spc.status.sensor_setpoint == None
-        msg = MockMessage(
-            f"instruments/{mock_spc.sensor_instrument}/{mock_spc.sensor_variable}/measurement",
-            json.dumps({"value": 45.0}),
-        )
 
-        SetpointController.on_message(client, msg, mock_spc)
+        msg = omm_mocks["make_msg"](measurement_value=45.0)
+        SetpointController.on_message(omm_mocks["client"], msg, mock_spc)
 
         assert mock_spc.status.state == "idle"
         assert mock_spc.status.sensor_measurement == 45.0
         mock_spc.pid.step.assert_not_called()
-        mqtt_mocks["publisher_instance"].publish.assert_not_called()
+        omm_mocks["publisher"].publish.assert_not_called()
 
-    def test_moves_to_adjusting_and_publishes_actuator_setpoint(
-        self, mock_spc, mqtt_mocks
-    ):
-        client = Mock()
+    def test_moves_to_adjusting_and_publishes_actuator_setpoint(self, omm_mocks):
+        mock_spc = omm_mocks["spc"]
         setpoint_value = 50.0
         mock_spc.status.sensor_setpoint = setpoint_value
         measurement_value = 45.0
-        msg = MockMessage(
-            f"instruments/{mock_spc.sensor_instrument}/{mock_spc.sensor_variable}/measurement",
-            json.dumps({"value": measurement_value}),
-        )
+        msg = omm_mocks["make_msg"](measurement_value=measurement_value)
         mock_spc.pid.step = MagicMock(return_value=6.7)
 
-        SetpointController.on_message(client, msg, mock_spc)
+        SetpointController.on_message(omm_mocks["client"], msg, mock_spc)
 
         assert mock_spc.status.sensor_setpoint == setpoint_value
         assert mock_spc.status.sensor_measurement == measurement_value
         assert mock_spc.status.state == "adjusting"
         mock_spc.pid.step.assert_called_once_with(measurement_value, setpoint_value)
-        mqtt_mocks["publisher_instance"].publish.assert_called_once_with(
+        omm_mocks["publisher"].publish.assert_called_once_with(
             f"instruments/{mock_spc.actuator_instrument}/{mock_spc.actuator_variable}/setpoint",
             json.dumps({"value": 6.7}),
         )
@@ -549,25 +560,36 @@ class Test_on_measurement_message:
 
 class Test_on_setup_message:
 
-    def test_checks_top_level_keys(self, mock_spc, mqtt_mocks):
-        client = Mock()
-        msg = MockMessage(
-            f"setpoint_controller/{mock_spc.spc_id}/setup",
-            json.dumps(
-                {
-                    "enabled": True,
-                    "experiment_id": "exp123",
-                    "pid": {"k_p": 2.0, "k_i": 1.0},
-                    "something_else": "unexpected",
-                }
-            ),
-        )
+    @pytest.fixture
+    def osum_mocks(self, mock_spc, mqtt_mocks, mqtt_validator_mocks):
+        def make_msg(config):
+            return MockMessage(
+                f"setpoint_controller/{mock_spc.spc_id}/setup",
+                json.dumps(config),
+            )
 
-        SetpointController.on_message(client, msg, mock_spc)
+        return {
+            "client": Mock(),
+            "spc": mock_spc,
+            "publisher": mqtt_mocks["publisher_instance"],
+            "make_msg": make_msg,
+        }
 
-        mqtt_mocks["publisher_instance"].publish.assert_called_once()
+    def test_checks_top_level_keys(self, osum_mocks):
+        mock_spc = osum_mocks["spc"]
+        config = {
+            "enabled": True,
+            "experiment_id": "exp123",
+            "pid": {"k_p": 2.0, "k_i": 1.0},
+            "something_else": "unexpected",
+        }
+
+        msg = osum_mocks["make_msg"](config)
+        SetpointController.on_message(osum_mocks["client"], msg, mock_spc)
+
+        osum_mocks["publisher"].publish.assert_called_once()
         topic, message = parse_message_args(
-            mqtt_mocks["publisher_instance"].publish.call_args[0]
+            osum_mocks["publisher"].publish.call_args[0]
         )
         assert topic == "error/setpoint_controller"
         assert message["code"] == "spc_configuration_error"
@@ -578,101 +600,78 @@ class Test_on_setup_message:
         assert mock_spc.status.experiment_id == None
         mock_spc.publish_heartbeat.assert_called_once()
 
-    def test_accepts_enabled_by_itself(self, mock_spc, mqtt_mocks):
-        client = Mock()
+    def test_accepts_enabled_by_itself(self, osum_mocks):
+        mock_spc = osum_mocks["spc"]
         assert mock_spc.status.enabled == True
-        msg = MockMessage(
-            f"setpoint_controller/{mock_spc.spc_id}/setup",
-            json.dumps(
-                {
-                    "enabled": False,
-                }
-            ),
-        )
+        config = {"enabled": False}
 
-        SetpointController.on_message(client, msg, mock_spc)
+        msg = osum_mocks["make_msg"](config)
+        SetpointController.on_message(osum_mocks["client"], msg, mock_spc)
 
         assert mock_spc.status.enabled == False
         mock_spc.publish_heartbeat.assert_called_once()
 
-    def test_can_enable_when_disabled(self, mock_spc, mqtt_mocks):
-        client = Mock()
+    def test_can_enable_when_disabled(self, osum_mocks):
+        mock_spc = osum_mocks["spc"]
         mock_spc.status.enabled = False
         assert mock_spc.status.enabled == False
-        msg = MockMessage(
-            f"setpoint_controller/{mock_spc.spc_id}/setup",
-            json.dumps(
-                {
-                    "enabled": True,
-                    "experiment_id": "exp789",
-                }
-            ),
-        )
+        config = {"enabled": True, "experiment_id": "exp789"}
+        msg = osum_mocks["make_msg"](config)
 
-        SetpointController.on_message(client, msg, mock_spc)
+        SetpointController.on_message(osum_mocks["client"], msg, mock_spc)
 
         assert mock_spc.status.enabled == True
         assert mock_spc.status.experiment_id == "exp789"
         mock_spc.publish_heartbeat.assert_called_once()
 
-    def test_accepts_experiment_id_by_itself(self, mock_spc, mqtt_mocks):
-        client = Mock()
+    def test_accepts_experiment_id_by_itself(self, osum_mocks):
+        mock_spc = osum_mocks["spc"]
         assert mock_spc.status.experiment_id == None
         assert mock_spc.status.enabled == True
-        msg = MockMessage(
-            f"setpoint_controller/{mock_spc.spc_id}/setup",
-            json.dumps(
-                {
-                    "experiment_id": "exp456",
-                }
-            ),
-        )
+        config = {"experiment_id": "exp456"}
+        msg = osum_mocks["make_msg"](config)
 
-        SetpointController.on_message(client, msg, mock_spc)
+        SetpointController.on_message(osum_mocks["client"], msg, mock_spc)
 
         assert mock_spc.status.experiment_id == "exp456"
         assert mock_spc.status.enabled == True
         mock_spc.publish_heartbeat.assert_called_once()
 
-    def test_updates_configurable_parameters(self, mock_spc, mqtt_mocks):
-        client = Mock()
+    def test_updates_configurable_parameters(self, osum_mocks):
+        mock_spc = osum_mocks["spc"]
         mock_spc.pid.k_p = 1.0
         new_k_p = 4.2
         mock_spc.pid.k_i = 10
         new_k_i = 42
         mock_spc.pid.configurable = ["k_p", "k_i"]
-        msg = MockMessage(
-            f"setpoint_controller/{mock_spc.spc_id}/setup",
-            json.dumps({"pid": {"k_p": new_k_p, "k_i": new_k_i}}),
-        )
+        config = {"pid": {"k_p": new_k_p, "k_i": new_k_i}}
+        msg = osum_mocks["make_msg"](config)
 
-        SetpointController.on_message(client, msg, mock_spc)
+        SetpointController.on_message(osum_mocks["client"], msg, mock_spc)
 
         assert mock_spc.pid.k_p == new_k_p
         assert mock_spc.pid.k_i == new_k_i
         mock_spc.publish_heartbeat.assert_called_once()
 
-    def test_rejects_non_configurable_parameters(self, mock_spc, mqtt_mocks):
-        client = Mock()
+    def test_rejects_non_configurable_parameters(self, osum_mocks):
+        mock_spc = osum_mocks["spc"]
         mock_spc.pid.k_p = 1.0
         new_k_p = 4.2
         mock_spc.pid.k_i = 10
         new_k_i = 42
         mock_spc.pid.configurable = ["k_p", "k_i"]
-        msg = MockMessage(
-            f"setpoint_controller/{mock_spc.spc_id}/setup",
-            json.dumps(
-                {"pid": {"k_p": new_k_p, "k_i": new_k_i, "non_configurable_param": 123}}
-            ),
-        )
+        config = {
+            "pid": {"k_p": new_k_p, "k_i": new_k_i, "non_configurable_param": 123}
+        }
+        msg = osum_mocks["make_msg"](config)
 
-        SetpointController.on_message(client, msg, mock_spc)
+        SetpointController.on_message(osum_mocks["client"], msg, mock_spc)
 
         assert mock_spc.pid.k_p == 1.0
         assert mock_spc.pid.k_i == 10
-        mqtt_mocks["publisher_instance"].publish.assert_called_once()
+        osum_mocks["publisher"].publish.assert_called_once()
         topic, message = parse_message_args(
-            mqtt_mocks["publisher_instance"].publish.call_args[0]
+            osum_mocks["publisher"].publish.call_args[0]
         )
         assert topic == "error/setpoint_controller"
         assert message["code"] == "pid_configuration_error"
@@ -681,8 +680,8 @@ class Test_on_setup_message:
             in message["message"]
         )
 
-    def test_can_configure_while_disabled(self, mock_spc, mqtt_mocks):
-        client = Mock()
+    def test_can_configure_while_disabled(self, osum_mocks):
+        mock_spc = osum_mocks["spc"]
         mock_spc.status.enabled = False
         assert mock_spc.status.enabled == False
         mock_spc.pid.k_p = 1.0
@@ -690,12 +689,10 @@ class Test_on_setup_message:
         mock_spc.pid.k_i = 10
         new_k_i = 42
         mock_spc.pid.configurable = ["k_p", "k_i"]
-        msg = MockMessage(
-            f"setpoint_controller/{mock_spc.spc_id}/setup",
-            json.dumps({"pid": {"k_p": new_k_p, "k_i": new_k_i}}),
-        )
+        config = {"pid": {"k_p": new_k_p, "k_i": new_k_i}}
+        msg = osum_mocks["make_msg"](config)
 
-        SetpointController.on_message(client, msg, mock_spc)
+        SetpointController.on_message(osum_mocks["client"], msg, mock_spc)
 
         assert mock_spc.status.enabled == False
         assert mock_spc.pid.k_p == new_k_p

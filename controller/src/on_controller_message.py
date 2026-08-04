@@ -4,16 +4,11 @@ from datetime import datetime
 
 from utils import mqtt_clients as mqtt
 from utils.interpolation import split_setpoints
+from utils import mqtt_validator as mqtt_val
 
 from src.controller_helper import assign_serial_id, dump_database_for_experiment
-from src.error_helper import (
-    incompatible_controller_status,
-    incompatible_uid,
-    missing_keys,
-    wrong_json,
-    experiment_validation_error,
-)
-from src.validation import validate_experiment, ExperimentValidationError
+import src.publish_error as pub_err
+import src.validation as val
 
 
 def c_idle(client, msg, obj):
@@ -29,22 +24,19 @@ def c_idle(client, msg, obj):
     """
     if msg.topic != "controller/command/validate":
         if msg.topic.startswith("controller/command/"):
-            incompatible_controller_status(obj, msg)
+            pub_err.incompatible_controller_status(obj, msg)
         return
 
     # Load and decode experiment file
     try:
         # Load experiment object
-        payload = mqtt.load_message(msg)
+        payload = mqtt_val.validate_message(msg.topic, msg.payload)
 
         # Set experiment file object and temp_uid
         obj.exp_file = payload["file"]
         temp_uid = payload["id"]
-    except json.JSONDecodeError as e:
-        wrong_json(msg, e)
-        return
-    except KeyError as e:
-        missing_keys(msg, e)
+    except mqtt_val.MQTTValidationException as e:
+        pub_err.message_validation(e)
         return
 
     obj.experiment_start_time = datetime.now()
@@ -52,7 +44,7 @@ def c_idle(client, msg, obj):
 
     # Validate experiment configuration
     try:
-        exp_config = validate_experiment(obj.exp_file, obj.config)
+        exp_config = val.validate_experiment(obj.exp_file, obj.config)
 
         # Compute intermediate setpoints
         obj.setpoints = split_setpoints(
@@ -73,8 +65,8 @@ def c_idle(client, msg, obj):
         mqtt.MQTTPublisher.get_instance().publish(
             "controller/command/start", json.dumps({"id": m["id"]})
         )
-    except (ExperimentValidationError, ValueError) as e:
-        experiment_validation_error(e, temp_uid)
+    except (val.ExperimentValidationError, ValueError) as e:
+        pub_err.experiment_validation_error(e, temp_uid)
         obj.experiment_uid = None
         obj.status = "idle"
 
@@ -96,7 +88,7 @@ def c_starting(client, msg, obj):
         if msg.topic == "controller/command/stop":
             c_stopping(client, msg, obj)
         elif msg.topic.startswith("controller/command/"):
-            incompatible_controller_status(obj, msg)
+            pub_err.incompatible_controller_status(obj, msg)
         return
 
     obj.status = "starting"
@@ -133,7 +125,7 @@ def c_ready(client, msg, obj):
         if msg.topic == "controller/command/stop":
             c_stopping(client, msg, obj)
         elif msg.topic.startswith("controller/command/"):
-            incompatible_controller_status(obj, msg)
+            pub_err.incompatible_controller_status(obj, msg)
         return
 
     obj.status = "ready"
@@ -162,7 +154,7 @@ def c_running(client, msg, obj):
         if msg.topic == "controller/command/stop":
             c_stopping(client, msg, obj)
         elif msg.topic.startswith("controller/command/"):
-            incompatible_controller_status(obj, msg)
+            pub_err.incompatible_controller_status(obj, msg)
         return
 
     if obj.setpoints == []:
@@ -218,9 +210,13 @@ def c_stopping(client, msg, obj):
         "controller/event/end",
     ]:
         if msg.topic.startswith("controller/command/"):
-            incompatible_controller_status(obj, msg)
+            pub_err.incompatible_controller_status(obj, msg)
         return
-    message = mqtt.load_message(msg)
+    try:
+        message = mqtt_val.validate_message(msg.topic, msg.payload)
+    except mqtt_val.MQTTValidationException as e:
+        pub_err.message_validation(e)
+        return
     msg_id = message.get("experiment_id") or message.get("id")
     if msg_id == obj.experiment_uid:
         obj.status = "stopping"
@@ -237,4 +233,4 @@ def c_stopping(client, msg, obj):
         )
         print(f"Experiment {uid} {stop_reason} and the controller has been reset.")
     else:
-        incompatible_uid(obj, msg, msg_id, "controller")
+        pub_err.incompatible_uid(obj, msg, msg_id, "controller")

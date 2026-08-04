@@ -1,20 +1,21 @@
 FROM python:3.13-slim
 
-WORKDIR /app
-
-# Install Python deps
+# Install dependencies
 COPY ui/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r ./requirements.txt
 
-# Copy app code
-COPY ui /app
-COPY utils/mqtt_clients.py /app/utils/mqtt_clients.py
-COPY utils/interpolation.py /app/utils/interpolation.py
-COPY utils/influx_query.py /app/utils/influx_query.py
+WORKDIR /ui
+# Copy utils
+COPY utils/mqtt_clients.py  /ui/utils/mqtt_clients.py
+COPY utils/interpolation.py /ui/utils/interpolation.py
+COPY utils/influx_query.py  /ui/utils/influx_query.py
+# Copy ui code
+COPY ui /ui
+# Copy ui tests and readme
 
 # Copy entrypoint that handles *_FILE secrets
-COPY ui/entrypoint.sh /entrypoint.sh
+COPY ui/entrypoint.sh       /entrypoint.sh
 RUN chmod +x /entrypoint.sh
-
+# Start ui
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["python", "-u", "/app/app.py"]
+CMD ["python", "-u", "/ui/app.py"]

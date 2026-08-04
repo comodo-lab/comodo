@@ -11,9 +11,7 @@ class MQTTValidationException(Exception):
         super().__init__(message)
 
 
-schemas = {
-    "asyncapi": "/app/schemas/mqtt_schema.yaml",
-}
+schemas = {"asyncapi": "/schemas/mqtt_schema.yaml"}
 
 
 def match_topic(topic, topic_map):
@@ -104,6 +102,8 @@ def validate_message(topic, payload, schema_name="asyncapi", combine_exceptions=
         else:
             raise e
 
+    return loaded_payload
+
 
 def check_topic_expected(schema_name, topic):
     """
@@ -146,3 +146,13 @@ def check_message_valid(entry, loaded_payload):
         ValidationError: If the message does not conform to the schema
     """
     validate(loaded_payload, entry["schema"])
+
+
+def print_and_publish_error(topic, error):
+    """
+    Prints and publishes an error message when a validation error occurs on an mqtt message.
+    """
+    print(f"ERROR: {str(error)}")
+    mqtt_clients.MQTTPublisher.get_instance().publish(
+        topic, json.dumps({"code": "message_validation", "message": str(error)})
+    )

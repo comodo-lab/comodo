@@ -1,5 +1,7 @@
 # General
 paho-mqtt
+pyyaml
+jsonschema
 
 # Testing
 pytest

@@ -12,22 +12,21 @@ from utils.tests.mocks.mock_mqtt_clients import (
     message_bus,
     mqtt_mocks,
 )
+from utils.tests.mocks.mock_mqtt_validator import mqtt_validator_mocks
 
 
 class TestOnMessage:
     @pytest.fixture
-    def on_message_mocks(self):
-        with (patch("monitor.validate_message") as mock_val_msg,):
-            mocks = {
-                "mock_validate_message": mock_val_msg,
-            }
-            yield mocks
+    def on_message_mocks(self, mqtt_validator_mocks):
+        yield {
+            "validate_message": mqtt_validator_mocks["validate_message"],
+        }
 
     # ========================================
 
     def test_unexpected_topic(self, message_bus, on_message_mocks):
         mocks = on_message_mocks
-        mocks["mock_validate_message"].side_effect = MQTTValidationException(
+        mocks["validate_message"].side_effect = MQTTValidationException(
             "Unexpected topic"
         )
 
@@ -37,7 +36,7 @@ class TestOnMessage:
         )
         on_message(None, msg, None)
 
-        assert mocks["mock_validate_message"].called_once_with(
+        assert mocks["validate_message"].called_once_with(
             topic=msg.topic,
             payload=msg.payload,
             combine_exceptions=False,
@@ -51,7 +50,7 @@ class TestOnMessage:
 
     def test_invalid_json(self, message_bus, on_message_mocks):
         mocks = on_message_mocks
-        mocks["mock_validate_message"].side_effect = json.JSONDecodeError(
+        mocks["validate_message"].side_effect = json.JSONDecodeError(
             msg="not json", doc="json_doc", pos=0
         )
 
@@ -61,7 +60,7 @@ class TestOnMessage:
         )
         on_message(None, msg, None)
 
-        assert mocks["mock_validate_message"].called_once_with(
+        assert mocks["validate_message"].called_once_with(
             topic=msg.topic,
             payload=msg.payload,
             combine_exceptions=False,
@@ -76,7 +75,7 @@ class TestOnMessage:
 
     def test_schema_mismatch(self, message_bus, on_message_mocks):
         mocks = on_message_mocks
-        mocks["mock_validate_message"].side_effect = ValidationError(
+        mocks["validate_message"].side_effect = ValidationError(
             "Well this is odd...", validator="whodis", path=[], schema={}, instance={}
         )
 
@@ -86,7 +85,7 @@ class TestOnMessage:
         )
         on_message(None, msg, None)
 
-        assert mocks["mock_validate_message"].called_once_with(
+        assert mocks["validate_message"].called_once_with(
             topic=msg.topic,
             payload=msg.payload,
             combine_exceptions=False,
@@ -103,7 +102,7 @@ class TestOnMessage:
 
     def test_unexpected_exception(self, message_bus, on_message_mocks, capsys):
         mocks = on_message_mocks
-        mocks["mock_validate_message"].side_effect = Exception("Unexpected error")
+        mocks["validate_message"].side_effect = Exception("Unexpected error")
 
         msg = MockMessage(
             topic="this/is/odd",
@@ -111,7 +110,7 @@ class TestOnMessage:
         )
         on_message(None, msg, None)
 
-        assert mocks["mock_validate_message"].called_once_with(
+        assert mocks["validate_message"].called_once_with(
             topic=msg.topic,
             payload=msg.payload,
             combine_exceptions=False,
@@ -123,14 +122,14 @@ class TestOnMessage:
 
     def test_valid_message(self, message_bus, on_message_mocks):
         mocks = on_message_mocks
-        mocks["mock_validate_message"].side_effect = None
+        mocks["validate_message"].side_effect = None
         msg = MockMessage(
             topic="this/is/fine",
             payload='{"this": "is", "also": "fine"}',
         )
         on_message(None, msg, None)
 
-        assert mocks["mock_validate_message"].called_once_with(
+        assert mocks["validate_message"].called_once_with(
             topic=msg.topic,
             payload=msg.payload,
             combine_exceptions=False,

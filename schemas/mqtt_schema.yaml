@@ -189,14 +189,6 @@ channels:
         payload:
           type: object
           additionalProperties: false
-          required:
-            - timeout
-            - interval
-          properties:
-            timeout:
-              type: number
-            interval:
-              type: number
 
   watchdogEventRestart:
     address: watchdog/timer/event/restart_triggered

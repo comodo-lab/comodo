@@ -2,15 +2,9 @@ import time as t
 import json
 
 from utils import mqtt_clients as mqtt
+from utils import mqtt_validator as mqtt_val
 
-from src.error_helper import (
-    incompatible_uid,
-    wrong_json,
-    missing_keys,
-    controller_timeout,
-    controller_state_incompatible_with_timer,
-    incompatible_topic,
-)
+import src.publish_error as pub_err
 
 timer_check_frequency = 0.1
 
@@ -25,9 +19,9 @@ def on_timer_message(client, msg, obj):
     and to wait for the setpoint duration before moving to the next setpoint.
     """
     try:
-        message = mqtt.load_message(msg)
-    except json.JSONDecodeError as e:
-        wrong_json(msg, e)
+        message = mqtt_val.validate_message(msg.topic, msg.payload)
+    except mqtt_val.MQTTValidationException as e:
+        pub_err.message_validation(e)
         return
 
     if msg.topic == "controller/timer/event/done":
@@ -37,10 +31,12 @@ def on_timer_message(client, msg, obj):
 
     try:
         if message["experiment_id"] != obj.experiment_uid:
-            incompatible_uid(obj, msg, message["experiment_id"], "controller_timer")
+            pub_err.incompatible_uid(
+                obj, msg, message["experiment_id"], "controller_timer"
+            )
             return
     except KeyError as e:
-        missing_keys(msg, e)
+        pub_err.missing_keys(msg, e)
         return
 
     if (
@@ -49,13 +45,10 @@ def on_timer_message(client, msg, obj):
     ):
         # Wait for instruments to be ready or timeout
         instrument_setup_wait = obj.config.globals["instrument_setup_wait"]
-        if instrument_setup_wait is None:
-            err = "Instrument_setup_wait is not set in the config. Stopping experiment."
-            print(f"ERROR: {err}")
-            mqtt.MQTTPublisher.get_instance().publish(
-                "error/controller",
-                json.dumps({"experiment_id": message["experiment_id"], "error": err}),
-            )
+        if not instrument_setup_wait:
+            err = "Instrument_setup_wait is not set in the config. It must be a positive number. Stopping experiment."
+            pub_err.missing_keys(msg, KeyError(err))
+            print("Stopping experiment...")
             mqtt.MQTTPublisher.get_instance().publish(
                 "controller/command/stop",
                 json.dumps({"id": message["experiment_id"]}),
@@ -65,7 +58,8 @@ def on_timer_message(client, msg, obj):
         while (not obj.instruments_ready) and obj.status == "awaiting_instruments":
             t.sleep(timer_check_frequency)
             if t.time() - t0 > instrument_setup_wait:
-                controller_timeout(message["experiment_id"], "instruments", "Stopping")
+                pub_err.controller_timeout(message["experiment_id"], "instruments")
+                print("Stopping experiment...")
                 mqtt.MQTTPublisher.get_instance().publish(
                     "controller/command/stop",
                     json.dumps({"id": message["experiment_id"]}),
@@ -90,7 +84,7 @@ def on_timer_message(client, msg, obj):
         try:
             duration = message["duration"]
         except KeyError as e:
-            missing_keys(msg, e)
+            pub_err.missing_keys(msg, e)
             return
         # Start timer for setpoint
         t0 = t.time()
@@ -103,7 +97,7 @@ def on_timer_message(client, msg, obj):
                 )
                 return
         if obj.status != "stopping":
-            controller_state_incompatible_with_timer(
+            pub_err.controller_state_incompatible_with_timer(
                 message["experiment_id"], "setpoint", "running", obj.status
             )
         else:
@@ -118,4 +112,4 @@ def on_timer_message(client, msg, obj):
                 ),
             )
     else:
-        incompatible_topic(obj, msg, "controller_timer")
+        pub_err.incompatible_topic(obj, msg, "controller_timer")
