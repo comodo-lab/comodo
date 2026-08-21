@@ -13,6 +13,8 @@ config = {
     "SIMULATE": True,
     "DEVICE_ADDRESS": "",
     "ACTIVE_VARIABLES": [],
+    "DEFAULT_SETPOINTS": {},
+    "SAFE_STOP_SETPOINTS": {},
     "SENSORS": {},
     "HEARTBEAT": {},
 }
@@ -29,8 +31,11 @@ def load_config():
     for key, value in config.items():
         if key in ["SIMULATE"]:
             config[key] = os.getenv(key, str(value)).lower() in ["true", "1", "yes"]
-        elif key in ["ACTIVE_VARIABLES"]:
-            config[key] = json.loads(os.getenv(key, json.dumps(value)))
+        elif key in ["ACTIVE_VARIABLES", "DEFAULT_SETPOINTS", "SAFE_STOP_SETPOINTS"]:
+            loaded = json.loads(os.getenv(key, json.dumps(value)))
+            if loaded is None:
+                loaded = {}
+            config[key] = loaded
         else:
             config[key] = os.getenv(key, value)
 
