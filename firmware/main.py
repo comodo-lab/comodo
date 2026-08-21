@@ -59,6 +59,17 @@ async def measurement_tick(variable_name, interval, oneshot=False):
 # ----------------- Launcher ----------------- ##
 
 
+# Publish the default setpoint for each variable to the MQTT broker.
+# This is done at startup and whenever the setpoints are reset to default.
+def publish_default_setpoints():
+    for variable, setpoint in (state.config.get("DEFAULT_SETPOINTS") or {}).items():
+        state.status["setpoints"][variable] = setpoint
+        mqtt.MQTTPublisher.get_instance().publish(
+            f"instruments/{state.config['INSTRUMENT_NAME']}/{variable}/setpoint",
+            json.dumps({"value": setpoint}),
+        )
+
+
 async def launcher(oneshot=False, timeout=None):
     try:
         async with asyncio.timeout(timeout):
@@ -89,6 +100,14 @@ async def main():
     ## Load the configuration file
     state.config = cfg.load_config()
 
+    # Initialise publisher singleton
+    _ = mqtt.MQTTPublisher.get_instance(
+        broker_address=state.config["MQTT_HOST"],
+        user=state.config["MQTT_USER"],
+        password=state.config["MQTT_PASS"],
+        id=f"publisher_{state.config['INSTRUMENT_NAME']}",
+    )
+
     ## Create client
     topics = [
         f"instruments/{state.config['INSTRUMENT_NAME']}/+/setpoint",
@@ -114,12 +133,15 @@ async def main():
     # Attempt startup
     await launcher(oneshot=True, timeout=10)
 
-    # If successful, set ready and print the instrument creation message
+    # If successful, set ready, publish (and go to) the default setpoints and print the instrument creation message
     state.status["state"] = "ready"
     state.client.callback = state.ready_cb
 
     # Populate heartbeat config
     state.status["config"] = state.config.get("HEARTBEAT", {}).copy()
+
+    # Publish default setpoints for each variable that has one
+    publish_default_setpoints()
 
     print(
         f"Instrument {state.config['INSTRUMENT_NAME']} created successfully "
