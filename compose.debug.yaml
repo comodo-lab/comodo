@@ -4,15 +4,37 @@ services:
     # Run this with:
     #   docker compose -f compose.debug.yaml run --build mqttui
     # Then run `mqttui` in the container
+    #   docker exec -it comodo-mqttui sh
     build:
       context: .
       dockerfile_inline: |
         FROM alpine:3.22
-        RUN apk update && apk add mqttui
+        RUN apk update && apk add mqttui mosquitto-clients
     container_name: comodo-mqttui
     tty: true
     environment:
+      MQTT_HOST: ${MQTT_HOST}
+      MQTT_USER: ${MQTT_USER}
+      MQTT_PASS: ${MQTT_PASS}
       MQTTUI_BROKER: mqtt://${MQTT_HOST}:1883
       MQTTUI_USERNAME: ${MQTT_USER}
       MQTTUI_PASSWORD: ${MQTT_PASS}
       MQTTUI_CLIENTID: mqttui-comodo
+    command:
+      - sh
+      - -c
+      - |
+        while true; do
+          echo "Connecting to MQTT broker..."
+          mosquitto_sub \
+            -h "$MQTT_HOST" \
+            -p 1883 \
+            -u "$MQTT_USER" \
+            -P "$MQTT_PASS" \
+            -t '#' \
+            -v
+
+          echo "MQTT connection lost, retrying in 1s..."
+          sleep 1
+        done &
+        exec sleep infinity
