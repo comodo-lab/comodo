@@ -82,7 +82,7 @@ async def launcher(oneshot=False, timeout=None):
                             oneshot=oneshot,
                         )
                     )
-    except TimeoutError:
+    except TimeoutError as e:
         raise RuntimeError("Sensors failed to initialise in time") from e
 
 
