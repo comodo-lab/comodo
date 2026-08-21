@@ -14,7 +14,7 @@
 #   docker compose --env-file ../.env up --build --no-attach rabbitmq --force-recreate
 
 include:
-  # - path: ../compose.debug.yaml
+  - path: ../compose.debug.yaml
   - path: ../compose.yaml
   # - path: ../compose.data.yaml
   - path: ../compose.mqtt.yaml
