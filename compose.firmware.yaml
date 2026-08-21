@@ -36,6 +36,8 @@ services:
       FIRMWARE: carbolite_gero.tg3
       DEVICE_ADDRESS: "192.168.111.222"
       ACTIVE_VARIABLES: '["temperature"]'
+      DEFAULT_SETPOINTS: '{"temperature": 25}'
+      SAFE_STOP_SETPOINTS: '{"temperature": 0}'
       HEARTBEAT_INTERVAL: 1000
       INTERVAL_TEMPERATURE: 1000
 
@@ -47,6 +49,8 @@ services:
       FIRMWARE: pfeiffer.mpt200
       DEVICE_ADDRESS: "/dev/ttyUSB0"
       ACTIVE_VARIABLES: '["pressure"]'
+      DEFAULT_SETPOINTS: '{"pressure": 1}'
+      SAFE_STOP_SETPOINTS: 'null'
       HEARTBEAT_INTERVAL: 1000
       INTERVAL_PRESSURE: 1000
     devices:
@@ -61,6 +65,8 @@ services:
       FIRMWARE: bronkhorst.el_flow_select
       DEVICE_ADDRESS: "/dev/ttyUSB2"
       ACTIVE_VARIABLES: '["mass_flow"]'
+      DEFAULT_SETPOINTS: 'null'
+      SAFE_STOP_SETPOINTS: '{"mass_flow": 0}'
       HEARTBEAT_INTERVAL: 1000
       INTERVAL_MASS_FLOW: 1000
     devices:
@@ -79,6 +85,7 @@ services:
       <<: *mqtt-env
       HEARTBEAT_INTERVAL: 1000
       SENSOR: "pressure/pressure"
+      DEFAULT_SETPOINT: 1
       ACTUATOR: "mass_flow/mass_flow"
       K_P: 10.0
       K_I: 1.0
