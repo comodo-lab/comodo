@@ -14,7 +14,8 @@ MQTT_USER = os.environ["MQTT_USER"]
 MQTT_PASS = os.environ["MQTT_PASS"]
 
 
-HEARTBEAT_TIMEOUT = int(os.environ.get("HEARTBEAT_TIMEOUT", 60))
+HEARTBEAT_TIMEOUT = int(os.environ.get("HEARTBEAT_TIMEOUT", 20))
+SETPOINT_TIMEOUT = int(os.environ.get("SETPOINT_TIMEOUT", 10))
 EXPERIMENT_TIMEOUT = int(os.environ.get("EXPERIMENT_TIMEOUT", 120))
 
 
@@ -33,9 +34,28 @@ def expected_heartbeats(mock_comodo_config):
     )
 
 
+@pytest.fixture
+def default_setpoints(mock_comodo_config):
+    DEFAULT_SETPOINTS = {
+        sensor_name: {
+            "setpoint": sensor["default_setpoint"],
+            "tolerance": sensor["tolerance"],
+        }
+        for sensor_name, sensor in mock_comodo_config.sensors.items()
+        if "default_setpoint" in sensor
+    }
+    return DEFAULT_SETPOINTS
+
+
 @pytest.fixture(scope="module")
 def bus():
-    collected = {"heartbeats": {}, "errors": [], "end": None, "connected": False}
+    collected = {
+        "heartbeats": {},
+        "measurement": {},
+        "errors": [],
+        "end": None,
+        "connected": False,
+    }
 
     def on_connect(c, userdata, flags, reason_code, properties):
         c.subscribe("#")
@@ -46,6 +66,8 @@ def bus():
         p = msg.payload.decode(errors="replace")
         if "/heartbeat" in t:
             collected["heartbeats"][t] = time.time()
+        elif t.endswith("/measurement"):
+            collected["measurement"][t] = p
         elif t.startswith("error/"):
             collected["errors"].append((t, p))
         elif t == "controller/event/end":
@@ -105,6 +127,51 @@ def test_services_ready(bus, expected_heartbeats):
 
 
 @pytest.mark.order(2)
+def test_default_setpoints(bus, default_setpoints):
+    correct_setpoints = {}
+    wrong_setpoints = {}
+    extra_setpoints = {}
+    deadline = time.time() + SETPOINT_TIMEOUT
+    last_report = 0.0
+    while time.time() < deadline:
+        for topic, measured in bus["measurement"].items():
+            # Strip instrument/instrument_name and /measurement from topic to get sensor name
+            sensor = "/".join(topic.split("/")[1:-1])
+            measured = json.loads(measured)
+            # If an expected setpoint:
+            if sensor in default_setpoints:
+                expected = default_setpoints[sensor]
+                if (
+                    abs(measured["value"] - expected["setpoint"])
+                    <= expected["tolerance"]
+                ):
+                    correct_setpoints[sensor] = measured["value"]
+                    wrong_setpoints.pop(sensor, None)
+                else:
+                    wrong_setpoints[sensor] = measured["value"]
+                    correct_setpoints.pop(sensor, None)
+            # If an unexpected setpoint:
+            extra_setpoints[sensor] = measured["value"]
+        if correct_setpoints.keys() == default_setpoints.keys() and not wrong_setpoints:
+            return
+        now = time.time()
+        if now - last_report >= 3:
+            print(f"  Correct setpoints: {sorted(correct_setpoints.keys())}")
+            print(f"  Wrong setpoints: {sorted(wrong_setpoints.keys())}")
+            print(f"  Extra setpoints: {sorted(extra_setpoints.keys())}")
+            last_report = now
+        time.sleep(1)
+    pytest.fail(
+        f"Not all sensors at their default setpoints."
+        f"\n  Expected: {sorted(default_setpoints)}"
+        f"\n  Received: "
+        f"\n    OK: {sorted(correct_setpoints)}"
+        f"\n    Wrong: {sorted(wrong_setpoints)}"
+        f"\n    No default: {sorted(extra_setpoints)}"
+    )
+
+
+@pytest.mark.order(3)
 def test_experiment_completes(bus, mock_experiment_dict):
     experiment = mock_experiment_dict
 
@@ -128,7 +195,7 @@ def test_experiment_completes(bus, mock_experiment_dict):
     pytest.fail("Experiment did not complete (no controller/event/end)")
 
 
-@pytest.mark.order(3)
+@pytest.mark.order(4)
 def test_no_errors(bus):
     if bus["errors"]:
         lines = "\n".join(f"  [{t}] {p[:200]}" for t, p in bus["errors"])
