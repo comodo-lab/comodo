@@ -26,7 +26,7 @@ def send_heartbeat():
     Returns:
         None
     """
-    if state.client is not None and "ready" in state.status["state"]:
+    if state.client is not None:
         heartbeat_structure = state.get_status()
         state.client.publish(
             f"instruments/{state.config['INSTRUMENT_NAME']}/heartbeat",
