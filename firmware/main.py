@@ -56,7 +56,7 @@ async def measurement_tick(variable_name, interval, oneshot=False):
             break
 
 
-# ----------------- Launcher ----------------- ##
+# ----------------- Sensor Initialization ----------------- ##
 
 
 # Publish the default setpoint for each variable to the MQTT broker.
@@ -70,7 +70,7 @@ def publish_default_setpoints():
         )
 
 
-async def launcher(oneshot=False, timeout=None):
+async def start_sensors_measurements(oneshot=False, timeout=None):
     try:
         async with asyncio.timeout(timeout):
             async with asyncio.TaskGroup() as tg:
@@ -111,8 +111,8 @@ async def main():
     ## Create client
     topics = [
         f"instruments/{state.config['INSTRUMENT_NAME']}/+/setpoint",
-        f"controller/event/end",
-        f"controller/command/stop",
+        "controller/event/end",
+        "controller/command/stop",
     ]
     state.client = mqtt.MQTTClient(
         id=state.config["INSTRUMENT_NAME"],
@@ -130,10 +130,10 @@ async def main():
 
     cfg.populate_heartbeat(state)
 
-    # Attempt startup
-    await launcher(oneshot=True, timeout=10)
-
-    # If successful, set ready, publish (and go to) the default setpoints and print the instrument creation message
+    # Synchronously launch the measurement ticks for each variable
+    await start_sensors_measurements(oneshot=True, timeout=10)
+    # ---- This block only runs once all the measurement ticks have been successfully started ---- #
+    # Start instrument in ready state
     state.status["state"] = "ready"
     state.client.callback = state.ready_cb
 
@@ -141,8 +141,10 @@ async def main():
     state.status["config"] = state.config.get("HEARTBEAT", {}).copy()
 
     # Publish default setpoints for each variable that has one
+    # (which triggers the instrument to go to that setpoint)
     publish_default_setpoints()
 
+    # Print the instrument creation message
     print(
         f"Instrument {state.config['INSTRUMENT_NAME']} created successfully "
         f"using firmware {state.config['FIRMWARE']}"
@@ -150,7 +152,8 @@ async def main():
 
     # Keep running forever
     asyncio.create_task(heartbeat_tick())
-    await launcher()
+    # -------------------------------------------------------------------------------------------- #
+    await start_sensors_measurements(oneshot=True, timeout=10)
 
     return 0
 

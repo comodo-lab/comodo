@@ -22,7 +22,7 @@ config = {
 
 def load_config():
     """
-    Load the default configuration and override using the environmentn
+    Load the default configuration and override using the environment
 
     Returns:
         dict: The configuration object
