@@ -1,5 +1,3 @@
-import sys
-
 import json
 import os
 
@@ -15,8 +13,6 @@ config = {
     "ACTIVE_VARIABLES": [],
     "DEFAULT_SETPOINTS": {},
     "SAFE_STOP_SETPOINTS": {},
-    "SENSORS": {},
-    "HEARTBEAT": {},
 }
 
 
@@ -29,53 +25,24 @@ def load_config():
     """
     # Create config dict
     for key, value in config.items():
+        # Load booleans
         if key in ["SIMULATE"]:
             config[key] = os.getenv(key, str(value)).lower() in ["true", "1", "yes"]
+        # Load lists and dicts
         elif key in ["ACTIVE_VARIABLES", "DEFAULT_SETPOINTS", "SAFE_STOP_SETPOINTS"]:
             loaded = json.loads(os.getenv(key, json.dumps(value)))
             if loaded is None:
                 loaded = {}
             config[key] = loaded
+        # Load anything else as string
         else:
             config[key] = os.getenv(key, value)
+    # Re-pack active_variables with their intervals
+    config["sensors"] = []
+    for variable in config["ACTIVE_VARIABLES"]:
+        # Get the reporting interval
+        interval = int(config.get(f"INTERVAL_{variable.upper()}", 1000))
+        # Add the variable to the sensors list
+        config["sensors"].append({"name": variable, "interval": interval})
 
     return config
-
-
-def populate_heartbeat(state):
-    """
-    Populate the heartbeat object in the config based on the active variables and their intervals.
-
-    Returns:
-    """
-
-    # Populate the SENSORS list based on ACTIVE_VARIABLES and the instrument's available variables
-    for variable in state.config["ACTIVE_VARIABLES"]:
-        # Ensure the variable is available in the instrument
-        if variable not in state.instrument.available_variables:
-            print(
-                f"Warning: Variable '{variable}' is not available in instrument '{state.config['FIRMWARE']}'"
-            )
-            continue
-
-        # Ensure the variable is a sensor
-        if "sensor" not in state.instrument.available_variables[variable]:
-            continue
-
-        # Get the reporting interval
-        interval = int(state.config.get(f"INTERVAL_{variable.upper()}", 1000))
-
-        # Add the variable to the SENSORS list
-        config["SENSORS"][variable] = {
-            "name": variable,
-            "interval": interval,
-        }
-
-    # Create the heartbeat object
-    config["HEARTBEAT"] = {
-        "firmware": config["FIRMWARE"],
-        "device_address": config["DEVICE_ADDRESS"],
-        "simulate": config["SIMULATE"],
-        "variables": config["ACTIVE_VARIABLES"],
-    }
-    return
