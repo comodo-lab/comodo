@@ -1,59 +1,36 @@
 # System imports
-import traceback
-import json
 import asyncio
+import json
+import os
+import traceback
 
-# Shared utils imports
+from src import config, state
+
 from utils import mqtt_clients as mqtt
-
-# Local imports
-import src.config as cfg
-import src.state as state
-
-# Instrument imports (trigger instrument registration)
-from src.instrument import BaseInstrument
-
-# Initialize the state
-state = state.InstrumentState()
-
-## ----------------- Timer helper functions ----------------- ##
-
-
-def send_heartbeat():
-    """
-    Send the heartbeat
-
-    Returns:
-        None
-    """
-    if state.client is not None:
-        heartbeat_structure = state.get_status()
-        state.client.publish(
-            f"instruments/{state.config['INSTRUMENT_NAME']}/heartbeat",
-            heartbeat_structure,
-        )
-
 
 ## ----------------- Timer functions ----------------- ##
 
 
-async def heartbeat_tick():
+async def heartbeat_tick(istatus):
     while True:
-        send_heartbeat()
-        await asyncio.sleep(int(state.config["HEARTBEAT_INTERVAL"]) / 1000)
+        istatus.publish_heartbeat()
+        await asyncio.sleep(int(istatus.instrument.config["HEARTBEAT_INTERVAL"]) / 1000)
 
 
-async def measurement_tick(variable_name, interval, oneshot=False):
+async def measurement_tick(istatus, variable_name, interval, ready_event):
+    first_measurement = True
+
     while True:
-        value = state.instrument.get_measurement(state, variable_name)
-        state.client.publish(
-            f"instruments/{state.config['INSTRUMENT_NAME']}/{variable_name}/measurement",
+        value = istatus.instrument.measure_or_simulate(variable_name)
+        istatus.client.publish(
+            f"instruments/{istatus.instrument.config['INSTRUMENT_NAME']}/"
+            f"{variable_name}/measurement",
             json.dumps({"value": value}),
         )
+        if first_measurement:
+            ready_event.set()
+            first_measurement = False
         await asyncio.sleep(interval / 1000)
-
-        if oneshot:
-            break
 
 
 # ----------------- Sensor Initialization ----------------- ##
@@ -61,117 +38,109 @@ async def measurement_tick(variable_name, interval, oneshot=False):
 
 # Publish the default setpoint for each variable to the MQTT broker.
 # This is done at startup and whenever the setpoints are reset to default.
-def publish_default_setpoints():
-    for variable, setpoint in (state.config.get("DEFAULT_SETPOINTS") or {}).items():
-        state.status["setpoints"][variable] = setpoint
+def publish_default_setpoints(istatus):
+    for variable, setpoint in (
+        istatus.instrument.config.get("DEFAULT_SETPOINTS") or {}
+    ).items():
+        istatus.instrument.setpoints[variable] = setpoint
         mqtt.MQTTPublisher.get_instance().publish(
-            f"instruments/{state.config['INSTRUMENT_NAME']}/{variable}/setpoint",
+            f"instruments/{istatus.instrument.config['INSTRUMENT_NAME']}/{variable}/setpoint",
             json.dumps({"value": setpoint}),
         )
 
 
-async def start_sensors_measurements(oneshot=False, timeout=None):
-    try:
-        async with asyncio.timeout(timeout):
-            async with asyncio.TaskGroup() as tg:
-                for variable in state.config["SENSORS"].values():
-                    tg.create_task(
-                        measurement_tick(
-                            variable["name"],
-                            variable["interval"],
-                            oneshot=oneshot,
-                        )
-                    )
-    except TimeoutError as e:
-        raise RuntimeError("Sensors failed to initialise in time") from e
+async def start_sensors_measurements(istatus, instrument_ready_event, timeout=None):
+    sensors = istatus.instrument.config["sensors"]
+    if not sensors:
+        raise RuntimeError(
+            f"No sensors configured for {istatus.instrument.config['INSTRUMENT_NAME']}"
+        )
+    ready_events = {sensor["name"]: asyncio.Event() for sensor in sensors}
+    async with asyncio.TaskGroup() as tg:
+        # Create a measurement tick for each sensor in the instrument's configuration.
+        for sensor in sensors:
+            tg.create_task(
+                measurement_tick(
+                    istatus,
+                    sensor["name"],
+                    sensor["interval"],
+                    ready_events[sensor["name"]],
+                )
+            )
+        # Wait for all sensors to produce their first measurement, or timeout
+        try:
+            async with asyncio.timeout(timeout):
+                await asyncio.gather(*(event.wait() for event in ready_events.values()))
+        except TimeoutError as e:
+            raise RuntimeError("Sensors failed to initialise in time") from e
+        # Signal that the instrument is ready after all sensors have produced their first measurement
+        instrument_ready_event.set()
+
+        # Keep the measurement ticks TaskGroup alive indefinitely
+        await asyncio.Future()
 
 
 # ----------------- Main function ----------------- ##
 
 
 async def main():
-    """
-    The main function
-
-    Returns:
-        int: The exit code
-    """
-
-    ## Load the configuration file
-    state.config = cfg.load_config()
-
-    # Initialise publisher singleton
-    _ = mqtt.MQTTPublisher.get_instance(
-        broker_address=state.config["MQTT_HOST"],
-        user=state.config["MQTT_USER"],
-        password=state.config["MQTT_PASS"],
-        id=f"publisher_{state.config['INSTRUMENT_NAME']}",
-    )
-
-    ## Create client
-    topics = [
-        f"instruments/{state.config['INSTRUMENT_NAME']}/+/setpoint",
-        "controller/event/end",
-        "controller/command/stop",
-    ]
-    state.client = mqtt.MQTTClient(
-        id=state.config["INSTRUMENT_NAME"],
-        callback=state.idle_cb,
-        topics=topics,
-        broker_address=state.config["MQTT_HOST"],
-        user=state.config["MQTT_USER"],
-        password=state.config["MQTT_PASS"],
-        connection_timeout=60,
-    )
-
-    # Create and initialise the instrument
-    state.instrument = BaseInstrument.create_instrument(state.config["FIRMWARE"])
-    state.instrument.initialise(state)
-
-    cfg.populate_heartbeat(state)
+    istatus = state.InstrumentStatus(config.load_config())
 
     # Synchronously launch the measurement ticks for each variable
-    await start_sensors_measurements(oneshot=True, timeout=10)
-    # ---- This block only runs once all the measurement ticks have been successfully started ---- #
-    # Start instrument in ready state
-    state.status["state"] = "ready"
-    state.client.callback = state.ready_cb
+    instrument_ready_event = asyncio.Event()
+    measurement_task = asyncio.create_task(
+        start_sensors_measurements(istatus, instrument_ready_event, timeout=10)
+    )
+    # Wait until every sensor has produced its first measurement
+    ready_task = asyncio.create_task(instrument_ready_event.wait())
+    done, _ = await asyncio.wait(
+        {measurement_task, ready_task},
+        return_when=asyncio.FIRST_COMPLETED,
+    )
+    # Propagate exceptions if any of the tasks failed
+    if measurement_task in done:
+        measurement_task.result()
 
-    # Populate heartbeat config
-    state.status["config"] = state.config.get("HEARTBEAT", {}).copy()
+    # Start instrument in ready state
+    istatus.state = "ready"
 
     # Publish default setpoints for each variable that has one
     # (which triggers the instrument to go to that setpoint)
-    publish_default_setpoints()
+    publish_default_setpoints(istatus)
 
-    # Print the instrument creation message
+    # Print the instrument creation success message
     print(
-        f"Instrument {state.config['INSTRUMENT_NAME']} created successfully "
-        f"using firmware {state.config['FIRMWARE']}"
+        f"Instrument {istatus.instrument.config['INSTRUMENT_NAME']} created successfully "
+        f"using firmware {istatus.instrument.config['FIRMWARE']}"
     )
 
+    # Start the heartbeat ticks
+    heartbeat_task = asyncio.create_task(heartbeat_tick(istatus))
+
     # Keep running forever
-    asyncio.create_task(heartbeat_tick())
-    # -------------------------------------------------------------------------------------------- #
-    await start_sensors_measurements(oneshot=True, timeout=10)
+    await asyncio.gather(measurement_task, heartbeat_task)
 
     return 0
 
 
 if __name__ == "__main__":
+    # Initialise publisher singleton
+    _ = mqtt.MQTTPublisher.get_instance(
+        broker_address=os.getenv("MQTT_HOST", "rabbitmq"),
+        user=os.getenv("MQTT_USER", "comodo"),
+        password=os.getenv("MQTT_PASS", "comodo"),
+        id=f"publisher_{os.getenv("INSTRUMENT_NAME", "no_name")}",
+    )
     try:
         asyncio.run(main())
     except Exception as e:
         traceback.print_exc()
-        try:
-            state.client.publish(
-                "error/instrument",
-                json.dumps(
-                    {
-                        "code": "exception",
-                        "message": f"[{state.config['INSTRUMENT_NAME']}] {e}",
-                    }
-                ),
-            )
-        except:
-            print(f"Error: {e}")
+        mqtt.MQTTPublisher.get_instance().publish(
+            "error/instrument",
+            json.dumps(
+                {
+                    "code": "exception",
+                    "message": f"[{os.getenv('INSTRUMENT_NAME', 'no_name')}] {e}",
+                }
+            ),
+        )
