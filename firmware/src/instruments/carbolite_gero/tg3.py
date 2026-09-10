@@ -2,21 +2,60 @@
 Definition of GDPS Carbolite Gero Furnace
 """
 
-# Import the BaseInstrument class
-from src.instrument import BaseInstrument
+# System imports
+from typing import ClassVar
 
-# Import the umodbus library and supporting libraries
+# Instrument specific imports
 from pymodbus.client import ModbusTcpClient
 
-# Common variables
+# Local imports
+from src.instrument import BaseInstrument
+
+# ======================================================================================
+# Instrument Class
+# --------------------------------------------------------------------------------------
+
+
+class Instrument(BaseInstrument):
+    available_variables: ClassVar[dict[str, dict]] = {
+        "temperature": {
+            "sensor": 1,
+            "actuator": 2,
+        },
+    }
+
+    def initialise(self):
+        if self.config["SIMULATE"]:
+            self.client = None
+        else:
+            self.client = ModbusTcpClient(
+                host=self.config["DEVICE_ADDRESS"], port=MODBUS_PORT
+            )
+
+    def simulate(self, variable):
+        return self._default_sim(variable)
+
+    def get_measurement(self, variable):
+        return read_register(self.client, self.available_variables[variable]["sensor"])
+
+    def go_to_setpoint(self, variable, setpoint):
+        write_register(
+            self.client, self.available_variables[variable]["actuator"], setpoint
+        )
+
+
+# ======================================================================================
+
+# ======================================================================================
+# TG3 configuration and helper functions
+# --------------------------------------------------------------------------------------
 MODBUS_PORT = 502
 MODBUS_REGISTER_COUNT = 1
 
 
-# ------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------
 # Helper functions
-
-
+# --------------------------------------------------------------------------------------
 def read_register(host, register):
     try:
         register_value = host.read_input_registers(
@@ -40,40 +79,4 @@ def write_register(host, register, value):
         pass
 
 
-# ------------------------------------------------------------------------------
-# Instrument Class
-
-
-class Instrument(BaseInstrument):
-    available_variables = {
-        "temperature": {"sensor": 1, "actuator": 2},
-    }
-
-    def __init__(self):
-        self.client = None
-        self._simulated = {}
-
-    def initialise(self, state):
-        if state.config.get("SIMULATE"):
-            self._simulated = {"temperature": 0}
-            return
-        self.client = ModbusTcpClient(
-            host=state.config["DEVICE_ADDRESS"], port=MODBUS_PORT
-        )
-
-    def go_to_setpoint(self, state, variable):
-        target = state.status["setpoints"][variable]
-        if state.config.get("SIMULATE"):
-            self._simulated[variable] = target
-            return
-        write_register(
-            self.client, self.available_variables[variable]["actuator"], target
-        )
-
-    def get_measurement(self, state, variable):
-        if state.config.get("SIMULATE"):
-            return self._default_sim(state, variable)
-        return read_register(self.client, self.available_variables[variable]["sensor"])
-
-    def set_config(self, config):
-        pass
+# ======================================================================================

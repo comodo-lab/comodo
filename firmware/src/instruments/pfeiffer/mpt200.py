@@ -3,18 +3,58 @@ Pfeiffer MPT 200 Pressure Gauge interface.
 https://www.idealvac.com/files/manuals/Pfeiffer_DigiLine_MPT_200_Digital_Pirani_and_Cold_Cathode_Gauge_Operating_Instructions.pdf?srsltid=AfmBOooqAOLpdE1_6SxWnc5I48YBapWUSsZtYP3KCMQqCVCheb-VDX_3
 """
 
+# System imports
+import sys
+from typing import ClassVar
+
+# Instrument specific imports
+import serial
+
+# Local imports
 from src.instrument import BaseInstrument
 
-import serial
-import sys
+# ======================================================================================
+# Instrument Class
+# --------------------------------------------------------------------------------------
 
+
+class Instrument(BaseInstrument):
+    available_variables: ClassVar[dict[str, dict]] = {
+        "pressure": {
+            "sensor": "740",
+            "actuator": "741",
+        },
+    }
+
+    def initialise(self):
+        if self.config["SIMULATE"]:
+            self.device = None
+        else:
+            self.device = self.config["DEVICE_ADDRESS"]
+
+    def simulate(self, variable):
+        return self._default_sim(variable)
+
+    def get_measurement(self, state, variable):
+        return float(get_pressure(self.device))
+
+    def go_to_setpoint(self, variable, setpoint):
+        # No actuators implemented
+        pass
+
+
+# ======================================================================================
+
+# ======================================================================================
+# MPT200 configuration and helper functions
+# --------------------------------------------------------------------------------------
 ERROR_TIMEOUT = 10  # Seconds to wait before retrying after an error
 REPETITION_TIME = 2  # Seconds to wait before requesting another datapoint
 
-################################################################################
-# Message construction helpers
 
-
+# --------------------------------------------------------------------------------------
+# Helper functions
+# --------------------------------------------------------------------------------------
 def calc_checksum(msg: str) -> str:
     checksum = sum(ord(c) for c in msg) % 256
     return f"{checksum:03d}"
@@ -49,10 +89,6 @@ def get_pressure_read_command():
         sys.exit()
 
     return full_msg
-
-
-################################################################################
-# Message processing helpers
 
 
 def process_pressure(data):
@@ -113,8 +149,6 @@ def process_response(response):
     return pressure
 
 
-################################################################################
-# Get Pressure (main method)
 def get_pressure(device):
     try:
         with serial.Serial(device, 9600, timeout=1) as ser:
@@ -131,25 +165,4 @@ def get_pressure(device):
     return float(pressure)
 
 
-class Instrument(BaseInstrument):
-    available_variables = {
-        "pressure": {"sensor": "740", "actuator": "741"},
-    }
-
-    def __init__(self):
-        self.device = None
-        self._simulated = {}
-
-    def initialise(self, state):
-        if state.config.get("SIMULATE"):
-            self._simulated = {"pressure": 0}
-            return
-        self.device = state.config["DEVICE_ADDRESS"]
-
-    def get_measurement(self, state, variable):
-        if state.config.get("SIMULATE"):
-            return self._default_sim(state, variable)
-        return float(get_pressure(self.device))
-
-    def set_config(self, config):
-        pass
+# ======================================================================================

@@ -3,11 +3,78 @@ Bronkhorst EL-FLOW Select Mass Flow Meter interface.
 https://prod-bronkhorst-products-cdn-ccdwbfhmd0gfecfb.a02.azurefd.net/media/3u4iwfxh/917099-manual-el-flow-select.pdf
 """
 
+# System imports
+from typing import ClassVar
+
+# Instrument specific imports
+import propar
+
+# Local imports
 from src.instrument import BaseInstrument
 
-import propar
-import json
 
+# ======================================================================================
+# Instrument Class
+# --------------------------------------------------------------------------------------
+class Instrument(BaseInstrument):
+    available_variables: ClassVar[dict[str, dict]] = {
+        "mass_flow": {
+            "sensor": "Flow_Rate_Measured",
+            "actuator": "Flow_Rate_Setpoint",
+        },
+        "temperature": {"sensor": "Temperature"},
+        "pressure_upstream": {
+            "sensor": "Inlet_Pressure",
+        },
+        "pressure_downstream": {
+            "sensor": "Outlet_Pressure",
+        },
+    }
+
+    def initialise(self):
+        if self.config["SIMULATE"]:
+            self.device = None
+            self.instrument = None
+        else:
+            self.device = self.config["DEVICE_ADDRESS"]
+            self.instrument = propar.instrument(self.device)
+
+    def simulate(self, variable):
+        """
+        Gets 1% closer to the setpoint each tick
+        """
+        current = self.previous_measurements.get(variable, 0)
+        target = self.setpoints.get(variable, 0)
+        if target is not None:
+            new = current + (target - current) * 0.01
+        return new
+
+    def get_measurement(self, variable):
+        data = read_all(self.instrument)
+        return data.get(self.available_variables[variable]["sensor"])
+
+    def go_to_setpoint(self, variable, setpoint):
+        if variable == "mass_flow":
+            actuator = self.available_variables[variable]["actuator_param"]
+            if not (0 <= setpoint <= 100):
+                print("Setpoint should be a % value, must be between 0 and 100.")
+                return
+
+            instrument_setpoint = (setpoint / 100) * 32000
+            result = write_general(
+                self.instrument,
+                actuator,
+                int(instrument_setpoint),
+            )
+            if result is None:
+                print(f"Failed to write {actuator}.")
+
+
+# ======================================================================================
+
+# ======================================================================================
+# EL-Flow Select configuration and helper functions
+# --------------------------------------------------------------------------------------
 ERROR_TIMEOUT = 10  # Seconds to wait before retrying after an error
 REPETITION_TIME = 2  # Seconds to wait before requesting another datapoint
 
@@ -123,11 +190,10 @@ PARAMETER_MAPPING = {
     },
 }
 
-# -------------------------------------------------------------------
-# EL-Flow Select Functions
-# -------------------------------------------------------------------
 
-
+# --------------------------------------------------------------------------------------
+# Helper functions
+# --------------------------------------------------------------------------------------
 def read_parameter(instrument, channel):
     """
     Reads a parameter from the EL-Flow Select instrument.
@@ -250,66 +316,4 @@ def read_all(instrument):
     return data
 
 
-# -------------------------------------------------------------------
-# Main Function
-# -------------------------------------------------------------------
-
-
-class Instrument(BaseInstrument):
-    available_variables = {
-        "mass_flow": {
-            "sensor": "Flow_Rate_Measured",
-            "actuator": "Flow_Rate_Setpoint",
-        },
-        "temperature": {"sensor": "Temperature"},
-        "pressure_upstream": {"sensor": "Inlet_Pressure"},
-        "pressure_downstream": {"sensor": "Outlet_Pressure"},
-    }
-
-    def __init__(self):
-        self.instrument = None
-        self._simulated = {}
-
-    def initialise(self, state):
-        if state.config.get("SIMULATE"):
-            self._simulated = {v: 0 for v in self.available_variables}
-            return
-        self.device = state.config["DEVICE_ADDRESS"]
-        self.instrument = propar.instrument(self.device)
-
-    def go_to_setpoint(self, state, variable):
-        var = self.available_variables.get(variable)
-        if not var or "actuator" not in var:
-            print(f"'{variable}' does not support setpoints")
-            return
-
-        target = state.status["setpoints"][variable]
-        if state.config.get("SIMULATE"):
-            self._simulated[variable] = target
-            return
-
-        if not (0 <= target <= 100):
-            print("Setpoint must be between 0 and 100%.")
-            return
-
-        instrument_setpoint = (target / 100) * 32000
-        result = write_general(
-            self.instrument, var["actuator_param"], int(instrument_setpoint)
-        )
-        if result is None:
-            print(f"Failed to write {var['actuator_param']}.")
-
-    def get_measurement(self, state, variable):
-        if state.config.get("SIMULATE"):
-            current = self._simulated.get(variable, 0)
-            target = state.status["setpoints"].get(variable)
-            if target is not None:
-                current += (target - current) * 0.01
-                self._simulated[variable] = current
-            return current
-
-        data = read_all(self.instrument)
-        return data.get(self.available_variables[variable]["sensor"])
-
-    def set_config(self, config):
-        pass
+# ======================================================================================
