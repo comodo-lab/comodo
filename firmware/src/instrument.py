@@ -134,3 +134,32 @@ class BaseInstrument(ABC):
         """
         Set the setpoint for a given variable on the instrument.
         """
+
+
+class GenericInstrument(BaseInstrument):
+    """
+    A generic instrument class that can be used for simulation purposes.
+    It accepts any variable passed to it and simulates the behaviour of an instrument.
+    """
+
+    def initialise(self):
+        # Make sure the instrument is in simulation mode.
+        if not self.config["SIMULATE"]:
+            raise ValueError("GenericInstrument must be used in simulation mode.")
+        # Accept any variable passed in the configuration.
+        for var in self.config.get("ACTIVE_VARIABLES", []):
+            self.available_variables[var] = {"sensor": None, "actuator": None}
+
+    def simulate(self, variable):
+        # Use the default simulation behaviour to converge towards the setpoint.
+        return self._default_sim(variable)
+
+    def get_measurement(self, variable):
+        raise NotImplementedError(
+            f"GenericInstrument cannot provide a real measurement for {variable}. "
+            "Please use a specific instrument subclass."
+        )
+
+    def go_to_setpoint(self, variable, setpoint):
+        # No actuators to control in simulation mode
+        pass
