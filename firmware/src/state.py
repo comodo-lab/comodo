@@ -1,97 +1,134 @@
-import sys
 import json
+from typing import ClassVar
+
+from src import instrument as inst
+
 import utils.mqtt_clients as mqtt
 from utils import mqtt_validator as mqtt_val
 
 
-class InstrumentState(object):
-    def __init__(self):
-        """The state machine for the instrument
+class InstrumentStatus:
+
+    allowed_states: ClassVar[list[str]] = [
+        "idle",
+        "adjusting",
+        "ready",
+        "error",
+    ]
+
+    __slots__: tuple[str, ...] = (
+        "_client",
+        "_instrument",
+        "_state",
+    )
+
+    def __init__(self, config):
+        """
+        Initialize the InstrumentStatus object.
 
         Args:
-            None
+            Config: dict: The configuration object
 
         Returns:
             None
         """
+        topics = [
+            f"instruments/{config['INSTRUMENT_NAME']}/+/setpoint",
+            "controller/event/end",
+            "controller/command/stop",
+        ]
+        self._client = mqtt.MQTTClient(
+            id=config["INSTRUMENT_NAME"],
+            callback=self.idle_cb,
+            topics=topics,
+            broker_address=config["MQTT_HOST"],
+            user=config["MQTT_USER"],
+            password=config["MQTT_PASS"],
+            connection_timeout=60,
+        )
+        self._instrument = inst.create_instrument(config)
+        self.state = "idle"
 
-        self.status = {
-            "state": "idle",
-            "setpoints": {},
-            "config": {},
-        }
+    @property
+    def client(self):
+        """Get the MQTT client."""
+        return self._client
 
-        self.client = None
-        self.config = None
-        self.instrument = None
-        self.measurement = 0.0
+    @property
+    def instrument(self):
+        """Get the instrument instance."""
+        return self._instrument
+
+    @property
+    def state(self) -> str:
+        """Get the current state of the instrument."""
+        return self._state
+
+    @state.setter
+    def state(self, new_state):
+        """Set the state of the instrument if valid, and update the MQTT client callback accordingly.
+
+        Args:
+            new_state: str: The new state to set
+
+        Returns:
+            None
+        """
+        if new_state not in self.allowed_states:
+            raise ValueError(f"Invalid state: {new_state}")
+
+        self._state = new_state
+        self.client.callback = getattr(self, f"{new_state}_cb")
 
     # Return string representation of the status
-    def get_status(self):
-        """Return the status of the instrument
-
-        Returns:
-            str: The status of the instrument
+    def publish_heartbeat(self):
         """
-
-        return json.dumps(self.status)
-
-    # Set the config
-    def set_config(self, config):
-        """Set the configuration
-
-        Args:
-            config: dict: The configuration
-
-        Returns:
-            None
+        Publish the heartbeat of the instrument to the MQTT broker.
         """
-
-        self.config = config
+        heartbeat = json.dumps(
+            {
+                "state": self.state,
+                "setpoints": self.instrument.setpoints,
+                "config": self.instrument.print_config(),
+            }
+        )
+        if self.client is not None:
+            self.client.publish(
+                f"instruments/{self.instrument.config['INSTRUMENT_NAME']}/heartbeat",
+                heartbeat,
+            )
 
     def idle_cb(self, _client, msg, _obj=None):
-        """The callback function for the mqtt client when the instrument is starting up
-        Can move to the ready state if the instrument passes self tests
+        """
+        Callback function for the mqtt client when the instrument is starting up
 
         Listens to: None
         Next states: ready
-
-        Returns:
-          None
         """
-        pass
+        print(f"Warning: Received {msg.topic} while instrument is idle. Ignoring...")
 
     def adjusting_cb(self, _client, msg, _obj=None):
-        """The callback function for the mqtt client when the instrument is adjusting
+        """
+        Callback function for the mqtt client when the instrument is adjusting
 
-        Args:
-            topic: str: The topic of the message
-            msg: str: The message
+        Listens to: instruments/{name}/{variable}/setpoint, controller/event/end, controller/command/stop
+        Next states: ready, idle
 
         Returns:
             None
         """
-        # If setpoint is recieved and valid, go to it
+        # If setpoint is received and valid, go to it
         self._parse_and_go_to_setpoint(msg)
 
         # if controller/event/end is received, move to the idle state
         self._end_experiment(msg.topic)
 
     def ready_cb(self, _client, msg, _obj=None):
-        """The callback function for the mqtt client when the instrument is ready
-
-        Args:
-            topic: str: The topic of the message
-            msg: str: The message
-
-        Returns:
-            None
         """
-        # If setpoint is recieved and valid, go to it
-        self._parse_and_go_to_setpoint(msg)
-
-        # if controller/event/end is received, move to the idle state
-        self._end_experiment(msg.topic)
+        Callback function for the mqtt client when the instrument is ready.
+        Behaviour is identical to adjusting state.
+        """
+        self.adjusting_cb(_client, msg, _obj)
 
     def _parse_and_go_to_setpoint(self, msg):
         if not msg.topic.endswith("setpoint"):
@@ -104,26 +141,19 @@ class InstrumentState(object):
         params = mqtt_val.validate_message(msg.topic, msg.payload)
         setpoint = params.get("value")
 
-        # Check setpoint validity and store
+        # Check setpoint validity
         if not isinstance(setpoint, (int, float)) or setpoint == None:
             print(f"Invalid setpoint received: {setpoint}")
             return
-        self.status["setpoints"][variable] = setpoint
 
         # Set state
-        self.client.callback = self.adjusting_cb
-        self.status["state"] = "adjusting"
+        self.state = "adjusting"
 
         # Trigger go to setpoint
-        self.instrument.go_to_setpoint(self, variable)
-
-        return
+        self.instrument.set_and_go_to_setpoint(variable, setpoint)
 
     def _end_experiment(self, topic):
         if topic in ["controller/event/end", "controller/command/stop"]:
-            self.client.callback = self.idle_cb
-            self.status["state"] = "idle"
-            self.status["setpoints"] = {}
-            print(f"Instrument {self.config['INSTRUMENT_NAME']} idle.")
-
-        return
+            self.state = "idle"
+            self.instrument.setpoints = {}
+            print(f"Instrument {self.instrument.config['INSTRUMENT_NAME']} idle.")
