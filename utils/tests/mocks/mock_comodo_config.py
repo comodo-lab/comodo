@@ -42,6 +42,9 @@ def mock_comodo_config(mock_comodo_yaml_dict):
                     },
                 }
             },
+            "default_setpoints": {"temperature": 25},
+            "safe_stop_setpoints": {"temperature": 0},
+            "measurement_intervals": {"temperature": 1},
         },
         "pressure": {
             "firmware": "pfeiffer.mpt200",
@@ -60,6 +63,9 @@ def mock_comodo_config(mock_comodo_yaml_dict):
                     },
                 }
             },
+            "default_setpoints": {"pressure": 1},
+            "safe_stop_setpoints": {},
+            "measurement_intervals": {"pressure": 1},
         },
         "mass_flow": {
             "firmware": "bronkhorst.el_flow_select",
@@ -88,6 +94,9 @@ def mock_comodo_config(mock_comodo_yaml_dict):
                     },
                 }
             },
+            "default_setpoints": {},
+            "safe_stop_setpoints": {"mass_flow": 0},
+            "measurement_intervals": {"mass_flow": 1},
         },
     }
 
@@ -143,10 +152,15 @@ def mock_comodo_config(mock_comodo_yaml_dict):
     }
 
     mock_config.get_expected_heartbeat.return_value = {
+        "name": "test_instrument",
         "firmware": "test_firmware",
         "address": "1.2.3.4",
         "simulate": True,
         "variables": ["V_A", "V_B"],
+        "default_setpoints": {"V_A": 25, "V_B": 1},
+        "safe_stop_setpoints": {"V_B": 0},
+        "measurement_intervals": {"V_A": 1},
+        "heartbeat_interval": 1000,
     }
 
     mock_config.get_default_experiment.return_value = [

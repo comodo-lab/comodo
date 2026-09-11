@@ -49,10 +49,15 @@ class TestConfigLoad:
         # Check heartbeat makes variables into flat list
 
         expected_heartbeat = {
+            "name": "furnace",
             "firmware": "carbolite_gero.tg3",
             "address": "192.168.111.222",
             "simulate": True,
             "variables": ["temperature"],
+            "default_setpoints": {"temperature": 25},
+            "safe_stop_setpoints": {"temperature": 0},
+            "measurement_intervals": {"temperature": 1},
+            "heartbeat_interval": 1000,
         }
         assert (
             config.get_expected_heartbeat("furnace") == expected_heartbeat

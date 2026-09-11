@@ -131,12 +131,7 @@ def test_control_loop(
                 {
                     "state": "ready",
                     "setpoints": {},
-                    "config": {
-                        "firmware": "test_firmware",
-                        "address": "1.2.3.4",
-                        "simulate": True,
-                        "variables": ["V_A", "V_B"],
-                    },
+                    "config": state.config.get_expected_heartbeat(instrument),
                 }
             ),
         )

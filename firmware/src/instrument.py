@@ -96,15 +96,15 @@ class BaseInstrument(ABC):
         Return a dictionary representation of the instrument's configuration.
         """
         printable_config = {}
-        # printable_config["name"] = self.config["INSTRUMENT_NAME"]
+        printable_config["name"] = self.config["INSTRUMENT_NAME"]
         printable_config["firmware"] = self.config["FIRMWARE"]
         printable_config["address"] = self.config["ADDRESS"]
         printable_config["simulate"] = self.config["SIMULATE"]
         printable_config["variables"] = self.config["ACTIVE_VARIABLES"]
-        # printable_config["default_setpoints"] = self.config["DEFAULT_SETPOINTS"]
-        # printable_config["safe_stop_setpoints"] = self.config["SAFE_STOP_SETPOINTS"]
-        # printable_config["measurement_intervals"] = self.config["MEASUREMENT_INTERVALS"]
-        # printable_config["heartbeat_interval"] = self.config["HEARTBEAT_INTERVAL"]
+        printable_config["default_setpoints"] = self.config["DEFAULT_SETPOINTS"]
+        printable_config["safe_stop_setpoints"] = self.config["SAFE_STOP_SETPOINTS"]
+        printable_config["measurement_intervals"] = self.config["MEASUREMENT_INTERVALS"]
+        printable_config["heartbeat_interval"] = self.config["HEARTBEAT_INTERVAL"]
         return printable_config
 
     @abstractmethod

@@ -350,13 +350,6 @@ class TestHeartbeatValid:
     @pytest.fixture
     def hb_valid_mocks(self, state, message_bus):
         with patch("src.on_heartbeat_message.pub_err") as mock_publish_error:
-            expected_hb_config = {
-                "firmware": "test_firmware",
-                "address": "test_address",
-                "simulate": "test_true",
-                "variables": ["some", "variables"],
-            }
-            state.config.get_expected_heartbeat.return_value = expected_hb_config
 
             def get_decoded_bus_messages(topic=None):
                 return message_bus.get_messages(topic=topic, decoded=True)
@@ -364,7 +357,7 @@ class TestHeartbeatValid:
             yield {
                 "pub_err": mock_publish_error,
                 "state": state,
-                "expected_hb_config": expected_hb_config,
+                "expected_hb_config": state.config.get_expected_heartbeat("_"),
                 "messages": get_decoded_bus_messages,
             }
 
