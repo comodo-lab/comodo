@@ -38,8 +38,8 @@ services:
       ACTIVE_VARIABLES: '["temperature"]'
       DEFAULT_SETPOINTS: '{"temperature": 25}'
       SAFE_STOP_SETPOINTS: '{"temperature": 0}'
+      MEASUREMENT_INTERVALS: '{"temperature": 1}'
       HEARTBEAT_INTERVAL: 1000
-      INTERVAL_TEMPERATURE: 1000
 
   pressure:
     <<: *python-instrument-template
@@ -51,8 +51,8 @@ services:
       ACTIVE_VARIABLES: '["pressure"]'
       DEFAULT_SETPOINTS: '{"pressure": 1}'
       SAFE_STOP_SETPOINTS: 'null'
+      MEASUREMENT_INTERVALS: '{"pressure": 1}'
       HEARTBEAT_INTERVAL: 1000
-      INTERVAL_PRESSURE: 1000
     devices:
       - "/dev/ttyUSB0:/dev/ttyUSB0"
     privileged: true
@@ -67,8 +67,8 @@ services:
       ACTIVE_VARIABLES: '["mass_flow"]'
       DEFAULT_SETPOINTS: 'null'
       SAFE_STOP_SETPOINTS: '{"mass_flow": 0}'
+      MEASUREMENT_INTERVALS: '{"mass_flow": 1}'
       HEARTBEAT_INTERVAL: 1000
-      INTERVAL_MASS_FLOW: 1000
     devices:
       - "/dev/ttyUSB2:/dev/ttyUSB2"
     privileged: true

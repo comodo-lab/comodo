@@ -50,21 +50,23 @@ def publish_default_setpoints(istatus):
 
 
 async def start_sensors_measurements(istatus, instrument_ready_event, timeout=None):
-    sensors = istatus.instrument.config["sensors"]
+    sensors = istatus.instrument.config["MEASUREMENT_INTERVALS"]
     if not sensors:
         raise RuntimeError(
             f"No sensors configured for {istatus.instrument.config['INSTRUMENT_NAME']}"
         )
-    ready_events = {sensor["name"]: asyncio.Event() for sensor in sensors}
+    ready_events = {
+        sensor_name: asyncio.Event() for sensor_name in list(sensors.keys())
+    }
     async with asyncio.TaskGroup() as tg:
         # Create a measurement tick for each sensor in the instrument's configuration.
-        for sensor in sensors:
+        for sensor_name, measurement_interval in sensors.items():
             tg.create_task(
                 measurement_tick(
                     istatus,
-                    sensor["name"],
-                    sensor["interval"],
-                    ready_events[sensor["name"]],
+                    sensor_name,
+                    measurement_interval,
+                    ready_events[sensor_name],
                 )
             )
         # Wait for all sensors to produce their first measurement, or timeout

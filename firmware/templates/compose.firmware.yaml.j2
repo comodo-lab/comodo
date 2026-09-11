@@ -29,6 +29,7 @@ services:
 
 {% set instrument_default_setpoints = {} %}
 {%- set instrument_safe_stop_setpoints = {} -%}
+{%- set instrument_measurement_intervals = {} -%}
 {%- set all_default_setpoints = {} -%}
 {%- for name, instr in instruments.items() -%}
 {%- for v_name, v_cfg in instr.variables.items() -%}
@@ -38,6 +39,9 @@ services:
 {%- endif -%}
 {%- if v_cfg.actuator and v_cfg.actuator.safe_stop_setpoint is defined -%}
 {%- set _ = instrument_safe_stop_setpoints.update({name: {v_name: v_cfg.actuator.safe_stop_setpoint}}) -%}
+{%- endif -%}
+{%- if v_cfg.sensor and v_cfg.sensor.interval is defined -%}
+{%- set _ = instrument_measurement_intervals.update({name: {v_name: v_cfg.sensor.interval}}) -%}
 {%- endif -%}
 {%- endfor -%}
 {%- endfor -%}
@@ -53,8 +57,8 @@ services:
       ACTIVE_VARIABLES: '{{ instr.variables.keys() | list | tojson }}'
       DEFAULT_SETPOINTS: '{{ instrument_default_setpoints.get(name) | default({}) | tojson }}'
       SAFE_STOP_SETPOINTS: '{{ instrument_safe_stop_setpoints.get(name) | default({}) | tojson }}'
-      HEARTBEAT_INTERVAL: {{ (global.heartbeat.interval | default(1) | float * 1000) | int }}{% for v_name, v_cfg in instr.variables.items() %}{% if v_cfg.sensor and v_cfg.sensor.interval %}
-      INTERVAL_{{ v_name | upper }}: {{ (v_cfg.sensor.interval | float * 1000) | int }}{% endif %}{% endfor %}
+      MEASUREMENT_INTERVALS: '{{ instrument_measurement_intervals.get(name) | default({}) | tojson }}'
+      HEARTBEAT_INTERVAL: {{ (global.heartbeat.interval | default(1) | float * 1000) | int }}
 {%- if instr.address.startswith('/dev/') %}
     devices:
       - "{{ instr.address }}:{{ instr.address }}"
