@@ -28,9 +28,7 @@ class Instrument(BaseInstrument):
         if self.config["SIMULATE"]:
             self.client = None
         else:
-            self.client = ModbusTcpClient(
-                host=self.config["DEVICE_ADDRESS"], port=MODBUS_PORT
-            )
+            self.client = ModbusTcpClient(host=self.config["ADDRESS"], port=MODBUS_PORT)
 
     def simulate(self, variable):
         return self._default_sim(variable)

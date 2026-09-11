@@ -49,7 +49,7 @@ services:
       <<: *instrument-env
       INSTRUMENT_NAME: "{{ name }}"
       FIRMWARE: {{ instr.firmware }}
-      DEVICE_ADDRESS: "{{ instr.address }}"
+      ADDRESS: "{{ instr.address }}"
       ACTIVE_VARIABLES: '{{ instr.variables.keys() | list | tojson }}'
       DEFAULT_SETPOINTS: '{{ instrument_default_setpoints.get(name) | default({}) | tojson }}'
       SAFE_STOP_SETPOINTS: '{{ instrument_safe_stop_setpoints.get(name) | default({}) | tojson }}'

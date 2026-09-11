@@ -144,7 +144,7 @@ def mock_comodo_config(mock_comodo_yaml_dict):
 
     mock_config.get_expected_heartbeat.return_value = {
         "firmware": "test_firmware",
-        "device_address": "1.2.3.4",
+        "address": "1.2.3.4",
         "simulate": True,
         "variables": ["V_A", "V_B"],
     }

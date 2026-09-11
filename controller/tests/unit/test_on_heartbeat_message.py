@@ -352,7 +352,7 @@ class TestHeartbeatValid:
         with patch("src.on_heartbeat_message.pub_err") as mock_publish_error:
             expected_hb_config = {
                 "firmware": "test_firmware",
-                "device_address": "test_address",
+                "address": "test_address",
                 "simulate": "test_true",
                 "variables": ["some", "variables"],
             }

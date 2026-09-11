@@ -112,7 +112,7 @@ def mock_state(mock_comodo_config, mock_experiment_dict, mock_setpoints):
                     "last_contact": None,
                     "config": {
                         "firmware": "test",
-                        "device_address": "1.2.3.4",
+                        "address": "1.2.3.4",
                         "simulate": True,
                         "variables": [],
                     },

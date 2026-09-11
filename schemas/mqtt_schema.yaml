@@ -388,7 +388,7 @@ channels:
               properties:
                 firmware:
                   type: string
-                device_address:
+                address:
                   type: string
                 simulate:
                   type: boolean

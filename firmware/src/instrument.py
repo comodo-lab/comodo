@@ -98,7 +98,7 @@ class BaseInstrument(ABC):
         printable_config = {}
         # printable_config["name"] = self.config["INSTRUMENT_NAME"]
         printable_config["firmware"] = self.config["FIRMWARE"]
-        printable_config["device_address"] = self.config["DEVICE_ADDRESS"]
+        printable_config["address"] = self.config["ADDRESS"]
         printable_config["simulate"] = self.config["SIMULATE"]
         printable_config["variables"] = self.config["ACTIVE_VARIABLES"]
         # printable_config["measurement_intervals"] = {sensor["name"]: sensor["interval"] for sensor in self.config["sensors"]}

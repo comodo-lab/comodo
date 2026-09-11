@@ -9,7 +9,7 @@ config = {
     "MQTT_HOST": "rabbitmq",
     "HEARTBEAT_INTERVAL": 1000,
     "SIMULATE": True,
-    "DEVICE_ADDRESS": "",
+    "ADDRESS": "",
     "ACTIVE_VARIABLES": [],
     "DEFAULT_SETPOINTS": {},
     "SAFE_STOP_SETPOINTS": {},

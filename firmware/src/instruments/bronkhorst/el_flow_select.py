@@ -36,7 +36,7 @@ class Instrument(BaseInstrument):
             self.device = None
             self.instrument = None
         else:
-            self.device = self.config["DEVICE_ADDRESS"]
+            self.device = self.config["ADDRESS"]
             self.instrument = propar.instrument(self.device)
 
     def simulate(self, variable):

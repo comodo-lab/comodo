@@ -11,18 +11,20 @@ from utils.tests.mocks.mock_mqtt_clients import (
 
 from src.instrument import BaseInstrument
 
+
 @pytest.fixture(autouse=True)
 def get_env():
     return {
         "INSTRUMENT_NAME": "test",
         "FIRMWARE": "test_instrument",
-        "DEVICE_ADDRESS": "1.2.3.4",
+        "ADDRESS": "1.2.3.4",
         "ACTIVE_VARIABLES": '["temperature","pressure"]',
         "HEARTBEAT_INTERVAL": "1000",
         "INTERVAL_TEMPERATURE": "1000",
         "INTERVAL_PRESSURE": "1000",
-        "SIMULATE": "True"
+        "SIMULATE": "True",
     }
+
 
 @pytest.fixture
 def test_instrument():
@@ -30,11 +32,11 @@ def test_instrument():
     driver = MagicMock(spec=BaseInstrument)
     driver.available_variables = {
         "temperature": {
-            "sensor": "T"
+            "sensor": "T",
         },
         "pressure": {
             "sensor": "P",
-            "actuator": "P"
+            "actuator": "P",
         },
     }
     driver._simulated = {}

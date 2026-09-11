@@ -13,6 +13,7 @@ import main
 
 pytestmark = pytest.mark.asyncio
 
+
 async def test_firmware(message_bus, test_instrument, get_env):
     # --------------------------------------------------------------------------
     # Set up the test environment
@@ -21,11 +22,11 @@ async def test_firmware(message_bus, test_instrument, get_env):
     for key, value in get_env.items():
         # Set the environment variable
         os.environ[key] = value
-    
+
     # Set up and run the firmware
     task = asyncio.create_task(main.main())
 
-    # Wait for startup 
+    # Wait for startup
     await asyncio.sleep(5)
 
     # Send some setpoints
@@ -47,11 +48,9 @@ async def test_firmware(message_bus, test_instrument, get_env):
 
     # --------------------------------------------------------------------------
     # Begin tests
-    
+
     # Test that heartbeats have been published
-    heartbeats = message_bus.get_messages(
-        topic="instruments/test/heartbeat"
-    )
+    heartbeats = message_bus.get_messages(topic="instruments/test/heartbeat")
     assert len(heartbeats) > 0, "No heartbeats published"
 
     # Test that they have the correct shape
@@ -63,15 +62,15 @@ async def test_firmware(message_bus, test_instrument, get_env):
 
         assert payload["config"] == {
             "firmware": "test_instrument",
-            "device_address": "1.2.3.4",
+            "address": "1.2.3.4",
             "simulate": True,
             "variables": ["temperature", "pressure"],
         }, "Payload config does not match expected config"
         assert payload["state"] == "ready"
 
-        if payload["setpoints"] != {}: # Only check setpoints if they have been set
+        if payload["setpoints"] != {}:  # Only check setpoints if they have been set
             assert payload["setpoints"] == {"temperature": 25.0, "pressure": 1010.3}
-        
+
     # Test that measurements have been published
     measurements = message_bus.get_messages(
         topic="instruments/test/temperature/measurement"

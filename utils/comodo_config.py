@@ -227,7 +227,7 @@ class ComodoConfig:
 
         return {
             "firmware": inst["firmware"],
-            "device_address": inst["address"],
+            "address": inst["address"],
             "simulate": inst["simulate"],
             "variables": list(inst["variables"].keys()),
         }

@@ -50,7 +50,7 @@ class TestConfigLoad:
 
         expected_heartbeat = {
             "firmware": "carbolite_gero.tg3",
-            "device_address": "192.168.111.222",
+            "address": "192.168.111.222",
             "simulate": True,
             "variables": ["temperature"],
         }

@@ -21,11 +21,9 @@ class Instrument(BaseInstrument):
 
     def initialise(self):
         if self.config["SIMULATE"]:
-            self._device_address = None
             self.mmsp = None
         else:
-            self._device_address = self.config.get("DEVICE_ADDRESS", TARGET_IP_ADDR)
-            self.mmsp = MMSP(self._device_address)
+            self.mmsp = MMSP(self.config.get("ADDRESS", TARGET_IP_ADDR))
 
     def simulate(self, variable):
         return {}
