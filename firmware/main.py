@@ -14,7 +14,7 @@ from utils import mqtt_clients as mqtt
 async def heartbeat_tick(istatus):
     while True:
         istatus.publish_heartbeat()
-        await asyncio.sleep(istatus.instrument.config["HEARTBEAT_INTERVAL"] / 1000)
+        await asyncio.sleep(istatus.instrument.config["HEARTBEAT_INTERVAL"])
 
 
 async def measurement_tick(istatus, variable_name, interval, ready_event):
@@ -30,7 +30,7 @@ async def measurement_tick(istatus, variable_name, interval, ready_event):
         if first_measurement:
             ready_event.set()
             first_measurement = False
-        await asyncio.sleep(interval / 1000)
+        await asyncio.sleep(interval)
 
 
 # ----------------- Sensor Initialization ----------------- ##

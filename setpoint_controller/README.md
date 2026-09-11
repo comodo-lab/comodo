@@ -26,7 +26,7 @@ it will use default PID parameters ($k_p$=1.0, $k_i$=0.1, $k_d$=0.05),
 and set the actuator limits at $u_{min}$=0 and $u_{max}$=100, with unlimited rate of change.
 
 Additional optional environment variables include:
-- `HEARTBEAT_INTERVAL`: Interval (in milliseconds) at which the controller publishes its health status. $\textcolor{#999999}{\small{\text{ Default: 1000 ms. }}}$
+- `HEARTBEAT_INTERVAL`: Interval (in seconds) at which the controller publishes its health status. $\textcolor{#999999}{\small{\text{ Default: 1.0 s. }}}$
 - `K_P`: Proportional gain. $\textcolor{#999999}{\small{\text{ Default: 1.0. }}}$
 - `K_I`: Integral gain. $\textcolor{#999999}{\small{\text{ Default: 0.1. }}}$
 - `K_D`: Derivative gain. $\textcolor{#999999}{\small{\text{ Default: 0.05. }}}$

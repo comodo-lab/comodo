@@ -55,10 +55,10 @@ services:
       FIRMWARE: {{ instr.firmware }}
       ADDRESS: "{{ instr.address }}"
       ACTIVE_VARIABLES: '{{ instr.variables.keys() | list | tojson }}'
-      DEFAULT_SETPOINTS: '{{ instrument_default_setpoints.get(name) | default({}) | tojson }}'
-      SAFE_STOP_SETPOINTS: '{{ instrument_safe_stop_setpoints.get(name) | default({}) | tojson }}'
-      MEASUREMENT_INTERVALS: '{{ instrument_measurement_intervals.get(name) | default({}) | tojson }}'
-      HEARTBEAT_INTERVAL: {{ (global.heartbeat.interval | default(1) | float * 1000) | int }}
+      DEFAULT_SETPOINTS: '{{ instrument_default_setpoints.get(name) | tojson }}'
+      SAFE_STOP_SETPOINTS: '{{ instrument_safe_stop_setpoints.get(name) | tojson }}'
+      MEASUREMENT_INTERVALS: '{{ instrument_measurement_intervals.get(name) | tojson }}'
+      HEARTBEAT_INTERVAL: {{ (global.heartbeat.interval) | float }}
 {%- if instr.address.startswith('/dev/') %}
     devices:
       - "{{ instr.address }}:{{ instr.address }}"
@@ -77,7 +77,7 @@ services:
         condition: service_healthy
     environment:
       <<: *mqtt-env
-      HEARTBEAT_INTERVAL: {{ (global.heartbeat.interval | default(1) | float * 1000) | int }}
+      HEARTBEAT_INTERVAL: {{ (global.heartbeat.interval) | float }}
       SENSOR: "{{ v_cfg.setpoint_controller.external_sensor }}"
       DEFAULT_SETPOINT: {{ all_default_setpoints.get(v_cfg.setpoint_controller.external_sensor) }}
       ACTUATOR: "{{ name }}/{{ v_name }}"
@@ -87,8 +87,8 @@ services:
       K_AW: {{ v_cfg.setpoint_controller.K_AW }}{% endif %}{% if v_cfg.setpoint_controller.K_DF is defined %}
       K_DF: {{ v_cfg.setpoint_controller.K_DF }}{% endif %}{% if v_cfg.setpoint_controller.OUT_MAX_R is defined %}
       OUT_MAX_R: {{ v_cfg.setpoint_controller.OUT_MAX_R }}{% endif %}
-      OUT_MIN: {{ v_cfg.actuator.min | default(v_cfg.sensor.min | default(0)) }}
-      OUT_MAX: {{ v_cfg.actuator.max | default(v_cfg.sensor.max | default(100)) }}
+      OUT_MIN: {{ v_cfg.actuator.min | default(v_cfg.min ) }}
+      OUT_MAX: {{ v_cfg.actuator.max | default(v_cfg.max ) }}
 {%- endif %}
 {%- endfor -%}
 {% endfor %}

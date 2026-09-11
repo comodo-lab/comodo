@@ -248,7 +248,7 @@ class ComodoConfig:
             "default_setpoints": inst["default_setpoints"],
             "safe_stop_setpoints": inst["safe_stop_setpoints"],
             "measurement_intervals": inst["measurement_intervals"],
-            "heartbeat_interval": self.globals["heartbeat_interval"] * 1000,
+            "heartbeat_interval": self.globals["heartbeat_interval"],
         }
 
     def get_default_experiment(self):

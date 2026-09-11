@@ -19,9 +19,9 @@ def get_env():
         "FIRMWARE": "test_instrument",
         "ADDRESS": "1.2.3.4",
         "ACTIVE_VARIABLES": '["temperature","pressure"]',
-        "HEARTBEAT_INTERVAL": "1000",
-        "INTERVAL_TEMPERATURE": "1000",
-        "INTERVAL_PRESSURE": "1000",
+        "HEARTBEAT_INTERVAL": "1.0",
+        "INTERVAL_TEMPERATURE": "1.0",
+        "INTERVAL_PRESSURE": "1.0",
         "SIMULATE": "True",
     }
 

@@ -57,7 +57,7 @@ class TestConfigLoad:
             "default_setpoints": {"temperature": 25},
             "safe_stop_setpoints": {"temperature": 0},
             "measurement_intervals": {"temperature": 1},
-            "heartbeat_interval": 1000,
+            "heartbeat_interval": 1.0,
         }
         assert (
             config.get_expected_heartbeat("furnace") == expected_heartbeat
