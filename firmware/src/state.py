@@ -155,7 +155,7 @@ class InstrumentStatus:
     def _end_experiment(self, topic):
         if topic in ["controller/event/end", "controller/command/stop"]:
             self.state = "idle"
-            self.instrument.setpoints = self.instrument.config.get(
-                "DEFAULT_SETPOINTS", {}
-            )
+            self.instrument.setpoints = self.instrument.config[
+                "DEFAULT_SETPOINTS"
+            ].copy()
             print(f"Instrument {self.instrument.config['INSTRUMENT_NAME']} idle.")
