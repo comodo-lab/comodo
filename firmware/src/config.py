@@ -40,8 +40,8 @@ def load_config():
             if loaded is None:
                 loaded = {}
             config[key] = loaded
-        # Load anything else as string
+        # Load anything else as the type of the default value
         else:
-            config[key] = os.getenv(key, value)
+            config[key] = type(value)(os.getenv(key, value))
 
     return config
