@@ -10,7 +10,7 @@ from utils import mqtt_validator as mqtt_val
 class InstrumentStatus:
 
     allowed_states: ClassVar[list[str]] = [
-        "idle",
+        "initialising",
         "adjusting",
         "ready",
         "error",
@@ -24,7 +24,7 @@ class InstrumentStatus:
 
     def __init__(self, config):
         """
-        Initialize the InstrumentStatus object.
+        Initialise the InstrumentStatus object.
 
         Args:
             Config: dict: The configuration object
@@ -39,7 +39,7 @@ class InstrumentStatus:
         ]
         self._client = mqtt.MQTTClient(
             id=config["INSTRUMENT_NAME"],
-            callback=self.idle_cb,
+            callback=self.initialising_cb,
             topics=topics,
             broker_address=config["MQTT_HOST"],
             user=config["MQTT_USER"],
@@ -47,7 +47,7 @@ class InstrumentStatus:
             connection_timeout=60,
         )
         self._instrument = inst.create_instrument(config)
-        self.state = "idle"
+        self.state = "initialising"
 
     @property
     def client(self):
@@ -98,14 +98,16 @@ class InstrumentStatus:
                 heartbeat,
             )
 
-    def idle_cb(self, _client, msg, _obj=None):
+    def initialising_cb(self, _client, msg, _obj=None):
         """
         Callback function for the mqtt client when the instrument is starting up
 
         Listens to: None
         Next states: ready
         """
-        print(f"Warning: Received {msg.topic} while instrument is idle. Ignoring...")
+        print(
+            f"Warning: Received {msg.topic} while instrument is initialising. Ignoring..."
+        )
 
     def adjusting_cb(self, _client, msg, _obj=None):
         """
