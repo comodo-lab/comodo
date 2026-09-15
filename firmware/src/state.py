@@ -12,8 +12,7 @@ class InstrumentStatus:
     allowed_states: ClassVar[list[str]] = [
         "initialising",
         "awaiting_experiment",
-        "adjusting",
-        "ready",
+        "running",
         "error",
     ]
 
@@ -106,10 +105,10 @@ class InstrumentStatus:
         Callback function for the mqtt client when the instrument is starting up
 
         Listens to: None
-        Next states: adjusting
+        Next states: awaiting_experiment
         """
         print(
-            f"Warning: Received {msg.topic} while instrument is initialising. Ignoring..."
+            f"WARNING: Received {msg.topic} while instrument is initialising. Ignoring..."
         )
 
     def awaiting_experiment_cb(self, _client, msg, _obj=None):
@@ -117,63 +116,33 @@ class InstrumentStatus:
         Callback function for the mqtt client when the instrument is awaiting an experiment to start
 
         Listens to: controller/command/start, instruments/{name}/configure
-        Next states: adjusting
+        Next states: running
         """
-        if not msg.topic.endswith(("start", "configure", "setpoint")):
-            print(
-                f"Warning: Received {msg.topic} while instrument is awaiting experiment. Ignoring..."
-            )
-            return
-
         payload = mqtt_val.validate_message(msg.topic, msg.payload)
-        if (
-            msg.topic
-            == f"instruments/{self.instrument.config['INSTRUMENT_NAME']}/configure"
-        ):
+        if msg.topic.endswith("configure"):
             # Save live config (calibration)
             self.instrument.config["experiment"]["calibration"] = {"some": "values"}
-        elif msg.topic == "controller/command/start":
-            # Save experiment id and move to adjusting
+        elif msg.topic.endswith("start"):
+            # Save experiment id and move to running
             try:
                 self.instrument.config["experiment"]["id"] = payload["id"]
             except KeyError:
                 print(
-                    f"Warning: Received {msg.topic} without an experiment id while instrument is awaiting experiment. Ignoring..."
+                    f"WARNING: Received {msg.topic} without an experiment id. Ignoring..."
                 )
                 return
-            self.state = "adjusting"
+            self.state = "running"
         else:
             print(
-                f"Warning: Received {msg.topic} while instrument is awaiting experiment. Ignoring..."
+                f"WARNING: Received {msg.topic} while instrument is awaiting experiment. Ignoring..."
             )
 
-    def adjusting_cb(self, _client, msg, _obj=None):
+    def running_cb(self, _client, msg, _obj=None):
         """
-        Callback function for the mqtt client when the instrument is actively moving towards a setpoint.
-        Refers to running callback.
-        """
-        self._running_cb(_client, msg, _obj)
-
-    def ready_cb(self, _client, msg, _obj=None):
-        """
-        Callback function for the mqtt client when the instrument is at setpoint.
-        Refers to running callback.
-        """
-        self._running_cb(_client, msg, _obj)
-
-    def error_cb(self, _client, msg, _obj=None):
-        """
-        Callback function for the mqtt client when the instrument is in an error state.
-        Refers to running callback.
-        """
-        self._running_cb(_client, msg, _obj)
-
-    def _running_cb(self, _client, msg, _obj=None):
-        """
-        Callback function for the mqtt client when the instrument is running (adjusting, ready or error)
+        Callback function for the mqtt client when the instrument is running
 
         Listens to: instruments/{name}/{variable}/setpoint, controller/event/end, controller/command/stop
-        Next states: awaiting_experiment, adjusting, ready, error
+        Next states: awaiting_experiment, error
         """
         if msg.topic.endswith("setpoint"):
             self._parse_and_go_to_setpoint(msg)
@@ -213,3 +182,13 @@ class InstrumentStatus:
         print(
             f"Instrument {self.instrument.config['INSTRUMENT_NAME']} awaiting experiment."
         )
+
+    def error_cb(self, _client, msg, _obj=None):
+        """
+        Callback function for the mqtt client when the instrument cannot take measurements or set setpoints
+        Refers to running callback.
+        """
+        if self.instrument.config["experiment"].get("id") is None:
+            self.awaiting_experiment_cb(_client, msg, _obj)
+        else:
+            self.running_cb(_client, msg, _obj)
