@@ -161,6 +161,7 @@ def mock_comodo_config(mock_comodo_yaml_dict):
         "safe_stop_setpoints": {"V_B": 0},
         "measurement_intervals": {"V_A": 1},
         "heartbeat_interval": 1.0,
+        "experiment": {},
     }
 
     mock_config.get_default_experiment.return_value = [

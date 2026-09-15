@@ -621,6 +621,7 @@ class TestGetExpectedHeartbeat:
             "safe_stop_setpoints": {"temperature": 0},
             "measurement_intervals": {"temperature": 1},
             "heartbeat_interval": 1.0,
+            "experiment": {},
         }
 
 

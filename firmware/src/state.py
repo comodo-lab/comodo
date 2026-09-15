@@ -159,11 +159,8 @@ class InstrumentStatus:
 
         # Check setpoint validity
         if not isinstance(setpoint, (int, float)) or setpoint == None:
-            print(f"Invalid setpoint received: {setpoint}")
+            print(f"WARNING: Invalid setpoint received: {setpoint}")
             return
-
-        # Set state
-        self.state = "adjusting"
 
         # Trigger go to setpoint
         try:

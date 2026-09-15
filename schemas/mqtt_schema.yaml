@@ -412,6 +412,9 @@ channels:
                     type: number
                 heartbeat_interval:
                   type: number
+                experiment:
+                  type: object
+                  additionalProperties: true
 
             setpoints:
               type: object
@@ -421,9 +424,9 @@ channels:
             state:
               type: string
               enum:
-                - idle
-                - adjusting
-                - ready
+                - initialising
+                - awaiting_experiment
+                - running
                 - error
 
   instrumentSetpoint:

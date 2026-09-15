@@ -40,7 +40,7 @@ class BaseInstrument(ABC):
         Specific initialisation must be defined by subclasses in the initialise method.
         """
         self.config = config
-        self.setpoints = {}
+        self.setpoints = {var: None for var in self.config["DEFAULT_SETPOINTS"]}
         self.previous_measurements = {}
         self.initialise()
 
@@ -53,6 +53,8 @@ class BaseInstrument(ABC):
         target = self.setpoints.get(variable)
         if target is not None:
             new = current + (target - current) / 2
+        else:
+            new = current
         return new
 
     def measure_or_simulate(self, variable):
@@ -105,6 +107,7 @@ class BaseInstrument(ABC):
         printable_config["safe_stop_setpoints"] = self.config["SAFE_STOP_SETPOINTS"]
         printable_config["measurement_intervals"] = self.config["MEASUREMENT_INTERVALS"]
         printable_config["heartbeat_interval"] = self.config["HEARTBEAT_INTERVAL"]
+        printable_config["experiment"] = self.config["experiment"]
         return printable_config
 
     @abstractmethod
