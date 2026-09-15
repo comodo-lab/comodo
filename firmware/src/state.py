@@ -11,6 +11,7 @@ class InstrumentStatus:
 
     allowed_states: ClassVar[list[str]] = [
         "initialising",
+        "awaiting_experiment",
         "adjusting",
         "ready",
         "error",
@@ -33,6 +34,8 @@ class InstrumentStatus:
             None
         """
         topics = [
+            "controller/command/start",
+            f"instruments/{config['INSTRUMENT_NAME']}/configure",
             f"instruments/{config['INSTRUMENT_NAME']}/+/setpoint",
             "controller/event/end",
             "controller/command/stop",
@@ -103,16 +106,46 @@ class InstrumentStatus:
         Callback function for the mqtt client when the instrument is starting up
 
         Listens to: None
-        Next states: ready
+        Next states: adjusting
         """
         print(
             f"Warning: Received {msg.topic} while instrument is initialising. Ignoring..."
         )
 
+    def awaiting_experiment_cb(self, _client, msg, _obj=None):
         """
+        Callback function for the mqtt client when the instrument is awaiting an experiment to start
 
+        Listens to: controller/command/start, instruments/{name}/configure
+        Next states: adjusting
         """
+        if not msg.topic.endswith(("start", "configure", "setpoint")):
+            print(
+                f"Warning: Received {msg.topic} while instrument is awaiting experiment. Ignoring..."
+            )
+            return
 
+        payload = mqtt_val.validate_message(msg.topic, msg.payload)
+        if (
+            msg.topic
+            == f"instruments/{self.instrument.config['INSTRUMENT_NAME']}/configure"
+        ):
+            # Save live config (calibration)
+            self.instrument.config["experiment"]["calibration"] = {"some": "values"}
+        elif msg.topic == "controller/command/start":
+            # Save experiment id and move to adjusting
+            try:
+                self.instrument.config["experiment"]["id"] = payload["id"]
+            except KeyError:
+                print(
+                    f"Warning: Received {msg.topic} without an experiment id while instrument is awaiting experiment. Ignoring..."
+                )
+                return
+            self.state = "adjusting"
+        else:
+            print(
+                f"Warning: Received {msg.topic} while instrument is awaiting experiment. Ignoring..."
+            )
 
     def adjusting_cb(self, _client, msg, _obj=None):
         """
@@ -170,10 +203,13 @@ class InstrumentStatus:
             print(f"Error occurred while setting setpoint: {e}")
             self.state = "error"
 
-    def _end_experiment(self, topic):
-        if topic in ["controller/event/end", "controller/command/stop"]:
-            self.state = "idle"
-            self.instrument.setpoints = self.instrument.config[
-                "DEFAULT_SETPOINTS"
-            ].copy()
-            print(f"Instrument {self.instrument.config['INSTRUMENT_NAME']} idle.")
+    def _end_experiment(self):
+        # Reset setpoints to default
+        for variable, setpoint in self.instrument.config["DEFAULT_SETPOINTS"].items():
+            self.instrument.set_and_go_to_setpoint(variable, setpoint)
+        # Reset experiment id and move to awaiting_experiment
+        self.instrument.config["experiment"]["id"] = None
+        self.state = "awaiting_experiment"
+        print(
+            f"Instrument {self.instrument.config['INSTRUMENT_NAME']} awaiting experiment."
+        )

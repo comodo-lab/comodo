@@ -14,6 +14,7 @@ config = {
     "SAFE_STOP_SETPOINTS": {},
     "MEASUREMENT_INTERVALS": {},
     "HEARTBEAT_INTERVAL": 1.0,
+    "experiment": {},
 }
 
 
@@ -35,6 +36,7 @@ def load_config():
             "DEFAULT_SETPOINTS",
             "SAFE_STOP_SETPOINTS",
             "MEASUREMENT_INTERVALS",
+            "experiment",
         ]:
             loaded = json.loads(os.getenv(key, json.dumps(value)))
             if loaded is None:
