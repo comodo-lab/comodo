@@ -109,33 +109,45 @@ class InstrumentStatus:
             f"Warning: Received {msg.topic} while instrument is initialising. Ignoring..."
         )
 
+        """
+
+        """
+
+
     def adjusting_cb(self, _client, msg, _obj=None):
         """
-        Callback function for the mqtt client when the instrument is adjusting
-
-        Listens to: instruments/{name}/{variable}/setpoint, controller/event/end, controller/command/stop
-        Next states: ready, idle
-
-        Returns:
-            None
+        Callback function for the mqtt client when the instrument is actively moving towards a setpoint.
+        Refers to running callback.
         """
-        # If setpoint is received and valid, go to it
-        self._parse_and_go_to_setpoint(msg)
-
-        # if controller/event/end is received, move to the idle state
-        self._end_experiment(msg.topic)
+        self._running_cb(_client, msg, _obj)
 
     def ready_cb(self, _client, msg, _obj=None):
         """
-        Callback function for the mqtt client when the instrument is ready.
-        Behaviour is identical to adjusting state.
+        Callback function for the mqtt client when the instrument is at setpoint.
+        Refers to running callback.
         """
-        self.adjusting_cb(_client, msg, _obj)
+        self._running_cb(_client, msg, _obj)
+
+    def error_cb(self, _client, msg, _obj=None):
+        """
+        Callback function for the mqtt client when the instrument is in an error state.
+        Refers to running callback.
+        """
+        self._running_cb(_client, msg, _obj)
+
+    def _running_cb(self, _client, msg, _obj=None):
+        """
+        Callback function for the mqtt client when the instrument is running (adjusting, ready or error)
+
+        Listens to: instruments/{name}/{variable}/setpoint, controller/event/end, controller/command/stop
+        Next states: awaiting_experiment, adjusting, ready, error
+        """
+        if msg.topic.endswith("setpoint"):
+            self._parse_and_go_to_setpoint(msg)
+        elif msg.topic in ["controller/event/end", "controller/command/stop"]:
+            self._end_experiment()
 
     def _parse_and_go_to_setpoint(self, msg):
-        if not msg.topic.endswith("setpoint"):
-            return
-
         # Extract variable name from topic: instruments/{name}/{variable}/setpoint
         _, _, variable, _ = msg.topic.split("/")
 
@@ -152,7 +164,11 @@ class InstrumentStatus:
         self.state = "adjusting"
 
         # Trigger go to setpoint
-        self.instrument.set_and_go_to_setpoint(variable, setpoint)
+        try:
+            self.instrument.set_and_go_to_setpoint(variable, setpoint)
+        except Exception as e:
+            print(f"Error occurred while setting setpoint: {e}")
+            self.state = "error"
 
     def _end_experiment(self, topic):
         if topic in ["controller/event/end", "controller/command/stop"]:

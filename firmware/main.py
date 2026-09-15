@@ -22,6 +22,8 @@ async def measurement_tick(istatus, variable_name, interval, ready_event):
 
     while True:
         value = istatus.instrument.measure_or_simulate(variable_name)
+        if value is None:
+            istatus.state = "error"
         istatus.client.publish(
             f"instruments/{istatus.instrument.config['INSTRUMENT_NAME']}/"
             f"{variable_name}/measurement",
