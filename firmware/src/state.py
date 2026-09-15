@@ -147,7 +147,7 @@ class InstrumentStatus:
         if msg.topic.endswith("setpoint"):
             self._parse_and_go_to_setpoint(msg)
         elif msg.topic in ["controller/event/end", "controller/command/stop"]:
-            self._end_experiment()
+            self.reset()
 
     def _parse_and_go_to_setpoint(self, msg):
         # Extract variable name from topic: instruments/{name}/{variable}/setpoint
@@ -172,7 +172,7 @@ class InstrumentStatus:
             print(f"Error occurred while setting setpoint: {e}")
             self.state = "error"
 
-    def _end_experiment(self):
+    def reset(self):
         # Reset setpoints to default
         for variable, setpoint in self.instrument.config["DEFAULT_SETPOINTS"].items():
             self.instrument.set_and_go_to_setpoint(variable, setpoint)

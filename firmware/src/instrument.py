@@ -40,7 +40,7 @@ class BaseInstrument(ABC):
         Specific initialisation must be defined by subclasses in the initialise method.
         """
         self.config = config
-        self.setpoints = config.get("DEFAULT_SETPOINTS", {}).copy()
+        self.setpoints = {}
         self.previous_measurements = {}
         self.initialise()
 

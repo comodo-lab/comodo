@@ -38,19 +38,6 @@ async def measurement_tick(istatus, variable_name, interval, ready_event):
 # ----------------- Sensor Initialization ----------------- ##
 
 
-# Publish the default setpoint for each variable to the MQTT broker.
-# This is done at startup and whenever the setpoints are reset to default.
-def publish_default_setpoints(istatus):
-    for variable, setpoint in (
-        istatus.instrument.config.get("DEFAULT_SETPOINTS") or {}
-    ).items():
-        istatus.instrument.setpoints[variable] = setpoint
-        mqtt.MQTTPublisher.get_instance().publish(
-            f"instruments/{istatus.instrument.config['INSTRUMENT_NAME']}/{variable}/setpoint",
-            json.dumps({"value": setpoint}),
-        )
-
-
 async def start_sensors_measurements(istatus, instrument_ready_event, timeout=None):
     sensors = istatus.instrument.config["MEASUREMENT_INTERVALS"]
     if not sensors:
@@ -105,12 +92,8 @@ async def main():
     if measurement_task in done:
         measurement_task.result()
 
-    # Start instrument in ready state
-    istatus.state = "ready"
-
-    # Publish default setpoints for each variable that has one
-    # (which triggers the instrument to go to that setpoint)
-    publish_default_setpoints(istatus)
+    # Start instrument with default setpoints and reset live config
+    istatus.reset()
 
     # Print the instrument creation success message
     print(
