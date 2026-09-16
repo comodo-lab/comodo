@@ -44,7 +44,7 @@ class BaseInstrument(ABC):
         self.previous_measurements = {}
         self.initialise()
 
-    def _default_sim(self, variable):
+    def default_sim(self, variable):
         """
         Converges the simulated value toward the setpoint by half the difference each tick.
         May be used in the simulate method of subclasses to provide a default simulation behaviour.
@@ -120,7 +120,7 @@ class BaseInstrument(ABC):
     def simulate(self, variable):
         """
         Simulate the instrument approach to a setpoint for a given variable.
-        For default simulation behaviour, subclasses can call the `_default_sim` method.
+        For default simulation behaviour, subclasses can call the `default_sim` method.
         """
 
     @abstractmethod
@@ -155,7 +155,7 @@ class GenericInstrument(BaseInstrument):
 
     def simulate(self, variable):
         # Use the default simulation behaviour to converge towards the setpoint.
-        return self._default_sim(variable)
+        return self.default_sim(variable)
 
     def get_measurement(self, variable):
         raise NotImplementedError(

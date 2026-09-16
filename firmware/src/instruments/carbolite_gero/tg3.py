@@ -31,7 +31,7 @@ class Instrument(BaseInstrument):
             self.client = ModbusTcpClient(host=self.config["ADDRESS"], port=MODBUS_PORT)
 
     def simulate(self, variable):
-        return self._default_sim(variable)
+        return self.default_sim(variable)
 
     def get_measurement(self, variable):
         return read_register(self.client, self.available_variables[variable]["sensor"])

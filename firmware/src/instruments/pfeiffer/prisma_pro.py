@@ -28,7 +28,7 @@ class Instrument(BaseInstrument):
     def simulate(self, variable):
         return {}
 
-    def get_measurement(self, state, variable):
+    def get_measurement(self, variable):
         scan = self.mmsp.run_and_get_scan()
         return scan
 

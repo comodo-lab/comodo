@@ -11,21 +11,21 @@ from utils import mqtt_clients as mqtt
 ## ----------------- Timer functions ----------------- ##
 
 
-async def heartbeat_tick(istatus):
+async def heartbeat_tick(istate):
     while True:
-        istatus.publish_heartbeat()
-        await asyncio.sleep(istatus.instrument.config["HEARTBEAT_INTERVAL"])
+        istate.publish_heartbeat()
+        await asyncio.sleep(istate.instrument.config["HEARTBEAT_INTERVAL"])
 
 
-async def measurement_tick(istatus, variable_name, interval, ready_event):
+async def measurement_tick(istate, variable_name, interval, ready_event):
     first_measurement = True
 
     while True:
-        value = istatus.instrument.measure_or_simulate(variable_name)
+        value = istate.instrument.measure_or_simulate(variable_name)
         if value is None:
-            istatus.state = "error"
-        istatus.client.publish(
-            f"instruments/{istatus.instrument.config['INSTRUMENT_NAME']}/"
+            istate.status = "error"
+        istate.client.publish(
+            f"instruments/{istate.instrument.config['INSTRUMENT_NAME']}/"
             f"{variable_name}/measurement",
             json.dumps({"value": value}),
         )
@@ -38,11 +38,11 @@ async def measurement_tick(istatus, variable_name, interval, ready_event):
 # ----------------- Sensor Initialization ----------------- ##
 
 
-async def start_sensors_measurements(istatus, instrument_ready_event, timeout=None):
-    sensors = istatus.instrument.config["MEASUREMENT_INTERVALS"]
+async def start_sensors_measurements(istate, instrument_ready_event, timeout=None):
+    sensors = istate.instrument.config["MEASUREMENT_INTERVALS"]
     if not sensors:
         raise RuntimeError(
-            f"No sensors configured for {istatus.instrument.config['INSTRUMENT_NAME']}"
+            f"No sensors configured for {istate.instrument.config['INSTRUMENT_NAME']}"
         )
     ready_events = {
         sensor_name: asyncio.Event() for sensor_name in list(sensors.keys())
@@ -52,7 +52,7 @@ async def start_sensors_measurements(istatus, instrument_ready_event, timeout=No
         for sensor_name, measurement_interval in sensors.items():
             tg.create_task(
                 measurement_tick(
-                    istatus,
+                    istate,
                     sensor_name,
                     measurement_interval,
                     ready_events[sensor_name],
@@ -75,12 +75,12 @@ async def start_sensors_measurements(istatus, instrument_ready_event, timeout=No
 
 
 async def main():
-    istatus = state.InstrumentStatus(config.load_config())
+    istate = state.InstrumentState(config.load_config())
 
     # Synchronously launch the measurement ticks for each variable
     instrument_ready_event = asyncio.Event()
     measurement_task = asyncio.create_task(
-        start_sensors_measurements(istatus, instrument_ready_event, timeout=10)
+        start_sensors_measurements(istate, instrument_ready_event, timeout=10)
     )
     # Wait until every sensor has produced its first measurement
     ready_task = asyncio.create_task(instrument_ready_event.wait())
@@ -93,16 +93,16 @@ async def main():
         measurement_task.result()
 
     # Start instrument with default setpoints and reset live config
-    istatus.reset()
+    istate.reset()
 
     # Print the instrument creation success message
     print(
-        f"Instrument {istatus.instrument.config['INSTRUMENT_NAME']} created successfully "
-        f"using firmware {istatus.instrument.config['FIRMWARE']}"
+        f"Instrument {istate.instrument.config['INSTRUMENT_NAME']} created successfully "
+        f"using firmware {istate.instrument.config['FIRMWARE']}"
     )
 
     # Start the heartbeat ticks
-    heartbeat_task = asyncio.create_task(heartbeat_tick(istatus))
+    heartbeat_task = asyncio.create_task(heartbeat_tick(istate))
 
     # Keep running forever
     await asyncio.gather(measurement_task, heartbeat_task)

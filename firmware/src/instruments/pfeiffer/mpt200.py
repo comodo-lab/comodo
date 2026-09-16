@@ -33,9 +33,9 @@ class Instrument(BaseInstrument):
             self.device = self.config["ADDRESS"]
 
     def simulate(self, variable):
-        return self._default_sim(variable)
+        return self.default_sim(variable)
 
-    def get_measurement(self, state, variable):
+    def get_measurement(self, variable):
         return float(get_pressure(self.device))
 
     def go_to_setpoint(self, variable, setpoint):
