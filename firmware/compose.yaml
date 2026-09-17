@@ -1,8 +1,11 @@
 
-# This compose file runs the firmware integration tests and exits when done.
-# To run the tests:
-#   docker compose -f compose.yaml up --build
-name: firmware-integration-tests
+# This compose file runs the tests for the firmware and exits when done.
+# To run the tests, cd into firmware/ and execute:
+#   docker compose up --build
+# To check coverage report, after tests have run, execute:
+#   xdg-open $(docker volume inspect firmware-tests_memory -f '{{ .Mountpoint }}')/htmlcov/class_index.html
+
+name: firmware-tests
 services:
   firmware-test:
     image: comodo-firmware:testing

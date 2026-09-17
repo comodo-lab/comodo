@@ -32,7 +32,7 @@ class BaseInstrument(ABC):
     """
 
     # Available variables for the instrument, with their corresponding sensor and actuator parameters
-    available_variables: ClassVar[dict[str, dict]]
+    available_variables: ClassVar[dict[str, dict]] = {}
 
     def __init__(self, config):
         """

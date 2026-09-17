@@ -171,10 +171,7 @@ def mqtt_mocks(message_bus):
             # Wrapper to adapt message bus callback to MQTT client callback signature
             # Accesses the current callback dynamically (so it reacts to callback changes)
             def callback_wrapper(topic, msg):
-                if (
-                    mock_client_instance.callback is not None
-                    and mock_client_instance.obj is not None
-                ):
+                if mock_client_instance.callback is not None:
                     mock_client_instance.callback(
                         mock_client_instance,
                         msg,
