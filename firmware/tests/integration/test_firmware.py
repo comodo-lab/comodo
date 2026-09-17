@@ -192,3 +192,43 @@ async def test_main_with_generic_instrument(message_bus, firmware_env, monkeypat
         firmware_task.cancel()
         with pytest.raises(asyncio.CancelledError):
             await firmware_task
+
+
+def discover_instrument_plugins():
+    """
+    Returns the '<package>.<module>' plugin name for every instrument implementation
+    file found under src/instruments (e.g. "bronkhorst.el_flow_select").
+    """
+    instruments_dir = os.path.join(os.path.dirname(__file__), "../../src/instruments")
+    plugins = []
+    for package_name in sorted(os.listdir(instruments_dir)):
+        package_dir = os.path.join(instruments_dir, package_name)
+        if not os.path.isdir(package_dir) or package_name.startswith("__"):
+            continue
+        for filename in sorted(os.listdir(package_dir)):
+            if filename.endswith(".py") and not filename.startswith("__"):
+                plugins.append(f"{package_name}.{filename[:-3]}")
+    return plugins
+
+
+@pytest.mark.parametrize("firmware_plugin", discover_instrument_plugins())
+def test_create_instrument_for_all_instrument_subclasses(firmware_plugin):
+    """
+    Every instrument plugin under src/instruments should be instantiable in simulation
+    mode. This is enough to check at least that their ABC implementation is correct.
+    Also, repeated simulated measurements are requested, to ensure the simulation does not error.
+    """
+    config = {
+        "FIRMWARE": firmware_plugin,
+        "SIMULATE": True,
+        "ADDRESS": "",
+        "DEFAULT_SETPOINTS": {},
+    }
+    instrument_instance = src.instrument.create_instrument(config)
+    assert instrument_instance is not None
+
+    # Iterate a few simulated measurements per variable to check the simulation runs
+    for variable in instrument_instance.available_variables:
+        for _ in range(3):
+            instrument_instance.measure_or_simulate(variable)
+        assert variable in instrument_instance.previous_measurements
