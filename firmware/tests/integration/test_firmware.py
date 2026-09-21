@@ -18,9 +18,8 @@ from tests.conftest import (
     measurement_matches,
 )
 
-pytestmark = pytest.mark.asyncio
 
-
+@pytest.mark.asyncio
 async def test_main_with_generic_instrument(message_bus, firmware_env, monkeypatch):
     """
     This test simulates the full initialisation and operation of the firmware,
@@ -227,8 +226,25 @@ def test_create_instrument_for_all_instrument_subclasses(firmware_plugin):
     instrument_instance = src.instrument.create_instrument(config)
     assert instrument_instance is not None
 
-    # Iterate a few simulated measurements per variable to check the simulation runs
+    # Iterate simulated measurements per variable, checking they converge towards a setpoint
+    target_setpoint = 42.0
     for variable in instrument_instance.available_variables:
-        for _ in range(3):
-            instrument_instance.measure_or_simulate(variable)
+        instrument_instance.set_and_go_to_setpoint(variable, target_setpoint)
+        previous_error = None
+        max_iterations = 1000
+        for _ in range(max_iterations):
+            value = instrument_instance.measure_or_simulate(variable)
+            if not isinstance(value, (int, float)):
+                break  # non-numeric simulation (e.g. a mass spec scan); nothing to converge
+            error = abs(value - target_setpoint)
+            assert (
+                previous_error is None or error <= previous_error
+            ), f"Simulated '{variable}' measurement did not converge to setpoint in {max_iterations} iterations."
+            previous_error = error
+            if error < 1e-2:
+                break  # converged to setpoint
         assert variable in instrument_instance.previous_measurements
+        if previous_error is not None:
+            assert (
+                previous_error < 1e-2
+            ), f"Simulated '{variable}' measurement should reach its setpoint"
