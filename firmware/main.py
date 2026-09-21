@@ -74,7 +74,7 @@ async def start_sensors_measurements(istate, instrument_ready_event, timeout=Non
 # ----------------- Main function ----------------- ##
 
 
-async def main():
+async def start_instrument():
     istate = state.InstrumentState(config.load_config())
 
     # Synchronously launch the measurement ticks for each variable
@@ -110,7 +110,7 @@ async def main():
     return 0
 
 
-if __name__ == "__main__":
+def main():
     # Initialise publisher singleton
     _ = mqtt.MQTTPublisher.get_instance(
         broker_address=os.getenv("MQTT_HOST", "rabbitmq"),
@@ -119,7 +119,7 @@ if __name__ == "__main__":
         id=f"publisher_{os.getenv("INSTRUMENT_NAME", "no_name")}",
     )
     try:
-        asyncio.run(main())
+        asyncio.run(start_instrument())
     except Exception as e:
         traceback.print_exc()
         mqtt.MQTTPublisher.get_instance().publish(
@@ -131,3 +131,7 @@ if __name__ == "__main__":
                 }
             ),
         )
+
+
+if __name__ == "__main__":
+    main()  # pragma: no cover
