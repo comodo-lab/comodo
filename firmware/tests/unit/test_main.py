@@ -118,3 +118,77 @@ class TestTimerFunctions:
         assert ready_event.is_set()
 
 
+class TestSensorInitialisation:
+    @pytest.fixture
+    def si_mocks(self, mock_state):
+        measurement_calls = []
+        sensor_ready_events = {}
+
+        async def mock_measurement_tick(istate, variable, interval, ready_event):
+            measurement_calls.append((istate, variable, interval))
+            sensor_ready_events[variable] = ready_event
+            ready_event.set()
+            await asyncio.Future()
+
+        async def never_ready_tick(_istate, _variable, _interval, _ready_event):
+            await asyncio.Future()
+
+        with patch.object(main, "measurement_tick", mock_measurement_tick):
+            yield {
+                "state": mock_state,
+                "measurement_calls": measurement_calls,
+                "sensor_ready_events": sensor_ready_events,
+                "never_ready_tick": never_ready_tick,
+            }
+
+    async def test_start_sensors_measurements_waits_for_all_sensors(self, si_mocks):
+        mock_istate = si_mocks["state"]
+        mock_istate.instrument.config["MEASUREMENT_INTERVALS"] = {
+            "temperature": 1.0,
+            "pressure": 2.0,
+        }
+        instrument_ready_event = asyncio.Event()
+        task = asyncio.create_task(
+            main.start_sensors_measurements(
+                mock_istate, instrument_ready_event, timeout=1.0
+            )
+        )
+        await asyncio.wait_for(instrument_ready_event.wait(), timeout=1.0)
+
+        assert si_mocks["measurement_calls"] == [
+            (mock_istate, "temperature", 1.0),
+            (mock_istate, "pressure", 2.0),
+        ]
+        assert all(event.is_set() for event in si_mocks["sensor_ready_events"].values())
+
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+    async def test_start_sensors_measurements_rejects_empty_configuration(
+        self, si_mocks
+    ):
+        mock_istate = si_mocks["state"]
+        mock_istate.instrument.config["MEASUREMENT_INTERVALS"] = {}
+
+        with pytest.raises(RuntimeError, match="No sensors configured"):
+            await main.start_sensors_measurements(
+                mock_istate, asyncio.Event(), timeout=1.0
+            )
+
+    async def test_start_sensors_measurements_times_out(self, si_mocks):
+        with patch.object(main, "measurement_tick", si_mocks["never_ready_tick"]):
+            mock_istate = si_mocks["state"]
+            mock_istate.instrument.config["MEASUREMENT_INTERVALS"] = {
+                "temperature": 1.0
+            }
+            with pytest.raises(ExceptionGroup) as exc_info:
+                await main.start_sensors_measurements(
+                    mock_istate, asyncio.Event(), timeout=0.01
+                )
+
+        assert len(exc_info.value.exceptions) == 1
+        assert isinstance(exc_info.value.exceptions[0], RuntimeError)
+        assert (
+            str(exc_info.value.exceptions[0]) == "Sensors failed to initialise in time"
+        )
