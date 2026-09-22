@@ -1,3 +1,4 @@
+import copy
 import importlib
 from abc import ABC, abstractmethod
 from typing import ClassVar
@@ -40,6 +41,8 @@ class BaseInstrument(ABC):
         Specific initialisation must be defined by subclasses in the initialise method.
         """
         self.config = config
+        # Copy the class-level defaults so instances don't share (and mutate) a single dict.
+        self.available_variables = copy.deepcopy(self.available_variables)
         self.setpoints = {var: None for var in self.config["DEFAULT_SETPOINTS"]}
         self.previous_measurements = {}
         self.initialise()
