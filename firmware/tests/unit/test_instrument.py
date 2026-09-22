@@ -317,3 +317,69 @@ class TestBaseInstrument:
         result = ins.print_config()
 
         assert result == expected_config(bi_mocks["environment"])
+
+
+class TestGenericInstrument:
+    @pytest.fixture
+    def gi_mocks(self, firmware_env):
+        with (patch("src.instrument.BaseInstrument.default_sim") as mock_def_sim,):
+
+            mock_def_sim.return_value = 0
+            yield {
+                "mock_config": mock_load_config(firmware_env),
+                "mock_def_sim": mock_def_sim,
+            }
+
+    def test_initialise_forces_simulation(self, gi_mocks):
+        mock_config = gi_mocks["mock_config"]
+        mock_config["SIMULATE"] = False
+
+        with pytest.raises(ValueError) as e:
+            ins = instrument.GenericInstrument(mock_config)
+
+        assert "GenericInstrument must be used in simulation mode." in str(e.value)
+        assert "ins" not in locals()
+
+    def test_initialise_accepts_any_variable(self, gi_mocks):
+        mock_config = gi_mocks["mock_config"]
+        mock_config["SIMULATE"] = True
+        mock_config["ACTIVE_VARIABLES"] = ["var1", "var2", "var3"]
+
+        ins = instrument.GenericInstrument(mock_config)
+
+        assert ins.available_variables == {
+            "var1": {"sensor": None, "actuator": None},
+            "var2": {"sensor": None, "actuator": None},
+            "var3": {"sensor": None, "actuator": None},
+        }
+
+    def test_simulate_uses_default_sim(self, gi_mocks):
+        mock_config = gi_mocks["mock_config"]
+        mock_config["SIMULATE"] = True
+        ins = instrument.GenericInstrument(mock_config)
+
+        result = ins.simulate("some_variable")
+
+        assert result == gi_mocks["mock_def_sim"].return_value
+        gi_mocks["mock_def_sim"].assert_called_once_with("some_variable")
+
+    def test_get_measurement_raises(self, gi_mocks):
+        mock_config = gi_mocks["mock_config"]
+        mock_config["SIMULATE"] = True
+        ins = instrument.GenericInstrument(mock_config)
+
+        with pytest.raises(NotImplementedError) as e:
+            result = ins.get_measurement("some_variable")
+
+        assert "GenericInstrument cannot provide a real measurement" in str(e.value)
+        assert "result" not in locals()
+
+    def test_go_to_setpoint_raises(self, gi_mocks):
+        mock_config = gi_mocks["mock_config"]
+        mock_config["SIMULATE"] = True
+        ins = instrument.GenericInstrument(mock_config)
+
+        with pytest.raises(NotImplementedError) as e:
+            ins.go_to_setpoint("some_variable", 10.0)
+
+        assert "GenericInstrument cannot set a real setpoint" in str(e.value)
