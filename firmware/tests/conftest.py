@@ -54,7 +54,7 @@ def mock_load_config(firmware_env):
         "SAFE_STOP_SETPOINTS": json.loads(firmware_env["SAFE_STOP_SETPOINTS"]),
         "MEASUREMENT_INTERVALS": json.loads(firmware_env["MEASUREMENT_INTERVALS"]),
         "HEARTBEAT_INTERVAL": float(firmware_env["HEARTBEAT_INTERVAL"]),
-        "experiment": {},
+        "experiment": {"id": None},
     }
     return config
 

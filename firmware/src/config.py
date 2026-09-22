@@ -1,7 +1,8 @@
+import copy
 import json
 import os
 
-config = {
+DEFAULT_CONFIG = {
     "MQTT_USER": "comodo",
     "MQTT_PASS": "comodo",
     "MQTT_HOST": "rabbitmq",
@@ -14,7 +15,7 @@ config = {
     "SAFE_STOP_SETPOINTS": {},
     "MEASUREMENT_INTERVALS": {},
     "HEARTBEAT_INTERVAL": 1.0,
-    "experiment": {},
+    "experiment": {"id": None},
 }
 
 
@@ -26,7 +27,8 @@ def load_config():
         dict: The configuration object
     """
     # Create config dict
-    for key, value in config.items():
+    config = copy.deepcopy(DEFAULT_CONFIG)
+    for key, value in DEFAULT_CONFIG.items():
         # Load booleans
         if key in ["SIMULATE"]:
             config[key] = os.getenv(key, str(value)).lower() in ["true", "1", "yes"]

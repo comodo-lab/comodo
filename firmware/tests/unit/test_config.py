@@ -24,7 +24,7 @@ class TestConfig:
                 "env": environment,
                 "getenv": mock_getenv,
                 "loaded_config": mock_load_config(firmware_env),
-                "default_config": copy.deepcopy(config.config),
+                "default_config": copy.deepcopy(config.DEFAULT_CONFIG),
             }
 
     def test_load_config(self, config_mocks):
