@@ -73,6 +73,78 @@ class TestTimerFunctions:
         timer_mocks["sleep"].assert_called_once_with(m_interval)
         assert ready_event.is_set()
 
+    async def test_measurement_tick_can_move_from_error_to_awaiting(self, timer_mocks):
+        mock_istate = timer_mocks["state"]
+        mock_istate._can_measure = False
+        mock_istate._can_set_setpoint = True
+        mock_istate.status = "error"
+        var_name = "temperature"
+        m_interval = 1.0
+        ready_event = asyncio.Event()
+        mock_istate.instrument.measure_or_simulate.return_value = 1.3
+
+        m_task = asyncio.create_task(
+            main.measurement_tick(mock_istate, var_name, m_interval, ready_event)
+        )
+        with pytest.raises(asyncio.CancelledError):
+            await m_task
+
+        mock_istate.instrument.measure_or_simulate.assert_called_once_with(var_name)
+        assert mock_istate._can_measure == True
+        assert mock_istate.status == "awaiting_experiment"
+        mock_istate.client.publish.assert_called_once()
+        timer_mocks["sleep"].assert_called_once_with(m_interval)
+        assert ready_event.is_set()
+
+    async def test_measurement_tick_can_move_from_error_to_running(self, timer_mocks):
+        mock_istate = timer_mocks["state"]
+        mock_istate._can_measure = False
+        mock_istate._can_set_setpoint = True
+        mock_istate.instrument.config["experiment"]["id"] = "e-123"
+        mock_istate.status = "error"
+        var_name = "temperature"
+        m_interval = 1.0
+        ready_event = asyncio.Event()
+        mock_istate.instrument.measure_or_simulate.return_value = 1.3
+
+        m_task = asyncio.create_task(
+            main.measurement_tick(mock_istate, var_name, m_interval, ready_event)
+        )
+        with pytest.raises(asyncio.CancelledError):
+            await m_task
+
+        mock_istate.instrument.measure_or_simulate.assert_called_once_with(var_name)
+        assert mock_istate._can_measure == True
+        assert mock_istate.status == "running"
+        mock_istate.client.publish.assert_called_once()
+        timer_mocks["sleep"].assert_called_once_with(m_interval)
+        assert ready_event.is_set()
+
+    async def test_measurement_tick_only_moves_off_error_if_can_set_setpoint(
+        self, timer_mocks
+    ):
+        mock_istate = timer_mocks["state"]
+        mock_istate._can_measure = False
+        mock_istate._can_set_setpoint = False
+        mock_istate.status = "error"
+        var_name = "temperature"
+        m_interval = 1.0
+        ready_event = asyncio.Event()
+        mock_istate.instrument.measure_or_simulate.return_value = 1.3
+
+        m_task = asyncio.create_task(
+            main.measurement_tick(mock_istate, var_name, m_interval, ready_event)
+        )
+        with pytest.raises(asyncio.CancelledError):
+            await m_task
+
+        mock_istate.instrument.measure_or_simulate.assert_called_once_with(var_name)
+        assert mock_istate._can_measure == True
+        assert mock_istate.status == "error"
+        mock_istate.client.publish.assert_called_once()
+        timer_mocks["sleep"].assert_called_once_with(m_interval)
+        assert ready_event.is_set()
+
     async def test_measurement_tick_with_None_value(self, timer_mocks):
         mock_istate = timer_mocks["state"]
         mock_istate.status = "initialising"

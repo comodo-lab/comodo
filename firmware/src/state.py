@@ -20,6 +20,8 @@ class InstrumentState:
         "_client",
         "_instrument",
         "_status",
+        "_can_measure",
+        "_can_set_setpoint",
     )
 
     def __init__(self, config):
@@ -49,6 +51,8 @@ class InstrumentState:
             connection_timeout=60,
         )
         self._instrument = inst.create_instrument(config)
+        self._can_measure = True
+        self._can_set_setpoint = True
         self.status = "initialising"
 
     @property
@@ -158,7 +162,11 @@ class InstrumentState:
             # Trigger go to setpoint
             try:
                 self.instrument.set_and_go_to_setpoint(variable, setpoint)
+                self._can_set_setpoint = True
+                if self.status == "error" and self._can_measure:
+                    self.status = "running"
             except Exception as e:
+                self._can_set_setpoint = False
                 print(f"ERROR: Failed to set the setpoint for {variable}: {e}")
                 self.status = "error"
         else:

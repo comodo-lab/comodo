@@ -23,7 +23,15 @@ async def measurement_tick(istate, variable_name, interval, ready_event):
     while True:
         value = istate.instrument.measure_or_simulate(variable_name)
         if value is None:
+            istate._can_measure = False
             istate.status = "error"
+        else:
+            istate._can_measure = True
+            if istate.status == "error" and istate._can_set_setpoint:
+                if istate.instrument.config["experiment"].get("id") is None:
+                    istate.status = "awaiting_experiment"
+                else:
+                    istate.status = "running"
         istate.client.publish(
             f"instruments/{istate.instrument.config['INSTRUMENT_NAME']}/"
             f"{variable_name}/measurement",

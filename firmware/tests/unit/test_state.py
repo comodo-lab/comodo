@@ -356,6 +356,48 @@ class TestInstrumentState:
             assert istate.client.callback == istate.error_cb
             mock_reset.assert_not_called()
 
+    def test_running_cb_can_move_off_error_state(self, is_mocks):
+        mock_config = is_mocks["config"]
+        mock_set_and_go = is_mocks["instrument"].set_and_go_to_setpoint
+        with patch.object(state.InstrumentState, "reset") as mock_reset:
+            istate = state.InstrumentState(mock_config)
+            istate._can_measure = True
+            istate._can_set_setpoint = False
+            istate.status = "error"
+
+            mock_msg = MockMessage(
+                topic="instruments/inst/var/setpoint",
+                payload=json.dumps({"value": 42}),
+            )
+            istate.running_cb(istate.client, mock_msg)
+
+            is_mocks["mqtt_val"].validate_message.assert_called_once()
+            mock_set_and_go.assert_called_once_with("var", 42)
+            assert istate._can_set_setpoint == True
+            assert istate.status == "running"
+            mock_reset.assert_not_called()
+
+    def test_running_cb_only_move_off_error_state_if_can_measure(self, is_mocks):
+        mock_config = is_mocks["config"]
+        mock_set_and_go = is_mocks["instrument"].set_and_go_to_setpoint
+        with patch.object(state.InstrumentState, "reset") as mock_reset:
+            istate = state.InstrumentState(mock_config)
+            istate._can_measure = False
+            istate._can_set_setpoint = False
+            istate.status = "error"
+
+            mock_msg = MockMessage(
+                topic="instruments/inst/var/setpoint",
+                payload=json.dumps({"value": 42}),
+            )
+            istate.running_cb(istate.client, mock_msg)
+
+            is_mocks["mqtt_val"].validate_message.assert_called_once()
+            mock_set_and_go.assert_called_once_with("var", 42)
+            assert istate._can_set_setpoint == True
+            assert istate.status == "error"
+            mock_reset.assert_not_called()
+
     def test_reset(self, is_mocks):
         mock_config = is_mocks["config"]
         istate = state.InstrumentState(mock_config)
