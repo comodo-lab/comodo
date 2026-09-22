@@ -164,5 +164,7 @@ class GenericInstrument(BaseInstrument):
         )
 
     def go_to_setpoint(self, variable, setpoint):
-        # No actuators to control in simulation mode
-        pass
+        raise NotImplementedError(
+            f"GenericInstrument cannot set a real setpoint for {variable}. "
+            "Please use a specific instrument subclass."
+        )
