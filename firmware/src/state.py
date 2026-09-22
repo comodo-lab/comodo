@@ -82,7 +82,6 @@ class InstrumentState:
         self._status = new_status
         self.client.callback = getattr(self, f"{new_status}_cb")
 
-    # Return string representation of the state
     def publish_heartbeat(self):
         """
         Publish the heartbeat of the instrument to the MQTT broker.
@@ -121,7 +120,7 @@ class InstrumentState:
         payload = mqtt_val.validate_message(msg.topic, msg.payload)
         if msg.topic.endswith("configure"):
             # Save live config (calibration)
-            self.instrument.config["experiment"]["calibration"] = {"some": "values"}
+            self.instrument.config["experiment"] = payload
         elif msg.topic.endswith("start"):
             # Save experiment id and move to running
             try:
@@ -160,7 +159,7 @@ class InstrumentState:
             try:
                 self.instrument.set_and_go_to_setpoint(variable, setpoint)
             except Exception as e:
-                print(f"Error occurred while setting setpoint: {e}")
+                print(f"ERROR: Failed to set the setpoint for {variable}: {e}")
                 self.status = "error"
         else:
             print(
