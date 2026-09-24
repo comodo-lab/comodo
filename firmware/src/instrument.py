@@ -94,7 +94,15 @@ class BaseInstrument(ABC):
         self.setpoints[variable] = setpoint
         # If not in simulation mode, instruct the actuators to go to the setpoint.
         if not self.config["SIMULATE"]:
-            self.go_to_setpoint(variable, setpoint)
+            # Only real actuators are instructed to go to setpoint
+            if self.available_variables[variable].get("actuator") is not None:
+                self.go_to_setpoint(variable, setpoint)
+            # Variables attached to an spc will have a default setpoint so they won't complain
+            elif not variable in self.config["DEFAULT_SETPOINTS"]:
+                print(
+                    f"WARNING: No actuator defined for '{variable}'. "
+                    "Setpoint stored but not applied to any actuator."
+                )
 
     def print_config(self):
         """

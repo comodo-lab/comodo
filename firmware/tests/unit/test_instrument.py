@@ -295,7 +295,38 @@ class TestBaseInstrument:
         assert ins.setpoints.get("some_variable") == new_setpoint
         bi_mocks["go_to_setpoint"].assert_not_called()
 
-    def test_set_and_go_to_setpoint_not_simulating(self, bi_mocks):
+    def test_set_and_go_to_setpoint_no_sim_with_actuator(self, bi_mocks, capsys):
+        mock_config = bi_mocks["config"]
+        mock_config["SIMULATE"] = False
+        ins = bi_mocks["ConcreteInstrument"](mock_config)
+        ins.available_variables = {"some_variable": {"actuator": "123"}}
+        new_setpoint = 10.0
+        assert ins.setpoints.get("some_variable") == None
+
+        ins.set_and_go_to_setpoint("some_variable", new_setpoint)
+
+        assert ins.setpoints.get("some_variable") == new_setpoint
+        bi_mocks["go_to_setpoint"].assert_called_once_with(
+            "some_variable", new_setpoint
+        )
+
+    def test_set_and_go_to_setpoint_no_sim_with_def_setpoint(self, bi_mocks, capsys):
+        mock_config = bi_mocks["config"]
+        mock_config["SIMULATE"] = False
+        mock_config["DEFAULT_SETPOINTS"]["some_variable"] = 123
+        ins = bi_mocks["ConcreteInstrument"](mock_config)
+        ins.available_variables = {"some_variable": {}}
+        new_setpoint = 10.0
+        assert ins.setpoints.get("some_variable") == None
+
+        ins.set_and_go_to_setpoint("some_variable", new_setpoint)
+
+        assert ins.setpoints.get("some_variable") == new_setpoint
+        bi_mocks["go_to_setpoint"].assert_not_called()
+        captured = capsys.readouterr()
+        assert "WARNING" not in captured.out
+
+    def test_set_and_go_to_setpoint_no_sim_no_actuator(self, bi_mocks, capsys):
         mock_config = bi_mocks["config"]
         mock_config["SIMULATE"] = False
         ins = bi_mocks["ConcreteInstrument"](mock_config)
@@ -306,9 +337,10 @@ class TestBaseInstrument:
         ins.set_and_go_to_setpoint("some_variable", new_setpoint)
 
         assert ins.setpoints.get("some_variable") == new_setpoint
-        bi_mocks["go_to_setpoint"].assert_called_once_with(
-            "some_variable", new_setpoint
-        )
+        bi_mocks["go_to_setpoint"].assert_not_called()
+        captured = capsys.readouterr()
+        assert "WARNING: No actuator defined for 'some_variable'" in captured.out
+        assert "Setpoint stored but not applied to any actuator." in captured.out
 
     def test_print_config(self, bi_mocks):
         mock_config = bi_mocks["config"]
