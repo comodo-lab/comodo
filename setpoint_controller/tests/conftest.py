@@ -56,7 +56,7 @@ def base_SPC():
 
 
 @pytest.fixture
-def mock_spc(mock_spc_status, mock_pid):
+def mock_spc(mock_spc_state, mock_pid):
     """SetpointController with default parameters."""
     spc = MagicMock(spec=SetpointController)
     spc.sensor_instrument = "I1"
@@ -65,41 +65,41 @@ def mock_spc(mock_spc_status, mock_pid):
     spc.actuator_variable = "B"
     spc.spc_id = "I1-A--I2-B"
     spc.pid = mock_pid
-    spc.status = mock_spc_status
+    spc.state = mock_spc_state
     spc.start_heartbeat_loop = MagicMock()
     spc.publish_heartbeat = MagicMock()
     return spc
 
 
 @pytest.fixture
-def mock_spc_status():
-    """SetpointController.Status with default parameters."""
-    status = MagicMock(spec=SetpointController.Status)
+def mock_spc_state():
+    """SetpointController.State with default parameters."""
+    state = MagicMock(spec=SetpointController.State)
 
-    status.enabled = True
-    status.state = "idle"
-    status.sensor_setpoint = None
-    status.sensor_measurement = None
-    status.actuator_setpoint = None
-    status.experiment_id = None
+    state.enabled = True
+    state.status = "idle"
+    state.sensor_setpoint = None
+    state.sensor_measurement = None
+    state.actuator_setpoint = None
+    state.experiment_id = None
 
-    def get_status_as_dict():
+    def get_state_as_dict():
         return {
-            "status": {
-                "state": status.state,
-                "enabled": status.enabled,
-                "sensor_measurement": status.sensor_measurement,
-                "actuator_setpoint": status.actuator_setpoint,
-                "experiment_id": status.experiment_id,
+            "state": {
+                "status": state.status,
+                "enabled": state.enabled,
+                "sensor_measurement": state.sensor_measurement,
+                "actuator_setpoint": state.actuator_setpoint,
+                "experiment_id": state.experiment_id,
             },
             "setpoints": {
-                "sensor_setpoint": status.sensor_setpoint,
+                "sensor_setpoint": state.sensor_setpoint,
             },
         }
 
-    status.as_dict.side_effect = get_status_as_dict
+    state.as_dict.side_effect = get_state_as_dict
 
-    return status
+    return state
 
 
 @pytest.fixture

@@ -276,7 +276,7 @@ class TestMessagingBasics:
         # Allow some time for the message to be processed
         time.sleep(0.1)
 
-        assert spc.status.sensor_setpoint == 50.0, "SPC should update setpoint"
+        assert spc.state.sensor_setpoint == 50.0, "SPC should update setpoint"
 
     def test_spc_receives_sensor_measurement(self, mb_mocks):
         bus = mb_mocks["message_bus"]
@@ -286,7 +286,7 @@ class TestMessagingBasics:
             actuator_instrument="heater",
             actuator_variable="temperature",
         )
-        spc.status.sensor_setpoint = 50.0
+        spc.state.sensor_setpoint = 50.0
 
         with patch("src.pid.PID.step") as mock_step:
             mock_step.return_value = 75.0
@@ -298,7 +298,7 @@ class TestMessagingBasics:
 
             mock_step.assert_called_once_with(20.0, 50.0)
 
-    def test_spc_updates_state_on_setpoint(self, mb_mocks):
+    def test_spc_updates_status_on_setpoint(self, mb_mocks):
         bus = mb_mocks["message_bus"]
         spc = mb_mocks["base_SPC"](
             sensor_instrument="thermocouple",
@@ -314,8 +314,8 @@ class TestMessagingBasics:
         # Allow some time for the message to be processed
         time.sleep(0.1)
 
-        assert spc.status.sensor_setpoint == 50.0
-        assert spc.status.state == "idle"
+        assert spc.state.sensor_setpoint == 50.0
+        assert spc.state.status == "idle"
 
     def test_spc_publishes_actuator_setpoint(self, mb_mocks):
         bus = mb_mocks["message_bus"]
@@ -327,7 +327,7 @@ class TestMessagingBasics:
         )
 
         # Set a setpoint
-        spc.status.sensor_setpoint = 50.0
+        spc.state.sensor_setpoint = 50.0
 
         # Publish a measurement
         measurement_payload = json.dumps({"value": 20.0})
@@ -370,8 +370,8 @@ class TestControlLoop:
         messages = bus.get_messages(f"setpoint_controller/{spc.spc_id}/heartbeat")
         assert len(messages) == 1, "SPC should publish heartbeat message"
         assert json.loads(messages[0].payload) == {
-            "status": {
-                "state": "idle",
+            "state": {
+                "status": "idle",
                 "enabled": True,
                 "sensor_measurement": None,
                 "actuator_setpoint": None,
