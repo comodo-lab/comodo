@@ -135,6 +135,8 @@ class InstrumentState:
                 )
                 return
             self.status = "running"
+        elif msg.topic.endswith("setpoint"):
+            self.running_cb(_client, msg, _obj)
         else:
             print(
                 f"WARNING: Received {msg.topic} while instrument is awaiting experiment. Ignoring..."
@@ -164,7 +166,10 @@ class InstrumentState:
                 self.instrument.set_and_go_to_setpoint(variable, setpoint)
                 self._can_set_setpoint = True
                 if self.status == "error" and self._can_measure:
-                    self.status = "running"
+                    if self.instrument.config["experiment"].get("id") is None:
+                        self.status = "awaiting_experiment"
+                    else:
+                        self.status = "running"
             except Exception as e:
                 self._can_set_setpoint = False
                 print(f"ERROR: Failed to set the setpoint for {variable}: {e}")
