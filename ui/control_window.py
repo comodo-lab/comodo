@@ -63,10 +63,13 @@ def update_output(n_clicks, table_data, instruments, exp_config):
         print("No resolution set, defaulting to 1 second.")
         resolution = 1
 
+    experiment_definition = [
+        {key: value for key, value in row.items() if key != "id"} for row in table_data
+    ]
     experiment_config = {
         "id": experiment_id,
         "config": {"resolution": resolution, "instruments": instruments},
-        "experiment_definition": table_data,
+        "experiment_definition": experiment_definition,
     }
     json_data = json.dumps(experiment_config).encode("utf-8")
 
@@ -193,19 +196,23 @@ def update_control_component(n_intervals, instruments, slider_id, timezone):
 
     # Query setpoint and actual value for the parameter
     try:
-        setpoint = query_influxdb_params(
+        setpoint_results = query_influxdb_params(
             fields=["value"],
             topics=[f"instruments/{param_name}/setpoint"],
             start="-1m",
             aggregate="last",
-        )[-1].get_value()
-
-        actual_value = query_influxdb_params(
+        )
+        actual_results = query_influxdb_params(
             fields=["value"],
             topics=[f"instruments/{param_name}/measurement"],
             start="-1m",
             aggregate="last",
-        )[-1].get_value()
+        )
+        if not setpoint_results or not actual_results:
+            return no_update, no_update
+        setpoint = setpoint_results[-1].get_value()
+
+        actual_value = actual_results[-1].get_value()
     except Exception as e:
         if "list index out of range" not in str(e):
             print(f"Error querying InfluxDB for {param_name}: {e}")

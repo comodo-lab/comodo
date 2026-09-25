@@ -23,6 +23,7 @@ from plot import plot_data_plotly
 
 PROFILES = ["linear", "logarithmic", "exponential", "step"]
 
+
 def get_experiment_designer(data=[], params=[]):
     """
     Creates a dash-ag-grid component for experimental control data with
@@ -35,10 +36,6 @@ def get_experiment_designer(data=[], params=[]):
     for col in params:
         columns.append(col)
         columns.append(f"{col}_profile")
-
-    # Ensure each row has a unique ID
-    for row in data:
-        row["id"] = str(uuid.uuid4())
 
     # Construct column definitions
     column_dicts = [
@@ -134,14 +131,9 @@ def get_experiment_graph():
 def add_row(n_clicks, data):
     if not data:
         return data
-    new_row = {"id": str(uuid.uuid4())}
-    for col in data[0]:
-        if col == "id":
-            continue
-        elif col.endswith("_profile"):
-            new_row[col] = PROFILES[0]
-        else:
-            new_row[col] = 0.0 if col != "time" else 0
+    previous_row = data[-1]
+    new_row = {key: value for key, value in previous_row.items() if key != "id"}
+    new_row["id"] = str(uuid.uuid4())
 
     #  Add new row with time as max time +30s (default could be changed via user preferences?)
     last_time = max(
