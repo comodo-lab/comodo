@@ -4,15 +4,6 @@ import dash_bootstrap_components as dbc
 
 from dash import Dash, html
 
-import top_matter as tm
-import main_window as mw
-import control_window as cw
-import instrument_setup as ss
-import graph_view as gv
-import experiment_config as ec
-import workflow_ui as wf
-import meta_data_ui as md
-
 from utils.mqtt_clients import MQTTPublisher
 from config_loader import UiConfig
 import os
@@ -23,6 +14,16 @@ app = Dash(
     external_stylesheets=[dbc.themes.LUX],
     suppress_callback_exceptions=True,
 )
+
+# Import UI modules after creating the app so their global callbacks are registered.
+import top_matter as tm
+import main_window as mw
+import control_window as cw
+import instrument_setup as ss
+import graph_view as gv
+import experiment_config as ec
+import workflow_ui as wf
+import meta_data_ui as md
 
 # Initialise publisher singleton
 id_suffix = random.randint(0, 32768)
