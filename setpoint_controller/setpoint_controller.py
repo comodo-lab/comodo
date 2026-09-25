@@ -267,7 +267,9 @@ class SetpointController:
         )
 
         self.state = SetpointController.State()
+        print(f"SPC initialised: {self.spc_id}")
         self.state.sensor_setpoint = default_setpoint
+        print(f"Default setpoint set: {self.default_setpoint}")
 
     @staticmethod  # Prevents passing 'self' as first argument, conflicting with MQTTClient callback signature
     def on_message(client, msg, spc):
@@ -308,6 +310,8 @@ class SetpointController:
                 )
             else:
                 if enabled is not None:
+                    if spc.state.enabled != enabled:
+                        print(f"SPC {"enabled" if enabled else "disabled"}.")
                     spc.state.enabled = enabled
                 if experiment_id is not None:
                     spc.state.experiment_id = experiment_id
@@ -317,17 +321,12 @@ class SetpointController:
             return
 
         if spc.state.enabled is True:
-            if (
-                msg.topic
-                == f"instruments/{spc.sensor_instrument}/{spc.sensor_variable}/setpoint"
-            ):
-                spc.state.sensor_setpoint = message.get("value")
-                return
-
-            elif (
-                msg.topic
-                == f"instruments/{spc.sensor_instrument}/{spc.sensor_variable}/measurement"
-            ):
+            if msg.topic.endswith("/setpoint"):
+                setpoint = message.get("value")
+                if spc.state.sensor_setpoint != setpoint:
+                    print(f"New setpoint received: {setpoint}.")
+                    spc.state.sensor_setpoint = setpoint
+            elif msg.topic.endswith("/measurement"):
                 spc.state.sensor_measurement = message.get("value")
                 if (
                     spc.state.sensor_setpoint is not None

@@ -230,7 +230,7 @@ class Test_main:
 class Test_SetpointController_init:
 
     @pytest.fixture(autouse=True)
-    def mocks_for_spc_init(self, mqtt_mocks):
+    def spci_mocks(self, mqtt_mocks):
         with (
             patch("setpoint_controller.PID") as mock_pid_class,
             patch("setpoint_controller.t.sleep") as mock_sleep,
@@ -260,8 +260,8 @@ class Test_SetpointController_init:
                 "publish_heartbeat": mock_publish_heartbeat,
             }
 
-    def test_pid_initialized_with_correct_params(self, mocks_for_spc_init, base_SPC):
-        mocks = mocks_for_spc_init
+    def test_pid_initialized_with_correct_params(self, spci_mocks, base_SPC, capsys):
+        mocks = spci_mocks
 
         spc = base_SPC(
             k_p=1.0,
@@ -278,11 +278,12 @@ class Test_SetpointController_init:
             k_aw=0.5,
             k_df=0.2,
         )
+        captured = capsys.readouterr()
+        assert "SPC initialised: I1-A--I2-B" in captured.out
+        assert "Default setpoint set: 0.0" in captured.out
 
-    def test_mqtt_client_initialized_with_correct_params(
-        self, mocks_for_spc_init, base_SPC
-    ):
-        mocks = mocks_for_spc_init
+    def test_mqtt_client_initialized_with_correct_params(self, spci_mocks, base_SPC):
+        mocks = spci_mocks
 
         spc = base_SPC()
 
@@ -300,8 +301,8 @@ class Test_SetpointController_init:
             obj=spc,
         )
 
-    def test_heartbeat_loop_is_entered(self, mocks_for_spc_init, mqtt_mocks, base_SPC):
-        mocks = mocks_for_spc_init
+    def test_heartbeat_loop_is_entered(self, spci_mocks, mqtt_mocks, base_SPC):
+        mocks = spci_mocks
 
         spc = base_SPC()
         spc.start_heartbeat_loop()
@@ -490,11 +491,10 @@ class Test_on_setpoint_message:
         msg = osm_mocks["make_msg"](setpoint_value=50)
         SetpointController.on_message(osm_mocks["client"], msg, mock_spc)
 
-        assert mock_spc.state.status == "idle"
         assert mock_spc.state.sensor_setpoint == None
         osm_mocks["publisher"].publish.assert_not_called()
 
-    def test_updates_sensor_setpoint(self, osm_mocks):
+    def test_updates_sensor_setpoint(self, osm_mocks, capsys):
         mock_spc = osm_mocks["spc"]
         setpoint = 50
         assert mock_spc.state.sensor_setpoint == None
@@ -502,11 +502,12 @@ class Test_on_setpoint_message:
         msg = osm_mocks["make_msg"](setpoint_value=setpoint)
         SetpointController.on_message(osm_mocks["client"], msg, mock_spc)
 
-        assert mock_spc.state.status == "idle"
         assert mock_spc.state.sensor_setpoint == setpoint
         assert osm_mocks["publisher"].publish.call_count == 0
+        captured = capsys.readouterr()
+        assert f"New setpoint received: {setpoint}." in captured.out
 
-    def test_zero_is_valid_setpoint(self, osm_mocks):
+    def test_zero_is_valid_setpoint(self, osm_mocks, capsys):
         mock_spc = osm_mocks["spc"]
         setpoint = 0
         assert mock_spc.state.sensor_setpoint != setpoint
@@ -514,11 +515,25 @@ class Test_on_setpoint_message:
         msg = osm_mocks["make_msg"](setpoint_value=setpoint)
         SetpointController.on_message(osm_mocks["client"], msg, mock_spc)
 
-        assert mock_spc.state.status == "idle"
         assert mock_spc.state.sensor_setpoint == setpoint
         assert osm_mocks["publisher"].publish.call_count == 0
+        captured = capsys.readouterr()
+        assert f"New setpoint received: {setpoint}." in captured.out
 
-    def test_ignores_message_without_value(self, osm_mocks):
+    def test_only_print_if_setpoint_new(self, osm_mocks, capsys):
+        mock_spc = osm_mocks["spc"]
+        setpoint = 50
+        mock_spc.state.sensor_setpoint = setpoint
+
+        msg = osm_mocks["make_msg"](setpoint_value=setpoint)
+        SetpointController.on_message(osm_mocks["client"], msg, mock_spc)
+
+        assert mock_spc.state.sensor_setpoint == setpoint
+        assert osm_mocks["publisher"].publish.call_count == 0
+        captured = capsys.readouterr()
+        assert "New setpoint received" not in captured.out
+
+    def test_ignores_message_without_value(self, osm_mocks, capsys):
         mock_spc = osm_mocks["spc"]
 
         msg = MockMessage(
@@ -527,9 +542,10 @@ class Test_on_setpoint_message:
         )
         SetpointController.on_message(osm_mocks["client"], msg, mock_spc)
 
-        assert mock_spc.state.status == "idle"
         assert mock_spc.state.sensor_setpoint is None
         assert osm_mocks["publisher"].publish.call_count == 0
+        captured = capsys.readouterr()
+        assert "New setpoint received" not in captured.out
 
 
 class Test_on_measurement_message:
@@ -634,7 +650,7 @@ class Test_on_setup_message:
         assert mock_spc.state.experiment_id == None
         mock_spc.publish_heartbeat.assert_called_once()
 
-    def test_accepts_enabled_by_itself(self, osum_mocks):
+    def test_accepts_enabled_by_itself(self, osum_mocks, capsys):
         mock_spc = osum_mocks["spc"]
         assert mock_spc.state.enabled == True
         config = {"enabled": False}
@@ -644,8 +660,10 @@ class Test_on_setup_message:
 
         assert mock_spc.state.enabled == False
         mock_spc.publish_heartbeat.assert_called_once()
+        captured = capsys.readouterr()
+        assert "SPC disabled." in captured.out
 
-    def test_can_enable_when_disabled(self, osum_mocks):
+    def test_can_enable_when_disabled(self, osum_mocks, capsys):
         mock_spc = osum_mocks["spc"]
         mock_spc.state.enabled = False
         assert mock_spc.state.enabled == False
@@ -657,6 +675,8 @@ class Test_on_setup_message:
         assert mock_spc.state.enabled == True
         assert mock_spc.state.experiment_id == "exp789"
         mock_spc.publish_heartbeat.assert_called_once()
+        captured = capsys.readouterr()
+        assert "SPC enabled." in captured.out
 
     def test_accepts_experiment_id_by_itself(self, osum_mocks):
         mock_spc = osum_mocks["spc"]

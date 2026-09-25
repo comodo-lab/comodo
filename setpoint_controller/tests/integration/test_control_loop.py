@@ -56,7 +56,9 @@ def wait_for_equilibrium(
                 abs_error = abs(sensor.value - targets[i])
                 sensor.bus.publish(
                     "--debug--",
-                    f"Sensor: {sensor.instrument_name}/{sensor.variable_name}, Error: {abs_error=}, Reached: {step_count[i]}",
+                    f"Sensor: {sensor.instrument_name}/{sensor.variable_name}, "
+                    f"Value: {sensor.value}, Target: {targets[i]}, "
+                    f"Error: {abs_error=}, Reached: {step_count[i]}",
                 )
                 time.sleep(0.001)
                 step_count[i] = step_count[i] + 1 if abs_error < tolerance else 0
@@ -422,7 +424,7 @@ class TestControlLoop:
 
         assert reached, "Control loop timed out trying to reach equilibrium"
 
-    def test_responds_to_setpoint_changes(self, cl_mocks):
+    def test_responds_to_setpoint_changes(self, cl_mocks, capsys):
         bus = cl_mocks["message_bus"]
         sensor = MockSensor("thermocouple", "temperature", bus, initial_value=20.0)
         actuator = MockActuator("heater", "temperature", bus, sensor)
@@ -465,9 +467,14 @@ class TestControlLoop:
             sensor, t3, tolerance=1.0, timeout=1.0, stop=False
         )
 
+        captured = capsys.readouterr()
+        assert f"New setpoint received: {t1}." in captured.out
+        assert f"New setpoint received: {t2}." in captured.out
+        assert f"New setpoint received: {t3}." in captured.out
+
         assert reached_t1 and reached_t2 and reached_t3
 
-    def test_controller_can_be_disabled_and_reenabled(self, cl_mocks):
+    def test_controller_can_be_disabled_and_reenabled(self, cl_mocks, capsys):
         bus = cl_mocks["message_bus"]
         sensor = MockSensor("thermocouple", "temperature", bus, initial_value=20.0)
         actuator = MockActuator("heater", "temperature", bus, sensor)
@@ -513,6 +520,7 @@ class TestControlLoop:
         bus.publish(
             f"setpoint_controller/{spc.spc_id}/setup", json.dumps({"enabled": True})
         )
+        time.sleep(0.01)  # Wait for enabling to take effect
         # Third setpoint
         t3 = 10.0
         bus.publish(
@@ -522,6 +530,12 @@ class TestControlLoop:
             sensor, t3, tolerance=1.0, timeout=1.0, stop=False
         )
         assert reached_t3
+
+        captured = capsys.readouterr()
+        assert f"New setpoint received: {t1}." in captured.out
+        assert "SPC disabled." in captured.out
+        assert "SPC enabled." in captured.out
+        assert f"New setpoint received: {t3}." in captured.out
 
     def test_multiple_pid_controllers_can_coexist(self, cl_mocks):
         bus = cl_mocks["message_bus"]
