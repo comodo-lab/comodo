@@ -194,9 +194,10 @@ app.layout = dbc.Container(
         dcc.Interval(id="interval-short", interval=SHORT_INTERVAL),
         dcc.Location(id="url", refresh=False),
         dcc.Store(id="timezone-store"),
-        dcc.Store(id="experiment-designer-store"),
-        dcc.Store(id="instrument-store"),
-        dcc.Store(id="experiment-config-store"),
+        # Pre-populated so Control Panel works without visiting each tab first.
+        dcc.Store(id="experiment-designer-store", data=INI_DATA_DICT),
+        dcc.Store(id="instrument-store", data=INI_INSTRUMENT_DICT),
+        dcc.Store(id="experiment-config-store", data=INI_EXPERIMENT_CONFIG),
         html.Div(id="hidden-div", style={"display": "none"}),
         tm.get_header_bar(),
         dbc.Nav(
