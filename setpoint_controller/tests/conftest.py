@@ -38,6 +38,7 @@ def base_SPC():
             "mqtt_pass": "test_pass",
             "sensor_instrument": "I1",
             "sensor_variable": "A",
+            "default_setpoint": 0.0,
             "actuator_instrument": "I2",
             "actuator_variable": "B",
             "heartbeat_interval": 1,
@@ -61,6 +62,7 @@ def mock_spc(mock_spc_state, mock_pid):
     spc = MagicMock(spec=SetpointController)
     spc.sensor_instrument = "I1"
     spc.sensor_variable = "A"
+    spc.default_setpoint = 0.0
     spc.actuator_instrument = "I2"
     spc.actuator_variable = "B"
     spc.spc_id = "I1-A--I2-B"

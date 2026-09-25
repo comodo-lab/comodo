@@ -48,7 +48,13 @@ class Test_main:
 
         # Simulate missing required environment variable
         mocks["env_values"].update({"MQTT_HOST": "some_host"})  # not missing
-        missing_vars = ["MQTT_USER", "MQTT_PASS", "SENSOR", "ACTUATOR"]
+        missing_vars = [
+            "MQTT_USER",
+            "MQTT_PASS",
+            "SENSOR",
+            "DEFAULT_SETPOINT",
+            "ACTUATOR",
+        ]
 
         with pytest.raises(SystemExit):
             main()
@@ -70,6 +76,7 @@ class Test_main:
                 "MQTT_USER": "test_user",
                 "MQTT_PASS": "test_pass",
                 "SENSOR": "invalid_sensor",  # Missing '/'
+                "DEFAULT_SETPOINT": "4.2",
                 "ACTUATOR": "test/actuator",
             }
         )
@@ -81,6 +88,27 @@ class Test_main:
         assert "Invalid environment variable" in captured.out
         assert "SENSOR must be instrument_name/variable_name" in captured.out
 
+    def test_fails_to_start_with_invalid_default_setpoint(self, mocks_for_main, capsys):
+        mocks = mocks_for_main
+
+        # Simulate invalid ACTUATOR value
+        mocks["env_values"].update(
+            {
+                "MQTT_HOST": "test_host",
+                "MQTT_USER": "test_user",
+                "MQTT_PASS": "test_pass",
+                "SENSOR": "test/sensor",
+                "DEFAULT_SETPOINT": "invalid_value",
+                "ACTUATOR": "test/actuator",
+            }
+        )
+
+        with pytest.raises(SystemExit):
+            main()
+
+        captured = capsys.readouterr()
+        assert "Invalid DEFAULT_SETPOINT value: 'invalid_value'." in captured.out
+
     def test_fails_to_start_with_invalid_actuator_format(self, mocks_for_main, capsys):
         mocks = mocks_for_main
 
@@ -91,6 +119,7 @@ class Test_main:
                 "MQTT_USER": "test_user",
                 "MQTT_PASS": "test_pass",
                 "SENSOR": "test/sensor",
+                "DEFAULT_SETPOINT": "4.2",
                 "ACTUATOR": "invalid_actuator",  # Missing '/'
             }
         )
@@ -110,6 +139,7 @@ class Test_main:
                 "MQTT_USER": "test_user",
                 "MQTT_PASS": "test_pass",
                 "SENSOR": "A/B",
+                "DEFAULT_SETPOINT": "4.2",
                 "ACTUATOR": "C/D",
             }
         )
@@ -122,6 +152,7 @@ class Test_main:
             call("MQTT_USER"),
             call("MQTT_PASS"),
             call("SENSOR"),
+            call("DEFAULT_SETPOINT"),
             call("ACTUATOR"),
             call("K_P", None),
             call("K_I", None),
@@ -141,6 +172,7 @@ class Test_main:
                 "MQTT_USER": "test_user",
                 "MQTT_PASS": "test_pass",
                 "SENSOR": "I1/A",
+                "DEFAULT_SETPOINT": "4.2",
                 "ACTUATOR": "I2/B",
             }
         )
@@ -164,6 +196,7 @@ class Test_main:
                 "MQTT_USER": "test_user",
                 "MQTT_PASS": "test_pass",
                 "SENSOR": "A/B",
+                "DEFAULT_SETPOINT": "4.2",
                 "ACTUATOR": "C/D",
                 "K_P": 1.0,
                 "K_I": 0.1,
@@ -183,6 +216,7 @@ class Test_main:
             spc_id="A-B--C-D",
             sensor_instrument="A",
             sensor_variable="B",
+            default_setpoint=4.2,
             actuator_instrument="C",
             actuator_variable="D",
             k_p=1.0,
@@ -283,7 +317,7 @@ class Test_SetpointController_Status:
 
         assert spc.state.enabled == True
         assert spc.state.status == "idle"
-        assert spc.state.sensor_setpoint is None
+        assert spc.state.sensor_setpoint == spc.default_setpoint
         assert spc.state.sensor_measurement is None
         assert spc.state.actuator_setpoint is None
         assert spc.state.experiment_id is None

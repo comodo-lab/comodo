@@ -361,6 +361,7 @@ class TestControlLoop:
         spc = cl_mocks["base_SPC"](
             sensor_instrument="thermocouple",
             sensor_variable="temperature",
+            default_setpoint=4.2,
             actuator_instrument="heater",
             actuator_variable="temperature",
         )
@@ -377,7 +378,7 @@ class TestControlLoop:
                 "actuator_setpoint": None,
                 "experiment_id": None,
             },
-            "setpoints": {"sensor_setpoint": None},
+            "setpoints": {"sensor_setpoint": 4.2},
             "config": {
                 "sensor": "thermocouple/temperature",
                 "actuator": "heater/temperature",
@@ -401,6 +402,7 @@ class TestControlLoop:
         spc = cl_mocks["base_SPC"](
             sensor_instrument="thermocouple",
             sensor_variable="temperature",
+            default_setpoint=4.2,
             actuator_instrument="heater",
             actuator_variable="temperature",
         )
@@ -427,6 +429,7 @@ class TestControlLoop:
         spc = cl_mocks["base_SPC"](
             sensor_instrument="thermocouple",
             sensor_variable="temperature",
+            default_setpoint=4.2,
             actuator_instrument="heater",
             actuator_variable="temperature",
         )
@@ -471,6 +474,7 @@ class TestControlLoop:
         spc = cl_mocks["base_SPC"](
             sensor_instrument="thermocouple",
             sensor_variable="temperature",
+            default_setpoint=4.2,
             actuator_instrument="heater",
             actuator_variable="temperature",
         )
@@ -526,6 +530,7 @@ class TestControlLoop:
         spc1 = cl_mocks["base_SPC"](
             sensor_instrument="thermocouple_1",
             sensor_variable="temperature",
+            default_setpoint=4.2,
             actuator_instrument="heater_1",
             actuator_variable="temperature",
         )
@@ -535,6 +540,7 @@ class TestControlLoop:
         spc2 = cl_mocks["base_SPC"](
             sensor_instrument="thermocouple_2",
             sensor_variable="temperature",
+            default_setpoint=2.4,
             actuator_instrument="heater_2",
             actuator_variable="temperature",
         )
@@ -570,6 +576,7 @@ class TestControlLoop:
         spc1 = cl_mocks["base_SPC"](
             sensor_instrument="thermocouple_1",
             sensor_variable="temperature",
+            default_setpoint=4.2,
             actuator_instrument="heater_1",
             actuator_variable="temperature",
             k_p=1.0,
@@ -584,6 +591,7 @@ class TestControlLoop:
         spc2 = cl_mocks["base_SPC"](
             sensor_instrument="thermocouple_2",
             sensor_variable="temperature",
+            default_setpoint=2.4,
             actuator_instrument="heater_2",
             actuator_variable="temperature",
             k_p=5.0,

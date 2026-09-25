@@ -1,5 +1,6 @@
 import os
 import json
+import sys
 import textwrap
 
 import time as t
@@ -15,7 +16,14 @@ def main():
     # Load configuration
     heartbeat_interval = float(os.getenv("HEARTBEAT_INTERVAL", "1.0"))
     try:
-        req_env_vars = ["MQTT_HOST", "MQTT_USER", "MQTT_PASS", "SENSOR", "ACTUATOR"]
+        req_env_vars = [
+            "MQTT_HOST",
+            "MQTT_USER",
+            "MQTT_PASS",
+            "SENSOR",
+            "DEFAULT_SETPOINT",
+            "ACTUATOR",
+        ]
         # Load required environment variables into a dictionary
         rev_dict = {key: os.getenv(key) for key in req_env_vars}
         # Check for missing values
@@ -33,12 +41,18 @@ def main():
         mqtt_pass = rev_dict["MQTT_PASS"]
         sensor_instrument, sensor_variable = rev_dict["SENSOR"].split("/", 1)
         actuator_instrument, actuator_variable = rev_dict["ACTUATOR"].split("/", 1)
+        default_setpoint = rev_dict["DEFAULT_SETPOINT"]
     except KeyError as e:
         print(f"Missing required environment variables: {e}")
-        exit(1)
+        sys.exit(1)
     except ValueError as e:
         print(f"Invalid environment variable: {e}")
-        exit(1)
+        sys.exit(1)
+    try:
+        default_setpoint = float(default_setpoint)
+    except ValueError as e:
+        print(f"Invalid DEFAULT_SETPOINT value: '{default_setpoint}'. {e}")
+        sys.exit(1)
 
     spc_id = f"{sensor_instrument}-{sensor_variable}--{actuator_instrument}-{actuator_variable}"
 
@@ -84,6 +98,7 @@ def main():
         spc_id=spc_id,
         sensor_instrument=sensor_instrument,
         sensor_variable=sensor_variable,
+        default_setpoint=default_setpoint,
         actuator_instrument=actuator_instrument,
         actuator_variable=actuator_variable,
         **pid_params,
@@ -218,6 +233,7 @@ class SetpointController:
         spc_id: str,
         sensor_instrument: str,
         sensor_variable: str,
+        default_setpoint: float,
         actuator_instrument: str,
         actuator_variable: str,
         **pid_params,
@@ -225,6 +241,7 @@ class SetpointController:
         self.heartbeat_interval = heartbeat_interval
         self.sensor_instrument = sensor_instrument
         self.sensor_variable = sensor_variable
+        self.default_setpoint = default_setpoint
         self.actuator_instrument = actuator_instrument
         self.actuator_variable = actuator_variable
         self.spc_id = spc_id
@@ -250,6 +267,7 @@ class SetpointController:
         )
 
         self.state = SetpointController.State()
+        self.state.sensor_setpoint = default_setpoint
 
     @staticmethod  # Prevents passing 'self' as first argument, conflicting with MQTTClient callback signature
     def on_message(client, msg, spc):
