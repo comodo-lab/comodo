@@ -24,6 +24,8 @@ import graph_view as gv
 import experiment_config as ec
 import workflow_ui as wf
 import meta_data_ui as md
+import saved_selector as sel
+import saved_configs as sc
 
 # Initialise publisher singleton
 id_suffix = random.randint(0, 32768)
@@ -56,6 +58,12 @@ PARAM_DICT = config.param_dicts
 INI_EXPERIMENT_CONFIG = config.ini_experiment_config
 INI_DATA_DICT = config.ini_data_dict
 INI_INSTRUMENT_DICT = config.ini_instrument_dict
+DEFAULTS = {
+    "experiment": INI_DATA_DICT,
+    "instruments": INI_INSTRUMENT_DICT,
+    "config": INI_EXPERIMENT_CONFIG,
+}
+sel.register_selector_callbacks(DEFAULTS)
 
 
 # ---------------------------------------------------
@@ -165,14 +173,31 @@ metadata_layout = md.get_metadata_layout()
 wf.register_workflow_callbacks(app)
 
 
-@app.callback(Output("page-content", "children"), Input("url", "pathname"))
-def render_page(pathname):
+@app.callback(
+    Output("page-content", "children"),
+    Input("url", "pathname"),
+    *[State(sel.STORES[kind], "data") for kind in sc.KINDS],
+    *[State(sel.meta_store_id(kind), "data") for kind in sc.KINDS],
+)
+def render_page(pathname, *states):
+    data = dict(zip(sc.KINDS, states[: len(sc.KINDS)]))
+    metas = dict(zip(sc.KINDS, states[len(sc.KINDS) :]))
+
+    def with_selector(kind, wrapper_id):
+        # The selector sits outside the wrapper so it is not rebuilt on every edit
+        return html.Div(
+            [
+                sel.get_selector(kind, data[kind], metas[kind]),
+                dcc.Loading(html.Div(id=wrapper_id)),
+            ]
+        )
+
     if pathname in ["/", None]:
         return dcc.Location(href="/designer", id="redirect")
     elif pathname == "/instrument":
-        return dcc.Loading(html.Div(id="instrument-wrapper"))
+        return with_selector("instruments", "instrument-wrapper")
     elif pathname == "/designer":
-        return dcc.Loading(html.Div(id="designer-wrapper"))
+        return with_selector("experiment", "designer-wrapper")
     elif pathname == "/metadata":
         return metadata_layout
     elif pathname == "/control":
@@ -180,69 +205,84 @@ def render_page(pathname):
     elif pathname == "/graph":
         return graph_layout
     elif pathname == "/experiment-config":
-        return dcc.Loading(html.Div(id="experiment-config-wrapper"))
+        return with_selector("config", "experiment-config-wrapper")
     elif pathname == "/workflow":
         return metadata_workflow
     else:
         return html.Div("404 - Page not found")
 
 
-app.layout = dbc.Container(
-    [
-        dcc.Interval(id="interval", interval=CONTROL_INTERVAL),
-        dcc.Interval(id="interval-long", interval=LONG_INTERVAL),
-        dcc.Interval(id="interval-short", interval=SHORT_INTERVAL),
-        dcc.Location(id="url", refresh=False),
-        dcc.Store(id="timezone-store"),
-        # Pre-populated so Control Panel works without visiting each tab first.
-        dcc.Store(id="experiment-designer-store", data=INI_DATA_DICT),
-        dcc.Store(id="instrument-store", data=INI_INSTRUMENT_DICT),
-        dcc.Store(id="experiment-config-store", data=INI_EXPERIMENT_CONFIG),
-        html.Div(id="hidden-div", style={"display": "none"}),
-        tm.get_header_bar(),
-        dbc.Nav(
-            [
-                dbc.NavItem(
-                    dbc.NavLink(
-                        "Experiment Designer", href="/designer", active="exact"
+def get_saved_stores():
+    """
+    Stores pre-populated with the latest saved version of each kind,
+    so Control Panel works without visiting each tab first.
+    """
+    stores = []
+    for kind in sc.KINDS:
+        data, meta = sc.initial_state(kind, DEFAULTS[kind])
+        stores.append(dcc.Store(id=sel.STORES[kind], data=data))
+        stores.append(dcc.Store(id=sel.meta_store_id(kind), data=meta))
+    return stores
+
+
+# A function, so the latest saved versions are loaded on every page load
+def serve_layout():
+    return dbc.Container(
+        [
+            dcc.Interval(id="interval", interval=CONTROL_INTERVAL),
+            dcc.Interval(id="interval-long", interval=LONG_INTERVAL),
+            dcc.Interval(id="interval-short", interval=SHORT_INTERVAL),
+            dcc.Location(id="url", refresh=False),
+            dcc.Store(id="timezone-store"),
+            *get_saved_stores(),
+            html.Div(id="hidden-div", style={"display": "none"}),
+            tm.get_header_bar(),
+            dbc.Nav(
+                [
+                    dbc.NavItem(
+                        dbc.NavLink(
+                            "Experiment Designer", href="/designer", active="exact"
+                        ),
+                        className="me-0",
                     ),
-                    className="me-0",
-                ),
-                dbc.NavItem(
-                    dbc.NavLink("Instrument Setup", href="/instrument", active="exact"),
-                    className="me-0",
-                ),
-                dbc.NavItem(
-                    dbc.NavLink(
-                        "Experiment Config", href="/experiment-config", active="exact"
+                    dbc.NavItem(
+                        dbc.NavLink("Instrument Setup", href="/instrument", active="exact"),
+                        className="me-0",
                     ),
-                    className="me-0",
-                ),
-                dbc.NavItem(
-                    dbc.NavLink("Metadata Entry", href="/metadata", active="exact"),
-                    className="me-0",
-                ),
-                dbc.NavItem(
-                    dbc.NavLink("Control Panel", href="/control", active="exact"),
-                    className="me-0",
-                ),
-                dbc.NavItem(
-                    dbc.NavLink("Graph View", href="/graph", active="exact"),
-                    className="me-0",
-                ),
-                dbc.NavItem(
-                    dbc.NavLink("Workflow", href="/workflow", active="exact"),
-                    className="me-0",
-                ),
-            ],
-            pills=True,
-            justified=True,
-        ),
-        html.Hr(),
-        html.Div(id="page-content"),
-    ],
-    fluid=True,
-)
+                    dbc.NavItem(
+                        dbc.NavLink(
+                            "Experiment Config", href="/experiment-config", active="exact"
+                        ),
+                        className="me-0",
+                    ),
+                    dbc.NavItem(
+                        dbc.NavLink("Metadata Entry", href="/metadata", active="exact"),
+                        className="me-0",
+                    ),
+                    dbc.NavItem(
+                        dbc.NavLink("Control Panel", href="/control", active="exact"),
+                        className="me-0",
+                    ),
+                    dbc.NavItem(
+                        dbc.NavLink("Graph View", href="/graph", active="exact"),
+                        className="me-0",
+                    ),
+                    dbc.NavItem(
+                        dbc.NavLink("Workflow", href="/workflow", active="exact"),
+                        className="me-0",
+                    ),
+                ],
+                pills=True,
+                justified=True,
+            ),
+            html.Hr(),
+            html.Div(id="page-content"),
+        ],
+        fluid=True,
+    )
+
+
+app.layout = serve_layout
 
 
 if __name__ == "__main__":

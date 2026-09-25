@@ -45,10 +45,7 @@ class UiConfig:
     def ini_instrument_dict(self):
         result = []
         for name, sensor in self.config.sensors.items():
-            item = {"name": name, "tolerance": sensor.get("tolerance", 1.0)}
-            if "default_setpoint" in sensor:
-                item["default_setpoint"] = sensor["default_setpoint"]
-            result.append(item)
+            result.append({"name": name, "tolerance": sensor.get("tolerance", 1.0)})
         for name in self.config.actuators:
             if name not in self.config.sensors:
                 result.append({"name": name, "tolerance": 1.0})

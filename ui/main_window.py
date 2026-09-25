@@ -10,6 +10,7 @@ from dash import (
     no_update,
     ctx,
 )
+from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 import plotly.express as px
 import uuid
@@ -129,6 +130,10 @@ def get_experiment_graph():
     prevent_initial_call="initial_duplicate",
 )
 def add_row(n_clicks, data):
+    # Fires when the designer is rendered, as prevent_initial_call does not apply
+    # to inputs inserted by another callback (update_designer_page)
+    if not n_clicks:
+        raise PreventUpdate
     if not data:
         return data
     previous_row = data[-1]
@@ -151,6 +156,8 @@ def add_row(n_clicks, data):
     prevent_initial_call="initial_duplicate",
 )
 def delete_selected(n_clicks, selected_rows, current_data):
+    if not n_clicks:
+        raise PreventUpdate
     if not selected_rows:
         return current_data
     selected_ids = {row["id"] for row in selected_rows}
@@ -174,6 +181,8 @@ def update_figure(data):
     State("experiment-designer", "rowData"),
 )
 def update_table(cell_change, current_rows):
+    if not cell_change:
+        raise PreventUpdate
     # Sort the rows by time for presentation and ease of plotting
     sorted_rows = sorted(current_rows, key=lambda r: r.get("time", 0))
     return sorted_rows

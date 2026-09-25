@@ -68,11 +68,7 @@ class TestComodoConfig:
         config = ComodoConfig(sample_config_yaml)
         instruments = config.ini_instrument_dict
         assert len(instruments) == 2
-        assert instruments[0] == {
-            "name": "test_actuator/output",
-            "tolerance": 1.0,
-            "default_setpoint": 0,
-        }
+        assert instruments[0] == {"name": "test_actuator/output", "tolerance": 1.0}
         assert instruments[1] == {"name": "test_sensor/reading", "tolerance": 1.0}
 
     def test_ini_experiment_config(self, sample_config_yaml):

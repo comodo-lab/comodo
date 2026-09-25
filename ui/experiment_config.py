@@ -10,6 +10,7 @@ from dash import (
     no_update,
     ctx,
 )
+from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 
 import dash_ag_grid as dag
@@ -63,4 +64,6 @@ def update_table(data):
     prevent_initial_call=True,
 )
 def sync_edits_to_store(cell_change, current_rows):
+    if not cell_change:
+        raise PreventUpdate
     return current_rows

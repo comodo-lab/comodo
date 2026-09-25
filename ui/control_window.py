@@ -27,6 +27,7 @@ import plotly.graph_objects as go
 
 from utils.mqtt_clients import MQTTPublisher
 from utils.influx_query import query_influxdb_params
+import saved_configs as sc
 
 
 def get_control_panel(params=[]):
@@ -42,15 +43,36 @@ def get_control_panel(params=[]):
 
 @callback(
     Output("hidden-div", "children"),
+    Output("experiment-meta-store", "data", allow_duplicate=True),
+    Output("instruments-meta-store", "data", allow_duplicate=True),
+    Output("config-meta-store", "data", allow_duplicate=True),
     Input("submit-experiment", "n_clicks"),
     State("experiment-designer-store", "data"),
     State("instrument-store", "data"),
     State("experiment-config-store", "data"),
+    State("experiment-meta-store", "data"),
+    State("instruments-meta-store", "data"),
+    State("config-meta-store", "data"),
     prevent_initial_call=True,
 )
-def update_output(n_clicks, table_data, instruments, exp_config):
+def update_output(
+    n_clicks, table_data, instruments, exp_config, exp_meta, inst_meta, config_meta
+):
     if n_clicks == None:
         raise PreventUpdate
+
+    # Save any unsaved changes, so the run can link to the versions used
+    files = {}
+    metas = {}
+    try:
+        for kind, data, meta in (
+            ("experiment", table_data, exp_meta),
+            ("instruments", instruments, inst_meta),
+            ("config", exp_config, config_meta),
+        ):
+            files[kind], metas[kind] = sc.save_if_changed(kind, data, meta)
+    except OSError as e:
+        print(f"Error saving experiment files: {e}")
 
     # Prepare data for transmission
     experiment_id = str(uuid.uuid4())[:8]
@@ -77,7 +99,18 @@ def update_output(n_clicks, table_data, instruments, exp_config):
     # Publish data
     client = MQTTPublisher.get_instance()
     client.publish("ui/start", json_data)
-    return None
+
+    if len(files) == len(sc.KINDS):
+        try:
+            sc.save_run(experiment_id, files)
+        except OSError as e:
+            print(f"Error saving run file: {e}")
+    return (
+        None,
+        metas.get("experiment", no_update),
+        metas.get("instruments", no_update),
+        metas.get("config", no_update),
+    )
 
 
 def get_manual_panel(params=[]):
