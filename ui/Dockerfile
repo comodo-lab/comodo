@@ -7,6 +7,7 @@ RUN pip install --no-cache-dir -r ./requirements.txt
 WORKDIR /ui
 # Copy utils
 COPY utils/mqtt_clients.py  /ui/utils/mqtt_clients.py
+COPY utils/comodo_config.py /ui/utils/comodo_config.py
 COPY utils/interpolation.py /ui/utils/interpolation.py
 COPY utils/influx_query.py  /ui/utils/influx_query.py
 # Copy ui code

@@ -14,7 +14,7 @@ import workflow_ui as wf
 import meta_data_ui as md
 
 from utils.mqtt_clients import MQTTPublisher
-from config_loader import ComodoConfig
+from config_loader import UiConfig
 import os
 import random
 
@@ -48,7 +48,7 @@ CONTROL_INTERVAL = 5000  # milliseconds
 SHORT_INTERVAL = 1000  # milliseconds
 LONG_INTERVAL = 5000  # milliseconds
 
-config = ComodoConfig()
+config = UiConfig()
 PARAMS = config.params
 PARAM_DICT = config.param_dicts
 INI_EXPERIMENT_CONFIG = config.ini_experiment_config
