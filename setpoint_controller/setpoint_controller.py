@@ -259,6 +259,9 @@ class SetpointController:
                 f"instruments/{sensor_instrument}/{sensor_variable}/setpoint",
                 f"instruments/{sensor_instrument}/{sensor_variable}/measurement",
                 f"setpoint_controller/{spc_id}/setup",
+                "controller/command/start",
+                "controller/event/end",
+                "controller/command/stop",
             ],
             broker_address=mqtt_host,
             user=mqtt_user,
@@ -340,7 +343,23 @@ class SetpointController:
                         f"instruments/{spc.actuator_instrument}/{spc.actuator_variable}/setpoint",
                         json.dumps({"value": spc.state.actuator_setpoint}),
                     )
-                return
+            elif msg.topic == "controller/command/start":
+                spc.state.experiment_id = message["id"]
+                print(f"Experiment started: {spc.state.experiment_id}")
+            elif msg.topic in ["controller/event/end", "controller/command/stop"]:
+                exp_id = message.get("id") or message.get("experiment_id")
+                if exp_id == spc.state.experiment_id:
+                    spc.state.sensor_setpoint = spc.default_setpoint
+                    spc.state.experiment_id = None
+                    print(
+                        f"Experiment ended: {exp_id}. "
+                        f"Moving to default setpoint: {spc.default_setpoint}"
+                    )
+                else:
+                    print(
+                        f"Received end/stop for experiment {exp_id}, "
+                        f"but current experiment is {spc.state.experiment_id}. Ignoring..."
+                    )
 
     def start_heartbeat_loop(self):
         """Start the heartbeat loop to publish SPC status at regular intervals."""

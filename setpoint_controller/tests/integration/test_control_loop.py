@@ -537,6 +537,32 @@ class TestControlLoop:
         assert "SPC enabled." in captured.out
         assert f"New setpoint received: {t3}." in captured.out
 
+    def test_start_and_stop_experiment(self, cl_mocks, capsys):
+        bus = cl_mocks["message_bus"]
+        spc = cl_mocks["base_SPC"](
+            sensor_instrument="thermocouple",
+            sensor_variable="temperature",
+            default_setpoint=4.2,
+            actuator_instrument="heater",
+            actuator_variable="temperature",
+        )
+        assert spc.state.experiment_id is None
+
+        # Start experiment
+        exp_id = "exp_001"
+        bus.publish("controller/command/start", json.dumps({"id": exp_id}))
+        time.sleep(0.01)  # Wait for processing
+
+        assert spc.state.experiment_id == exp_id
+        assert f"Experiment started: {exp_id}" in capsys.readouterr().out
+
+        # Stop experiment
+        bus.publish("controller/command/stop", json.dumps({"id": exp_id}))
+        time.sleep(0.01)  # Wait for processing
+
+        assert spc.state.experiment_id is None
+        assert f"Experiment ended: {exp_id}" in capsys.readouterr().out
+
     def test_multiple_pid_controllers_can_coexist(self, cl_mocks):
         bus = cl_mocks["message_bus"]
         sensor1 = MockSensor("thermocouple_1", "temperature", bus, initial_value=20.0)

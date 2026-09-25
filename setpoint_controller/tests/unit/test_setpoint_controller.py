@@ -294,6 +294,9 @@ class Test_SetpointController_init:
                 "instruments/I1/A/setpoint",
                 "instruments/I1/A/measurement",
                 "setpoint_controller/I1-A--I2-B/setup",
+                "controller/command/start",
+                "controller/event/end",
+                "controller/command/stop",
             ],
             broker_address="test_host",
             user="test_user",
@@ -752,6 +755,130 @@ class Test_on_setup_message:
         assert mock_spc.pid.k_p == new_k_p
         assert mock_spc.pid.k_i == new_k_i
         mock_spc.publish_heartbeat.assert_called_once()
+
+
+class Test_on_controller_start_message:
+
+    @pytest.fixture
+    def ocsm_mocks(self, mock_spc, mqtt_mocks, mqtt_validator_mocks):
+        start_msg = MockMessage(
+            "controller/command/start",
+            json.dumps({"id": "exp-123"}),
+        )
+
+        return {
+            "client": Mock(),
+            "spc": mock_spc,
+            "publisher": mqtt_mocks["publisher_instance"],
+            "start_msg": start_msg,
+        }
+
+    def test_skips_if_not_enabled(self, ocsm_mocks, capsys):
+        mock_spc = ocsm_mocks["spc"]
+        mock_spc.state.enabled = False
+        assert mock_spc.state.experiment_id == None
+
+        msg = ocsm_mocks["start_msg"]
+        SetpointController.on_message(ocsm_mocks["client"], msg, mock_spc)
+
+        ocsm_mocks["publisher"].publish.assert_not_called()
+        assert mock_spc.state.experiment_id == None
+        captured = capsys.readouterr()
+        assert captured.out == ""  # No print output when disabled
+
+    def test_sets_experiment_id_when_enabled(self, ocsm_mocks, capsys):
+        mock_spc = ocsm_mocks["spc"]
+        mock_spc.state.enabled = True
+        assert mock_spc.state.experiment_id == None
+
+        msg = ocsm_mocks["start_msg"]
+        SetpointController.on_message(ocsm_mocks["client"], msg, mock_spc)
+
+        ocsm_mocks["publisher"].publish.assert_not_called()
+        assert mock_spc.state.experiment_id == "exp-123"
+        captured = capsys.readouterr()
+        assert "Experiment started: exp-123" in captured.out
+
+
+class Test_on_controller_end_message:
+
+    @pytest.fixture
+    def ocsm_mocks(self, mock_spc, mqtt_mocks, mqtt_validator_mocks):
+        end_msg = MockMessage(
+            "controller/event/end",
+            json.dumps({"experiment_id": "exp-123"}),
+        )
+        stop_msg = MockMessage(
+            "controller/command/stop",
+            json.dumps({"id": "exp-123"}),
+        )
+
+        return {
+            "client": Mock(),
+            "spc": mock_spc,
+            "publisher": mqtt_mocks["publisher_instance"],
+            "end_msg": end_msg,
+            "stop_msg": stop_msg,
+        }
+
+    def test_skips_if_not_enabled(self, ocsm_mocks, capsys):
+        mock_spc = ocsm_mocks["spc"]
+        mock_spc.state.enabled = False
+        mock_spc.state.experiment_id = "exp-123"
+
+        msg = ocsm_mocks["end_msg"]
+        SetpointController.on_message(ocsm_mocks["client"], msg, mock_spc)
+
+        ocsm_mocks["publisher"].publish.assert_not_called()
+        assert mock_spc.state.experiment_id == "exp-123"
+        captured = capsys.readouterr()
+        assert captured.out == ""  # No print output when disabled
+
+    def test_unsets_experiment_id_when_enabled_end(self, ocsm_mocks, capsys):
+        mock_spc = ocsm_mocks["spc"]
+        mock_spc.state.enabled = True
+        mock_spc.state.experiment_id = "exp-123"
+
+        msg = ocsm_mocks["end_msg"]
+        SetpointController.on_message(ocsm_mocks["client"], msg, mock_spc)
+
+        ocsm_mocks["publisher"].publish.assert_not_called()
+        assert mock_spc.state.experiment_id == None
+        captured = capsys.readouterr()
+        assert "Experiment ended: exp-123" in captured.out
+        assert "Moving to default setpoint" in captured.out
+        assert f"{mock_spc.default_setpoint}" in captured.out
+        assert mock_spc.state.sensor_setpoint == mock_spc.default_setpoint
+
+    def test_unsets_experiment_id_when_enabled_stop(self, ocsm_mocks, capsys):
+        mock_spc = ocsm_mocks["spc"]
+        mock_spc.state.enabled = True
+        mock_spc.state.experiment_id = "exp-123"
+
+        msg = ocsm_mocks["stop_msg"]
+        SetpointController.on_message(ocsm_mocks["client"], msg, mock_spc)
+
+        ocsm_mocks["publisher"].publish.assert_not_called()
+        assert mock_spc.state.experiment_id == None
+        captured = capsys.readouterr()
+        assert "Experiment ended: exp-123" in captured.out
+        assert "Moving to default setpoint" in captured.out
+        assert f"{mock_spc.default_setpoint}" in captured.out
+        assert mock_spc.state.sensor_setpoint == mock_spc.default_setpoint
+
+    def test_skips_if_experiment_id_does_not_match(self, ocsm_mocks, capsys):
+        mock_spc = ocsm_mocks["spc"]
+        mock_spc.state.enabled = True
+        mock_spc.state.experiment_id = "exp-456"  # Mismatched experiment ID
+
+        msg = ocsm_mocks["end_msg"]
+        SetpointController.on_message(ocsm_mocks["client"], msg, mock_spc)
+
+        ocsm_mocks["publisher"].publish.assert_not_called()
+        assert mock_spc.state.experiment_id == "exp-456"
+        captured = capsys.readouterr()
+        assert "Received end/stop for experiment exp-123" in captured.out
+        assert "but current experiment is exp-456. Ignoring..." in captured.out
 
 
 class TestPublishHeartbeat:
