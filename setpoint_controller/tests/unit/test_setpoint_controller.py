@@ -117,7 +117,7 @@ class Test_main:
         main()
 
         assert mocks["getenv"].call_args_list == [
-            call("HEARTBEAT_INTERVAL", 1),
+            call("HEARTBEAT_INTERVAL", "1.0"),
             call("MQTT_HOST"),
             call("MQTT_USER"),
             call("MQTT_PASS"),
@@ -159,7 +159,7 @@ class Test_main:
 
         mocks["env_values"].update(
             {
-                "HEARTBEAT_INTERVAL": 2000,
+                "HEARTBEAT_INTERVAL": 2,
                 "MQTT_HOST": "test_host",
                 "MQTT_USER": "test_user",
                 "MQTT_PASS": "test_pass",

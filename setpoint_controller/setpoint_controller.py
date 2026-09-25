@@ -13,7 +13,7 @@ from src.pid import PID
 def main():
     print(f"Starting...")
     # Load configuration
-    heartbeat_interval = float(os.getenv("HEARTBEAT_INTERVAL", 1)) / 1000
+    heartbeat_interval = float(os.getenv("HEARTBEAT_INTERVAL", "1.0"))
     try:
         req_env_vars = ["MQTT_HOST", "MQTT_USER", "MQTT_PASS", "SENSOR", "ACTUATOR"]
         # Load required environment variables into a dictionary
@@ -214,7 +214,7 @@ class SetpointController:
         mqtt_host: str,
         mqtt_user: str,
         mqtt_pass: str,
-        heartbeat_interval: int,
+        heartbeat_interval: float,
         spc_id: str,
         sensor_instrument: str,
         sensor_variable: str,

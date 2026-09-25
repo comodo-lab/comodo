@@ -1,76 +1,168 @@
 import importlib
+from abc import ABC, abstractmethod
+from typing import ClassVar
 
 
-class BaseInstrument:
+def create_instrument(config):
+    firmware = config["FIRMWARE"]
+    if config["FIRMWARE"] == "generic_instrument" or not firmware:
+        return GenericInstrument(config)
+
+    # Import firmware module
+    module_name = f"src.instruments.{firmware}"
+    try:
+        module = importlib.import_module(module_name)
+    except ModuleNotFoundError as e:
+        if e.name == module_name:
+            raise ValueError(f"Unknown instrument plugin: {firmware}") from e
+        raise
+    # Instantiate the instrument class from the imported module
+    try:
+        cls = module.Instrument
+    except AttributeError as e:
+        raise ValueError(
+            f"Instrument plugin '{firmware}' does not have an 'Instrument' class"
+        ) from e
+    return cls(config)
+
+
+class BaseInstrument(ABC):
     """
-    Base class for all instruments
-
-    This class is used to register all instruments and create them based on the input name.
-
-    Attributes:
-        variables: dict of variable names and parameters
+    Abstract base class for instruments.
     """
 
-    variables = {}
+    # Available variables for the instrument, with their corresponding sensor and actuator parameters
+    available_variables: ClassVar[dict[str, dict]] = {}
 
-    def create_instrument(instrument_name):
-        try:
-            module = importlib.import_module(f"src.instruments.{instrument_name}")
-        except ModuleNotFoundError as e:
-            raise ValueError(f"Unknown instrument plugin: {instrument_name}") from e
+    def __init__(self, config):
+        """
+        Generic initialisation of all instruments. Subclasses should not override this method.
+        Specific initialisation must be defined by subclasses in the initialise method.
+        """
+        self.config = config
+        self.setpoints = {var: None for var in self.config["DEFAULT_SETPOINTS"]}
+        self.previous_measurements = {}
+        self.initialise()
 
-        # Instantiate the instrument class from the imported module
-        try:
-            cls = module.Instrument
-            return cls()
-        except AttributeError as e:
-            raise ValueError(
-                f"Instrument plugin '{instrument_name}' does not have a 'Instrument' class"
-            ) from e
-
-    def __init__(self):
+    def default_sim(self, variable):
         """
-        Initialisations that are safe when either hardware or simulation is used
-
-        To be extended by subclasses, if needed.
+        Converges the simulated value toward the setpoint by half the difference each tick.
+        May be used in the simulate method of subclasses to provide a default simulation behaviour.
         """
-        pass
-
-    def initialise(self, state):
-        """
-        Initialisations that are only safe when hardware is used
-        """
-        pass
-
-    def _default_sim(self, state, variable):
-        """
-        Default simulation: converge the simulated value toward the setpoint
-        by half the difference each tick.
-        """
-        current = self._simulated.get(variable, 0)
-        target = state.status["setpoints"].get(variable)
+        current = self.previous_measurements.get(variable, 0)
+        target = self.setpoints.get(variable)
         if target is not None:
-            current += (target - current) / 2
-            self._simulated[variable] = current
-        return current
+            new = current + (target - current) / 2
+        else:
+            new = current
+        return new
 
-    def get_measurement(self, state, variable):
+    def measure_or_simulate(self, variable):
+        """
+        Get a measurement from the instrument or simulate the measurement if in simulation mode.
+        Subclasses should not override this method, but should implement the `get_measurement` and
+        `simulate` methods to provide specific behaviour.
+        """
+        # Only allow measuring variables that are available in the instrument.
+        if variable not in self.available_variables:
+            raise ValueError(
+                f"Cannot measure '{variable}'. "
+                "Variable not available in this instrument."
+            )
+        if self.config["SIMULATE"]:
+            new_value = self.simulate(variable)
+        else:
+            new_value = self.get_measurement(variable)
+        self.previous_measurements[variable] = new_value
+        return new_value
+
+    def set_and_go_to_setpoint(self, variable, setpoint):
+        """
+        Set the setpoint for a given variable and instruct actuators to go to that setpoint (if any).
+        Subclasses should not override this method, but should implement the `go_to_setpoint` method
+        to provide specific behaviour.
+        """
+        # Only allow setting setpoints for variables that are available in the instrument.
+        if variable not in self.available_variables:
+            raise ValueError(
+                f"Cannot set setpoint for '{variable}'. "
+                "Variable not available in this instrument."
+            )
+        self.setpoints[variable] = setpoint
+        # If not in simulation mode, instruct the actuators to go to the setpoint.
+        if not self.config["SIMULATE"]:
+            self.go_to_setpoint(variable, setpoint)
+
+    def print_config(self):
+        """
+        Return a dictionary representation of the instrument's configuration.
+        """
+        printable_config = {}
+        printable_config["name"] = self.config["INSTRUMENT_NAME"]
+        printable_config["firmware"] = self.config["FIRMWARE"]
+        printable_config["address"] = self.config["ADDRESS"]
+        printable_config["simulate"] = self.config["SIMULATE"]
+        printable_config["variables"] = self.config["ACTIVE_VARIABLES"]
+        printable_config["default_setpoints"] = self.config["DEFAULT_SETPOINTS"]
+        printable_config["safe_stop_setpoints"] = self.config["SAFE_STOP_SETPOINTS"]
+        printable_config["measurement_intervals"] = self.config["MEASUREMENT_INTERVALS"]
+        printable_config["heartbeat_interval"] = self.config["HEARTBEAT_INTERVAL"]
+        printable_config["experiment"] = self.config["experiment"]
+        return printable_config
+
+    @abstractmethod
+    def initialise(self):
+        """
+        Initialise the instrument
+        """
+
+    @abstractmethod
+    def simulate(self, variable):
+        """
+        Simulate the instrument approach to a setpoint for a given variable.
+        For default simulation behaviour, subclasses can call the `default_sim` method.
+        """
+
+    @abstractmethod
+    def get_measurement(self, variable):
         """
         Get a single measurement from the instrument for a given variable
 
         Returns:
             float: The measurement value
         """
-        raise NotImplemented
 
-    def go_to_setpoint(self, state, variable):
+    @abstractmethod
+    def go_to_setpoint(self, variable, setpoint):
         """
-        Set the setpoint for a given variable on the instrument
+        Set the setpoint for a given variable on the instrument.
+        """
 
-        Default implementation gates on actuator_param in the variables dict.
-        Instruments that support writing should override this method.
-        """
-        var = self.variables.get(variable)
-        if not var or "actuator_param" not in var:
-            return
-        raise NotImplemented
+
+class GenericInstrument(BaseInstrument):
+    """
+    A generic instrument class that can be used for simulation purposes.
+    It accepts any variable passed to it and simulates the behaviour of an instrument.
+    """
+
+    def initialise(self):
+        # Make sure the instrument is in simulation mode.
+        if not self.config["SIMULATE"]:
+            raise ValueError("GenericInstrument must be used in simulation mode.")
+        # Accept any variable passed in the configuration.
+        for var in self.config.get("ACTIVE_VARIABLES", []):
+            self.available_variables[var] = {"sensor": None, "actuator": None}
+
+    def simulate(self, variable):
+        # Use the default simulation behaviour to converge towards the setpoint.
+        return self.default_sim(variable)
+
+    def get_measurement(self, variable):
+        raise NotImplementedError(
+            f"GenericInstrument cannot provide a real measurement for {variable}. "
+            "Please use a specific instrument subclass."
+        )
+
+    def go_to_setpoint(self, variable, setpoint):
+        # No actuators to control in simulation mode
+        pass

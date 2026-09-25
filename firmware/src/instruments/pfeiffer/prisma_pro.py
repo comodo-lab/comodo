@@ -1,19 +1,59 @@
+"""
+Prisma Pro Mass Spectrometer
+"""
+
+# System imports
+from typing import ClassVar
 import time
 import requests
 
+# Local imports
 from src.instrument import BaseInstrument
 
-# Configuration Parameters
+
+# ======================================================================================
+# Instrument Class
+# --------------------------------------------------------------------------------------
+class Instrument(BaseInstrument):
+    available_variables: ClassVar[dict[str, dict]] = {
+        "mass_spec": {},
+    }
+
+    def initialise(self):
+        if self.config["SIMULATE"]:
+            self.mmsp = None
+        else:
+            self.mmsp = MMSP(self.config.get("ADDRESS", TARGET_IP_ADDR))
+
+    def simulate(self, variable):
+        return {}
+
+    def get_measurement(self, variable):
+        scan = self.mmsp.run_and_get_scan()
+        return scan
+
+    def go_to_setpoint(self, variable, setpoint):
+        # No actuators implemented
+        pass
+
+
+# ======================================================================================
+
+# ======================================================================================
+# PrismaPro configuration and helper functions
+# --------------------------------------------------------------------------------------
 VERBOSE = True
 SCAN_COUNT = 1
 SCAN_INTERVAL = 9023  # ms between scans
 DEFAULT_DWELL = 32  # ms dwell time
 AMU = 50
 TARGET_IP_ADDR = "192.168.1.100"
-
 CAPTURE_FILE = f"test_scan.msd"
 
 
+# --------------------------------------------------------------------------------------
+# Helper functions
+# --------------------------------------------------------------------------------------
 class MMSP:
 
     def __init__(self, target_ip, port=80):
@@ -160,30 +200,4 @@ class MMSP:
         return scan_dict
 
 
-class Instrument(BaseInstrument):
-    available_variables = {
-        "mass_spec": {},
-    }
-
-    def __init__(self):
-        self.mmsp = None
-        self._device_address = TARGET_IP_ADDR
-        self._simulated = {}
-
-    def initialise(self, state):
-        if state.config.get("SIMULATE"):
-            self._simulated = {"mass_spec": {}}
-            return
-        self._device_address = state.config.get("DEVICE_ADDRESS", TARGET_IP_ADDR)
-        self.mmsp = MMSP(self._device_address)
-
-    def set_config(self, config):
-        if self.mmsp is None:
-            return
-        self.mmsp.configure()
-
-    def get_measurement(self, state, variable):
-        if state.config.get("SIMULATE"):
-            return self._simulated.get("mass_spec", {})
-        scan = self.mmsp.run_and_get_scan()
-        return scan
+# ======================================================================================

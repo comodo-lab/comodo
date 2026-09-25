@@ -34,12 +34,12 @@ services:
       <<: *instrument-env
       INSTRUMENT_NAME: "furnace"
       FIRMWARE: carbolite_gero.tg3
-      DEVICE_ADDRESS: "192.168.111.222"
+      ADDRESS: "192.168.111.222"
       ACTIVE_VARIABLES: '["temperature"]'
       DEFAULT_SETPOINTS: '{"temperature": 25}'
       SAFE_STOP_SETPOINTS: '{"temperature": 0}'
-      HEARTBEAT_INTERVAL: 1000
-      INTERVAL_TEMPERATURE: 1000
+      MEASUREMENT_INTERVALS: '{"temperature": 1}'
+      HEARTBEAT_INTERVAL: 1.0
 
   pressure:
     <<: *python-instrument-template
@@ -47,12 +47,12 @@ services:
       <<: *instrument-env
       INSTRUMENT_NAME: "pressure"
       FIRMWARE: pfeiffer.mpt200
-      DEVICE_ADDRESS: "/dev/ttyUSB0"
+      ADDRESS: "/dev/ttyUSB0"
       ACTIVE_VARIABLES: '["pressure"]'
       DEFAULT_SETPOINTS: '{"pressure": 1}'
       SAFE_STOP_SETPOINTS: 'null'
-      HEARTBEAT_INTERVAL: 1000
-      INTERVAL_PRESSURE: 1000
+      MEASUREMENT_INTERVALS: '{"pressure": 1}'
+      HEARTBEAT_INTERVAL: 1.0
     devices:
       - "/dev/ttyUSB0:/dev/ttyUSB0"
     privileged: true
@@ -63,12 +63,12 @@ services:
       <<: *instrument-env
       INSTRUMENT_NAME: "mass_flow"
       FIRMWARE: bronkhorst.el_flow_select
-      DEVICE_ADDRESS: "/dev/ttyUSB2"
+      ADDRESS: "/dev/ttyUSB2"
       ACTIVE_VARIABLES: '["mass_flow"]'
       DEFAULT_SETPOINTS: 'null'
       SAFE_STOP_SETPOINTS: '{"mass_flow": 0}'
-      HEARTBEAT_INTERVAL: 1000
-      INTERVAL_MASS_FLOW: 1000
+      MEASUREMENT_INTERVALS: '{"mass_flow": 1}'
+      HEARTBEAT_INTERVAL: 1.0
     devices:
       - "/dev/ttyUSB2:/dev/ttyUSB2"
     privileged: true
@@ -83,7 +83,7 @@ services:
         condition: service_healthy
     environment:
       <<: *mqtt-env
-      HEARTBEAT_INTERVAL: 1000
+      HEARTBEAT_INTERVAL: 1.0
       SENSOR: "pressure/pressure"
       DEFAULT_SETPOINT: 1
       ACTUATOR: "mass_flow/mass_flow"

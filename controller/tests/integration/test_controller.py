@@ -125,20 +125,18 @@ def test_control_loop(
     # Respond with instrument heartbeats
     assert heartbeat_client.callback.__name__ == "on_heartbeat_message"
     for instrument in instrument_names:
+        heartbeat = {
+            "state": "running",
+            "setpoints": state.config.instruments[instrument]["default_setpoints"],
+            "config": state.config.get_expected_heartbeat(instrument),
+        }
+        heartbeat["config"]["experiment"] = {
+            "id": "123456",
+            "calibration": {"some": "values"},
+        }
         msg = MockMessage(
             topic=f"instruments/{instrument}/heartbeat",
-            payload=json.dumps(
-                {
-                    "state": "ready",
-                    "setpoints": {},
-                    "config": {
-                        "firmware": "test_firmware",
-                        "device_address": "1.2.3.4",
-                        "simulate": True,
-                        "variables": ["V_A", "V_B"],
-                    },
-                }
-            ),
+            payload=json.dumps(heartbeat),
         )
         message_bus.publish(msg.topic, msg.payload.decode())
     t.sleep(0.1)

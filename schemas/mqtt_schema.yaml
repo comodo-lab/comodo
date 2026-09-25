@@ -386,9 +386,11 @@ channels:
             config:
               type: object
               properties:
+                name:
+                  type: string
                 firmware:
                   type: string
-                device_address:
+                address:
                   type: string
                 simulate:
                   type: boolean
@@ -396,6 +398,23 @@ channels:
                   type: array
                   items:
                     type: string
+                default_setpoints:
+                  type: object
+                  additionalProperties:
+                    type: number
+                safe_stop_setpoints:
+                  type: object
+                  additionalProperties:
+                    type: number
+                measurement_intervals:
+                  type: object
+                  additionalProperties:
+                    type: number
+                heartbeat_interval:
+                  type: number
+                experiment:
+                  type: object
+                  additionalProperties: true
 
             setpoints:
               type: object
@@ -405,9 +424,9 @@ channels:
             state:
               type: string
               enum:
-                - idle
-                - adjusting
-                - ready
+                - initialising
+                - awaiting_experiment
+                - running
                 - error
 
   instrumentSetpoint:

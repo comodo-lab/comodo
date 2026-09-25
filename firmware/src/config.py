@@ -1,81 +1,49 @@
-import sys
-
 import json
 import os
 
 config = {
-    "INSTRUMENT_NAME": "No name",
-    "FIRMWARE": "None specified",
     "MQTT_USER": "comodo",
     "MQTT_PASS": "comodo",
     "MQTT_HOST": "rabbitmq",
-    "HEARTBEAT_INTERVAL": 1000,
+    "INSTRUMENT_NAME": "No name",
+    "FIRMWARE": "None specified",
+    "ADDRESS": "",
     "SIMULATE": True,
-    "DEVICE_ADDRESS": "",
     "ACTIVE_VARIABLES": [],
     "DEFAULT_SETPOINTS": {},
     "SAFE_STOP_SETPOINTS": {},
-    "SENSORS": {},
-    "HEARTBEAT": {},
+    "MEASUREMENT_INTERVALS": {},
+    "HEARTBEAT_INTERVAL": 1.0,
+    "experiment": {},
 }
 
 
 def load_config():
     """
-    Load the default configuration and override using the environmentn
+    Load the default configuration and override using the environment
 
     Returns:
         dict: The configuration object
     """
     # Create config dict
     for key, value in config.items():
+        # Load booleans
         if key in ["SIMULATE"]:
             config[key] = os.getenv(key, str(value)).lower() in ["true", "1", "yes"]
-        elif key in ["ACTIVE_VARIABLES", "DEFAULT_SETPOINTS", "SAFE_STOP_SETPOINTS"]:
+        # Load lists and dicts
+        elif key in [
+            "ACTIVE_VARIABLES",
+            "DEFAULT_SETPOINTS",
+            "SAFE_STOP_SETPOINTS",
+            "MEASUREMENT_INTERVALS",
+            "experiment",
+        ]:
             loaded = json.loads(os.getenv(key, json.dumps(value)))
             if loaded is None:
                 loaded = {}
             config[key] = loaded
+        # Load anything else as the type of the default value
         else:
-            config[key] = os.getenv(key, value)
+            config[key] = type(value)(os.getenv(key, value))
 
     return config
-
-
-def populate_heartbeat(state):
-    """
-    Populate the heartbeat object in the config based on the active variables and their intervals.
-
-    Returns:
-    """
-
-    # Populate the SENSORS list based on ACTIVE_VARIABLES and the instrument's available variables
-    for variable in state.config["ACTIVE_VARIABLES"]:
-        # Ensure the variable is available in the instrument
-        if variable not in state.instrument.available_variables:
-            print(
-                f"Warning: Variable '{variable}' is not available in instrument '{state.config['FIRMWARE']}'"
-            )
-            continue
-
-        # Ensure the variable is a sensor
-        if "sensor" not in state.instrument.available_variables[variable]:
-            continue
-
-        # Get the reporting interval
-        interval = int(state.config.get(f"INTERVAL_{variable.upper()}", 1000))
-
-        # Add the variable to the SENSORS list
-        config["SENSORS"][variable] = {
-            "name": variable,
-            "interval": interval,
-        }
-
-    # Create the heartbeat object
-    config["HEARTBEAT"] = {
-        "firmware": config["FIRMWARE"],
-        "device_address": config["DEVICE_ADDRESS"],
-        "simulate": config["SIMULATE"],
-        "variables": config["ACTIVE_VARIABLES"],
-    }
-    return

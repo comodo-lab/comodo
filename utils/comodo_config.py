@@ -134,10 +134,24 @@ class ComodoConfig:
                 "firmware": instrument_data["firmware"],
                 "address": instrument_data["address"],
                 "simulate": instrument_data.get("simulate", False),
-                "variables": {},
+                "variables": instrument_data["variables"],
+                "default_setpoints": {
+                    var_name: var_data["default_setpoint"]
+                    for var_name, var_data in instrument_data["variables"].items()
+                    if var_data.get("default_setpoint") is not None
+                },
+                "safe_stop_setpoints": {
+                    var_name: var_data["actuator"]["safe_stop_setpoint"]
+                    for var_name, var_data in instrument_data["variables"].items()
+                    if var_data.get("actuator", {}).get("safe_stop_setpoint")
+                    is not None
+                },
+                "measurement_intervals": {
+                    var_name: var_data["sensor"]["interval"]
+                    for var_name, var_data in instrument_data["variables"].items()
+                    if var_data.get("sensor", {}).get("interval") is not None
+                },
             }
-            for var_name, var_data in instrument_data["variables"].items():
-                self.instruments[instrument_name]["variables"][var_name] = var_data
 
     def populate_sensors_actuators_spcs(self):
         """
@@ -226,10 +240,16 @@ class ComodoConfig:
             )
 
         return {
+            "name": instrument_name,
             "firmware": inst["firmware"],
-            "device_address": inst["address"],
+            "address": inst["address"],
             "simulate": inst["simulate"],
             "variables": list(inst["variables"].keys()),
+            "default_setpoints": inst["default_setpoints"],
+            "safe_stop_setpoints": inst["safe_stop_setpoints"],
+            "measurement_intervals": inst["measurement_intervals"],
+            "heartbeat_interval": self.globals["heartbeat_interval"],
+            "experiment": {},  # This is reserved for the live experiment config, which is arbitrary
         }
 
     def get_default_experiment(self):

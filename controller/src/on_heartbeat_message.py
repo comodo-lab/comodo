@@ -44,13 +44,12 @@ def handle_instrument_heartbeat(obj, heartbeat, instrument_name):
     obj.instrument_states[instrument_name]["config"] = heartbeat["config"]
     if obj.status == "awaiting_instruments":
         # Assert state and config match, otherwise stop experiment
-        if heartbeat["state"] == "idle":
+        if heartbeat["state"] in ["initialising", "awaiting_experiment"]:
             return
-        # Check if all instruments are ready (not idle) and if so:
+        # Check if all instruments are ready and if so:
         # set the configured flag and publish ready event
-
         heartbeats_ready = all(
-            instrument["state"] in ["ready", "adjusting"]
+            instrument["state"] in ["running"]
             for instrument in obj.instrument_states.values()
         )
 
@@ -64,6 +63,8 @@ def handle_instrument_heartbeat(obj, heartbeat, instrument_name):
 
 def heartbeat_valid(obj, heartbeat, instrument_name):
     expected = obj.config.get_expected_heartbeat(instrument_name)
+    # Accept an arbitrary experiment live config
+    expected["experiment"] = heartbeat["config"].get("experiment", {})
 
     if heartbeat["config"] != expected:
         pub_err.invalid_instrument_config(
