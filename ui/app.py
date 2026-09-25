@@ -17,6 +17,7 @@ from utils.mqtt_clients import MQTTPublisher
 from config_loader import UiConfig
 import os
 import random
+import logging
 
 app = Dash(
     external_stylesheets=[dbc.themes.LUX],
@@ -243,4 +244,5 @@ app.layout = dbc.Container(
 
 
 if __name__ == "__main__":
+    logging.getLogger("werkzeug").setLevel(logging.ERROR)
     app.run(debug=False, host="0.0.0.0")
