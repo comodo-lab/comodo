@@ -26,7 +26,11 @@ def on_timer_message(client, msg, obj):
 
     if msg.topic == "controller/timer/event/done":
         exp_id = message.get("experiment_id", "unknown")
-        print(f"WARNING: Unexpected timer done event ignored (experiment_id: {exp_id})")
+        source = message.get("source", "unknown")
+        if source != "instrument_setup":
+            print(
+                f"WARNING: Unexpected timer done event ignored (experiment_id: {exp_id})"
+            )
         return
 
     try:
@@ -70,8 +74,7 @@ def on_timer_message(client, msg, obj):
             json.dumps(
                 {
                     "source": "instrument_setup",
-                    # experiment uid changes when all instruments get configured, so have to use obj.experiment_id, not message["experiment_id"]
-                    "experiment_id": obj.experiment_id,
+                    "experiment_id": message["experiment_id"],
                     "instruments_configured": obj.instruments_ready,
                     "controller_status": obj.status,
                 }

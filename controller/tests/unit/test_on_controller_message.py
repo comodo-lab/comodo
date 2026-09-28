@@ -113,7 +113,7 @@ class TestIdle:
         idle_mocks["validate_experiment"].assert_not_called()
         idle_mocks["serial_id"].assert_not_called()
 
-    def test_missing_file(self, idle_mocks):
+    def test_missing_file(self, idle_mocks, capsys):
         assert idle_mocks["state"].experiment_id == None
         assert idle_mocks["state"].status == "idle"
         mock_validate = idle_mocks["validate_experiment"]
@@ -123,6 +123,8 @@ class TestIdle:
 
         c_idle(idle_mocks["controller_client"], idle_mocks["msg"], idle_mocks["state"])
 
+        captured = capsys.readouterr()
+        assert "Validating experiment 123..." in captured.out
         mock_validate.assert_called_once_with(
             "valid_file.json", idle_mocks["state"].config
         )
@@ -137,7 +139,7 @@ class TestIdle:
         messages = idle_mocks["messages"]()
         assert len(messages) == 0
 
-    def test_invalid_file(self, idle_mocks):
+    def test_invalid_file(self, idle_mocks, capsys):
         assert idle_mocks["state"].experiment_id == None
         assert idle_mocks["state"].experiment_start_time == None
         assert idle_mocks["state"].status == "idle"
@@ -146,6 +148,8 @@ class TestIdle:
 
         c_idle(idle_mocks["controller_client"], idle_mocks["msg"], idle_mocks["state"])
 
+        captured = capsys.readouterr()
+        assert "Validating experiment 123..." in captured.out
         idle_mocks["split_setpoints"].assert_not_called()
         assert idle_mocks["state"]._status_history == ["validating", "idle"]
         assert idle_mocks["state"].experiment_id == None
@@ -158,7 +162,7 @@ class TestIdle:
         messages = idle_mocks["messages"]()
         assert len(messages) == 0
 
-    def test_invalid_setpoints(self, idle_mocks):
+    def test_invalid_setpoints(self, idle_mocks, capsys):
         assert idle_mocks["state"].experiment_id == None
         assert idle_mocks["state"].experiment_start_time == None
         assert idle_mocks["state"].status == "idle"
@@ -166,6 +170,8 @@ class TestIdle:
 
         c_idle(idle_mocks["controller_client"], idle_mocks["msg"], idle_mocks["state"])
 
+        captured = capsys.readouterr()
+        assert "Validating experiment 123..." in captured.out
         idle_mocks["validate_experiment"].assert_called_once_with(
             "valid_file.json", idle_mocks["state"].config
         )
@@ -181,13 +187,16 @@ class TestIdle:
         messages = idle_mocks["messages"]()
         assert len(messages) == 0
 
-    def test_valid_file(self, idle_mocks):
+    def test_valid_file(self, idle_mocks, capsys):
         assert idle_mocks["state"].experiment_id == None
         assert idle_mocks["state"].experiment_start_time == None
         assert idle_mocks["state"].status == "idle"
 
         c_idle(idle_mocks["controller_client"], idle_mocks["msg"], idle_mocks["state"])
 
+        captured = capsys.readouterr()
+        assert "Validating experiment 123..." in captured.out
+        assert "Experiment 123 valid. Assigned experiment id: D123-456" in captured.out
         idle_mocks["validate_experiment"].assert_called_once_with(
             "valid_file.json", idle_mocks["state"].config
         )
@@ -267,7 +276,7 @@ class TestStarting:
         messages = start_mocks["messages"]()
         assert len(messages) == 0
 
-    def test_valid_start(self, start_mocks):
+    def test_valid_start(self, start_mocks, capsys):
         state = start_mocks["state"]
         assert state.experiment_id == "123"
         assert state.status == "validating"
@@ -281,6 +290,8 @@ class TestStarting:
         )
         c_starting(start_mocks["controller_client"], msg, start_mocks["state"])
 
+        captured = capsys.readouterr()
+        assert "Awaiting instruments for experiment 123..." in captured.out
         # goes through starting to awaiting_instruments
         assert state._status_history == ["starting", "awaiting_instruments"]
         # State object updated correctly
@@ -369,7 +380,7 @@ class TestReady:
         messages = ready_mocks["messages"]()
         assert len(messages) == 0
 
-    def test_updates_states_correctly(self, ready_mocks):
+    def test_updates_states_correctly(self, ready_mocks, capsys):
         assert ready_mocks["state"].experiment_id == "123"
         assert ready_mocks["state"].status == "awaiting_instruments"
         assert ready_mocks["controller_client"].callback == c_ready
@@ -380,6 +391,8 @@ class TestReady:
         )
         c_ready(ready_mocks["controller_client"], msg, ready_mocks["state"])
 
+        captured = capsys.readouterr()
+        assert "Instruments ready, starting experiment 123..." in captured.out
         assert ready_mocks["state"].status == "ready"
         assert ready_mocks["state"].experiment_id == "123"
         assert ready_mocks["controller_client"].callback == ready_mocks["c_running"]

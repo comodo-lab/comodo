@@ -183,38 +183,6 @@ class TestOnTimerMessage:
             "controller_status": "ready",
         }
 
-    def test_done_instrument_setup_uses_obj_uid(self, ouim_mocks):
-        state = ouim_mocks["state"]
-        assert state.experiment_id == "123"
-        assert state.instruments_ready == False
-        state.status = "ready"
-
-        with patch("src.on_timer_message.t.time") as mock_time:
-            # Simulate experiment uid change when instruments get configured
-            def change_uid(*args, **kwargs):
-                state.experiment_id = "D25-123"
-                return 12345  # arbitrary time
-
-            mock_time.side_effect = change_uid
-
-            msg = MockMessage(
-                topic="controller/timer/command/start",
-                payload=json.dumps(
-                    {"source": "instrument_setup", "experiment_id": "123"}
-                ),
-            )
-            on_timer_message(ouim_mocks["timer_client"], msg, state)
-
-        messages = ouim_mocks["messages"]()
-        assert len(messages) == 1
-        assert messages[0].topic == "controller/timer/event/done"
-        assert json.loads(messages[0].payload) == {
-            "source": "instrument_setup",
-            "experiment_id": "D25-123",
-            "instruments_configured": False,
-            "controller_status": "ready",
-        }
-
     def test_timer_setpoint(self, ouim_mocks):
         assert ouim_mocks["state"].experiment_id == "123"
         ouim_mocks["state"].status = "running"

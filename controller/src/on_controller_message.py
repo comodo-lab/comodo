@@ -35,6 +35,7 @@ def c_idle(client, msg, obj):
         # Set experiment file object and temp_id
         obj.exp_file = payload["file"]
         temp_id = payload["temp_id"]
+        print(f"Validating experiment {temp_id}...")
     except mqtt_val.MQTTValidationException as e:
         pub_err.message_validation(e)
         return
@@ -61,6 +62,10 @@ def c_idle(client, msg, obj):
             "controller/validator/passed", json.dumps(m)
         )
         obj.exp_config = exp_config
+
+        print(
+            f"Experiment {temp_id} valid. Assigned experiment id: {obj.experiment_id}"
+        )
 
         # Update state and callback of controller
         client.callback = c_starting
@@ -105,6 +110,7 @@ def c_starting(client, msg, obj):
                 "setpoints": None,
             }
     # Update state and callback of controller
+    print(f"Awaiting instruments for experiment {obj.experiment_id}...")
     obj.status = "awaiting_instruments"
     client.callback = c_ready
     mqtt.MQTTPublisher.get_instance().publish(
@@ -131,6 +137,7 @@ def c_ready(client, msg, obj):
             pub_err.incompatible_controller_status(obj, msg)
         return
 
+    print(f"Instruments ready, starting experiment {obj.experiment_id}...")
     obj.status = "ready"
     # Update state and callback of controller
     client.callback = c_running
