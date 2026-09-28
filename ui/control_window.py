@@ -34,6 +34,7 @@ def get_control_panel(params=[]):
     layout = html.Div(
         [
             dbc.Button("Start experiment", color="success", id="submit-experiment"),
+            dbc.Button("Stop experiment", color="danger", id="stop-exp", disabled=True),
             get_manual_panel(params=params),
         ],
         className="d-grid gap-2",
@@ -111,6 +112,36 @@ def update_output(
         metas.get("instruments", no_update),
         metas.get("config", no_update),
     )
+
+
+@callback(
+    Output("hidden-div", "children", allow_duplicate=True),
+    Input("stop-exp", "n_clicks"),
+    State("stop-exp", "value"),
+    prevent_initial_call=True,
+)
+def stop_experiment(n_clicks, experiment_id):
+    if not n_clicks or not experiment_id:
+        raise PreventUpdate
+
+    client = MQTTPublisher.get_instance()
+    client.publish("ui/stop", json.dumps({"experiment_id": experiment_id}))
+
+
+@callback(
+    Output("stop-exp", "disabled"),
+    Output("stop-exp", "children"),
+    Output("stop-exp", "value"),
+    Input("experiment_id-title", "children"),
+    Input("experiment_id", "color"),
+)
+def update_stop_button(experiment_id, color):
+    """
+    Enables the stop button when the header reports an experiment_id from the controller heartbeat.
+    """
+    if color != "success" or not experiment_id:
+        return True, "Stop experiment", None
+    return False, f"Stop experiment {experiment_id}", experiment_id
 
 
 def get_manual_panel(params=[]):
