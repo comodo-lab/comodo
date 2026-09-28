@@ -286,7 +286,7 @@ channels:
                 - error
 
   setpointControllerHeartbeat:
-    address: setpoint_controller/+/heartbeat
+    address: setpoint_controllers/+/heartbeat
     messages:
       setpointControllerHeartbeat:
         payload:

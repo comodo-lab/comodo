@@ -41,7 +41,7 @@ class TestSources:
             },
             {
                 # Matches the spc_id used by setpoint_controller.py
-                "topic": "setpoint_controller/test_sensor-value--test_spc-output/heartbeat",
+                "topic": "setpoint_controllers/test_sensor-value--test_spc-output/heartbeat",
                 "label": "test_sensor/value → test_spc/output",
                 "kind": "spc",
             },

@@ -370,7 +370,7 @@ class TestControlLoop:
 
         spc.publish_heartbeat()
 
-        messages = bus.get_messages(f"setpoint_controller/{spc.spc_id}/heartbeat")
+        messages = bus.get_messages(f"setpoint_controllers/{spc.spc_id}/heartbeat")
         assert len(messages) == 1, "SPC should publish heartbeat message"
         assert json.loads(messages[0].payload) == {
             "state": {
@@ -501,7 +501,7 @@ class TestControlLoop:
 
         # Deactivate spc
         bus.publish(
-            f"setpoint_controller/{spc.spc_id}/setup", json.dumps({"enabled": False})
+            f"setpoint_controllers/{spc.spc_id}/setup", json.dumps({"enabled": False})
         )
 
         # Second setpoint (should be ignored)
@@ -518,7 +518,7 @@ class TestControlLoop:
 
         # Reactivate spc
         bus.publish(
-            f"setpoint_controller/{spc.spc_id}/setup", json.dumps({"enabled": True})
+            f"setpoint_controllers/{spc.spc_id}/setup", json.dumps({"enabled": True})
         )
         time.sleep(0.01)  # Wait for enabling to take effect
         # Third setpoint

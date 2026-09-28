@@ -25,7 +25,7 @@ def expected_heartbeats(mock_comodo_config):
         f"instruments/{ins}" for ins in mock_comodo_config.instruments.keys()
     ]
     SPC_TOPICS = [
-        f"setpoint_controller/{spc}" for spc in mock_comodo_config.spcs.keys()
+        f"setpoint_controllers/{spc}" for spc in mock_comodo_config.spcs.keys()
     ]
     return (
         ["controller/heartbeat"]

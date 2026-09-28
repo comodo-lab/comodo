@@ -23,7 +23,7 @@ def instrument_topic(name):
 
 
 def spc_topic(spc_id):
-    return f"setpoint_controller/{spc_id}/heartbeat"
+    return f"setpoint_controllers/{spc_id}/heartbeat"
 
 
 def get_sources(config):
