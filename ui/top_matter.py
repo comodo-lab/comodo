@@ -1,7 +1,36 @@
 from dash import html, callback, Output, Input, State
+from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
-from utils.influx_query import query_influxdb_params
+from datetime import datetime
 import pytz
+
+import heartbeats as hb
+
+# Display name and card/badge colour of each state reported in the heartbeats
+CONTROLLER_STATES = {
+    "idle": ("Idle", "primary"),
+    "validating": ("Validating", "info"),
+    "starting": ("Starting", "warning"),
+    "awaiting_instruments": ("Awaiting Instruments", "warning"),
+    "ready": ("Ready", "warning"),
+    "running": ("Running", "success"),
+    "stopping": ("Stopping", "warning"),
+    "error": ("Error", "danger"),
+}
+INSTRUMENT_STATES = {
+    "initialising": ("Initialising", "secondary"),
+    "awaiting_experiment": ("Awaiting Experiment", "info"),
+    "running": ("Running", "success"),
+    "error": ("Error", "danger"),
+}
+SPC_STATES = {
+    "idle": ("Idle", "secondary"),
+    "adjusting": ("Adjusting", "success"),
+    "ready": ("Ready", "success"),
+    "error": ("Error", "danger"),
+}
+NO_HEARTBEAT = ("No heartbeat", "danger")
+LOST_HEARTBEAT = ("Heartbeat lost", "danger")
 
 
 def status_item(item_name):
@@ -14,16 +43,11 @@ def status_item(item_name):
     return status_item
 
 
-def get_status_card(header, title, text, status, id):
+def get_status_card(header, title, status, id):
     card = dbc.Card(
         [
             dbc.CardHeader(header),
-            dbc.CardBody(
-                [
-                    html.H4(title, className="card-title", id=f"{id}-title"),
-                    html.P(text, className="card-text", id=f"{id}-time"),
-                ]
-            ),
+            dbc.CardBody(html.H4(title, className="card-title", id=f"{id}-title")),
         ],
         color=status,
         inverse=True,
@@ -41,6 +65,12 @@ def get_header_bar():
                     dbc.CardBody(
                         [
                             html.H1("Comodo Lab", className="card-title"),
+                            html.P(
+                                "Status updated:\nnever",
+                                id="status-updated",
+                                className="text-end",
+                                style={"whiteSpace": "pre-line"},
+                            ),
                         ]
                     ),
                 ],
@@ -49,163 +79,148 @@ def get_header_bar():
             ),
             get_status_card(
                 "Control System Status",
-                "waiting",
-                "15:00:01",
-                "warning",
+                NO_HEARTBEAT[0],
+                NO_HEARTBEAT[1],
                 "controller_status",
             ),
             get_status_card(
                 "Experiment ID",
                 "Awaiting Experiment",
-                "14:44:24",
                 "primary",
                 "experiment_id",
             ),
-            get_status_card(
-                "Adjusting", "None", "15:00:01", "primary", "adjusting_status"
+            dbc.Card(
+                [
+                    dbc.CardHeader("Instruments"),
+                    # Status column as wide as the widest badge, names in the rest
+                    dbc.CardBody(
+                        id="instruments_status-list",
+                        style={
+                            "display": "grid",
+                            "gridTemplateColumns": "max-content 1fr",
+                            "gap": "0.25rem 0.5rem",
+                            "alignItems": "center",
+                        },
+                    ),
+                ],
+                color="primary",
+                inverse=True,
+                id="instruments_status",
+                # Twice as wide as the other cards, to fit setpoint controller names
+                style={"flex": "2 1 0"},
             ),
-        ]
+        ],
+        className="mb-1",
     )
     return header_bar
+
+
+def format_time(epoch, timezone):
+    try:
+        tz = pytz.timezone(timezone)
+    except pytz.UnknownTimeZoneError:
+        tz = pytz.utc
+    return datetime.fromtimestamp(epoch, tz).strftime("%Y-%m-%d %H:%M:%S")
+
+
+def get_state(data, topic, states, get_value):
+    """
+    Returns the display name and colour of the state in the latest heartbeat on topic.
+    """
+    heartbeat = data["heartbeats"].get(topic)
+    if heartbeat is None:
+        return NO_HEARTBEAT
+    if topic in data["stale"]:
+        return LOST_HEARTBEAT
+    value = get_value(heartbeat["payload"])
+    return states.get(value, (f"Unknown ({value})", "secondary"))
+
+
+@callback(
+    Output("heartbeat-store", "data"),
+    Input("interval-short", "n_intervals"),
+    State("heartbeat-store", "data"),
+)
+def refresh_heartbeats(n_intervals, current):
+    """
+    Copies the heartbeats received over MQTT to the browser,
+    only when a new one has arrived or one has gone quiet.
+    """
+    data = hb.snapshot()
+    if (
+        current
+        and data["counter"] == current["counter"]
+        and data["stale"] == current["stale"]
+    ):
+        raise PreventUpdate
+    return data
 
 
 @callback(
     Output("controller_status-title", "children"),
     Output("controller_status", "color"),
-    Output("controller_status-time", "children"),
-    Input("interval", "n_intervals"),
-    State("timezone-store", "data"),
-    prevent_initial_call=True,
-)
-def update_header_status(n_intervals, timezone):
-    """
-    Updates the header bar with the latest status.
-    """
-    user_tz = pytz.timezone(timezone)
-
-    try:
-        results = query_influxdb_params(
-            fields=["state"],
-            topics=["controller/heartbeat"],
-            start="-1m",
-            aggregate="last",
-        )
-        if not results:
-            return "Unknown Status", "primary", None
-        result = results[-1]
-        status = result.get_value()
-        iso_timestamp = result.get_time()
-        timestamp = iso_timestamp.astimezone(user_tz).strftime("%Y-%m-%d %H:%M:%S")
-    except Exception as e:
-        print(f"Error querying status: {e}")
-        return "Unknown Status", "primary", None
-
-    if status == "awaiting_instruments":
-        return "Awaiting Instruments", "warning", timestamp
-    if status == "end":
-        return "Experiment Ended", "light", timestamp
-    if status == "idle":
-        return "Idle", "primary", timestamp
-    if status == "ready":
-        return "Ready", "info", timestamp
-    if status == "running":
-        return "Running", "success", timestamp
-    if status == "starting":
-        return "Starting", "primary", timestamp
-    if status == "error":
-        return "Error", "danger", timestamp
-
-    print(f"Unknown status: {status}")
-
-    return "Unknown Status", "primary", timestamp
-
-
-@callback(
     Output("experiment_id-title", "children"),
     Output("experiment_id", "color"),
-    Output("experiment_id-time", "children"),
-    Input("interval", "n_intervals"),
-    State("timezone-store", "data"),
+    Input("heartbeat-store", "data"),
     prevent_initial_call=True,
 )
-def update_header_id(n_intervals, timezone):
+def update_controller_cards(data):
     """
-    Updates the header bar with the latest experiment ID.
+    Updates the controller status and experiment ID cards from the controller heartbeat.
     """
-    user_tz = pytz.timezone(timezone)
+    title, color = get_state(
+        data, hb.CONTROLLER_TOPIC, CONTROLLER_STATES, lambda p: p.get("state")
+    )
+    heartbeat = data["heartbeats"].get(hb.CONTROLLER_TOPIC)
+    if heartbeat is None or hb.CONTROLLER_TOPIC in data["stale"]:
+        return title, color, "Awaiting Experiment", "primary"
 
-    try:
-        results = query_influxdb_params(
-            fields=["experiment_id"],
-            topics=["controller/heartbeat"],
-            start="-1m",
-            aggregate="last",
-        )
-        if not results:
-            time = pytz.datetime.datetime.now(user_tz).strftime("%Y-%m-%d %H:%M:%S")
-            return "Awaiting Experiment", "primary", time
-        result = results[-1]
-        id = result.get_value()
-        iso_timestamp = result.get_time()
-        timestamp = iso_timestamp.astimezone(user_tz).strftime("%Y-%m-%d %H:%M:%S")
-    except Exception as e:
-        if "list index out of range" not in str(e):
-            print(f"Error querying id: {e}")
-        time = pytz.datetime.datetime.now(user_tz).strftime("%Y-%m-%d %H:%M:%S")
-        return "Awaiting Experiment", "primary", time
-
-    return id, "success", timestamp
+    experiment_id = heartbeat["payload"].get("config", {}).get("experiment_id")
+    if experiment_id is None:
+        return title, color, "Awaiting Experiment", "primary"
+    return title, color, experiment_id, "success"
 
 
 @callback(
-    Output("adjusting_status-title", "children"),
-    Output("adjusting_status", "color"),
-    Output("adjusting_status-time", "children"),
-    Input("interval", "n_intervals"),
-    State("instrument-store", "data"),
+    Output("status-updated", "children"),
+    Input("heartbeat-store", "data"),
     State("timezone-store", "data"),
     prevent_initial_call=True,
 )
-def update_header_id(n_intervals, instruments, timezone):
+def update_status_time(data, timezone):
     """
-    Updates the header bar with the variables currently being adjusted.
+    Shows when the most recent heartbeat was received.
     """
-    user_tz = pytz.timezone(timezone)
-    time = pytz.datetime.datetime.now(user_tz).strftime("%Y-%m-%d %H:%M:%S")
-    timestamp = time
+    received = [heartbeat["received"] for heartbeat in data["heartbeats"].values()]
+    if not received:
+        return "\nStatus updated:\nnever"
+    return f"\nStatus updated:\n{format_time(max(received), timezone)}"
 
-    adjusting = []
 
-    if instruments is None:
-        return "None Adjusting", "primary", time
-
-    print(f"Checking state of {len(instruments)} instruments...")
-    for instrument in instruments:
-        instrument_name = instrument["name"]
-        try:
-            results = query_influxdb_params(
-                fields=["state"],
-                topics=[f"instruments/{instrument_name}/heartbeat"],
-                start="-1m",
-                aggregate="last",
+@callback(
+    Output("instruments_status-list", "children"),
+    Input("heartbeat-store", "data"),
+    prevent_initial_call=True,
+)
+def update_instruments_card(data):
+    """
+    Lists the instruments and setpoint controllers with the state in their latest heartbeat.
+    """
+    rows = []
+    for source in data["sources"]:
+        if source["kind"] == "spc":
+            # Setpoint controllers report their state as an object
+            name, color = get_state(
+                data,
+                source["topic"],
+                SPC_STATES,
+                lambda p: (p.get("state") or {}).get("status"),
             )
-            if not results:
-                continue
-            result = results[-1]
-            id = result.get_value()
-            if id == "adjusting":
-                adjusting.append(instrument_name)
-            iso_timestamp = result.get_time()
-            timestamp = iso_timestamp.astimezone(user_tz).strftime("%Y-%m-%d %H:%M:%S")
-        except Exception as e:
-            print(f"Error querying awaiting for {instrument_name}: {e}")
-            return "None Adjusting", "primary", time
-
-    if len(adjusting) == 0:
-        return "None Adjusting", "primary", timestamp
-    else:
-        adjusting_str = ", ".join(
-            " ".join(instrument.split("_")).capitalize() for instrument in adjusting
-        )
-
-    return adjusting_str, "success", timestamp
+        else:
+            name, color = get_state(
+                data, source["topic"], INSTRUMENT_STATES, lambda p: p.get("state")
+            )
+        # Grid cells: the badges stretch to the width of the status column
+        rows.append(dbc.Badge(name, color=color))
+        rows.append(html.Span(source["label"]))
+    return rows

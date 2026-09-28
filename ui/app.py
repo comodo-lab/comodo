@@ -26,6 +26,7 @@ import workflow_ui as wf
 import meta_data_ui as md
 import saved_selector as sel
 import saved_configs as sc
+import heartbeats as hb
 
 # Initialise publisher singleton
 id_suffix = random.randint(0, 32768)
@@ -64,6 +65,16 @@ DEFAULTS = {
     "config": INI_EXPERIMENT_CONFIG,
 }
 sel.register_selector_callbacks(DEFAULTS)
+
+# Listen to controller, instrument and SPC heartbeats
+hb.start(
+    config.config,
+    id=f"ui-heartbeats-{id_suffix}",
+    broker_address=os.getenv("MQTT_HOST"),
+    user=os.getenv("MQTT_USER"),
+    password=os.getenv("MQTT_PASS"),
+    connection_timeout=5,
+)
 
 
 # ---------------------------------------------------
@@ -234,6 +245,7 @@ def serve_layout():
             dcc.Interval(id="interval-short", interval=SHORT_INTERVAL),
             dcc.Location(id="url", refresh=False),
             dcc.Store(id="timezone-store"),
+            dcc.Store(id="heartbeat-store"),
             *get_saved_stores(),
             html.Div(id="hidden-div", style={"display": "none"}),
             tm.get_header_bar(),
@@ -246,12 +258,18 @@ def serve_layout():
                         className="me-0",
                     ),
                     dbc.NavItem(
-                        dbc.NavLink("Instrument Setup", href="/instrument", active="exact"),
+                        dbc.NavLink(
+                            "Instrument Setup",
+                            href="/instrument",
+                            active="exact",
+                        ),
                         className="me-0",
                     ),
                     dbc.NavItem(
                         dbc.NavLink(
-                            "Experiment Config", href="/experiment-config", active="exact"
+                            "Experiment Config",
+                            href="/experiment-config",
+                            active="exact",
                         ),
                         className="me-0",
                     ),
