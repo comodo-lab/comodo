@@ -550,14 +550,14 @@ class TestControlLoop:
 
         # Start experiment
         exp_id = "exp_001"
-        bus.publish("controller/command/start", json.dumps({"id": exp_id}))
+        bus.publish("controller/command/start", json.dumps({"experiment_id": exp_id}))
         time.sleep(0.01)  # Wait for processing
 
         assert spc.state.experiment_id == exp_id
         assert f"Experiment started: {exp_id}" in capsys.readouterr().out
 
         # Stop experiment
-        bus.publish("controller/command/stop", json.dumps({"id": exp_id}))
+        bus.publish("controller/command/stop", json.dumps({"experiment_id": exp_id}))
         time.sleep(0.01)  # Wait for processing
 
         assert spc.state.experiment_id is None

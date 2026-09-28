@@ -65,7 +65,7 @@ def incompatible_uid(obj, msg, msg_uid, caller):
     print_and_publish(
         topic=f"error/{caller}",
         code="incompatible_uid",
-        message=f"Current experiment is {obj.experiment_uid}. {caller_txt} cannot act on {msg.topic} for experiment {msg_uid}.",
+        message=f"Current experiment is {obj.experiment_id}. {caller_txt} cannot act on {msg.topic} for experiment {msg_uid}.",
     )
 
 

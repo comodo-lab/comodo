@@ -224,7 +224,8 @@ class TestInstrumentState:
         istate.status = "awaiting_experiment"
 
         mock_msg = MockMessage(
-            topic="controller/command/start", payload=json.dumps({"id": "e-123"})
+            topic="controller/command/start",
+            payload=json.dumps({"experiment_id": "e-123"}),
         )
         istate.awaiting_experiment_cb(istate.client, mock_msg)
 

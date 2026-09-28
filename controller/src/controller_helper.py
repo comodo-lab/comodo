@@ -50,7 +50,7 @@ def assign_serial_id(obj):
     serial = str(serial).zfill(3)
     new_path = f"{data_path}/D{current_year}-{serial}.json"
     os.rename(temp_path, new_path)
-    obj.experiment_uid = f"D{current_year}-{serial}"
+    obj.experiment_id = f"D{current_year}-{serial}"
     obj.exp_file = new_path
 
 
@@ -89,7 +89,7 @@ def dump_database_for_experiment(obj):
                 wr = csv.writer(myfile, quoting=csv.QUOTE_ALL)
                 wr.writerows(values)
         print(
-            f"  Influx database for experiment {obj.experiment_uid} saved at {exp_dir_path}."
+            f"  Influx database for experiment {obj.experiment_id} saved at {exp_dir_path}."
         )
     except Exception as e:
         pub_err.database_error(f"Could not dump influx database: {e}")

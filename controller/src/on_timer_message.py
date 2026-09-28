@@ -30,7 +30,7 @@ def on_timer_message(client, msg, obj):
         return
 
     try:
-        if message["experiment_id"] != obj.experiment_uid:
+        if message["experiment_id"] != obj.experiment_id:
             pub_err.incompatible_uid(
                 obj, msg, message["experiment_id"], "controller_timer"
             )
@@ -51,7 +51,7 @@ def on_timer_message(client, msg, obj):
             print("Stopping experiment...")
             mqtt.MQTTPublisher.get_instance().publish(
                 "controller/command/stop",
-                json.dumps({"id": message["experiment_id"]}),
+                json.dumps({"experiment_id": message["experiment_id"]}),
             )
             return
         t0 = t.time()
@@ -62,7 +62,7 @@ def on_timer_message(client, msg, obj):
                 print("Stopping experiment...")
                 mqtt.MQTTPublisher.get_instance().publish(
                     "controller/command/stop",
-                    json.dumps({"id": message["experiment_id"]}),
+                    json.dumps({"experiment_id": message["experiment_id"]}),
                 )
                 return
         mqtt.MQTTPublisher.get_instance().publish(
@@ -70,8 +70,8 @@ def on_timer_message(client, msg, obj):
             json.dumps(
                 {
                     "source": "instrument_setup",
-                    # experiment uid changes when all instruments get configured, so have to use obj.experiment_uid, not message["experiment_id"]
-                    "experiment_id": obj.experiment_uid,
+                    # experiment uid changes when all instruments get configured, so have to use obj.experiment_id, not message["experiment_id"]
+                    "experiment_id": obj.experiment_id,
                     "instruments_configured": obj.instruments_ready,
                     "controller_status": obj.status,
                 }

@@ -65,9 +65,9 @@ class TestOnUIMessage:
 
     def test_ui_start_not_idle(self, ouim_mocks):
         ouim_mocks["state"].status = "running"
-        ouim_mocks["state"].experiment_uid = "123"
+        ouim_mocks["state"].experiment_id = "123"
 
-        payload = {"id": "123", "config": {}, "experiment_definition": []}
+        payload = {"temp_id": "123", "config": {}, "experiment_definition": []}
         msg = MockMessage(topic="ui/start", payload=json.dumps(payload))
         on_ui_message(ouim_mocks["ui_client"], msg, ouim_mocks["state"])
 
@@ -82,10 +82,10 @@ class TestOnUIMessage:
         assert len(messages) == 0
 
     def test_valid_ui_start(self, ouim_mocks):
-        assert ouim_mocks["state"].experiment_uid == None
+        assert ouim_mocks["state"].experiment_id == None
         assert ouim_mocks["state"].status == "idle"
 
-        exp_payload = {"id": "123", "config": {}, "experiment_definition": []}
+        exp_payload = {"temp_id": "123", "config": {}, "experiment_definition": []}
         ouim_mocks["validate_message"].return_value = exp_payload
 
         msg = MockMessage(topic="ui/start", payload=json.dumps(exp_payload))
@@ -107,19 +107,19 @@ class TestOnUIMessage:
         assert len(messages) == 1
         assert messages[0].topic == "controller/command/validate"
         assert json.loads(messages[0].payload) == {
-            "id": "123",
+            "temp_id": "123",
             "file": "test_data/tmp/experiment_123.json",
         }
 
     def test_ui_stop_while_idle(self, ouim_mocks):
-        assert ouim_mocks["state"].experiment_uid == None
+        assert ouim_mocks["state"].experiment_id == None
         assert ouim_mocks["state"].status == "idle"
 
-        msg = MockMessage(topic="ui/stop", payload=json.dumps({"id": "123"}))
+        msg = MockMessage(topic="ui/stop", payload=json.dumps({"experiment_id": "123"}))
         on_ui_message(ouim_mocks["ui_client"], msg, ouim_mocks["state"])
 
         ouim_mocks["validate_message"].assert_called_once_with(
-            "ui/stop", json.dumps({"id": "123"}).encode("utf-8")
+            "ui/stop", json.dumps({"experiment_id": "123"}).encode("utf-8")
         )
         ouim_mocks["pub_err"].incompatible_controller_status.assert_called_once_with(
             ouim_mocks["state"], msg
@@ -129,29 +129,29 @@ class TestOnUIMessage:
 
     def test_valid_ui_stop(self, ouim_mocks, capsys):
         ouim_mocks["state"].status = "running"
-        ouim_mocks["state"].experiment_uid = "123"
+        ouim_mocks["state"].experiment_id = "123"
 
-        msg = MockMessage(topic="ui/stop", payload=json.dumps({"id": "123"}))
+        msg = MockMessage(topic="ui/stop", payload=json.dumps({"experiment_id": "123"}))
         on_ui_message(ouim_mocks["ui_client"], msg, ouim_mocks["state"])
 
         ouim_mocks["validate_message"].assert_called_once_with(
-            "ui/stop", json.dumps({"id": "123"}).encode("utf-8")
+            "ui/stop", json.dumps({"experiment_id": "123"}).encode("utf-8")
         )
         assert "Stopping experiment..." in capsys.readouterr().out
         messages = ouim_mocks["messages"]()
         assert len(messages) == 1
         assert messages[0].topic == "controller/command/stop"
-        assert '"id": "123"' in messages[0].payload
+        assert '"experiment_id": "123"' in messages[0].payload
 
     def test_stop_for_wrong_uid(self, ouim_mocks):
         ouim_mocks["state"].status = "running"
-        ouim_mocks["state"].experiment_uid = "456"
+        ouim_mocks["state"].experiment_id = "456"
 
-        msg = MockMessage(topic="ui/stop", payload=json.dumps({"id": "123"}))
+        msg = MockMessage(topic="ui/stop", payload=json.dumps({"experiment_id": "123"}))
         on_ui_message(ouim_mocks["ui_client"], msg, ouim_mocks["state"])
 
         ouim_mocks["validate_message"].assert_called_once_with(
-            "ui/stop", json.dumps({"id": "123"}).encode("utf-8")
+            "ui/stop", json.dumps({"experiment_id": "123"}).encode("utf-8")
         )
         ouim_mocks["pub_err"].incompatible_uid.assert_called_once_with(
             ouim_mocks["state"],
@@ -163,11 +163,11 @@ class TestOnUIMessage:
         assert len(messages) == 0
 
     def test_incompatible_topic(self, ouim_mocks):
-        msg = MockMessage(topic="ui/unknown", payload=json.dumps({"id": "123"}))
+        msg = MockMessage(topic="ui/unknown", payload=json.dumps({"temp_id": "123"}))
         on_ui_message(ouim_mocks["ui_client"], msg, ouim_mocks["state"])
 
         ouim_mocks["validate_message"].assert_called_once_with(
-            "ui/unknown", json.dumps({"id": "123"}).encode("utf-8")
+            "ui/unknown", json.dumps({"temp_id": "123"}).encode("utf-8")
         )
         ouim_mocks["pub_err"].incompatible_topic.assert_called_once_with(
             ouim_mocks["state"], msg

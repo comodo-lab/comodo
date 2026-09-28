@@ -63,7 +63,7 @@ class TestPublishError:
             mock_cstate = mock_state("end")
             mock_msg = MockMessage(
                 topic="controller/command/run",
-                payload=json.dumps({"id": "test_uid"}).encode("utf-8"),
+                payload=json.dumps({"experiment_id": "test_id"}).encode("utf-8"),
             )
 
             yield {
@@ -84,9 +84,9 @@ class TestPublishError:
         )
 
     def test_missing_keys(self, pe_mocks):
-        exp_err = f"Cannot decode {pe_mocks['msg'].topic} message, missing: \n   'id'"
+        exp_err = f"Cannot decode {pe_mocks['msg'].topic} message, missing: \n   'experiment_id'"
 
-        pub_err.missing_keys(pe_mocks["msg"], KeyError("id"))
+        pub_err.missing_keys(pe_mocks["msg"], KeyError("experiment_id"))
 
         pe_mocks["print_and_publish"].assert_called_once_with(
             topic="error/controller",
@@ -95,9 +95,9 @@ class TestPublishError:
         )
 
     def test_missing_keys(self, pe_mocks):
-        exp_err = f"Cannot decode {pe_mocks['msg'].topic} message, missing: \n   'id'"
+        exp_err = f"Cannot decode {pe_mocks['msg'].topic} message, missing: \n   'experiment_id'"
 
-        pub_err.missing_keys(pe_mocks["msg"], KeyError("id"))
+        pub_err.missing_keys(pe_mocks["msg"], KeyError("experiment_id"))
 
         pe_mocks["print_and_publish"].assert_called_once_with(
             topic="error/controller",
@@ -128,7 +128,7 @@ class TestPublishError:
         )
 
     def test_incompatible_uid(self, pe_mocks):
-        exp_err = f"Current experiment is {pe_mocks['cstate'].experiment_uid}. Test caller cannot act on {pe_mocks['msg'].topic} for experiment 567."
+        exp_err = f"Current experiment is {pe_mocks['cstate'].experiment_id}. Test caller cannot act on {pe_mocks['msg'].topic} for experiment 567."
 
         pub_err.incompatible_uid(
             pe_mocks["cstate"], pe_mocks["msg"], 567, "test_caller"

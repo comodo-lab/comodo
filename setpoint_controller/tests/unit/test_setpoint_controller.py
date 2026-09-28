@@ -763,7 +763,7 @@ class Test_on_controller_start_message:
     def ocsm_mocks(self, mock_spc, mqtt_mocks, mqtt_validator_mocks):
         start_msg = MockMessage(
             "controller/command/start",
-            json.dumps({"id": "exp-123"}),
+            json.dumps({"experiment_id": "exp-123"}),
         )
 
         return {
@@ -810,7 +810,7 @@ class Test_on_controller_end_message:
         )
         stop_msg = MockMessage(
             "controller/command/stop",
-            json.dumps({"id": "exp-123"}),
+            json.dumps({"experiment_id": "exp-123"}),
         )
 
         return {

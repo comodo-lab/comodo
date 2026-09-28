@@ -66,7 +66,7 @@ def mock_state(mock_comodo_config, mock_experiment_dict, mock_setpoints):
 
         def reset():
             state_obj.experiment_start_time = None
-            state_obj.experiment_uid = None
+            state_obj.experiment_id = None
             state_obj.exp_file = None
             state_obj.status = "idle"
             state_obj.exp_config = None
@@ -80,7 +80,7 @@ def mock_state(mock_comodo_config, mock_experiment_dict, mock_setpoints):
 
         # ------------------------------- idle (default new cstate)
         state_obj.experiment_start_time = None
-        state_obj.experiment_uid = None
+        state_obj.experiment_id = None
         state_obj.exp_file = None
         state_obj.status = "idle"
         state_obj._status_history = []
@@ -97,7 +97,7 @@ def mock_state(mock_comodo_config, mock_experiment_dict, mock_setpoints):
         # ------------------------------- starting
         state_obj.experiment_start_time = datetime.now()
         state_obj.exp_config = mock_experiment_dict
-        state_obj.experiment_uid = mock_experiment_dict["id"]
+        state_obj.experiment_id = mock_experiment_dict["temp_id"]
         state_obj.status = "validating"
         state_obj._status_history = []
         if status == "starting":
@@ -147,6 +147,18 @@ def mock_state(mock_comodo_config, mock_experiment_dict, mock_setpoints):
         return state_obj
 
     return _mock_state
+
+
+@pytest.fixture
+def mock_serial_id():
+    with patch("src.on_controller_message.assign_serial_id") as mock_assign_serial_id:
+
+        def side_effect(obj):
+            obj.experiment_id = "D123-456"
+            obj.exp_file = "/path/to/experiment/D123-456.json"
+
+        mock_assign_serial_id.side_effect = side_effect
+        yield mock_assign_serial_id
 
 
 @pytest.fixture

@@ -344,10 +344,10 @@ class SetpointController:
                         json.dumps({"value": spc.state.actuator_setpoint}),
                     )
             elif msg.topic == "controller/command/start":
-                spc.state.experiment_id = message["id"]
+                spc.state.experiment_id = message["experiment_id"]
                 print(f"Experiment started: {spc.state.experiment_id}")
             elif msg.topic in ["controller/event/end", "controller/command/stop"]:
-                exp_id = message.get("id") or message.get("experiment_id")
+                exp_id = message.get("experiment_id")
                 if exp_id == spc.state.experiment_id:
                     spc.state.sensor_setpoint = spc.default_setpoint
                     spc.state.experiment_id = None

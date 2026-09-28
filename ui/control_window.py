@@ -75,7 +75,7 @@ def update_output(
         print(f"Error saving experiment files: {e}")
 
     # Prepare data for transmission
-    experiment_id = str(uuid.uuid4())[:8]
+    temp_id = str(uuid.uuid4())[:8]
 
     for config in exp_config:
         if config["name"] == "resolution":
@@ -89,7 +89,7 @@ def update_output(
         {key: value for key, value in row.items() if key != "id"} for row in table_data
     ]
     experiment_config = {
-        "id": experiment_id,
+        "temp_id": temp_id,
         "config": {"resolution": resolution, "instruments": instruments},
         "experiment_definition": experiment_definition,
     }
@@ -102,7 +102,7 @@ def update_output(
 
     if len(files) == len(sc.KINDS):
         try:
-            sc.save_run(experiment_id, files)
+            sc.save_run(temp_id, files)
         except OSError as e:
             print(f"Error saving run file: {e}")
     return (

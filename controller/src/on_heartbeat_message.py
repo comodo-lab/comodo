@@ -57,7 +57,7 @@ def handle_instrument_heartbeat(obj, heartbeat, instrument_name):
             obj.instruments_ready = True
             mqtt.MQTTPublisher.get_instance().publish(
                 "controller/event/ready",
-                json.dumps({"experiment_id": obj.experiment_uid}),
+                json.dumps({"experiment_id": obj.experiment_id}),
             )
 
 
@@ -72,7 +72,7 @@ def heartbeat_valid(obj, heartbeat, instrument_name):
         )
         print("Stopping experiment...")
         mqtt.MQTTPublisher.get_instance().publish(
-            "controller/command/stop", json.dumps({"id": obj.experiment_uid})
+            "controller/command/stop", json.dumps({"experiment_id": obj.experiment_id})
         )
         return False
     return True
