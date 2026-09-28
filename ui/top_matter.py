@@ -43,11 +43,24 @@ def status_item(item_name):
     return status_item
 
 
+# Label column as wide as its widest item, values in the rest
+GRID_STYLE = {
+    "display": "grid",
+    "gridTemplateColumns": "max-content 1fr",
+    "gap": "0.25rem 0.5rem",
+    "alignItems": "center",
+}
+
+
 def get_status_card(header, title, status, id):
+    # Reduced padding and margins, so the stacked cards stay compact
     card = dbc.Card(
         [
-            dbc.CardHeader(header),
-            dbc.CardBody(html.H4(title, className="card-title", id=f"{id}-title")),
+            dbc.CardHeader(header, className="py-1"),
+            dbc.CardBody(
+                html.H4(title, className="card-title mb-0", id=f"{id}-title"),
+                className="py-1",
+            ),
         ],
         color=status,
         inverse=True,
@@ -60,54 +73,48 @@ def get_header_bar():
     header_bar = dbc.CardGroup(
         [
             dbc.Card(
-                [
-                    dbc.CardHeader(""),
-                    dbc.CardBody(
-                        [
-                            html.H1("Comodo Lab", className="card-title"),
-                            html.P(
-                                "Status updated:\nnever",
-                                id="status-updated",
-                                className="text-end",
-                                style={"whiteSpace": "pre-line"},
-                            ),
-                        ]
-                    ),
-                ],
+                dbc.CardBody(
+                    html.H1("Comodo Lab", className="mb-0"),
+                    className="d-flex align-items-center justify-content-center",
+                ),
                 color="primary",
                 inverse=True,
+                style={"flex": "1.5 1 0"},
             ),
-            get_status_card(
-                "Control System Status",
-                NO_HEARTBEAT[0],
-                NO_HEARTBEAT[1],
-                "controller_status",
-            ),
-            get_status_card(
-                "Experiment ID",
-                "Awaiting Experiment",
-                "primary",
-                "experiment_id",
+            # Update time, controller status and experiment ID, one on top of the other
+            html.Div(
+                [
+                    get_status_card(
+                        "Status Updated", "Never", "primary", "status-updated"
+                    ),
+                    get_status_card(
+                        "Control System Status",
+                        NO_HEARTBEAT[0],
+                        NO_HEARTBEAT[1],
+                        "controller_status",
+                    ),
+                    get_status_card(
+                        "Experiment ID",
+                        "Awaiting Experiment",
+                        "primary",
+                        "experiment_id",
+                    ),
+                ],
+                # Primary background showing below, so a coloured card stands out
+                className="d-flex flex-column bg-primary pb-2",
+                style={"flex": "1 1 0"},
             ),
             dbc.Card(
                 [
                     dbc.CardHeader("Instruments"),
-                    # Status column as wide as the widest badge, names in the rest
-                    dbc.CardBody(
-                        id="instruments_status-list",
-                        style={
-                            "display": "grid",
-                            "gridTemplateColumns": "max-content 1fr",
-                            "gap": "0.25rem 0.5rem",
-                            "alignItems": "center",
-                        },
-                    ),
+                    # Status badges in the first column, names in the rest
+                    dbc.CardBody(id="instruments_status-list", style=GRID_STYLE),
                 ],
                 color="primary",
                 inverse=True,
                 id="instruments_status",
-                # Twice as wide as the other cards, to fit setpoint controller names
-                style={"flex": "2 1 0"},
+                # Wider than the status card, to fit setpoint controller names
+                style={"flex": "1.5 1 0"},
             ),
         ],
         className="mb-1",
@@ -182,7 +189,7 @@ def update_controller_cards(data):
 
 
 @callback(
-    Output("status-updated", "children"),
+    Output("status-updated-title", "children"),
     Input("heartbeat-store", "data"),
     State("timezone-store", "data"),
     prevent_initial_call=True,
@@ -193,8 +200,8 @@ def update_status_time(data, timezone):
     """
     received = [heartbeat["received"] for heartbeat in data["heartbeats"].values()]
     if not received:
-        return "\nStatus updated:\nnever"
-    return f"\nStatus updated:\n{format_time(max(received), timezone)}"
+        return "Never"
+    return format_time(max(received), timezone)
 
 
 @callback(
