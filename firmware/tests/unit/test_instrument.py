@@ -1,8 +1,10 @@
 from unittest.mock import patch, MagicMock
+import json
 
 import pytest
 
 from tests.conftest import (
+    MockMessage,
     firmware_env,
     mock_load_config,
     expected_config,
@@ -157,11 +159,15 @@ class TestBaseInstrument:
                 pass
 
         with (
+            patch("src.instrument.mqtt_val") as mock_mqtt_val,
             patch.object(ConcreteInstrument, "initialise") as mock_initialise,
             patch.object(ConcreteInstrument, "simulate") as mock_simulate,
             patch.object(ConcreteInstrument, "get_measurement") as mock_get_measurement,
             patch.object(ConcreteInstrument, "go_to_setpoint") as mock_go_to_setpoint,
         ):
+            mock_mqtt_val.validate_message.side_effect = (
+                lambda topic, payload: json.loads(payload)
+            )
             yield {
                 "environment": firmware_env,
                 "ConcreteInstrument": ConcreteInstrument,
@@ -170,6 +176,7 @@ class TestBaseInstrument:
                 "simulate": mock_simulate,
                 "get_measurement": mock_get_measurement,
                 "go_to_setpoint": mock_go_to_setpoint,
+                "mqtt_val": mock_mqtt_val,
             }
 
     def test_incomplete_subclass(self, bi_mocks):
@@ -230,6 +237,25 @@ class TestBaseInstrument:
         mock_ext_client.assert_not_called()
         assert not hasattr(ins, "ext_client")
         bi_mocks["initialise"].assert_called_once_with()
+
+    def test_external_measurement_cb(self, bi_mocks):
+        mock_config = bi_mocks["config"]
+        mock_config["EXTERNAL_ACTUATORS"] = {"some_variable": "ext_inst/ext_var"}
+        mock_msg = MockMessage(
+            topic="insts/ext_ins/ext_var/measurement",
+            payload=json.dumps({"value": 123.45}),
+        )
+        with patch.object(
+            bi_mocks["ConcreteInstrument"], "external_measurements_client"
+        ) as mock_ext_client:
+            ins = bi_mocks["ConcreteInstrument"](mock_config)
+        ins.previous_measurements = {}
+        ins.external_measurement_cb(None, mock_msg)
+
+        bi_mocks["mqtt_val"].validate_message.assert_called_once_with(
+            "insts/ext_ins/ext_var/measurement", mock_msg.payload
+        )
+        assert ins.previous_measurements == {"ext_ins/ext_var": 123.45}
 
     def test_default_sim_no_setpoint(self, bi_mocks):
         mock_config = bi_mocks["config"]
