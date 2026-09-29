@@ -90,6 +90,13 @@ class BaseInstrument(ABC):
         """
         current = self.previous_measurements.get(variable, 0)
         target = self.setpoints.get(variable)
+        if variable in self.config["EXTERNAL_ACTUATORS"]:
+            ext_var = self.config["EXTERNAL_ACTUATORS"][variable]
+            ext_value = self.previous_measurements.get(ext_var, 0)
+            variable_base = 1  # Settling value at 0% of the external actuator
+            variable_max = 200  # Settling value at 100% of the external actuator
+            variable_gain = (variable_max - variable_base) / 100
+            target = variable_base + variable_gain * ext_value
         if target is not None:
             new = current + (target - current) / 2
         else:

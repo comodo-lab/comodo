@@ -41,12 +41,12 @@ class Instrument(BaseInstrument):
 
     def simulate(self, variable):
         """
-        Gets 1% closer to the setpoint each tick
+        Gets 10% closer to the setpoint each tick
         """
         current = self.previous_measurements.get(variable, 0)
         target = self.setpoints.get(variable, 0)
         if target is not None:
-            new = current + (target - current) * 0.01
+            new = current + (target - current) * 0.1
         return new
 
     def get_measurement(self, variable):
