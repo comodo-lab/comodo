@@ -3,6 +3,9 @@ import importlib
 from abc import ABC, abstractmethod
 from typing import ClassVar
 
+import utils.mqtt_clients as mqtt
+from utils import mqtt_validator as mqtt_val
+
 
 def create_instrument(config):
     firmware = config["FIRMWARE"]
@@ -45,7 +48,40 @@ class BaseInstrument(ABC):
         self.available_variables = copy.deepcopy(self.available_variables)
         self.setpoints = {var: None for var in self.config["DEFAULT_SETPOINTS"]}
         self.previous_measurements = {}
+        if config["SIMULATE"] and config["EXTERNAL_ACTUATORS"]:
+            self.ext_client = self.external_measurements_client()
+
         self.initialise()
+
+    def external_measurement_cb(self, _client, msg, _obj=None):
+        """
+        Callback function to handle external sensor measurements.
+        This function is called when a new measurement is received from an external sensor.
+        """
+        # Extract instrument/variable from topic
+        _, ins, var, _ = msg.topic.split("/")
+        params = mqtt_val.validate_message(msg.topic, msg.payload)
+        measurement = params.get("value")
+        self.previous_measurements[f"{ins}/{var}"] = measurement
+
+    def external_measurements_client(self):
+        """
+        Creates a client subscribed to the external sensor measurements, which saves them
+        into the previous_measurements dictionary.
+        """
+        topics = [
+            f"instruments/{instrument_variable}/measurement"
+            for instrument_variable in self.config["EXTERNAL_ACTUATORS"].values()
+        ]
+        return mqtt.MQTTClient(
+            id=f"{self.config['INSTRUMENT_NAME']}_external",
+            callback=self.external_measurement_cb,
+            topics=topics,
+            broker_address=self.config["MQTT_HOST"],
+            user=self.config["MQTT_USER"],
+            password=self.config["MQTT_PASS"],
+            connection_timeout=60,
+        )
 
     def default_sim(self, variable):
         """
