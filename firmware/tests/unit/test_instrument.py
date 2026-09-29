@@ -310,10 +310,10 @@ class TestBaseInstrument:
             "some_variable", new_setpoint
         )
 
-    def test_set_and_go_to_setpoint_no_sim_with_def_setpoint(self, bi_mocks, capsys):
+    def test_set_and_go_to_setpoint_no_sim_with_ext_actuator(self, bi_mocks, capsys):
         mock_config = bi_mocks["config"]
         mock_config["SIMULATE"] = False
-        mock_config["DEFAULT_SETPOINTS"]["some_variable"] = 123
+        mock_config["EXTERNAL_ACTUATORS"]["some_variable"] = "ext_inst/ext_var"
         ins = bi_mocks["ConcreteInstrument"](mock_config)
         ins.available_variables = {"some_variable": {}}
         new_setpoint = 10.0

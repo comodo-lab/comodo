@@ -226,6 +226,7 @@ def test_create_instrument_for_all_instrument_subclasses(firmware_plugin):
         "SIMULATE": True,
         "ADDRESS": "",
         "DEFAULT_SETPOINTS": {},
+        "EXTERNAL_ACTUATORS": {},
     }
     instrument_instance = src.instrument.create_instrument(config)
     assert instrument_instance is not None
