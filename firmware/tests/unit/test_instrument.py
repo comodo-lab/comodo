@@ -144,7 +144,7 @@ class TestCreateInstrument:
 
 class TestBaseInstrument:
     @pytest.fixture
-    def bi_mocks(self, firmware_env):
+    def bi_mocks(self, firmware_env, mqtt_mocks):
         class ConcreteInstrument(instrument.BaseInstrument):
             def initialise(self):
                 pass
@@ -177,6 +177,8 @@ class TestBaseInstrument:
                 "get_measurement": mock_get_measurement,
                 "go_to_setpoint": mock_go_to_setpoint,
                 "mqtt_val": mock_mqtt_val,
+                "client_class": mqtt_mocks["client_class"],
+                "client": mqtt_mocks["client_instance"],
             }
 
     def test_incomplete_subclass(self, bi_mocks):
@@ -256,6 +258,31 @@ class TestBaseInstrument:
             "insts/ext_ins/ext_var/measurement", mock_msg.payload
         )
         assert ins.previous_measurements == {"ext_ins/ext_var": 123.45}
+
+    def test_external_measurements_client(self, bi_mocks):
+        mock_config = bi_mocks["config"]
+        mock_config["EXTERNAL_ACTUATORS"] = {}
+        ins = bi_mocks["ConcreteInstrument"](mock_config)
+        ins.config["EXTERNAL_ACTUATORS"] = {
+            "some_variable": "ext_inst/ext_var",
+            "another_variable": "another_ext_inst/another_var",
+        }
+
+        res = ins.external_measurements_client()
+
+        bi_mocks["client_class"].assert_called_once_with(
+            id=f"{mock_config['INSTRUMENT_NAME']}_external",
+            callback=ins.external_measurement_cb,
+            topics=[
+                "instruments/ext_inst/ext_var/measurement",
+                "instruments/another_ext_inst/another_var/measurement",
+            ],
+            broker_address=mock_config["MQTT_HOST"],
+            user=mock_config["MQTT_USER"],
+            password=mock_config["MQTT_PASS"],
+            connection_timeout=60,
+        )
+        assert res is bi_mocks["client"](f"{mock_config['INSTRUMENT_NAME']}_external")
 
     def test_default_sim_no_setpoint(self, bi_mocks):
         mock_config = bi_mocks["config"]
