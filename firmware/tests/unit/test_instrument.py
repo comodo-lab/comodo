@@ -309,6 +309,55 @@ class TestBaseInstrument:
         result = ins.default_sim("some_variable")
         assert result == 15
 
+    def test_default_sim_external_no_setpoint(self, bi_mocks):
+        mock_config = bi_mocks["config"]
+        mock_config["EXTERNAL_ACTUATORS"] = {"some_variable": "ext_inst/ext_var"}
+
+        ins = bi_mocks["ConcreteInstrument"](mock_config)
+
+        # No previous measurements: target = variable_base
+        result = ins.default_sim("some_variable")
+        assert result == 0 + (1 - 0) / 2
+        # Var previous measurement, no ext measurement: target = variable_base
+        ins.previous_measurements["some_variable"] = 10
+        result = ins.default_sim("some_variable")
+        assert result == 10 + (1 - 10) / 2
+        # No previous measurement, but ext measurement: target = base+gain*ext
+        ins.previous_measurements.pop("some_variable", None)
+        ins.previous_measurements["ext_inst/ext_var"] = 20
+        result = ins.default_sim("some_variable")
+        assert result == 0 + (1 + ((200 - 1) / 100) * 20 - 0) / 2
+        # Both previous measurements:
+        ins.previous_measurements["some_variable"] = 10
+        ins.previous_measurements["ext_inst/ext_var"] = 20
+        result = ins.default_sim("some_variable")
+        assert result == 10 + (1 + ((200 - 1) / 100) * 20 - 10) / 2
+
+    def test_default_sim_external_with_setpoint(self, bi_mocks):
+        mock_config = bi_mocks["config"]
+        mock_config["EXTERNAL_ACTUATORS"] = {"some_variable": "ext_inst/ext_var"}
+
+        ins = bi_mocks["ConcreteInstrument"](mock_config)
+        ins.setpoints["some_variable"] = 200  # should be ignored
+
+        # No previous measurements: target = variable_base
+        result = ins.default_sim("some_variable")
+        assert result == 0 + (1 - 0) / 2
+        # Var previous measurement, no ext measurement: target = variable_base
+        ins.previous_measurements["some_variable"] = 10
+        result = ins.default_sim("some_variable")
+        assert result == 10 + (1 - 10) / 2
+        # No previous measurement, but ext measurement: target = base+gain*ext
+        ins.previous_measurements.pop("some_variable", None)
+        ins.previous_measurements["ext_inst/ext_var"] = 20
+        result = ins.default_sim("some_variable")
+        assert result == 0 + (1 + ((200 - 1) / 100) * 20 - 0) / 2
+        # Both previous measurements:
+        ins.previous_measurements["some_variable"] = 10
+        ins.previous_measurements["ext_inst/ext_var"] = 20
+        result = ins.default_sim("some_variable")
+        assert result == 10 + (1 + ((200 - 1) / 100) * 20 - 10) / 2
+
     def test_measure_or_simulate_undefined_variable(self, bi_mocks):
         mock_config = bi_mocks["config"]
         ins = bi_mocks["ConcreteInstrument"](mock_config)
