@@ -151,16 +151,12 @@ class BaseInstrument(ABC):
         Return a dictionary representation of the instrument's configuration.
         """
         printable_config = {}
-        printable_config["name"] = self.config["INSTRUMENT_NAME"]
-        printable_config["firmware"] = self.config["FIRMWARE"]
-        printable_config["address"] = self.config["ADDRESS"]
-        printable_config["simulate"] = self.config["SIMULATE"]
-        printable_config["variables"] = self.config["ACTIVE_VARIABLES"]
-        printable_config["default_setpoints"] = self.config["DEFAULT_SETPOINTS"]
-        printable_config["safe_stop_setpoints"] = self.config["SAFE_STOP_SETPOINTS"]
-        printable_config["measurement_intervals"] = self.config["MEASUREMENT_INTERVALS"]
-        printable_config["heartbeat_interval"] = self.config["HEARTBEAT_INTERVAL"]
-        printable_config["experiment"] = self.config["experiment"]
+        except_keys = ["MQTT_USER", "MQTT_PASS", "MQTT_HOST"]
+        rename_keys = {"INSTRUMENT_NAME": "name", "ACTIVE_VARIABLES": "variables"}
+        for key, value in self.config.items():
+            if key not in except_keys:
+                new_key = rename_keys.get(key, key.lower())
+                printable_config[new_key] = value
         return printable_config
 
     @abstractmethod
