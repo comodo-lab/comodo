@@ -197,6 +197,40 @@ class TestBaseInstrument:
         assert ins.previous_measurements == {}
         bi_mocks["initialise"].assert_called_once_with()
 
+    def test_init_with_external_actuators_simulating(self, bi_mocks):
+        mock_config = bi_mocks["config"]
+        mock_config["SIMULATE"] = True
+        mock_config["EXTERNAL_ACTUATORS"] = {"some_variable": "ext_inst/ext_var"}
+
+        with patch.object(
+            bi_mocks["ConcreteInstrument"], "external_measurements_client"
+        ) as mock_ext_client:
+            ins = bi_mocks["ConcreteInstrument"](mock_config)
+
+        assert ins.config == mock_config
+        assert ins.setpoints == {var: None for var in mock_config["DEFAULT_SETPOINTS"]}
+        assert ins.previous_measurements == {}
+        mock_ext_client.assert_called_once_with()
+        assert ins.ext_client == mock_ext_client.return_value
+        bi_mocks["initialise"].assert_called_once_with()
+
+    def test_init_with_external_actuators_not_simulating(self, bi_mocks):
+        mock_config = bi_mocks["config"]
+        mock_config["SIMULATE"] = False
+        mock_config["EXTERNAL_ACTUATORS"] = {"some_variable": "ext_inst/ext_var"}
+
+        with patch.object(
+            bi_mocks["ConcreteInstrument"], "external_measurements_client"
+        ) as mock_ext_client:
+            ins = bi_mocks["ConcreteInstrument"](mock_config)
+
+        assert ins.config == mock_config
+        assert ins.setpoints == {var: None for var in mock_config["DEFAULT_SETPOINTS"]}
+        assert ins.previous_measurements == {}
+        mock_ext_client.assert_not_called()
+        assert not hasattr(ins, "ext_client")
+        bi_mocks["initialise"].assert_called_once_with()
+
     def test_default_sim_no_setpoint(self, bi_mocks):
         mock_config = bi_mocks["config"]
 
