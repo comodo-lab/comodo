@@ -40,6 +40,16 @@ channels:
               items:
                 type: object
                 additionalProperties: true
+  uiStop:
+    address: ui/stop
+    messages:
+      experimentStop:
+        payload:
+          type: object
+          additionalProperties: false
+          properties:
+            experiment_id:
+              type: string
 
   controllerTimerCommandStart:
     address: controller/timer/command/start
@@ -276,7 +286,7 @@ channels:
                 - error
 
   setpointControllerHeartbeat:
-    address: setpoint_controller/+/heartbeat
+    address: setpoint_controllers/+/heartbeat
     messages:
       setpointControllerHeartbeat:
         payload:

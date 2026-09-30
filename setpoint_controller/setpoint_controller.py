@@ -258,7 +258,7 @@ class SetpointController:
             topics=[
                 f"instruments/{sensor_instrument}/{sensor_variable}/setpoint",
                 f"instruments/{sensor_instrument}/{sensor_variable}/measurement",
-                f"setpoint_controller/{spc_id}/setup",
+                f"setpoint_controllers/{spc_id}/setup",
                 "controller/command/start",
                 "controller/event/end",
                 "controller/command/stop",
@@ -285,7 +285,7 @@ class SetpointController:
             spc.publish_heartbeat()
             return
 
-        if msg.topic == f"setpoint_controller/{spc.spc_id}/setup":
+        if msg.topic == f"setpoint_controllers/{spc.spc_id}/setup":
             for k, v in message.items():
                 if k not in ["enabled", "experiment_id", "pid"]:
                     error = f"Cannot configure spc parameter: {k}. Aborting setup."
@@ -376,7 +376,7 @@ class SetpointController:
             "pid": self.pid.get_config(),
         }
         mqtt.MQTTPublisher.get_instance().publish(
-            f"setpoint_controller/{self.spc_id}/heartbeat",
+            f"setpoint_controllers/{self.spc_id}/heartbeat",
             json.dumps(heartbeat),
         )
 

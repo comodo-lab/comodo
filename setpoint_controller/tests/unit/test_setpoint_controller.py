@@ -293,7 +293,7 @@ class Test_SetpointController_init:
             topics=[
                 "instruments/I1/A/setpoint",
                 "instruments/I1/A/measurement",
-                "setpoint_controller/I1-A--I2-B/setup",
+                "setpoint_controllers/I1-A--I2-B/setup",
                 "controller/command/start",
                 "controller/event/end",
                 "controller/command/stop",
@@ -617,7 +617,7 @@ class Test_on_setup_message:
     def osum_mocks(self, mock_spc, mqtt_mocks, mqtt_validator_mocks):
         def make_msg(config):
             return MockMessage(
-                f"setpoint_controller/{mock_spc.spc_id}/setup",
+                f"setpoint_controllers/{mock_spc.spc_id}/setup",
                 json.dumps(config),
             )
 
@@ -896,7 +896,7 @@ class TestPublishHeartbeat:
 
         assert mqtt_mocks["publisher_instance"].publish.call_args_list == [
             call(
-                "setpoint_controller/I1-A--I2-B/heartbeat",
+                "setpoint_controllers/I1-A--I2-B/heartbeat",
                 json.dumps(
                     {
                         "state": {"status": "testing_status"},

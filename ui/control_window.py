@@ -10,12 +10,14 @@ from dash import (
     no_update,
     ctx,
     MATCH,
+    clientside_callback,
 )
 import dash_bootstrap_components as dbc
 from dash.exceptions import PreventUpdate
 import plotly.express as px
 import uuid
 import json
+import time
 import pytz
 
 
@@ -28,12 +30,17 @@ import plotly.graph_objects as go
 from utils.mqtt_clients import MQTTPublisher
 from utils.influx_query import query_influxdb_params
 import saved_configs as sc
+import heartbeats as hb
+
+# Seconds to wait for the controller state to change after a click, before giving up
+CLICK_TIMEOUT = 5
 
 
 def get_control_panel(params=[]):
     layout = html.Div(
         [
-            dbc.Button("Start experiment", color="success", id="submit-experiment"),
+            dbc.Button("Start experiment", color="success", id="experiment-button"),
+            dcc.Store(id="experiment-button-click"),
             get_manual_panel(params=params),
         ],
         className="d-grid gap-2",
@@ -41,12 +48,26 @@ def get_control_panel(params=[]):
     return layout
 
 
+# Disables the button in the browser as soon as it is clicked, to prevent double clicks.
+# It is enabled again by update_experiment_button once the controller state changes.
+clientside_callback(
+    "function(n_clicks) { return true; }",
+    Output("experiment-button", "disabled", allow_duplicate=True),
+    Input("experiment-button", "n_clicks"),
+    prevent_initial_call=True,
+)
+
+
 @callback(
+    Output("experiment-button", "children", allow_duplicate=True),
+    Output("experiment-button-click", "data"),
     Output("hidden-div", "children"),
     Output("experiment-meta-store", "data", allow_duplicate=True),
     Output("instruments-meta-store", "data", allow_duplicate=True),
     Output("config-meta-store", "data", allow_duplicate=True),
-    Input("submit-experiment", "n_clicks"),
+    Input("experiment-button", "n_clicks"),
+    State("experiment-button", "value"),
+    State("heartbeat-store", "data"),
     State("experiment-designer-store", "data"),
     State("instrument-store", "data"),
     State("experiment-config-store", "data"),
@@ -55,12 +76,23 @@ def get_control_panel(params=[]):
     State("config-meta-store", "data"),
     prevent_initial_call=True,
 )
-def update_output(
-    n_clicks, table_data, instruments, exp_config, exp_meta, inst_meta, config_meta
-):
-    if n_clicks == None:
+def start_or_stop_experiment(n_clicks, experiment_id, heartbeats, *start_states):
+    """
+    Stops the running experiment if there is one, otherwise starts a new one.
+    """
+    if not n_clicks:
         raise PreventUpdate
+    click = {"state": controller_state(heartbeats), "time": time.time()}
+    if experiment_id:
+        client = MQTTPublisher.get_instance()
+        client.publish("ui/stop", json.dumps({"experiment_id": experiment_id}))
+        return busy("Stopping experiment"), click, None, no_update, no_update, no_update
+    return busy("Starting experiment"), click, *start_experiment(*start_states)
 
+
+def start_experiment(
+    table_data, instruments, exp_config, exp_meta, inst_meta, config_meta
+):
     # Save any unsaved changes, so the run can link to the versions used
     files = {}
     metas = {}
@@ -111,6 +143,59 @@ def update_output(
         metas.get("instruments", no_update),
         metas.get("config", no_update),
     )
+
+
+@callback(
+    Output("experiment-button", "children"),
+    Output("experiment-button", "color"),
+    Output("experiment-button", "value"),
+    Output("experiment-button", "disabled"),
+    Input("heartbeat-store", "data"),
+    State("experiment-button-click", "data"),
+)
+def update_experiment_button(data, click):
+    """
+    Sets the button from the controller heartbeat: start when idle, stop when there is
+    an experiment_id, and disabled while the controller is validating or stopping.
+    After a click, the button stays busy until the controller state changes,
+    or CLICK_TIMEOUT passes (e.g. the controller rejected the request).
+    """
+    current = controller_state(data)
+    if (
+        click
+        and (time.time() - click["time"] < CLICK_TIMEOUT)
+        and ((current is None) or (list(current) == click["state"]))
+    ):
+        raise PreventUpdate
+
+    if current is None:
+        return "No controller heartbeat", "secondary", None, True
+    state, experiment_id = current
+    if state == "idle":
+        return "Start experiment", "success", None, False
+    if state == "validating":
+        return busy("Validating experiment"), "success", None, True
+    if state == "stopping":
+        return busy("Stopping experiment"), "danger", None, True
+    if experiment_id:
+        return f"Stop experiment {experiment_id}", "danger", experiment_id, False
+    return f"Controller {state}", "secondary", None, True
+
+
+def busy(text):
+    return [dbc.Spinner(size="sm", spinner_class_name="me-2"), text]
+
+
+def controller_state(data):
+    """
+    Returns the state and experiment_id in the latest controller heartbeat,
+    or None if there is no recent heartbeat.
+    """
+    heartbeat = (data or {}).get("heartbeats", {}).get(hb.CONTROLLER_TOPIC)
+    if heartbeat is None or hb.CONTROLLER_TOPIC in data["stale"]:
+        return None
+    payload = heartbeat["payload"]
+    return payload.get("state"), payload.get("config", {}).get("experiment_id")
 
 
 def get_manual_panel(params=[]):
