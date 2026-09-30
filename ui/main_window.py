@@ -115,17 +115,30 @@ def get_experiment_designer(data=[], params=[]):
     return html.Div(layout, id="experiment-designer-container")
 
 
-def get_experiment_graph(data=None):
+def get_experiment_graph(data=None, resolution=1):
     """
-    Creates a graph to display the experimental data.
+    Creates a graph to display the experimental data, with a point per setpoint sent
+    at the given resolution (s).
     The figure is built here rather than in a callback, as the designer is re-rendered
     on every change to experiment-designer-store.
     """
-    # Copies, as plot_data_plotly removes the row ids the grid needs
+    figure = go.Figure()
     if data:
-        figure = plot_data_plotly([dict(row) for row in data], xlabel="Time (s)")
-    else:
-        figure = go.Figure()
+        try:
+            # Copies, as plot_data_plotly removes the row ids the grid needs
+            figure = plot_data_plotly(
+                [dict(row) for row in data], xlabel="Time (s)", resolution=resolution
+            )
+        except (ValueError, TypeError, IndexError, KeyError) as e:
+            # e.g. rows closer together than the resolution, or non-numeric cells
+            figure.add_annotation(
+                text=f"Cannot plot experiment: {e}".replace("\n", "<br>"),
+                showarrow=False,
+                xref="paper",
+                yref="paper",
+                x=0.5,
+                y=0.5,
+            )
     graph = dcc.Graph(id="experiment-plot", figure=figure, responsive=True)
     return graph
 

@@ -82,9 +82,9 @@ hb.start(
 # ---------------------------------------------------
 
 
-def get_main_window(row_data):
+def get_main_window(row_data, resolution=1):
     designer_layout = mw.get_experiment_designer(data=row_data, params=PARAMS)
-    graph_layout = mw.get_experiment_graph(data=row_data)
+    graph_layout = mw.get_experiment_graph(data=row_data, resolution=resolution)
 
     return html.Div([designer_layout, graph_layout])
 
@@ -92,11 +92,12 @@ def get_main_window(row_data):
 @app.callback(
     Output("designer-wrapper", "children"),
     Input("experiment-designer-store", "data"),
+    Input("experiment-config-store", "data"),
 )
-def update_designer_page(data):
+def update_designer_page(data, exp_config):
     if data is None:
         raise PreventUpdate  # Wait for initialization
-    return get_main_window(row_data=data)
+    return get_main_window(row_data=data, resolution=ec.get_resolution(exp_config))
 
 
 @app.callback(

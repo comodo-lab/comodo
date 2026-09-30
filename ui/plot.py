@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 from utils.interpolation import split_setpoints
 
 
-def plot_data_plotly(data, xlabel="Time", ylabel="Temperature"):
+def plot_data_plotly(data, xlabel="Time", ylabel="Temperature", resolution=1):
     """
     Plots time series of temp_left, temp_main, and temp_right using Plotly.
 
@@ -14,6 +14,7 @@ def plot_data_plotly(data, xlabel="Time", ylabel="Temperature"):
         title (str): Title of the plot.
         xlabel (str): Label for the x-axis.
         ylabel (str): Label for the y-axis.
+        resolution (float): Seconds between setpoints, as sent during the experiment.
 
     Returns:
         go.Figure: A Plotly figure object containing the plot.
@@ -21,7 +22,7 @@ def plot_data_plotly(data, xlabel="Time", ylabel="Temperature"):
     if not data:
         raise ValueError("Input data is empty.")
 
-    data = split_setpoints(data, resolution=1)
+    data = split_setpoints(data, resolution=resolution)
 
     special_keys = ["duration"]
     keys = list(data[0].keys())
@@ -38,7 +39,7 @@ def plot_data_plotly(data, xlabel="Time", ylabel="Temperature"):
         if key in special_keys:
             continue
         y = [entry[key] for entry in data]
-        # Markers too, so a single-row experiment is still visible
+        # A marker per setpoint sent; also keeps a single-row experiment visible
         fig.add_trace(go.Scatter(x=time, y=y, mode="lines+markers", name=key))
 
     # Layout
