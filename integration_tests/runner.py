@@ -15,7 +15,7 @@ MQTT_PASS = os.environ["MQTT_PASS"]
 
 
 HEARTBEAT_TIMEOUT = int(os.environ.get("HEARTBEAT_TIMEOUT", 20))
-SETPOINT_TIMEOUT = int(os.environ.get("SETPOINT_TIMEOUT", 10))
+SETPOINT_TIMEOUT = int(os.environ.get("SETPOINT_TIMEOUT", 30))
 EXPERIMENT_TIMEOUT = int(os.environ.get("EXPERIMENT_TIMEOUT", 120))
 
 
