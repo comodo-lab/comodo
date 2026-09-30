@@ -56,7 +56,9 @@ def wait_for_equilibrium(
                 abs_error = abs(sensor.value - targets[i])
                 sensor.bus.publish(
                     "--debug--",
-                    f"Sensor: {sensor.instrument_name}/{sensor.variable_name}, Error: {abs_error=}, Reached: {step_count[i]}",
+                    f"Sensor: {sensor.instrument_name}/{sensor.variable_name}, "
+                    f"Value: {sensor.value}, Target: {targets[i]}, "
+                    f"Error: {abs_error=}, Reached: {step_count[i]}",
                 )
                 time.sleep(0.001)
                 step_count[i] = step_count[i] + 1 if abs_error < tolerance else 0
@@ -276,7 +278,7 @@ class TestMessagingBasics:
         # Allow some time for the message to be processed
         time.sleep(0.1)
 
-        assert spc.status.sensor_setpoint == 50.0, "SPC should update setpoint"
+        assert spc.state.sensor_setpoint == 50.0, "SPC should update setpoint"
 
     def test_spc_receives_sensor_measurement(self, mb_mocks):
         bus = mb_mocks["message_bus"]
@@ -286,7 +288,7 @@ class TestMessagingBasics:
             actuator_instrument="heater",
             actuator_variable="temperature",
         )
-        spc.status.sensor_setpoint = 50.0
+        spc.state.sensor_setpoint = 50.0
 
         with patch("src.pid.PID.step") as mock_step:
             mock_step.return_value = 75.0
@@ -298,7 +300,7 @@ class TestMessagingBasics:
 
             mock_step.assert_called_once_with(20.0, 50.0)
 
-    def test_spc_updates_state_on_setpoint(self, mb_mocks):
+    def test_spc_updates_status_on_setpoint(self, mb_mocks):
         bus = mb_mocks["message_bus"]
         spc = mb_mocks["base_SPC"](
             sensor_instrument="thermocouple",
@@ -314,8 +316,8 @@ class TestMessagingBasics:
         # Allow some time for the message to be processed
         time.sleep(0.1)
 
-        assert spc.status.sensor_setpoint == 50.0
-        assert spc.status.state == "idle"
+        assert spc.state.sensor_setpoint == 50.0
+        assert spc.state.status == "idle"
 
     def test_spc_publishes_actuator_setpoint(self, mb_mocks):
         bus = mb_mocks["message_bus"]
@@ -327,7 +329,7 @@ class TestMessagingBasics:
         )
 
         # Set a setpoint
-        spc.status.sensor_setpoint = 50.0
+        spc.state.sensor_setpoint = 50.0
 
         # Publish a measurement
         measurement_payload = json.dumps({"value": 20.0})
@@ -361,6 +363,7 @@ class TestControlLoop:
         spc = cl_mocks["base_SPC"](
             sensor_instrument="thermocouple",
             sensor_variable="temperature",
+            default_setpoint=4.2,
             actuator_instrument="heater",
             actuator_variable="temperature",
         )
@@ -370,14 +373,14 @@ class TestControlLoop:
         messages = bus.get_messages(f"setpoint_controller/{spc.spc_id}/heartbeat")
         assert len(messages) == 1, "SPC should publish heartbeat message"
         assert json.loads(messages[0].payload) == {
-            "status": {
-                "state": "idle",
+            "state": {
+                "status": "idle",
                 "enabled": True,
                 "sensor_measurement": None,
                 "actuator_setpoint": None,
                 "experiment_id": None,
             },
-            "setpoints": {"sensor_setpoint": None},
+            "setpoints": {"sensor_setpoint": 4.2},
             "config": {
                 "sensor": "thermocouple/temperature",
                 "actuator": "heater/temperature",
@@ -401,6 +404,7 @@ class TestControlLoop:
         spc = cl_mocks["base_SPC"](
             sensor_instrument="thermocouple",
             sensor_variable="temperature",
+            default_setpoint=4.2,
             actuator_instrument="heater",
             actuator_variable="temperature",
         )
@@ -420,13 +424,14 @@ class TestControlLoop:
 
         assert reached, "Control loop timed out trying to reach equilibrium"
 
-    def test_responds_to_setpoint_changes(self, cl_mocks):
+    def test_responds_to_setpoint_changes(self, cl_mocks, capsys):
         bus = cl_mocks["message_bus"]
         sensor = MockSensor("thermocouple", "temperature", bus, initial_value=20.0)
         actuator = MockActuator("heater", "temperature", bus, sensor)
         spc = cl_mocks["base_SPC"](
             sensor_instrument="thermocouple",
             sensor_variable="temperature",
+            default_setpoint=4.2,
             actuator_instrument="heater",
             actuator_variable="temperature",
         )
@@ -462,15 +467,21 @@ class TestControlLoop:
             sensor, t3, tolerance=1.0, timeout=1.0, stop=False
         )
 
+        captured = capsys.readouterr()
+        assert f"New setpoint received: {t1}." in captured.out
+        assert f"New setpoint received: {t2}." in captured.out
+        assert f"New setpoint received: {t3}." in captured.out
+
         assert reached_t1 and reached_t2 and reached_t3
 
-    def test_controller_can_be_disabled_and_reenabled(self, cl_mocks):
+    def test_controller_can_be_disabled_and_reenabled(self, cl_mocks, capsys):
         bus = cl_mocks["message_bus"]
         sensor = MockSensor("thermocouple", "temperature", bus, initial_value=20.0)
         actuator = MockActuator("heater", "temperature", bus, sensor)
         spc = cl_mocks["base_SPC"](
             sensor_instrument="thermocouple",
             sensor_variable="temperature",
+            default_setpoint=4.2,
             actuator_instrument="heater",
             actuator_variable="temperature",
         )
@@ -509,6 +520,7 @@ class TestControlLoop:
         bus.publish(
             f"setpoint_controller/{spc.spc_id}/setup", json.dumps({"enabled": True})
         )
+        time.sleep(0.01)  # Wait for enabling to take effect
         # Third setpoint
         t3 = 10.0
         bus.publish(
@@ -519,6 +531,38 @@ class TestControlLoop:
         )
         assert reached_t3
 
+        captured = capsys.readouterr()
+        assert f"New setpoint received: {t1}." in captured.out
+        assert "SPC disabled." in captured.out
+        assert "SPC enabled." in captured.out
+        assert f"New setpoint received: {t3}." in captured.out
+
+    def test_start_and_stop_experiment(self, cl_mocks, capsys):
+        bus = cl_mocks["message_bus"]
+        spc = cl_mocks["base_SPC"](
+            sensor_instrument="thermocouple",
+            sensor_variable="temperature",
+            default_setpoint=4.2,
+            actuator_instrument="heater",
+            actuator_variable="temperature",
+        )
+        assert spc.state.experiment_id is None
+
+        # Start experiment
+        exp_id = "exp_001"
+        bus.publish("controller/command/start", json.dumps({"id": exp_id}))
+        time.sleep(0.01)  # Wait for processing
+
+        assert spc.state.experiment_id == exp_id
+        assert f"Experiment started: {exp_id}" in capsys.readouterr().out
+
+        # Stop experiment
+        bus.publish("controller/command/stop", json.dumps({"id": exp_id}))
+        time.sleep(0.01)  # Wait for processing
+
+        assert spc.state.experiment_id is None
+        assert f"Experiment ended: {exp_id}" in capsys.readouterr().out
+
     def test_multiple_pid_controllers_can_coexist(self, cl_mocks):
         bus = cl_mocks["message_bus"]
         sensor1 = MockSensor("thermocouple_1", "temperature", bus, initial_value=20.0)
@@ -526,6 +570,7 @@ class TestControlLoop:
         spc1 = cl_mocks["base_SPC"](
             sensor_instrument="thermocouple_1",
             sensor_variable="temperature",
+            default_setpoint=4.2,
             actuator_instrument="heater_1",
             actuator_variable="temperature",
         )
@@ -535,6 +580,7 @@ class TestControlLoop:
         spc2 = cl_mocks["base_SPC"](
             sensor_instrument="thermocouple_2",
             sensor_variable="temperature",
+            default_setpoint=2.4,
             actuator_instrument="heater_2",
             actuator_variable="temperature",
         )
@@ -570,6 +616,7 @@ class TestControlLoop:
         spc1 = cl_mocks["base_SPC"](
             sensor_instrument="thermocouple_1",
             sensor_variable="temperature",
+            default_setpoint=4.2,
             actuator_instrument="heater_1",
             actuator_variable="temperature",
             k_p=1.0,
@@ -584,6 +631,7 @@ class TestControlLoop:
         spc2 = cl_mocks["base_SPC"](
             sensor_instrument="thermocouple_2",
             sensor_variable="temperature",
+            default_setpoint=2.4,
             actuator_instrument="heater_2",
             actuator_variable="temperature",
             k_p=5.0,

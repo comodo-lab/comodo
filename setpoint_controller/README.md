@@ -26,7 +26,7 @@ it will use default PID parameters ($k_p$=1.0, $k_i$=0.1, $k_d$=0.05),
 and set the actuator limits at $u_{min}$=0 and $u_{max}$=100, with unlimited rate of change.
 
 Additional optional environment variables include:
-- `HEARTBEAT_INTERVAL`: Interval (in seconds) at which the controller publishes its health status. $\textcolor{#999999}{\small{\text{ Default: 1.0 s. }}}$
+- `HEARTBEAT_INTERVAL`: Interval (in seconds) at which the controller publishes its health state. $\textcolor{#999999}{\small{\text{ Default: 1.0 s. }}}$
 - `K_P`: Proportional gain. $\textcolor{#999999}{\small{\text{ Default: 1.0. }}}$
 - `K_I`: Integral gain. $\textcolor{#999999}{\small{\text{ Default: 0.1. }}}$
 - `K_D`: Derivative gain. $\textcolor{#999999}{\small{\text{ Default: 0.05. }}}$
@@ -41,7 +41,7 @@ The controller subscribes to the following MQTT topics:
 - `sensors/SENSOR/setpoint`: The desired setpoint for the external sensor.
 - `measurement/SENSOR`: The current measurements from the external sensor.
 And publishes to:
-- `heartbeat/pid/SENSOR__ACTUATOR`: The health status of the PID controller.
+- `heartbeat/pid/SENSOR__ACTUATOR`: The health state of the PID controller.
 - `pid/SENSOR__ACTUATOR/setpoint`: When the PID controller's setpoint is updated (or None, on startup).
 - `sensor/ACTUATOR/setpoint`: The computed control signal for the target
 - `error/pid/SENSOR__ACTUATOR`: If there are any errors in the PID controller.

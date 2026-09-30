@@ -233,6 +233,25 @@ class TestInstrumentState:
         assert istate.status == "running"
         assert istate.client.callback == istate.running_cb
 
+    def test_awaiting_experiment_setpoint(self, is_mocks, capsys):
+        mock_config = is_mocks["config"]
+        istate = state.InstrumentState(mock_config)
+        istate.status = "awaiting_experiment"
+
+        with patch.object(state.InstrumentState, "running_cb") as mock_running_cb:
+            mock_msg = MockMessage(
+                topic="instruments/inst/var/setpoint",
+                payload=json.dumps({"some": "setpoint"}),
+            )
+            istate.awaiting_experiment_cb(istate.client, mock_msg)
+
+        is_mocks["mqtt_val"].validate_message.assert_called_once()
+        is_mocks["client"].publish.assert_not_called()
+        captured = capsys.readouterr()
+        assert "WARNING:" not in captured.out
+        mock_running_cb.assert_called_once_with(istate.client, mock_msg, None)
+        assert istate.status == "awaiting_experiment"
+
     def test_running_cb_incompatible_topic(self, is_mocks, capsys):
         mock_config = is_mocks["config"]
         with patch.object(state.InstrumentState, "reset") as mock_reset:
@@ -356,7 +375,29 @@ class TestInstrumentState:
             assert istate.client.callback == istate.error_cb
             mock_reset.assert_not_called()
 
-    def test_running_cb_can_move_off_error_state(self, is_mocks):
+    def test_running_cb_can_move_from_error_to_running(self, is_mocks):
+        mock_config = is_mocks["config"]
+        mock_set_and_go = is_mocks["instrument"].set_and_go_to_setpoint
+        with patch.object(state.InstrumentState, "reset") as mock_reset:
+            istate = state.InstrumentState(mock_config)
+            istate.instrument.config["experiment"]["id"] = "e-123"
+            istate._can_measure = True
+            istate._can_set_setpoint = False
+            istate.status = "error"
+
+            mock_msg = MockMessage(
+                topic="instruments/inst/var/setpoint",
+                payload=json.dumps({"value": 42}),
+            )
+            istate.running_cb(istate.client, mock_msg)
+
+            is_mocks["mqtt_val"].validate_message.assert_called_once()
+            mock_set_and_go.assert_called_once_with("var", 42)
+            assert istate._can_set_setpoint == True
+            assert istate.status == "running"
+            mock_reset.assert_not_called()
+
+    def test_running_cb_can_move_from_error_to_awaiting_experiment(self, is_mocks):
         mock_config = is_mocks["config"]
         mock_set_and_go = is_mocks["instrument"].set_and_go_to_setpoint
         with patch.object(state.InstrumentState, "reset") as mock_reset:
@@ -374,7 +415,7 @@ class TestInstrumentState:
             is_mocks["mqtt_val"].validate_message.assert_called_once()
             mock_set_and_go.assert_called_once_with("var", 42)
             assert istate._can_set_setpoint == True
-            assert istate.status == "running"
+            assert istate.status == "awaiting_experiment"
             mock_reset.assert_not_called()
 
     def test_running_cb_only_move_off_error_state_if_can_measure(self, is_mocks):

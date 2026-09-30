@@ -1,5 +1,6 @@
 import os
 import json
+import sys
 import textwrap
 
 import time as t
@@ -15,7 +16,14 @@ def main():
     # Load configuration
     heartbeat_interval = float(os.getenv("HEARTBEAT_INTERVAL", "1.0"))
     try:
-        req_env_vars = ["MQTT_HOST", "MQTT_USER", "MQTT_PASS", "SENSOR", "ACTUATOR"]
+        req_env_vars = [
+            "MQTT_HOST",
+            "MQTT_USER",
+            "MQTT_PASS",
+            "SENSOR",
+            "DEFAULT_SETPOINT",
+            "ACTUATOR",
+        ]
         # Load required environment variables into a dictionary
         rev_dict = {key: os.getenv(key) for key in req_env_vars}
         # Check for missing values
@@ -33,12 +41,18 @@ def main():
         mqtt_pass = rev_dict["MQTT_PASS"]
         sensor_instrument, sensor_variable = rev_dict["SENSOR"].split("/", 1)
         actuator_instrument, actuator_variable = rev_dict["ACTUATOR"].split("/", 1)
+        default_setpoint = rev_dict["DEFAULT_SETPOINT"]
     except KeyError as e:
         print(f"Missing required environment variables: {e}")
-        exit(1)
+        sys.exit(1)
     except ValueError as e:
         print(f"Invalid environment variable: {e}")
-        exit(1)
+        sys.exit(1)
+    try:
+        default_setpoint = float(default_setpoint)
+    except ValueError as e:
+        print(f"Invalid DEFAULT_SETPOINT value: '{default_setpoint}'. {e}")
+        sys.exit(1)
 
     spc_id = f"{sensor_instrument}-{sensor_variable}--{actuator_instrument}-{actuator_variable}"
 
@@ -84,6 +98,7 @@ def main():
         spc_id=spc_id,
         sensor_instrument=sensor_instrument,
         sensor_variable=sensor_variable,
+        default_setpoint=default_setpoint,
         actuator_instrument=actuator_instrument,
         actuator_variable=actuator_variable,
         **pid_params,
@@ -97,12 +112,12 @@ def main():
 class SetpointController:
     """Setpoint controller, which has a PID controller and its MQTT client."""
 
-    class Status:
-        """Setpoint controller orchestration status. PID values live only in the PID."""
+    class State:
+        """Setpoint controller orchestration state. PID values live only in the PID."""
 
         __slots__ = [
             "_enabled",
-            "_state",
+            "_status",
             "_sensor_setpoint",
             "_sensor_measurement",
             "_actuator_setpoint",
@@ -111,7 +126,7 @@ class SetpointController:
 
         item_keys = tuple(slot.lstrip("_") for slot in __slots__)
 
-        allowed_state = [
+        allowed_status = [
             "idle",
             "adjusting",
             "ready",
@@ -120,7 +135,7 @@ class SetpointController:
 
         def __init__(self):
             self._enabled = True
-            self._state = "idle"
+            self._status = "idle"
             self._sensor_setpoint = None
             self._sensor_measurement = None
             self._actuator_setpoint = None
@@ -128,8 +143,8 @@ class SetpointController:
 
         def as_dict(self):
             return {
-                "status": {
-                    "state": self.state,
+                "state": {
+                    "status": self.status,
                     "enabled": self.enabled,
                     "sensor_measurement": self.sensor_measurement,
                     "actuator_setpoint": self.actuator_setpoint,
@@ -150,23 +165,23 @@ class SetpointController:
                 raise TypeError(f"Enabled must be a boolean value, got {type(value)}")
             self._enabled = value
             if not value:
-                self._state = "idle"
+                self._status = "idle"
                 self._sensor_setpoint = None
                 self._sensor_measurement = None
                 self._actuator_setpoint = None
                 self.experiment_id = None
 
         @property
-        def state(self) -> str:
-            return self._state
+        def status(self) -> str:
+            return self._status
 
-        @state.setter
-        def state(self, value: str):
-            if value not in self.allowed_state:
+        @status.setter
+        def status(self, value: str):
+            if value not in self.allowed_status:
                 raise ValueError(
-                    f"Invalid state: {value}. Allowed values are: {self.allowed_state}"
+                    f"Invalid status: {value}. Allowed values are: {self.allowed_status}"
                 )
-            self._state = value
+            self._status = value
             if value == "idle":
                 self._sensor_setpoint = None
                 self._sensor_measurement = None
@@ -218,6 +233,7 @@ class SetpointController:
         spc_id: str,
         sensor_instrument: str,
         sensor_variable: str,
+        default_setpoint: float,
         actuator_instrument: str,
         actuator_variable: str,
         **pid_params,
@@ -225,6 +241,7 @@ class SetpointController:
         self.heartbeat_interval = heartbeat_interval
         self.sensor_instrument = sensor_instrument
         self.sensor_variable = sensor_variable
+        self.default_setpoint = default_setpoint
         self.actuator_instrument = actuator_instrument
         self.actuator_variable = actuator_variable
         self.spc_id = spc_id
@@ -242,6 +259,9 @@ class SetpointController:
                 f"instruments/{sensor_instrument}/{sensor_variable}/setpoint",
                 f"instruments/{sensor_instrument}/{sensor_variable}/measurement",
                 f"setpoint_controller/{spc_id}/setup",
+                "controller/command/start",
+                "controller/event/end",
+                "controller/command/stop",
             ],
             broker_address=mqtt_host,
             user=mqtt_user,
@@ -249,7 +269,10 @@ class SetpointController:
             obj=self,
         )
 
-        self.status = SetpointController.Status()
+        self.state = SetpointController.State()
+        print(f"SPC initialised: {self.spc_id}")
+        self.state.sensor_setpoint = default_setpoint
+        print(f"Default setpoint set: {self.default_setpoint}")
 
     @staticmethod  # Prevents passing 'self' as first argument, conflicting with MQTTClient callback signature
     def on_message(client, msg, spc):
@@ -258,7 +281,7 @@ class SetpointController:
             message = mqtt_val.validate_message(msg.topic, msg.payload)
         except mqtt_val.MQTTValidationException as e:
             mqtt_val.print_and_publish_error("error/setpoint_controller", e)
-            spc.status.state = "error"
+            spc.state.status = "error"
             spc.publish_heartbeat()
             return
 
@@ -290,50 +313,63 @@ class SetpointController:
                 )
             else:
                 if enabled is not None:
-                    spc.status.enabled = enabled
+                    if spc.state.enabled != enabled:
+                        print(f"SPC {"enabled" if enabled else "disabled"}.")
+                    spc.state.enabled = enabled
                 if experiment_id is not None:
-                    spc.status.experiment_id = experiment_id
+                    spc.state.experiment_id = experiment_id
                 for k, v in pid_config.items():
                     setattr(spc.pid, k, v)
             spc.publish_heartbeat()
             return
 
-        if spc.status.enabled is True:
-            if (
-                msg.topic
-                == f"instruments/{spc.sensor_instrument}/{spc.sensor_variable}/setpoint"
-            ):
-                spc.status.sensor_setpoint = message.get("value")
-                return
-
-            elif (
-                msg.topic
-                == f"instruments/{spc.sensor_instrument}/{spc.sensor_variable}/measurement"
-            ):
-                spc.status.sensor_measurement = message.get("value")
+        if spc.state.enabled is True:
+            if msg.topic.endswith("/setpoint"):
+                setpoint = message.get("value")
+                if spc.state.sensor_setpoint != setpoint:
+                    print(f"New setpoint received: {setpoint}.")
+                    spc.state.sensor_setpoint = setpoint
+            elif msg.topic.endswith("/measurement"):
+                spc.state.sensor_measurement = message.get("value")
                 if (
-                    spc.status.sensor_setpoint is not None
-                    and spc.status.sensor_measurement is not None
+                    spc.state.sensor_setpoint is not None
+                    and spc.state.sensor_measurement is not None
                 ):
-                    spc.status.state = "adjusting"
-                    spc.status.actuator_setpoint = spc.pid.step(
-                        spc.status.sensor_measurement, spc.status.sensor_setpoint
+                    spc.state.status = "adjusting"
+                    spc.state.actuator_setpoint = spc.pid.step(
+                        spc.state.sensor_measurement, spc.state.sensor_setpoint
                     )
                     mqtt.MQTTPublisher.get_instance().publish(
                         f"instruments/{spc.actuator_instrument}/{spc.actuator_variable}/setpoint",
-                        json.dumps({"value": spc.status.actuator_setpoint}),
+                        json.dumps({"value": spc.state.actuator_setpoint}),
                     )
-                return
+            elif msg.topic == "controller/command/start":
+                spc.state.experiment_id = message["id"]
+                print(f"Experiment started: {spc.state.experiment_id}")
+            elif msg.topic in ["controller/event/end", "controller/command/stop"]:
+                exp_id = message.get("id") or message.get("experiment_id")
+                if exp_id == spc.state.experiment_id:
+                    spc.state.sensor_setpoint = spc.default_setpoint
+                    spc.state.experiment_id = None
+                    print(
+                        f"Experiment ended: {exp_id}. "
+                        f"Moving to default setpoint: {spc.default_setpoint}"
+                    )
+                else:
+                    print(
+                        f"Received end/stop for experiment {exp_id}, "
+                        f"but current experiment is {spc.state.experiment_id}. Ignoring..."
+                    )
 
     def start_heartbeat_loop(self):
-        """Start the heartbeat loop to publish SPC state at regular intervals."""
+        """Start the heartbeat loop to publish SPC status at regular intervals."""
         while self.pid.healthy:
             self.publish_heartbeat()
             t.sleep(self.heartbeat_interval)
 
     def publish_heartbeat(self):
-        """Publish the current state of the SPC, including PID controller config."""
-        heartbeat = self.status.as_dict()
+        """Publish the current status of the SPC, including PID controller config."""
+        heartbeat = self.state.as_dict()
         heartbeat["config"] = {
             "sensor": f"{self.sensor_instrument}/{self.sensor_variable}",
             "actuator": f"{self.actuator_instrument}/{self.actuator_variable}",

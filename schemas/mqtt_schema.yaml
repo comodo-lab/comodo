@@ -280,9 +280,9 @@ channels:
           type: object
           additionalProperties: false
           required:
-            - status
-            - setpoints
             - config
+            - setpoints
+            - state
           properties:
             config:
               type: object
@@ -339,17 +339,17 @@ channels:
                     - type: number
                     - type: "null"
 
-            status:
+            state:
               type: object
               additionalProperties: false
               required:
-                - state
+                - status
                 - enabled
                 - sensor_measurement
                 - actuator_setpoint
                 - experiment_id
               properties:
-                state:
+                status:
                   type: string
                   enum:
                     - idle
