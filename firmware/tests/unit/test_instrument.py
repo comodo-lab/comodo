@@ -1,8 +1,10 @@
 from unittest.mock import patch, MagicMock
+import json
 
 import pytest
 
 from tests.conftest import (
+    MockMessage,
     firmware_env,
     mock_load_config,
     expected_config,
@@ -142,7 +144,7 @@ class TestCreateInstrument:
 
 class TestBaseInstrument:
     @pytest.fixture
-    def bi_mocks(self, firmware_env):
+    def bi_mocks(self, firmware_env, mqtt_mocks):
         class ConcreteInstrument(instrument.BaseInstrument):
             def initialise(self):
                 pass
@@ -157,11 +159,15 @@ class TestBaseInstrument:
                 pass
 
         with (
+            patch("src.instrument.mqtt_val") as mock_mqtt_val,
             patch.object(ConcreteInstrument, "initialise") as mock_initialise,
             patch.object(ConcreteInstrument, "simulate") as mock_simulate,
             patch.object(ConcreteInstrument, "get_measurement") as mock_get_measurement,
             patch.object(ConcreteInstrument, "go_to_setpoint") as mock_go_to_setpoint,
         ):
+            mock_mqtt_val.validate_message.side_effect = (
+                lambda topic, payload: json.loads(payload)
+            )
             yield {
                 "environment": firmware_env,
                 "ConcreteInstrument": ConcreteInstrument,
@@ -170,6 +176,9 @@ class TestBaseInstrument:
                 "simulate": mock_simulate,
                 "get_measurement": mock_get_measurement,
                 "go_to_setpoint": mock_go_to_setpoint,
+                "mqtt_val": mock_mqtt_val,
+                "client_class": mqtt_mocks["client_class"],
+                "client": mqtt_mocks["client_instance"],
             }
 
     def test_incomplete_subclass(self, bi_mocks):
@@ -197,6 +206,84 @@ class TestBaseInstrument:
         assert ins.previous_measurements == {}
         bi_mocks["initialise"].assert_called_once_with()
 
+    def test_init_with_external_actuators_simulating(self, bi_mocks):
+        mock_config = bi_mocks["config"]
+        mock_config["SIMULATE"] = True
+        mock_config["EXTERNAL_ACTUATORS"] = {"some_variable": "ext_inst/ext_var"}
+
+        with patch.object(
+            bi_mocks["ConcreteInstrument"], "external_measurements_client"
+        ) as mock_ext_client:
+            ins = bi_mocks["ConcreteInstrument"](mock_config)
+
+        assert ins.config == mock_config
+        assert ins.setpoints == {var: None for var in mock_config["DEFAULT_SETPOINTS"]}
+        assert ins.previous_measurements == {}
+        mock_ext_client.assert_called_once_with()
+        assert ins.ext_client == mock_ext_client.return_value
+        bi_mocks["initialise"].assert_called_once_with()
+
+    def test_init_with_external_actuators_not_simulating(self, bi_mocks):
+        mock_config = bi_mocks["config"]
+        mock_config["SIMULATE"] = False
+        mock_config["EXTERNAL_ACTUATORS"] = {"some_variable": "ext_inst/ext_var"}
+
+        with patch.object(
+            bi_mocks["ConcreteInstrument"], "external_measurements_client"
+        ) as mock_ext_client:
+            ins = bi_mocks["ConcreteInstrument"](mock_config)
+
+        assert ins.config == mock_config
+        assert ins.setpoints == {var: None for var in mock_config["DEFAULT_SETPOINTS"]}
+        assert ins.previous_measurements == {}
+        mock_ext_client.assert_not_called()
+        assert not hasattr(ins, "ext_client")
+        bi_mocks["initialise"].assert_called_once_with()
+
+    def test_external_measurement_cb(self, bi_mocks):
+        mock_config = bi_mocks["config"]
+        mock_config["EXTERNAL_ACTUATORS"] = {"some_variable": "ext_inst/ext_var"}
+        mock_msg = MockMessage(
+            topic="insts/ext_ins/ext_var/measurement",
+            payload=json.dumps({"value": 123.45}),
+        )
+        with patch.object(
+            bi_mocks["ConcreteInstrument"], "external_measurements_client"
+        ) as mock_ext_client:
+            ins = bi_mocks["ConcreteInstrument"](mock_config)
+        ins.previous_measurements = {}
+        ins.external_measurement_cb(None, mock_msg)
+
+        bi_mocks["mqtt_val"].validate_message.assert_called_once_with(
+            "insts/ext_ins/ext_var/measurement", mock_msg.payload
+        )
+        assert ins.previous_measurements == {"ext_ins/ext_var": 123.45}
+
+    def test_external_measurements_client(self, bi_mocks):
+        mock_config = bi_mocks["config"]
+        mock_config["EXTERNAL_ACTUATORS"] = {}
+        ins = bi_mocks["ConcreteInstrument"](mock_config)
+        ins.config["EXTERNAL_ACTUATORS"] = {
+            "some_variable": "ext_inst/ext_var",
+            "another_variable": "another_ext_inst/another_var",
+        }
+
+        res = ins.external_measurements_client()
+
+        bi_mocks["client_class"].assert_called_once_with(
+            id=f"{mock_config['INSTRUMENT_NAME']}_external",
+            callback=ins.external_measurement_cb,
+            topics=[
+                "instruments/ext_inst/ext_var/measurement",
+                "instruments/another_ext_inst/another_var/measurement",
+            ],
+            broker_address=mock_config["MQTT_HOST"],
+            user=mock_config["MQTT_USER"],
+            password=mock_config["MQTT_PASS"],
+            connection_timeout=60,
+        )
+        assert res is bi_mocks["client"](f"{mock_config['INSTRUMENT_NAME']}_external")
+
     def test_default_sim_no_setpoint(self, bi_mocks):
         mock_config = bi_mocks["config"]
 
@@ -221,6 +308,55 @@ class TestBaseInstrument:
         ins.previous_measurements["some_variable"] = 10
         result = ins.default_sim("some_variable")
         assert result == 15
+
+    def test_default_sim_external_no_setpoint(self, bi_mocks):
+        mock_config = bi_mocks["config"]
+        mock_config["EXTERNAL_ACTUATORS"] = {"some_variable": "ext_inst/ext_var"}
+
+        ins = bi_mocks["ConcreteInstrument"](mock_config)
+
+        # No previous measurements: target = variable_base
+        result = ins.default_sim("some_variable")
+        assert result == 0 + (1 - 0) / 2
+        # Var previous measurement, no ext measurement: target = variable_base
+        ins.previous_measurements["some_variable"] = 10
+        result = ins.default_sim("some_variable")
+        assert result == 10 + (1 - 10) / 2
+        # No previous measurement, but ext measurement: target = base+gain*ext
+        ins.previous_measurements.pop("some_variable", None)
+        ins.previous_measurements["ext_inst/ext_var"] = 20
+        result = ins.default_sim("some_variable")
+        assert result == 0 + (1 + ((200 - 1) / 100) * 20 - 0) / 2
+        # Both previous measurements:
+        ins.previous_measurements["some_variable"] = 10
+        ins.previous_measurements["ext_inst/ext_var"] = 20
+        result = ins.default_sim("some_variable")
+        assert result == 10 + (1 + ((200 - 1) / 100) * 20 - 10) / 2
+
+    def test_default_sim_external_with_setpoint(self, bi_mocks):
+        mock_config = bi_mocks["config"]
+        mock_config["EXTERNAL_ACTUATORS"] = {"some_variable": "ext_inst/ext_var"}
+
+        ins = bi_mocks["ConcreteInstrument"](mock_config)
+        ins.setpoints["some_variable"] = 200  # should be ignored
+
+        # No previous measurements: target = variable_base
+        result = ins.default_sim("some_variable")
+        assert result == 0 + (1 - 0) / 2
+        # Var previous measurement, no ext measurement: target = variable_base
+        ins.previous_measurements["some_variable"] = 10
+        result = ins.default_sim("some_variable")
+        assert result == 10 + (1 - 10) / 2
+        # No previous measurement, but ext measurement: target = base+gain*ext
+        ins.previous_measurements.pop("some_variable", None)
+        ins.previous_measurements["ext_inst/ext_var"] = 20
+        result = ins.default_sim("some_variable")
+        assert result == 0 + (1 + ((200 - 1) / 100) * 20 - 0) / 2
+        # Both previous measurements:
+        ins.previous_measurements["some_variable"] = 10
+        ins.previous_measurements["ext_inst/ext_var"] = 20
+        result = ins.default_sim("some_variable")
+        assert result == 10 + (1 + ((200 - 1) / 100) * 20 - 10) / 2
 
     def test_measure_or_simulate_undefined_variable(self, bi_mocks):
         mock_config = bi_mocks["config"]
@@ -310,10 +446,10 @@ class TestBaseInstrument:
             "some_variable", new_setpoint
         )
 
-    def test_set_and_go_to_setpoint_no_sim_with_def_setpoint(self, bi_mocks, capsys):
+    def test_set_and_go_to_setpoint_no_sim_with_ext_actuator(self, bi_mocks, capsys):
         mock_config = bi_mocks["config"]
         mock_config["SIMULATE"] = False
-        mock_config["DEFAULT_SETPOINTS"]["some_variable"] = 123
+        mock_config["EXTERNAL_ACTUATORS"]["some_variable"] = "ext_inst/ext_var"
         ins = bi_mocks["ConcreteInstrument"](mock_config)
         ins.available_variables = {"some_variable": {}}
         new_setpoint = 10.0

@@ -3,6 +3,9 @@ import importlib
 from abc import ABC, abstractmethod
 from typing import ClassVar
 
+import utils.mqtt_clients as mqtt
+from utils import mqtt_validator as mqtt_val
+
 
 def create_instrument(config):
     firmware = config["FIRMWARE"]
@@ -45,7 +48,40 @@ class BaseInstrument(ABC):
         self.available_variables = copy.deepcopy(self.available_variables)
         self.setpoints = {var: None for var in self.config["DEFAULT_SETPOINTS"]}
         self.previous_measurements = {}
+        if config["SIMULATE"] and config["EXTERNAL_ACTUATORS"]:
+            self.ext_client = self.external_measurements_client()
+
         self.initialise()
+
+    def external_measurement_cb(self, _client, msg, _obj=None):
+        """
+        Callback function to handle external sensor measurements.
+        This function is called when a new measurement is received from an external sensor.
+        """
+        # Extract instrument/variable from topic
+        _, ins, var, _ = msg.topic.split("/")
+        params = mqtt_val.validate_message(msg.topic, msg.payload)
+        measurement = params.get("value")
+        self.previous_measurements[f"{ins}/{var}"] = measurement
+
+    def external_measurements_client(self):
+        """
+        Creates a client subscribed to the external sensor measurements, which saves them
+        into the previous_measurements dictionary.
+        """
+        topics = [
+            f"instruments/{instrument_variable}/measurement"
+            for instrument_variable in self.config["EXTERNAL_ACTUATORS"].values()
+        ]
+        return mqtt.MQTTClient(
+            id=f"{self.config['INSTRUMENT_NAME']}_external",
+            callback=self.external_measurement_cb,
+            topics=topics,
+            broker_address=self.config["MQTT_HOST"],
+            user=self.config["MQTT_USER"],
+            password=self.config["MQTT_PASS"],
+            connection_timeout=60,
+        )
 
     def default_sim(self, variable):
         """
@@ -54,6 +90,13 @@ class BaseInstrument(ABC):
         """
         current = self.previous_measurements.get(variable, 0)
         target = self.setpoints.get(variable)
+        if variable in self.config["EXTERNAL_ACTUATORS"]:
+            ext_var = self.config["EXTERNAL_ACTUATORS"][variable]
+            ext_value = self.previous_measurements.get(ext_var, 0)
+            variable_base = 1  # Settling value at 0% of the external actuator
+            variable_max = 200  # Settling value at 100% of the external actuator
+            variable_gain = (variable_max - variable_base) / 100
+            target = variable_base + variable_gain * ext_value
         if target is not None:
             new = current + (target - current) / 2
         else:
@@ -97,8 +140,7 @@ class BaseInstrument(ABC):
             # Only real actuators are instructed to go to setpoint
             if self.available_variables[variable].get("actuator") is not None:
                 self.go_to_setpoint(variable, setpoint)
-            # Variables attached to an spc will have a default setpoint so they won't complain
-            elif not variable in self.config["DEFAULT_SETPOINTS"]:
+            elif not variable in self.config["EXTERNAL_ACTUATORS"]:
                 print(
                     f"WARNING: No actuator defined for '{variable}'. "
                     "Setpoint stored but not applied to any actuator."
@@ -109,16 +151,12 @@ class BaseInstrument(ABC):
         Return a dictionary representation of the instrument's configuration.
         """
         printable_config = {}
-        printable_config["name"] = self.config["INSTRUMENT_NAME"]
-        printable_config["firmware"] = self.config["FIRMWARE"]
-        printable_config["address"] = self.config["ADDRESS"]
-        printable_config["simulate"] = self.config["SIMULATE"]
-        printable_config["variables"] = self.config["ACTIVE_VARIABLES"]
-        printable_config["default_setpoints"] = self.config["DEFAULT_SETPOINTS"]
-        printable_config["safe_stop_setpoints"] = self.config["SAFE_STOP_SETPOINTS"]
-        printable_config["measurement_intervals"] = self.config["MEASUREMENT_INTERVALS"]
-        printable_config["heartbeat_interval"] = self.config["HEARTBEAT_INTERVAL"]
-        printable_config["experiment"] = self.config["experiment"]
+        except_keys = ["MQTT_USER", "MQTT_PASS", "MQTT_HOST"]
+        rename_keys = {"INSTRUMENT_NAME": "name", "ACTIVE_VARIABLES": "variables"}
+        for key, value in self.config.items():
+            if key not in except_keys:
+                new_key = rename_keys.get(key, key.lower())
+                printable_config[new_key] = value
         return printable_config
 
     @abstractmethod

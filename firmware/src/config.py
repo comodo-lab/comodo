@@ -12,6 +12,7 @@ DEFAULT_CONFIG = {
     "SIMULATE": True,
     "ACTIVE_VARIABLES": [],
     "DEFAULT_SETPOINTS": {},
+    "EXTERNAL_ACTUATORS": {},
     "SAFE_STOP_SETPOINTS": {},
     "MEASUREMENT_INTERVALS": {},
     "HEARTBEAT_INTERVAL": 1.0,
@@ -30,16 +31,10 @@ def load_config():
     config = copy.deepcopy(DEFAULT_CONFIG)
     for key, value in DEFAULT_CONFIG.items():
         # Load booleans
-        if key in ["SIMULATE"]:
+        if isinstance(value, bool):
             config[key] = os.getenv(key, str(value)).lower() in ["true", "1", "yes"]
         # Load lists and dicts
-        elif key in [
-            "ACTIVE_VARIABLES",
-            "DEFAULT_SETPOINTS",
-            "SAFE_STOP_SETPOINTS",
-            "MEASUREMENT_INTERVALS",
-            "experiment",
-        ]:
+        elif isinstance(value, (list, dict)):
             loaded = json.loads(os.getenv(key, json.dumps(value)))
             if loaded is None:
                 loaded = {}

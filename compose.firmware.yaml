@@ -37,6 +37,7 @@ services:
       ADDRESS: "192.168.111.222"
       ACTIVE_VARIABLES: '["temperature"]'
       DEFAULT_SETPOINTS: '{"temperature": 25}'
+      EXTERNAL_ACTUATORS: 'null'
       SAFE_STOP_SETPOINTS: '{"temperature": 0}'
       MEASUREMENT_INTERVALS: '{"temperature": 1}'
       HEARTBEAT_INTERVAL: 1.0
@@ -50,6 +51,7 @@ services:
       ADDRESS: "/dev/ttyUSB0"
       ACTIVE_VARIABLES: '["pressure"]'
       DEFAULT_SETPOINTS: '{"pressure": 1}'
+      EXTERNAL_ACTUATORS: '{"pressure": "mass_flow/mass_flow"}'
       SAFE_STOP_SETPOINTS: 'null'
       MEASUREMENT_INTERVALS: '{"pressure": 1}'
       HEARTBEAT_INTERVAL: 1.0
@@ -66,6 +68,7 @@ services:
       ADDRESS: "/dev/ttyUSB2"
       ACTIVE_VARIABLES: '["mass_flow"]'
       DEFAULT_SETPOINTS: 'null'
+      EXTERNAL_ACTUATORS: 'null'
       SAFE_STOP_SETPOINTS: '{"mass_flow": 0}'
       MEASUREMENT_INTERVALS: '{"mass_flow": 1}'
       HEARTBEAT_INTERVAL: 1.0

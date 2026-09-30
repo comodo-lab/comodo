@@ -618,6 +618,7 @@ class TestGetExpectedHeartbeat:
             "simulate": True,
             "variables": ["temperature"],
             "default_setpoints": {"temperature": 25},
+            "external_actuators": {},
             "safe_stop_setpoints": {"temperature": 0},
             "measurement_intervals": {"temperature": 1},
             "heartbeat_interval": 1.0,

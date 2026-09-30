@@ -28,6 +28,7 @@ services:
       MQTT_PROBE_ID: firmware
 
 {% set instrument_default_setpoints = {} %}
+{%- set external_actuators = {} -%}
 {%- set instrument_safe_stop_setpoints = {} -%}
 {%- set instrument_measurement_intervals = {} -%}
 {%- set all_default_setpoints = {} -%}
@@ -36,6 +37,13 @@ services:
 {%- if v_cfg.default_setpoint is defined -%}
 {%- set _ = instrument_default_setpoints.update({name: {v_name: v_cfg.default_setpoint}}) -%}
 {%- set _ = all_default_setpoints.update({name + '/' + v_name: v_cfg.default_setpoint}) -%}
+{%- endif -%}
+{%- if v_cfg.setpoint_controller and v_cfg.setpoint_controller.external_sensor is defined -%}
+{%- set ext_ins, ext_var = v_cfg.setpoint_controller.external_sensor.split('/') -%}
+{%- if ext_ins not in external_actuators -%}
+{%- set _ = external_actuators.update({ext_ins: {}}) -%}
+{%- endif -%}
+{%- set _ = external_actuators[ext_ins].update({ext_var: name ~ '/' ~ v_name}) -%}
 {%- endif -%}
 {%- if v_cfg.actuator and v_cfg.actuator.safe_stop_setpoint is defined -%}
 {%- set _ = instrument_safe_stop_setpoints.update({name: {v_name: v_cfg.actuator.safe_stop_setpoint}}) -%}
@@ -56,6 +64,7 @@ services:
       ADDRESS: "{{ instr.address }}"
       ACTIVE_VARIABLES: '{{ instr.variables.keys() | list | tojson }}'
       DEFAULT_SETPOINTS: '{{ instrument_default_setpoints.get(name) | tojson }}'
+      EXTERNAL_ACTUATORS: '{{ external_actuators.get(name) | tojson }}'
       SAFE_STOP_SETPOINTS: '{{ instrument_safe_stop_setpoints.get(name) | tojson }}'
       MEASUREMENT_INTERVALS: '{{ instrument_measurement_intervals.get(name) | tojson }}'
       HEARTBEAT_INTERVAL: {{ (global.heartbeat.interval) | float }}

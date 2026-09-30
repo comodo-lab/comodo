@@ -45,6 +45,7 @@ class TestConfig:
                 "SIMULATE": "false",
                 "ACTIVE_VARIABLES": '["flow"]',
                 "DEFAULT_SETPOINTS": '{"flow": 2.5}',
+                "EXTERNAL_ACTUATORS": '{"flow": "ext_inst/ext_var"}',
                 "SAFE_STOP_SETPOINTS": '{"flow": 0}',
                 "MEASUREMENT_INTERVALS": '{"flow": 0.5}',
                 "HEARTBEAT_INTERVAL": "2.5",
@@ -57,6 +58,7 @@ class TestConfig:
         assert result["SIMULATE"] is False
         assert result["ACTIVE_VARIABLES"] == ["flow"]
         assert result["DEFAULT_SETPOINTS"] == {"flow": 2.5}
+        assert result["EXTERNAL_ACTUATORS"] == {"flow": "ext_inst/ext_var"}
         assert result["SAFE_STOP_SETPOINTS"] == {"flow": 0}
         assert result["MEASUREMENT_INTERVALS"] == {"flow": 0.5}
         assert result["HEARTBEAT_INTERVAL"] == 2.5
@@ -78,6 +80,7 @@ class TestConfig:
         json_keys = [
             "ACTIVE_VARIABLES",
             "DEFAULT_SETPOINTS",
+            "EXTERNAL_ACTUATORS",
             "SAFE_STOP_SETPOINTS",
             "MEASUREMENT_INTERVALS",
             "experiment",
