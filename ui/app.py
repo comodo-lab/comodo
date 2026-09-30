@@ -84,7 +84,7 @@ hb.start(
 
 def get_main_window(row_data):
     designer_layout = mw.get_experiment_designer(data=row_data, params=PARAMS)
-    graph_layout = mw.get_experiment_graph()
+    graph_layout = mw.get_experiment_graph(data=row_data)
 
     return html.Div([designer_layout, graph_layout])
 

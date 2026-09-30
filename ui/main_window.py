@@ -115,11 +115,18 @@ def get_experiment_designer(data=[], params=[]):
     return html.Div(layout, id="experiment-designer-container")
 
 
-def get_experiment_graph():
+def get_experiment_graph(data=None):
     """
     Creates a graph to display the experimental data.
+    The figure is built here rather than in a callback, as the designer is re-rendered
+    on every change to experiment-designer-store.
     """
-    graph = dcc.Graph(id="experiment-plot", responsive=True)
+    # Copies, as plot_data_plotly removes the row ids the grid needs
+    if data:
+        figure = plot_data_plotly([dict(row) for row in data], xlabel="Time (s)")
+    else:
+        figure = go.Figure()
+    graph = dcc.Graph(id="experiment-plot", figure=figure, responsive=True)
     return graph
 
 
@@ -162,17 +169,6 @@ def delete_selected(n_clicks, selected_rows, current_data):
         return current_data
     selected_ids = {row["id"] for row in selected_rows}
     return [row for row in current_data if row["id"] not in selected_ids]
-
-
-@callback(
-    Output("experiment-plot", "figure"),
-    Input("experiment-designer-store", "data"),
-)
-def update_figure(data):
-    if not data:
-        return go.Figure()
-    fig = plot_data_plotly(data, xlabel="Time (s)")
-    return fig
 
 
 @callback(

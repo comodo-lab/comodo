@@ -38,7 +38,8 @@ def plot_data_plotly(data, xlabel="Time", ylabel="Temperature"):
         if key in special_keys:
             continue
         y = [entry[key] for entry in data]
-        fig.add_trace(go.Scatter(x=time, y=y, mode="lines", name=key))
+        # Markers too, so a single-row experiment is still visible
+        fig.add_trace(go.Scatter(x=time, y=y, mode="lines+markers", name=key))
 
     # Layout
     fig.update_layout(
