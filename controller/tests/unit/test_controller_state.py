@@ -9,7 +9,7 @@ class TestCState:
     def test_cstate_initialization(self):
         state = cstate()
         assert state.experiment_start_time == None
-        assert state.experiment_uid == None
+        assert state.experiment_id == None
         assert state.exp_file == None
         assert state.status == "idle"
         assert state.exp_config == None
@@ -39,7 +39,7 @@ class TestCState:
 
     def test_str(self):
         state = cstate()
-        state.experiment_uid = "123"
+        state.experiment_id = "123"
         assert (
             str(state)
             == '{"config": {"experiment_id": "123"}, "setpoints": {}, "state": "idle"}'
@@ -48,7 +48,7 @@ class TestCState:
     def test_reset(self):
         state = cstate()
         state.experiment_start_time = datetime.now()
-        state.experiment_uid = "123"
+        state.experiment_id = "123"
         state.exp_file = "path/to/file.json"
         state.status = "running"
         state.exp_config = {"uid": 123, "config": {"resolution": 1}}
@@ -81,15 +81,15 @@ class TestCState:
         else:
             assert False, "Should not let you set wrong type"
 
-    def test_can_set_experiment_uid(self):
+    def test_can_set_experiment_id(self):
         state = cstate()
-        state.experiment_uid = "123"
-        assert state.experiment_uid == "123"
+        state.experiment_id = "123"
+        assert state.experiment_id == "123"
 
-    def test_cannot_set_wrong_type_experiment_uid(self):
+    def test_cannot_set_wrong_type_experiment_id(self):
         state = cstate()
         try:
-            state.experiment_uid = 123
+            state.experiment_id = 123
         except TypeError as e:
             assert (
                 "Experiment UID must be a string or None, cannot accept <class 'int'>"

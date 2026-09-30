@@ -76,7 +76,9 @@ async def test_main_with_generic_instrument(message_bus, firmware_env, monkeypat
         )
 
         # Send a start command to the instrument and check that it goes to running
-        message_bus.publish("controller/command/start", json.dumps({"id": "e-123"}))
+        message_bus.publish(
+            "controller/command/start", json.dumps({"experiment_id": "e-123"})
+        )
         await wait_for_message(
             message_bus,
             heartbeat_topic,
@@ -176,7 +178,9 @@ async def test_main_with_generic_instrument(message_bus, firmware_env, monkeypat
         )
 
         # Check that a second experiment can be started and that the instrument goes to running again
-        message_bus.publish("controller/command/start", json.dumps({"id": "e-456"}))
+        message_bus.publish(
+            "controller/command/start", json.dumps({"experiment_id": "e-456"})
+        )
         await wait_for_message(
             message_bus,
             heartbeat_topic,

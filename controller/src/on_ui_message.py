@@ -39,26 +39,28 @@ def on_ui_message(client, msg, obj):
             if not os.path.exists(f"{data_path}/tmp"):
                 os.makedirs(f"{data_path}/tmp")
 
-            exp_file = f"{data_path}/tmp/experiment_{experiment['id']}.json"
+            exp_file = f"{data_path}/tmp/experiment_{experiment['temp_id']}.json"
             with open(exp_file, "w") as f:
                 json.dump(experiment, f)
 
             mqtt.MQTTPublisher.get_instance().publish(
                 "controller/command/validate",
-                json.dumps({"id": experiment["id"], "file": exp_file}),
+                json.dumps({"temp_id": experiment["temp_id"], "file": exp_file}),
             )
         else:
             pub_err.incompatible_controller_status(obj, msg)
     elif msg.topic == "ui/stop":
         if obj.status != "idle":
-            if experiment["id"] == obj.experiment_uid:
+            if experiment.get("experiment_id") == obj.experiment_id:
                 print("Stopping experiment...")
                 mqtt.MQTTPublisher.get_instance().publish(
                     "controller/command/stop",
-                    json.dumps({"id": experiment["id"]}),
+                    json.dumps({"experiment_id": obj.experiment_id}),
                 )
             else:
-                pub_err.incompatible_uid(obj, msg, experiment["id"], "controller")
+                pub_err.incompatible_uid(
+                    obj, msg, experiment.get("experiment_id"), "controller"
+                )
         else:
             pub_err.incompatible_controller_status(obj, msg)
     else:

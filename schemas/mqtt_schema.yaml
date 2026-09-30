@@ -26,11 +26,11 @@ channels:
           type: object
           additionalProperties: false
           required:
-            - id
+            - temp_id
             - config
             - experiment_definition
           properties:
-            id:
+            temp_id:
               type: string
             config:
               type: object
@@ -93,10 +93,13 @@ channels:
           type: object
           additionalProperties: false
           required:
-            - id
+            - temp_id
+            - experiment_id
             - valid
           properties:
-            id:
+            temp_id:
+              type: string
+            experiment_id:
               type: string
             valid:
               type: boolean
@@ -109,10 +112,10 @@ channels:
           type: object
           additionalProperties: false
           required:
-            - id
+            - temp_id
             - file
           properties:
-            id:
+            temp_id:
               type: string
             file:
               type: string
@@ -125,9 +128,9 @@ channels:
           type: object
           additionalProperties: false
           required:
-            - id
+            - experiment_id
           properties:
-            id:
+            experiment_id:
               type: string
 
   controllerCommandRun:
@@ -151,9 +154,9 @@ channels:
           type: object
           additionalProperties: false
           required:
-            - id
+            - experiment_id
           properties:
-            id:
+            experiment_id:
               type: string
 
   controllerEventReady:

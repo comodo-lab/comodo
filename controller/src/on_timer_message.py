@@ -26,11 +26,15 @@ def on_timer_message(client, msg, obj):
 
     if msg.topic == "controller/timer/event/done":
         exp_id = message.get("experiment_id", "unknown")
-        print(f"WARNING: Unexpected timer done event ignored (experiment_id: {exp_id})")
+        source = message.get("source", "unknown")
+        if source != "instrument_setup":
+            print(
+                f"WARNING: Unexpected timer done event ignored (experiment_id: {exp_id})"
+            )
         return
 
     try:
-        if message["experiment_id"] != obj.experiment_uid:
+        if message["experiment_id"] != obj.experiment_id:
             pub_err.incompatible_uid(
                 obj, msg, message["experiment_id"], "controller_timer"
             )
@@ -51,7 +55,7 @@ def on_timer_message(client, msg, obj):
             print("Stopping experiment...")
             mqtt.MQTTPublisher.get_instance().publish(
                 "controller/command/stop",
-                json.dumps({"id": message["experiment_id"]}),
+                json.dumps({"experiment_id": message["experiment_id"]}),
             )
             return
         t0 = t.time()
@@ -62,7 +66,7 @@ def on_timer_message(client, msg, obj):
                 print("Stopping experiment...")
                 mqtt.MQTTPublisher.get_instance().publish(
                     "controller/command/stop",
-                    json.dumps({"id": message["experiment_id"]}),
+                    json.dumps({"experiment_id": message["experiment_id"]}),
                 )
                 return
         mqtt.MQTTPublisher.get_instance().publish(
@@ -70,8 +74,7 @@ def on_timer_message(client, msg, obj):
             json.dumps(
                 {
                     "source": "instrument_setup",
-                    # experiment uid changes when all instruments get configured, so have to use obj.experiment_uid, not message["experiment_id"]
-                    "experiment_id": obj.experiment_uid,
+                    "experiment_id": message["experiment_id"],
                     "instruments_configured": obj.instruments_ready,
                     "controller_status": obj.status,
                 }

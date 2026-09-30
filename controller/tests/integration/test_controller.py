@@ -55,18 +55,6 @@ def mock_validate(mock_experiment_dict):
 
 
 @pytest.fixture
-def mock_serial_id():
-    with patch("src.on_controller_message.assign_serial_id") as mock_assign_serial_id:
-
-        def side_effect(obj):
-            obj.experiment_uid = f"D123-456"
-            obj.exp_file = "/path/to/experiment/D123-456.json"
-
-        mock_assign_serial_id.side_effect = side_effect
-        yield mock_assign_serial_id
-
-
-@pytest.fixture
 def mock_dump():
     with patch("src.on_controller_message.dump_database_for_experiment") as mock_dump:
         mock_dump.return_value = None
@@ -90,14 +78,16 @@ def test_control_loop(
     # Start an experiment
     message_bus.publish(
         topic="controller/command/validate",
-        payload=json.dumps({"file": "some_file", "id": "123"}),
+        payload=json.dumps({"file": "some_file", "temp_id": "123"}),
     )
     t.sleep(0.1)
 
     mock_validate.assert_called_once_with("some_file", state.config)
     # Should go through c_idle and c_starting, then expect instruments to respond
     assert state._status_history == ["validating", "starting", "awaiting_instruments"]
-    assert state.experiment_uid == "123"
+    mock_serial_id.assert_called_once()
+    assert state.exp_config["temp_id"] == "123"
+    assert state.experiment_id == "D123-456"
     instrument_names = sorted([ins for ins in state.config.instruments.keys()])
     driving_sensors = sorted(
         [
@@ -111,11 +101,16 @@ def test_control_loop(
     assert len(messages) == expected_messages
     assert messages[0].topic == "controller/command/validate"
     assert messages[1].topic == "controller/validator/passed"
+    assert json.loads(messages[1].payload) == {
+        "temp_id": "123",
+        "experiment_id": "D123-456",
+        "valid": True,
+    }
     assert messages[2].topic == "controller/command/start"
     assert messages[3].topic == "controller/timer/command/start"
     assert json.loads(messages[3].payload) == {
         "source": "instrument_setup",
-        "experiment_id": "123",
+        "experiment_id": "D123-456",
     }
     checked_messages += expected_messages
     assert state.instruments_ready is False
@@ -131,7 +126,7 @@ def test_control_loop(
             "config": state.config.get_expected_heartbeat(instrument),
         }
         heartbeat["config"]["experiment"] = {
-            "id": "123456",
+            "experiment_id": "D123-456",
             "calibration": {"some": "values"},
         }
         msg = MockMessage(
@@ -144,7 +139,6 @@ def test_control_loop(
     # Each instrument heartbeat should be processed
     assert state.instruments_ready is True
     # Should go through c_ready and into c_running
-    mock_serial_id.assert_called_once()
     assert controller_client.callback.__name__ == "c_running"
     assert state._status_history[3:] == ["ready", "running"]
     assert state.status == "running"

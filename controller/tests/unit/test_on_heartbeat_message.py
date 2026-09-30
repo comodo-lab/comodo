@@ -115,7 +115,7 @@ class TestOnHeartbeatMessage:
     def test_unconfigured_instrument(self, on_heartbeat_message_mocks):
         state = on_heartbeat_message_mocks["state"]
         heartbeat_client = on_heartbeat_message_mocks["heartbeat_client"]
-        assert state.experiment_uid == "123"
+        assert state.experiment_id == "123"
         assert state.status == "awaiting_instruments"
         assert "unconfigured_instrument" not in state.instrument_states
 
@@ -148,7 +148,7 @@ class TestOnHeartbeatMessage:
     def test_configured_instrument(self, on_heartbeat_message_mocks):
         state = on_heartbeat_message_mocks["state"]
         heartbeat_client = on_heartbeat_message_mocks["heartbeat_client"]
-        assert state.experiment_uid == "123"
+        assert state.experiment_id == "123"
         assert state.status == "awaiting_instruments"
         assert "furnace" in state.instrument_states
 
@@ -373,7 +373,7 @@ class TestHeartbeatValid:
         state = hb_valid_mocks["state"]
         heartbeat = {"config": hb_valid_mocks["expected_hb_config"]}
         heartbeat["config"]["experiment"] = {
-            "id": "some_id",
+            "experiment_id": "some_id",
             "calibration": {"random": "stuff"},
         }
         res = heartbeat_valid(state, heartbeat, "furnace")
@@ -397,4 +397,4 @@ class TestHeartbeatValid:
         messages = hb_valid_mocks["messages"]()
         assert len(messages) == 1
         assert messages[0].topic == "controller/command/stop"
-        assert json.loads(messages[0].payload)["id"] == "123"
+        assert json.loads(messages[0].payload)["experiment_id"] == "123"

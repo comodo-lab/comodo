@@ -114,7 +114,7 @@ class TestAssignSerialID:
         return state
 
     def test_updates_serial_id_correctly_empty_dir(self, state, data_path):
-        assert state.experiment_uid == "123"
+        assert state.experiment_id == "123"
         assert state.status == "awaiting_instruments"
         assert state.exp_file == None
         current_year = str(datetime.now().year)[-2:]
@@ -129,11 +129,11 @@ class TestAssignSerialID:
             assert mock_rename.called
 
         expected_uid = f"D{current_year}-001"
-        assert state.experiment_uid == expected_uid
+        assert state.experiment_id == expected_uid
         assert state.exp_file == f"{data_path}/{expected_uid}.json"
 
     def test_updates_serial_id_correctly_non_empty_dir(self, state, data_path):
-        assert state.experiment_uid == "123"
+        assert state.experiment_id == "123"
         assert state.status == "awaiting_instruments"
         assert state.exp_file == None
         current_year = str(datetime.now().year)[-2:]
@@ -148,11 +148,11 @@ class TestAssignSerialID:
             assign_serial_id(state)
 
         expected_uid = f"D{current_year}-042"
-        assert state.experiment_uid == expected_uid
+        assert state.experiment_id == expected_uid
         assert state.exp_file == f"{data_path}/{expected_uid}.json"
 
     def test_moves_file_correctly(self, state, data_path):
-        assert state.experiment_uid == "123"
+        assert state.experiment_id == "123"
         assert state.status == "awaiting_instruments"
 
         current_year = str(datetime.now().year)[-2:]
@@ -349,5 +349,5 @@ class TestDatabaseDump:
                 ]
             )
             mock_print.assert_called_once_with(
-                f"  Influx database for experiment {state.experiment_uid} saved at {data_path}/tmp/123.test_temp_exp."
+                f"  Influx database for experiment {state.experiment_id} saved at {data_path}/tmp/123.test_temp_exp."
             )

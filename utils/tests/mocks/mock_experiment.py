@@ -5,7 +5,7 @@ import pytest
 def mock_experiment_dict():
     """Fixture that returns a valid experiment configuration dictionary."""
     data = {
-        "id": "123",
+        "temp_id": "123",
         "config": {"resolution": 2},
         "experiment_definition": [
             {"time": 0, "furnace/temperature": 25, "pressure/pressure": 1},

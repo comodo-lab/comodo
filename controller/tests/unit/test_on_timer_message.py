@@ -69,7 +69,7 @@ class TestOnTimerMessage:
         assert len(messages) == 0
 
     def test_incorrect_experiment_id(self, ouim_mocks):
-        assert ouim_mocks["state"].experiment_uid == "123"
+        assert ouim_mocks["state"].experiment_id == "123"
 
         msg = MockMessage(
             topic="controller/timer/command/start",
@@ -84,7 +84,7 @@ class TestOnTimerMessage:
         assert len(messages) == 0
 
     def test_incompatible_topic(self, ouim_mocks):
-        assert ouim_mocks["state"].experiment_uid == "123"
+        assert ouim_mocks["state"].experiment_id == "123"
 
         msg = MockMessage(
             topic="controller/timer/something_else",
@@ -99,7 +99,7 @@ class TestOnTimerMessage:
         assert len(messages) == 0
 
     def test_missing_inst_setup_wait(self, ouim_mocks, capsys):
-        assert ouim_mocks["state"].experiment_uid == "123"
+        assert ouim_mocks["state"].experiment_id == "123"
         assert ouim_mocks["state"].status == "awaiting_instruments"
         assert ouim_mocks["state"].instruments_ready == False
         ouim_mocks["state"].config.globals["instrument_setup_wait"] = None
@@ -115,10 +115,10 @@ class TestOnTimerMessage:
         messages = ouim_mocks["messages"]()
         assert len(messages) == 1
         assert messages[0].topic == "controller/command/stop"
-        assert '{"id": "123"' in messages[0].payload
+        assert '{"experiment_id": "123"' in messages[0].payload
 
     def test_timeout(self, ouim_mocks, capsys):
-        assert ouim_mocks["state"].experiment_uid == "123"
+        assert ouim_mocks["state"].experiment_id == "123"
         assert ouim_mocks["state"].status == "awaiting_instruments"
         assert ouim_mocks["state"].instruments_ready == False
         ouim_mocks["state"].config.globals["instrument_setup_wait"] = 0.1
@@ -139,10 +139,10 @@ class TestOnTimerMessage:
         assert "Stopping experiment..." in capsys.readouterr().out
         assert len(messages) == 1
         assert messages[0].topic == "controller/command/stop"
-        assert '{"id": "123"' in messages[0].payload
+        assert '{"experiment_id": "123"' in messages[0].payload
 
     def test_stops_when_configured(self, ouim_mocks):
-        assert ouim_mocks["state"].experiment_uid == "123"
+        assert ouim_mocks["state"].experiment_id == "123"
         assert ouim_mocks["state"].status == "awaiting_instruments"
         ouim_mocks["state"].instruments_ready = True
 
@@ -163,7 +163,7 @@ class TestOnTimerMessage:
         }
 
     def test_stops_when_not_awaiting_instruments(self, ouim_mocks):
-        assert ouim_mocks["state"].experiment_uid == "123"
+        assert ouim_mocks["state"].experiment_id == "123"
         assert ouim_mocks["state"].instruments_ready == False
         ouim_mocks["state"].status = "ready"
 
@@ -183,40 +183,8 @@ class TestOnTimerMessage:
             "controller_status": "ready",
         }
 
-    def test_done_instrument_setup_uses_obj_uid(self, ouim_mocks):
-        state = ouim_mocks["state"]
-        assert state.experiment_uid == "123"
-        assert state.instruments_ready == False
-        state.status = "ready"
-
-        with patch("src.on_timer_message.t.time") as mock_time:
-            # Simulate experiment uid change when instruments get configured
-            def change_uid(*args, **kwargs):
-                state.experiment_uid = "D25-123"
-                return 12345  # arbitrary time
-
-            mock_time.side_effect = change_uid
-
-            msg = MockMessage(
-                topic="controller/timer/command/start",
-                payload=json.dumps(
-                    {"source": "instrument_setup", "experiment_id": "123"}
-                ),
-            )
-            on_timer_message(ouim_mocks["timer_client"], msg, state)
-
-        messages = ouim_mocks["messages"]()
-        assert len(messages) == 1
-        assert messages[0].topic == "controller/timer/event/done"
-        assert json.loads(messages[0].payload) == {
-            "source": "instrument_setup",
-            "experiment_id": "D25-123",
-            "instruments_configured": False,
-            "controller_status": "ready",
-        }
-
     def test_timer_setpoint(self, ouim_mocks):
-        assert ouim_mocks["state"].experiment_uid == "123"
+        assert ouim_mocks["state"].experiment_id == "123"
         ouim_mocks["state"].status = "running"
 
         msg = MockMessage(
@@ -233,7 +201,7 @@ class TestOnTimerMessage:
         assert messages[0].payload == '{"experiment_id": "123"}'
 
     def test_timer_setpoint_missing_duration(self, ouim_mocks):
-        assert ouim_mocks["state"].experiment_uid == "123"
+        assert ouim_mocks["state"].experiment_id == "123"
         ouim_mocks["state"].status = "running"
 
         msg = MockMessage(
@@ -247,7 +215,7 @@ class TestOnTimerMessage:
         assert len(messages) == 0
 
     def test_timer_setpoint_incompatible_controller_state(self, ouim_mocks):
-        assert ouim_mocks["state"].experiment_uid == "123"
+        assert ouim_mocks["state"].experiment_id == "123"
         ouim_mocks["state"].status = "ready"
 
         msg = MockMessage(
@@ -265,7 +233,7 @@ class TestOnTimerMessage:
         )
 
     def test_timer_setpoint_stopping(self, ouim_mocks):
-        assert ouim_mocks["state"].experiment_uid == "123"
+        assert ouim_mocks["state"].experiment_id == "123"
         ouim_mocks["state"].status = "stopping"
 
         msg = MockMessage(
@@ -286,7 +254,7 @@ class TestOnTimerMessage:
         }
 
     def test_timer_done_topic(self, ouim_mocks):
-        assert ouim_mocks["state"].experiment_uid == "123"
+        assert ouim_mocks["state"].experiment_id == "123"
         ouim_mocks["state"].status = "running"
 
         msg = MockMessage(

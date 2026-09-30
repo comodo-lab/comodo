@@ -32,9 +32,10 @@ def c_idle(client, msg, obj):
         # Load experiment object
         payload = mqtt_val.validate_message(msg.topic, msg.payload)
 
-        # Set experiment file object and temp_uid
+        # Set experiment file object and temp_id
         obj.exp_file = payload["file"]
-        temp_uid = payload["id"]
+        temp_id = payload["temp_id"]
+        print(f"Validating experiment {temp_id}...")
     except mqtt_val.MQTTValidationException as e:
         pub_err.message_validation(e)
         return
@@ -50,9 +51,11 @@ def c_idle(client, msg, obj):
         obj.setpoints = split_setpoints(
             exp_config["experiment_definition"], exp_config["config"]["resolution"]
         )
-        obj.experiment_uid = exp_config["id"]
+        # Assign a serial experiment id
+        assign_serial_id(obj)
         m = {
-            "id": obj.experiment_uid,
+            "temp_id": temp_id,
+            "experiment_id": obj.experiment_id,
             "valid": True,
         }
         mqtt.MQTTPublisher.get_instance().publish(
@@ -60,14 +63,19 @@ def c_idle(client, msg, obj):
         )
         obj.exp_config = exp_config
 
+        print(
+            f"Experiment {temp_id} valid. Assigned experiment id: {obj.experiment_id}"
+        )
+
         # Update state and callback of controller
         client.callback = c_starting
         mqtt.MQTTPublisher.get_instance().publish(
-            "controller/command/start", json.dumps({"id": m["id"]})
+            "controller/command/start",
+            json.dumps({"experiment_id": obj.experiment_id}),
         )
     except (val.ExperimentValidationError, ValueError) as e:
-        pub_err.experiment_validation_error(e, temp_uid)
-        obj.experiment_uid = None
+        pub_err.experiment_validation_error(e, temp_id)
+        obj.experiment_id = None
         obj.status = "idle"
 
 
@@ -102,11 +110,12 @@ def c_starting(client, msg, obj):
                 "setpoints": None,
             }
     # Update state and callback of controller
+    print(f"Awaiting instruments for experiment {obj.experiment_id}...")
     obj.status = "awaiting_instruments"
     client.callback = c_ready
     mqtt.MQTTPublisher.get_instance().publish(
         "controller/timer/command/start",
-        json.dumps({"source": "instrument_setup", "experiment_id": obj.experiment_uid}),
+        json.dumps({"source": "instrument_setup", "experiment_id": obj.experiment_id}),
     )
 
 
@@ -128,13 +137,12 @@ def c_ready(client, msg, obj):
             pub_err.incompatible_controller_status(obj, msg)
         return
 
+    print(f"Instruments ready, starting experiment {obj.experiment_id}...")
     obj.status = "ready"
-    # Update experiment id and start experiment
-    assign_serial_id(obj)
     # Update state and callback of controller
     client.callback = c_running
     mqtt.MQTTPublisher.get_instance().publish(
-        "controller/command/run", json.dumps({"experiment_id": obj.experiment_uid})
+        "controller/command/run", json.dumps({"experiment_id": obj.experiment_id})
     )
 
 
@@ -163,7 +171,7 @@ def c_running(client, msg, obj):
             obj.current_setpoint = None
         client.callback = c_stopping
         mqtt.MQTTPublisher.get_instance().publish(
-            "controller/event/end", json.dumps({"experiment_id": obj.experiment_uid})
+            "controller/event/end", json.dumps({"experiment_id": obj.experiment_id})
         )
         return
 
@@ -188,7 +196,7 @@ def c_running(client, msg, obj):
         json.dumps(
             {
                 "source": "setpoint",
-                "experiment_id": obj.experiment_uid,
+                "experiment_id": obj.experiment_id,
                 "duration": next_setpoint["duration"],
             }
         ),
@@ -217,15 +225,14 @@ def c_stopping(client, msg, obj):
     except mqtt_val.MQTTValidationException as e:
         pub_err.message_validation(e)
         return
-    msg_id = message.get("experiment_id") or message.get("id")
-    if msg_id == obj.experiment_uid:
+    if message.get("experiment_id") == obj.experiment_id:
         obj.status = "stopping"
         client.callback = c_stopping
         ### Safe stop placeholder
         t.sleep(1)
         dump_database_for_experiment(obj)
         ###
-        uid = obj.experiment_uid
+        uid = obj.experiment_id
         obj.reset()
         client.callback = c_idle
         stop_reason = (
@@ -233,4 +240,4 @@ def c_stopping(client, msg, obj):
         )
         print(f"Experiment {uid} {stop_reason} and the controller has been reset.")
     else:
-        pub_err.incompatible_uid(obj, msg, msg_id, "controller")
+        pub_err.incompatible_uid(obj, msg, message.get("experiment_id"), "controller")

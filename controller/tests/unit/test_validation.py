@@ -128,7 +128,7 @@ class TestValidateExperiment:
         ):
             valid_experiment_json = json.dumps(
                 {
-                    "id": "test-123",
+                    "temp_id": "test-123",
                     "config": {"resolution": 0.1},
                     "experiment_definition": [
                         {
@@ -184,7 +184,7 @@ class TestValidateExperiment:
 
     def test_raises_on_missing_experiment_definition(self, ve_mocks):
         ve_mocks["open"].return_value.__enter__.return_value.read.return_value = (
-            json.dumps({"id": "test-123", "config": {"resolution": 0.1}})
+            json.dumps({"temp_id": "test-123", "config": {"resolution": 0.1}})
         )
 
         with pytest.raises(ExperimentValidationError) as e:

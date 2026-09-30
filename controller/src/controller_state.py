@@ -23,7 +23,7 @@ class cstate:
 
     __slots__ = [
         "_experiment_start_time",
-        "_experiment_uid",
+        "_experiment_id",
         "_exp_file",
         "_status",
         "_exp_config",
@@ -40,7 +40,7 @@ class cstate:
         Initializes a new instance of the cstate class.
         """
         self.experiment_start_time: datetime = None
-        self.experiment_uid: str = None
+        self.experiment_id: str = None
         self.exp_file: str = None
         self.status: str = "idle"
         self.exp_config: Dict[str, Any] = None
@@ -76,7 +76,7 @@ class cstate:
         Generates a dictionary with the attributes that will get added to the heartbeat mqtt messages.
         """
         return {
-            "config": {"experiment_id": self.experiment_uid},
+            "config": {"experiment_id": self.experiment_id},
             "setpoints": {},
             "state": self.status,
         }
@@ -92,7 +92,7 @@ class cstate:
         Resets the state of the controller to its initial values.
         """
         self.experiment_start_time = None
-        self.experiment_uid = None
+        self.experiment_id = None
         self.exp_file = None
         self.status = "idle"
         self.exp_config = None
@@ -124,11 +124,11 @@ class cstate:
         self._experiment_start_time = value
 
     @property
-    def experiment_uid(self) -> str:
-        return self._experiment_uid
+    def experiment_id(self) -> str:
+        return self._experiment_id
 
-    @experiment_uid.setter
-    def experiment_uid(self, value: str) -> None:
+    @experiment_id.setter
+    def experiment_id(self, value: str) -> None:
         """
         Sets the experiment UID.
 
@@ -142,7 +142,7 @@ class cstate:
             raise TypeError(
                 f"Experiment UID must be a string or None, cannot accept {type(value)}"
             )
-        self._experiment_uid = value
+        self._experiment_id = value
 
     @property
     def exp_file(self) -> str:

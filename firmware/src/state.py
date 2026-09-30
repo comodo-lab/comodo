@@ -128,7 +128,7 @@ class InstrumentState:
         elif msg.topic.endswith("start"):
             # Save experiment id and move to running
             try:
-                self.instrument.config["experiment"]["id"] = payload["id"]
+                self.instrument.config["experiment"]["id"] = payload["experiment_id"]
             except KeyError:
                 print(
                     f"WARNING: Received {msg.topic} without an experiment id. Ignoring..."
