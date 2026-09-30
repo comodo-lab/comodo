@@ -64,6 +64,7 @@ services:
       - '8501:8050'
     volumes:
       - ./comodo.yaml:/app/comodo.yaml:ro
+      - ./ui/data:/ui_data:rw
     environment:
       <<: [ *mqtt-env, *influx-env, *grafana-env ]
 

@@ -84,12 +84,15 @@ def update_header_status(n_intervals, timezone):
     user_tz = pytz.timezone(timezone)
 
     try:
-        result = query_influxdb_params(
+        results = query_influxdb_params(
             fields=["state"],
             topics=["controller/heartbeat"],
             start="-1m",
             aggregate="last",
-        )[-1]
+        )
+        if not results:
+            return "Unknown Status", "primary", None
+        result = results[-1]
         status = result.get_value()
         iso_timestamp = result.get_time()
         timestamp = iso_timestamp.astimezone(user_tz).strftime("%Y-%m-%d %H:%M:%S")
@@ -132,12 +135,16 @@ def update_header_id(n_intervals, timezone):
     user_tz = pytz.timezone(timezone)
 
     try:
-        result = query_influxdb_params(
+        results = query_influxdb_params(
             fields=["experiment_id"],
             topics=["controller/heartbeat"],
             start="-1m",
             aggregate="last",
-        )[-1]
+        )
+        if not results:
+            time = pytz.datetime.datetime.now(user_tz).strftime("%Y-%m-%d %H:%M:%S")
+            return "Awaiting Experiment", "primary", time
+        result = results[-1]
         id = result.get_value()
         iso_timestamp = result.get_time()
         timestamp = iso_timestamp.astimezone(user_tz).strftime("%Y-%m-%d %H:%M:%S")
@@ -165,6 +172,7 @@ def update_header_id(n_intervals, instruments, timezone):
     """
     user_tz = pytz.timezone(timezone)
     time = pytz.datetime.datetime.now(user_tz).strftime("%Y-%m-%d %H:%M:%S")
+    timestamp = time
 
     adjusting = []
 
@@ -175,12 +183,15 @@ def update_header_id(n_intervals, instruments, timezone):
     for instrument in instruments:
         instrument_name = instrument["name"]
         try:
-            result = query_influxdb_params(
-            fields=["state"],
-            topics=[f"instruments/{instrument_name}/heartbeat"],
+            results = query_influxdb_params(
+                fields=["state"],
+                topics=[f"instruments/{instrument_name}/heartbeat"],
                 start="-1m",
                 aggregate="last",
-            )[-1]
+            )
+            if not results:
+                continue
+            result = results[-1]
             id = result.get_value()
             if id == "adjusting":
                 adjusting.append(instrument_name)

@@ -2,11 +2,7 @@
 
 import pytest
 
-
-@pytest.fixture
-def sample_config_yaml(tmp_path):
-    """Minimal comodo.yaml with one sensor-only and one actuator variable."""
-    content = """\
+GLOBALS = """\
 global:
   heartbeat:
     interval: 1
@@ -15,36 +11,45 @@ global:
   watchdog:
     timeout: 5
     interval: 1
+"""
 
+
+@pytest.fixture
+def sample_config_yaml(tmp_path):
+    """Minimal comodo.yaml with one sensor-only and one actuator variable."""
+    content = (
+        GLOBALS
+        + """
 instruments:
   test_sensor:
-    firmware: test/sensor
+    firmware: test.sensor
     address: "localhost:1234"
     variables:
       reading:
+        min: 0
+        max: 10
+        unit: X
         sensor:
           interval: 1
           type: float
-          min: 0
-          max: 10
-          unit: X
   test_actuator:
-    firmware: test/actuator
+    firmware: test.actuator
     address: "localhost:5678"
     variables:
       output:
+        min: 0
+        max: 10
+        unit: X
+        tolerance: 0.5
+        default_setpoint: 5
         sensor:
           interval: 1
           type: float
-          min: 0
-          max: 10
-          unit: X
         actuator:
           type: float
-          min: 0
-          max: 10
-          unit: X
+          safe_stop_setpoint: 0
 """
+    )
     f = tmp_path / "comodo.yaml"
     f.write_text(content)
     return str(f)
@@ -52,45 +57,35 @@ instruments:
 
 @pytest.fixture
 def sample_config_with_pid(tmp_path):
-    """comodo.yaml with a PID setpoint_controller referencing an external sensor."""
-    content = """\
-global:
-  heartbeat:
-    interval: 1
-  instrument_setup:
-    wait: 10
-  watchdog:
-    timeout: 5
-    interval: 1
-
+    """comodo.yaml with an actuator-only variable driven by a setpoint controller."""
+    content = (
+        GLOBALS
+        + """
 instruments:
   test_sensor:
-    firmware: test/sensor
+    firmware: test.sensor
     address: "localhost:1111"
     variables:
       value:
+        min: 0
+        max: 10
+        unit: X
+        tolerance: 0.5
+        default_setpoint: 2
         sensor:
           interval: 1
           type: float
-          min: 0
-          max: 10
-          unit: X
   test_spc:
-    firmware: test/spc
+    firmware: test.spc
     address: "localhost:2222"
     variables:
       output:
-        sensor:
-          interval: 1
-          type: float
-          min: 0
-          max: 10
-          unit: X
+        min: 0
+        max: 100
+        unit: X
         actuator:
           type: float
-          min: 0
-          max: 10
-          unit: X
+          safe_stop_setpoint: 0
         setpoint_controller:
           external_sensor: test_sensor/value
           K_P: 10.0
@@ -99,6 +94,7 @@ instruments:
           K_AW: 0.05
           K_DF: 0.01
 """
+    )
     f = tmp_path / "comodo.yaml"
     f.write_text(content)
     return str(f)

@@ -10,6 +10,7 @@ from dash import (
     no_update,
     ctx,
 )
+from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 import plotly.express as px
 import uuid
@@ -23,6 +24,7 @@ from plot import plot_data_plotly
 
 PROFILES = ["linear", "logarithmic", "exponential", "step"]
 
+
 def get_experiment_designer(data=[], params=[]):
     """
     Creates a dash-ag-grid component for experimental control data with
@@ -35,10 +37,6 @@ def get_experiment_designer(data=[], params=[]):
     for col in params:
         columns.append(col)
         columns.append(f"{col}_profile")
-
-    # Ensure each row has a unique ID
-    for row in data:
-        row["id"] = str(uuid.uuid4())
 
     # Construct column definitions
     column_dicts = [
@@ -132,16 +130,15 @@ def get_experiment_graph():
     prevent_initial_call="initial_duplicate",
 )
 def add_row(n_clicks, data):
+    # Fires when the designer is rendered, as prevent_initial_call does not apply
+    # to inputs inserted by another callback (update_designer_page)
+    if not n_clicks:
+        raise PreventUpdate
     if not data:
         return data
-    new_row = {"id": str(uuid.uuid4())}
-    for col in data[0]:
-        if col == "id":
-            continue
-        elif col.endswith("_profile"):
-            new_row[col] = PROFILES[0]
-        else:
-            new_row[col] = 0.0 if col != "time" else 0
+    previous_row = data[-1]
+    new_row = {key: value for key, value in previous_row.items() if key != "id"}
+    new_row["id"] = str(uuid.uuid4())
 
     #  Add new row with time as max time +30s (default could be changed via user preferences?)
     last_time = max(
@@ -159,6 +156,8 @@ def add_row(n_clicks, data):
     prevent_initial_call="initial_duplicate",
 )
 def delete_selected(n_clicks, selected_rows, current_data):
+    if not n_clicks:
+        raise PreventUpdate
     if not selected_rows:
         return current_data
     selected_ids = {row["id"] for row in selected_rows}
@@ -182,6 +181,8 @@ def update_figure(data):
     State("experiment-designer", "rowData"),
 )
 def update_table(cell_change, current_rows):
+    if not cell_change:
+        raise PreventUpdate
     # Sort the rows by time for presentation and ease of plotting
     sorted_rows = sorted(current_rows, key=lambda r: r.get("time", 0))
     return sorted_rows
