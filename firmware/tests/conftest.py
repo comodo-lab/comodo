@@ -15,6 +15,8 @@ from utils.tests.mocks.mock_mqtt_clients import (
     pytest_runtest_makereport,
 )
 from utils.tests.mocks.mock_mqtt_validator import mqtt_validator_mocks
+from src.state import InstrumentState
+from src.instrument import BaseInstrument
 
 
 @pytest.fixture
@@ -35,6 +37,53 @@ def firmware_env():
     }
 
 
+def mock_load_config(firmware_env):
+    """
+    Returns a mock istate object with the provided firmware_env as its config.
+    """
+    config = {
+        "MQTT_USER": firmware_env["MQTT_USER"],
+        "MQTT_PASS": firmware_env["MQTT_PASS"],
+        "MQTT_HOST": firmware_env["MQTT_HOST"],
+        "INSTRUMENT_NAME": firmware_env["INSTRUMENT_NAME"],
+        "FIRMWARE": firmware_env["FIRMWARE"],
+        "ADDRESS": firmware_env["ADDRESS"],
+        "SIMULATE": firmware_env["SIMULATE"].lower() in ["true", "1", "yes"],
+        "ACTIVE_VARIABLES": json.loads(firmware_env["ACTIVE_VARIABLES"]),
+        "DEFAULT_SETPOINTS": json.loads(firmware_env["DEFAULT_SETPOINTS"]),
+        "SAFE_STOP_SETPOINTS": json.loads(firmware_env["SAFE_STOP_SETPOINTS"]),
+        "MEASUREMENT_INTERVALS": json.loads(firmware_env["MEASUREMENT_INTERVALS"]),
+        "HEARTBEAT_INTERVAL": float(firmware_env["HEARTBEAT_INTERVAL"]),
+        "experiment": {"id": None},
+    }
+    return config
+
+
+@pytest.fixture
+def mock_instrument(firmware_env):
+    """
+    Returns a mock istate object with the provided firmware_env as its config.
+    """
+    intrument_obj = MagicMock(spec=BaseInstrument)
+    intrument_obj.config = mock_load_config(firmware_env)
+    intrument_obj.setpoints = {
+        var: None for var in intrument_obj.config["DEFAULT_SETPOINTS"]
+    }
+    intrument_obj.previous_measurements = {}
+    return intrument_obj
+
+
+@pytest.fixture
+def mock_state(mock_instrument):
+    """
+    Returns a mock istate object with the provided firmware_env as its config.
+    """
+    state_obj = MagicMock(spec=InstrumentState)
+    state_obj.instrument = mock_instrument
+    state_obj._status_history = []
+    return state_obj
+
+
 def expected_config(firmware_env, experiment=None):
     """
     Returns the expected config dictionary after loading the environment variables.
@@ -44,16 +93,17 @@ def expected_config(firmware_env, experiment=None):
     """
     if experiment is None:
         experiment = {"id": None}
+    config = mock_load_config(firmware_env)
     printable_config = {
-        "name": firmware_env["INSTRUMENT_NAME"],
-        "firmware": firmware_env["FIRMWARE"],
-        "address": firmware_env["ADDRESS"],
-        "simulate": str(firmware_env["SIMULATE"]).lower() in ["true", "1", "yes"],
-        "variables": json.loads(firmware_env["ACTIVE_VARIABLES"]),
-        "default_setpoints": json.loads(firmware_env["DEFAULT_SETPOINTS"]),
-        "safe_stop_setpoints": json.loads(firmware_env["SAFE_STOP_SETPOINTS"]),
-        "measurement_intervals": json.loads(firmware_env["MEASUREMENT_INTERVALS"]),
-        "heartbeat_interval": float(firmware_env["HEARTBEAT_INTERVAL"]),
+        "name": config["INSTRUMENT_NAME"],
+        "firmware": config["FIRMWARE"],
+        "address": config["ADDRESS"],
+        "simulate": config["SIMULATE"],
+        "variables": config["ACTIVE_VARIABLES"],
+        "default_setpoints": config["DEFAULT_SETPOINTS"],
+        "safe_stop_setpoints": config["SAFE_STOP_SETPOINTS"],
+        "measurement_intervals": config["MEASUREMENT_INTERVALS"],
+        "heartbeat_interval": config["HEARTBEAT_INTERVAL"],
         "experiment": experiment,
     }
     return printable_config

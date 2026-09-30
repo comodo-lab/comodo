@@ -43,7 +43,7 @@ async def test_main_with_generic_instrument(message_bus, firmware_env, monkeypat
     heartbeat_topic = f"instruments/{instrument_name}/heartbeat"
 
     # Check generic instrument state gets created and initialised ok
-    firmware_task = asyncio.create_task(main.main())
+    firmware_task = asyncio.create_task(main.start_instrument())
     try:
         # Check measurement ticks and heartbeat ticks are running
         await wait_for_message(

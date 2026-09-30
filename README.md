@@ -103,18 +103,23 @@ However, an instrument has a single `firmware` and `address`, which define how t
 
 Each instrument can have the following properties:
 - `firmware`: [required] The type of firmware the instrument is running.
-  This defines how to communicate with the instrument, and it should match one of the supported firmware types in the [firmware directory](firmware/).
+  This defines how to communicate with the instrument, and it should match one of the supported firmware types in the [firmware directory](firmware/src/instruments/) or set to `generic_instrument`, which simulates variable measurements.
 - `address`: [required] The address of the instrument.
   This can be an IP address and port (e.g., `192.168.10:502`), a serial port (e.g., `/dev/ttyUSB0`), or any other identifier required to communicate with the instrument.
-- `measurement_interval`: [optional] The interval in seconds at which measurements are taken from the instrument.
-  If not specified, the global `measurement_interval` will be used.
-- [`variables`](#variables): [required] The (named) variables monitored or controlled by the instrument.
+- `simulate`: [optional] A boolean flag indicating whether the instrument should be run in simulation mode.
+  If set to `true`, the instrument will not attempt to communicate with the physical device, and will instead simulate its behavior.
+- [`variables`](#variables): [required] The list of named variable(s) monitored or controlled by the instrument.
 
 #### Variables
 
 Variables represents specific measurement points in an instrument.
 
 Each variable can have the following properties:
+- `min`: [required] The minimum value the variable can take.
+- `max`: [required] The maximum value the variable can take.
+- `unit`: [optional] The unit of the variable (e.g., `°C`, `Pa`, `m/s`).
+- `default_setpoint`: This is required if the variable has an actuator **or** if it is associated with a setpoint_controller.
+- `tolerance`: The margin around a setpoint within which the variable is considered to be at the setpoint.
 - [`sensor`](#sensors): [required] Defines how the variable is measured.
   Since all variables need to be measured, a sensor must always be specified.
 - [`actuator`](#actuators): [optional] Defines how the variable can be *directly* controlled.
@@ -128,9 +133,7 @@ All variables need to be measured, so a sensor must always be specified for a va
 
 Each sensor can have the following properties:
 - `type`: [required] The data type reported by the sensor (e.g., float, int, string).
-- `min`:  [optional] The minimum value the sensor can report.
-- `max`:  [optional] The maximum value the sensor can report.
-- `unit`: [optional] The unit of measurement for the sensor's readings (e.g., `°C`, `Pa`, `m/s`).
+- `interval`: The time interval (in seconds) between measurements.
 
 ##### Actuators
 An `actuator` defines how a variable can be controlled.
@@ -138,10 +141,8 @@ Not all variables are being directly controlled, so an actuator is optional for 
 When the variable is *indirectly* controlled by another variable's actuator, a `setpoint_controller` should be set for that variable.
 
 Each actuator can have the following properties:
-- `type`: [required] The data type accepted by the actuator.
-- `min`:  [optional] The minimum value the actuator can accept.
-- `max`:  [optional] The maximum value the actuator can accept.
-- `unit`: [optional] The unit of measurement for the actuator's input.
+- `type`: [required] The data type accepted by the actuator (e.g., float, int, string).
+- `safe_stop_setpoint`: The setpoint to which the actuator should be set when the instrument is stopped by an emergency.
 
 ##### Setpoint Controllers
 A `setpoint_controller` defines a relationship between its variable's actuator and another variable's sensor.
