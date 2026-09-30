@@ -239,6 +239,12 @@ class ComodoConfig:
                 f"Instrument '{instrument_name}' not found in configuration."
             )
 
+        external_actuators = {}
+        for spc in self.spcs.values():
+            instr, var = spc["external_sensor"].split("/")
+            if instrument_name == instr:
+                external_actuators[var] = spc["actuator"]
+
         return {
             "name": instrument_name,
             "firmware": inst["firmware"],
@@ -246,6 +252,7 @@ class ComodoConfig:
             "simulate": inst["simulate"],
             "variables": list(inst["variables"].keys()),
             "default_setpoints": inst["default_setpoints"],
+            "external_actuators": external_actuators,
             "safe_stop_setpoints": inst["safe_stop_setpoints"],
             "measurement_intervals": inst["measurement_intervals"],
             "heartbeat_interval": self.globals["heartbeat_interval"],
