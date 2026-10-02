@@ -16,6 +16,20 @@ import dash_bootstrap_components as dbc
 import dash_ag_grid as dag
 
 
+def get_resolution(exp_config, default=1):
+    """
+    Returns the resolution (s) in the experiment config rows, or default if missing or invalid.
+    """
+    for row in exp_config or []:
+        if row.get("name") == "resolution":
+            try:
+                resolution = float(row.get("value"))
+            except (TypeError, ValueError):
+                return default
+            return resolution if resolution > 0 else default
+    return default
+
+
 def get_experiment_config(data=[]):
     """
     Creates a dash-ag-grid component for instrument setup with editing.
