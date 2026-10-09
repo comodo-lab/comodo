@@ -123,7 +123,7 @@ def test_control_loop(
         heartbeat = {
             "state": "running",
             "setpoints": state.config.instruments[instrument]["default_setpoints"],
-            "config": state.config.get_expected_heartbeat(instrument),
+            "config": state.get_expected_heartbeat(instrument),
         }
         heartbeat["config"]["experiment"] = {
             "experiment_id": "D123-456",

@@ -57,6 +57,7 @@ def main():
     # Initialize controller state
     state = cstate()
     state.config = config
+    state.reset()
     print(f"  Creating clients...")
 
     # Initialise publisher singleton

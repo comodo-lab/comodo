@@ -32,6 +32,7 @@ class cstate:
         "_past_setpoints",
         "_instrument_states",
         "_config",
+        "_expected_heartbeats",
         "_instruments_ready",
     ]
 
@@ -48,6 +49,7 @@ class cstate:
         self.current_setpoint: Dict[str, Any] = None
         self.past_setpoints: List[Dict[str, Any]] = []
         self.instrument_states: Dict[str, Any] = {}
+        self.expected_heartbeats: Dict[str, Any] = {}
         self.instruments_ready: bool = False
         self.config: ComodoConfig = None
 
@@ -100,6 +102,7 @@ class cstate:
         self.current_setpoint = None
         self.past_setpoints = []
         self.instrument_states = {}
+        self.reset_expected_heartbeats()
         self.instruments_ready = False
 
     @property
@@ -290,6 +293,64 @@ class cstate:
                 f"Instrument states must be a dictionary, cannot accept {type(value)}."
             )
         self._instrument_states = value
+
+    @property
+    def expected_heartbeats(self) -> Dict[str, Any]:
+        return self._expected_heartbeats
+
+    @expected_heartbeats.setter
+    def expected_heartbeats(self, value: Dict[str, Any]) -> None:
+        """
+        Sets the expected heartbeats dictionary.
+
+        Args:
+            value: The new value for the entire expected heartbeats dictionary.
+
+        Raises:
+            TypeError: If the provided expected heartbeats dictionary is not a dictionary.
+        """
+        if not isinstance(value, dict):
+            raise TypeError(
+                f"Expected heartbeats must be a dictionary, cannot accept {type(value)}."
+            )
+        self._expected_heartbeats = value
+
+    def reset_expected_heartbeats(self) -> None:
+        """
+        Sets the expected heartbeats dictionary with an empty experiment section.
+        """
+        expected_heartbeats = {}
+        for instrument_name in self.config.instruments:
+            exp_hb = self.config.get_expected_heartbeat(instrument_name)
+            exp_hb["experiment"] = {}
+            expected_heartbeats[instrument_name] = exp_hb
+        self.expected_heartbeats = expected_heartbeats
+
+    def set_hb_experiment_config(self, instrument_name: str, experiment_config) -> None:
+        """
+        Sets the expected heartbeat's experiment configuration for a specific instrument.
+
+        Args:
+            instrument_name: The name of the instrument for which to set the expected heartbeat.
+            experiment_config: The experiment configuration for the expected heartbeat.
+        """
+        if self._expected_heartbeats[instrument_name]["experiment"] != {}:
+            print(
+                f"Warning: Replacing existing experiment config for instrument {instrument_name}."
+            )
+        self._expected_heartbeats[instrument_name]["experiment"] = experiment_config
+
+    def get_expected_heartbeat(self, instrument_name: str) -> Dict[str, Any]:
+        """
+        Retrieves the expected heartbeat configuration for a specific instrument.
+
+        Args:
+            instrument_name: The name of the instrument for which to retrieve the expected heartbeat.
+
+        Returns:
+            The expected heartbeat configuration for the specified instrument or None if the instrument is not found.
+        """
+        return self._expected_heartbeats.get(instrument_name, None)
 
     @property
     def instruments_ready(self) -> bool:

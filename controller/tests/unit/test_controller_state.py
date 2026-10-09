@@ -8,17 +8,19 @@ from datetime import datetime
 class TestCState:
     def test_cstate_initialization(self):
         state = cstate()
-        assert state.experiment_start_time == None
-        assert state.experiment_id == None
-        assert state.exp_file == None
-        assert state.status == "idle"
-        assert state.exp_config == None
-        assert state.setpoints == []
-        assert state.current_setpoint == None
-        assert state.past_setpoints == []
-        assert state.instrument_states == {}
-        assert state.instruments_ready == False
-        assert state.config == None
+
+        assert state._experiment_start_time == None
+        assert state._experiment_id == None
+        assert state._exp_file == None
+        assert state._status == "idle"
+        assert state._exp_config == None
+        assert state._setpoints == []
+        assert state._current_setpoint == None
+        assert state._past_setpoints == []
+        assert state._instrument_states == {}
+        assert state._expected_heartbeats == {}
+        assert state._instruments_ready == False
+        assert state._config == None
 
     def test_cannot_add_new_attribute(self):
         state = cstate()
@@ -45,23 +47,36 @@ class TestCState:
             == '{"config": {"experiment_id": "123"}, "setpoints": {}, "state": "idle"}'
         )
 
-    def test_reset(self):
+    def test_reset(self, mock_comodo_config):
         state = cstate()
-        state.experiment_start_time = datetime.now()
-        state.experiment_id = "123"
-        state.exp_file = "path/to/file.json"
-        state.status = "running"
-        state.exp_config = {"uid": 123, "config": {"resolution": 1}}
-        state.setpoints = [{"time": 0, "pressure": 0, "temperature": 0}]
-        state.current_setpoint = {"time": 0, "pressure": 0, "temperature": 0}
-        state.past_setpoints = [{"time": 0, "pressure": 0, "temperature": 0}]
-        state.instrument_states = {}
+        state._experiment_start_time = datetime.now()
+        state._experiment_id = "123"
+        state._exp_file = "path/to/file.json"
+        state._status = "running"
+        state._exp_config = {"uid": 123, "config": {"resolution": 1}}
+        state._setpoints = [{"time": 0, "pressure": 0, "temperature": 0}]
+        state._current_setpoint = {"time": 0, "pressure": 0, "temperature": 0}
+        state._past_setpoints = [{"time": 0, "pressure": 0, "temperature": 0}]
+        state._instrument_states = {"T": "something"}
+        state._expected_heartbeats = {"T": {"state": "running"}}
+        state._instruments_ready = True
+        state._config = mock_comodo_config
 
-        state.reset()
+        with patch.object(cstate, "reset_expected_heartbeats") as mock_reset_hb:
+            state.reset()
 
-        clean_state = cstate()
-        for attr in state.__slots__:
-            assert getattr(state, attr) == getattr(clean_state, attr)
+        assert state._experiment_start_time == None
+        assert state._experiment_id == None
+        assert state._exp_file == None
+        assert state._status == "idle"
+        assert state._exp_config == None
+        assert state._setpoints == []
+        assert state._current_setpoint == None
+        assert state._past_setpoints == []
+        assert state._instrument_states == {}
+        mock_reset_hb.assert_called_once_with()
+        assert state._instruments_ready == False
+        assert state._config == mock_comodo_config
 
     def test_can_set_experiment_start_time(self):
         state = cstate()
@@ -265,6 +280,77 @@ class TestCState:
             assert "Instrument states must be a dictionary" in e.args[0]
         else:
             assert False, "Should not let you set wrong type"
+
+    def test_can_set_expected_heartbeats(self):
+        state = cstate()
+        state.expected_heartbeats = {
+            "T": {"state": "running", "config": {"experiment": {}}},
+            "P": {"state": "running", "config": {"experiment": {}}},
+        }
+        assert state.expected_heartbeats == {
+            "T": {"state": "running", "config": {"experiment": {}}},
+            "P": {"state": "running", "config": {"experiment": {}}},
+        }
+
+    def test_cannot_set_wrong_type_expected_heartbeats(self):
+        state = cstate()
+        try:
+            state.expected_heartbeats = 123
+        except TypeError as e:
+            assert "Expected heartbeats must be a dictionary" in e.args[0]
+        else:
+            assert False, "Should not let you set wrong type"
+
+    def test_reset_expected_heartbeats(self, mock_comodo_config):
+        state = cstate()
+        state.config = mock_comodo_config
+        state._expected_heartbeats["furnace"] = {"experiment": {"some": "config"}}
+        state._expected_heartbeats["pressure"] = {"experiment": {"some": "config"}}
+        state._expected_heartbeats["mass_flow"] = {"experiment": {"some": "config"}}
+        state.reset_expected_heartbeats()
+        assert state.expected_heartbeats == {
+            "furnace": mock_comodo_config.get_expected_heartbeat("furnace"),
+            "pressure": mock_comodo_config.get_expected_heartbeat("pressure"),
+            "mass_flow": mock_comodo_config.get_expected_heartbeat("mass_flow"),
+        }
+        assert state.expected_heartbeats["furnace"]["experiment"] == {}
+        assert state.expected_heartbeats["pressure"]["experiment"] == {}
+        assert state.expected_heartbeats["mass_flow"]["experiment"] == {}
+
+    def test_set_hb_experiment_config(self, capsys):
+        state = cstate()
+        state._expected_heartbeats["furnace"] = {"experiment": {}}
+
+        state.set_hb_experiment_config("furnace", {"some": "config"})
+
+        assert state.expected_heartbeats["furnace"]["experiment"] == {"some": "config"}
+        captured = capsys.readouterr()
+        assert captured.out == ""
+
+    def test_set_hb_experiment_config_replacing_warn(self, capsys):
+        state = cstate()
+        state._expected_heartbeats["furnace"] = {"experiment": {"old": "config"}}
+
+        state.set_hb_experiment_config("furnace", {"new": "config"})
+
+        captured = capsys.readouterr()
+        assert (
+            "Warning: Replacing existing experiment config for instrument furnace"
+            in captured.out
+        )
+        assert state.expected_heartbeats["furnace"]["experiment"] == {"new": "config"}
+
+    def test_get_expected_heartbeat(self):
+        state = cstate()
+        exp_furnace_hb = {
+            "state": "running",
+            "config": {"experiment": {"some": "config"}},
+        }
+        state._expected_heartbeats["furnace"] = exp_furnace_hb
+
+        expected_hb = state.get_expected_heartbeat("furnace")
+
+        assert expected_hb == exp_furnace_hb
 
     def test_can_set_instruments_ready(self):
         state = cstate()

@@ -1,3 +1,4 @@
+import copy
 import json
 
 import pytest
@@ -369,9 +370,10 @@ class TestHeartbeatValid:
         messages = hb_valid_mocks["messages"]()
         assert len(messages) == 0
 
-    def test_accepts_any_experiment_live_config(self, hb_valid_mocks):
+    def test_accepts_any_experiment_live_config_if_empty(self, hb_valid_mocks):
         state = hb_valid_mocks["state"]
-        heartbeat = {"config": hb_valid_mocks["expected_hb_config"]}
+        assert state.get_expected_heartbeat("furnace")["experiment"] == {}
+        heartbeat = {"config": copy.deepcopy(hb_valid_mocks["expected_hb_config"])}
         heartbeat["config"]["experiment"] = {
             "experiment_id": "some_id",
             "calibration": {"random": "stuff"},
@@ -380,6 +382,36 @@ class TestHeartbeatValid:
         assert res == True
         messages = hb_valid_mocks["messages"]()
         assert len(messages) == 0
+
+    def test_rejects_non_empty_experiment_live_config(self, hb_valid_mocks, capsys):
+        state = hb_valid_mocks["state"]
+        expected = state.get_expected_heartbeat("furnace")
+        expected["experiment"] = {
+            "experiment_id": "an_id",
+            "calibration": {"some": "things"},
+        }
+        state.expected_heartbeats["furnace"] = expected
+        assert state.get_expected_heartbeat("furnace")["experiment"] != {}
+        heartbeat = {"config": copy.deepcopy(hb_valid_mocks["expected_hb_config"])}
+        heartbeat["config"]["experiment"] = {
+            "experiment_id": "some_id",
+            "calibration": {"random": "stuff"},
+        }
+
+        res = heartbeat_valid(state, heartbeat, "furnace")
+
+        assert res == False
+        hb_valid_mocks["pub_err"].invalid_instrument_config.assert_called_once_with(
+            "furnace",
+            hb_valid_mocks["expected_hb_config"],
+            heartbeat["config"],
+        )
+        captured = capsys.readouterr()
+        assert "Stopping experiment..." in captured.out
+        messages = hb_valid_mocks["messages"]()
+        assert len(messages) == 1
+        assert messages[0].topic == "controller/command/stop"
+        assert json.loads(messages[0].payload)["experiment_id"] == "123"
 
     def test_invalid_heartbeat(self, hb_valid_mocks, capsys):
         state = hb_valid_mocks["state"]

@@ -27,7 +27,7 @@ def on_heartbeat_message(client, msg, obj):
         return
 
     instrument_name = msg.topic.split("/")[1]
-    if instrument_name in obj.instrument_states.keys():
+    if instrument_name in obj.instrument_states:
         handle_instrument_heartbeat(obj, message, instrument_name)
     else:
         pub_err.unconfigured_instrument(msg, instrument_name)
@@ -62,9 +62,10 @@ def handle_instrument_heartbeat(obj, heartbeat, instrument_name):
 
 
 def heartbeat_valid(obj, heartbeat, instrument_name):
-    expected = obj.config.get_expected_heartbeat(instrument_name)
-    # Accept an arbitrary experiment live config
-    expected["experiment"] = heartbeat["config"].get("experiment", {})
+    expected = obj.get_expected_heartbeat(instrument_name)
+    # Tolerate experiment config miss-match if either is empty (allows for setting up periods)
+    if expected["experiment"] == {} or heartbeat["config"].get("experiment", {}) == {}:
+        expected["experiment"] = heartbeat["config"].get("experiment", {})
 
     if heartbeat["config"] != expected:
         pub_err.invalid_instrument_config(

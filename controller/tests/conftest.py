@@ -74,9 +74,19 @@ def mock_state(mock_comodo_config, mock_experiment_dict, mock_setpoints):
             state_obj.current_setpoint = None
             state_obj.past_setpoints = []
             state_obj.instrument_states = {}
+            state_obj.expected_heartbeats = {
+                "furnace": mock_comodo_config.get_expected_heartbeat("furnace"),
+                "pressure": mock_comodo_config.get_expected_heartbeat("pressure"),
+                "mass_flow": mock_comodo_config.get_expected_heartbeat("mass_flow"),
+            }
             state_obj.instruments_ready = False
 
         state_obj.reset = MagicMock(side_effect=reset)
+        state_obj.get_expected_heartbeat = (
+            lambda instrument_name: state_obj.expected_heartbeats.get(
+                instrument_name, {}
+            )
+        )
 
         # ------------------------------- idle (default new cstate)
         state_obj.experiment_start_time = None
@@ -89,6 +99,11 @@ def mock_state(mock_comodo_config, mock_experiment_dict, mock_setpoints):
         state_obj.current_setpoint = None
         state_obj.past_setpoints = []
         state_obj.instrument_states = {}
+        state_obj.expected_heartbeats = {
+            "furnace": mock_comodo_config.get_expected_heartbeat("furnace"),
+            "pressure": mock_comodo_config.get_expected_heartbeat("pressure"),
+            "mass_flow": mock_comodo_config.get_expected_heartbeat("mass_flow"),
+        }
         state_obj.instruments_ready = False
 
         if status == "idle":
