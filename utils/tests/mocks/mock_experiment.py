@@ -6,7 +6,12 @@ def mock_experiment_dict():
     """Fixture that returns a valid experiment configuration dictionary."""
     data = {
         "temp_id": "123",
-        "config": {"resolution": 2},
+        "config": {
+            "resolution": 2,
+            "instruments": {
+                "furnace": {"offset": 273},
+            },
+        },
         "experiment_definition": [
             {"time": 0, "furnace/temperature": 25, "pressure/pressure": 1},
             {"time": 4, "furnace/temperature": 25, "pressure/pressure": 150},

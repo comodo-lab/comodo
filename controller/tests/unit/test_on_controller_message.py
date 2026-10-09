@@ -1,6 +1,6 @@
 import pytest
 import json
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 from tests.conftest import (
     MockMessage,
@@ -41,6 +41,7 @@ class TestIdle:
             patch("src.on_controller_message.c_starting") as mock_c_starting,
         ):
             state = mock_state("idle")
+            state.set_hb_experiment_config = MagicMock()
             mqtt_mocks["client_class"](
                 id="controller",
                 topics="controller/#",
@@ -186,6 +187,7 @@ class TestIdle:
         )
         messages = idle_mocks["messages"]()
         assert len(messages) == 0
+        idle_mocks["state"].set_hb_experiment_config.assert_not_called()
 
     def test_valid_file(self, idle_mocks, capsys):
         assert idle_mocks["state"].experiment_id == None
@@ -216,6 +218,54 @@ class TestIdle:
         )
         assert messages[1].topic == "controller/command/start"
         assert '{"experiment_id": "D123-456"}' in messages[1].payload
+        assert idle_mocks["state"].set_hb_experiment_config.call_args_list == [
+            (("furnace", {"experiment_id": "D123-456"}),),
+            (("pressure", {"experiment_id": "D123-456"}),),
+            (("mass_flow", {"experiment_id": "D123-456"}),),
+        ]
+
+    def test_valid_file_with_instrument_config(self, idle_mocks, capsys):
+        assert idle_mocks["state"].experiment_id == None
+        assert idle_mocks["state"].experiment_start_time == None
+        assert idle_mocks["state"].status == "idle"
+        idle_mocks["validate_experiment"].return_value = {
+            "temp_id": "123",
+            "experiment_definition": ["some data"],
+            "config": {"resolution": 42, "instruments": {"furnace": {"offset": 273}}},
+        }
+
+        c_idle(idle_mocks["controller_client"], idle_mocks["msg"], idle_mocks["state"])
+
+        captured = capsys.readouterr()
+        assert "Validating experiment 123..." in captured.out
+        assert "Experiment 123 valid. Assigned experiment id: D123-456" in captured.out
+        idle_mocks["validate_experiment"].assert_called_once_with(
+            "valid_file.json", idle_mocks["state"].config
+        )
+        # Split setpoints called
+        idle_mocks["split_setpoints"].assert_called_once_with(["some data"], 42)
+        idle_mocks["serial_id"].assert_called_once_with(idle_mocks["state"])
+        assert idle_mocks["state"].experiment_start_time != None
+        assert idle_mocks["state"].experiment_id == "D123-456"
+        assert idle_mocks["state"].status == "validating"
+        assert idle_mocks["controller_client"].callback == idle_mocks["c_starting"]
+        messages = idle_mocks["messages"]()
+        assert len(messages) == 3
+        assert messages[0].topic == "controller/validator/passed"
+        assert (
+            '{"temp_id": "123", "experiment_id": "D123-456", "valid": true}'
+            in messages[0].payload
+        )
+        assert messages[1].topic == "instruments/furnace/configure"
+        assert messages[1].payload == '{"offset": 273}'
+        assert messages[2].topic == "controller/command/start"
+        assert '{"experiment_id": "D123-456"}' in messages[2].payload
+        assert idle_mocks["state"].set_hb_experiment_config.call_args_list == [
+            (("furnace", {"offset": 273}),),
+            (("furnace", {"experiment_id": "D123-456"}),),
+            (("pressure", {"experiment_id": "D123-456"}),),
+            (("mass_flow", {"experiment_id": "D123-456"}),),
+        ]
 
 
 class TestStarting:

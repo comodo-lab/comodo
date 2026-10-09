@@ -188,6 +188,7 @@ class TestInstrumentState:
         mock_config = is_mocks["config"]
         istate = state.InstrumentState(mock_config)
         istate.status = "awaiting_experiment"
+        istate.instrument.config["experiment"] = {"some": "info"}
 
         mock_msg = MockMessage(
             topic=f"instruments/{mock_config['INSTRUMENT_NAME']}/configure",
@@ -197,7 +198,10 @@ class TestInstrumentState:
 
         is_mocks["mqtt_val"].validate_message.assert_called_once()
         is_mocks["mqtt_val"].validate_message.assert_called_once()
-        assert istate.instrument.config["experiment"] == {"some_other": "data"}
+        assert istate.instrument.config["experiment"] == {
+            "some": "info",
+            "some_other": "data",
+        }
         assert istate.status == "awaiting_experiment"
 
     def test_awaiting_experiment_start_missing_id(self, is_mocks, capsys):

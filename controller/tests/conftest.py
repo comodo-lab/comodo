@@ -110,7 +110,12 @@ def mock_state(mock_comodo_config, mock_experiment_dict, mock_setpoints):
             return state_obj
 
         # ------------------------------- starting
-        state_obj.set_hb_experiment_config("furnace", {"experiment_id": "D123-456"})
+        state_obj.set_hb_experiment_config(
+            "furnace", mock_experiment_dict["config"]["instruments"]["furnace"]
+        )
+        state_obj._expected_heartbeats["furnace"]["experiment"][
+            "experiment_id"
+        ] = "D123-456"
         state_obj.set_hb_experiment_config("pressure", {"experiment_id": "D123-456"})
         state_obj.set_hb_experiment_config("mass_flow", {"experiment_id": "D123-456"})
 

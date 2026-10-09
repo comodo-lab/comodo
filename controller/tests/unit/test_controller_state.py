@@ -327,18 +327,31 @@ class TestCState:
         captured = capsys.readouterr()
         assert captured.out == ""
 
-    def test_set_hb_experiment_config_replacing_warn(self, capsys):
+    def test_set_hb_experiment_config_appending(self, capsys):
         state = cstate()
         state._expected_heartbeats["furnace"] = {"experiment": {"old": "config"}}
 
         state.set_hb_experiment_config("furnace", {"new": "config"})
 
+        assert state.expected_heartbeats["furnace"]["experiment"] == {
+            "old": "config",
+            "new": "config",
+        }
         captured = capsys.readouterr()
-        assert (
-            "Warning: Replacing existing experiment config for instrument furnace"
-            in captured.out
-        )
-        assert state.expected_heartbeats["furnace"]["experiment"] == {"new": "config"}
+        assert captured.out == ""
+
+    def test_set_hb_experiment_config_replacing_warn(self, capsys):
+        state = cstate()
+        state._expected_heartbeats["furnace"] = {"experiment": {"some": "config"}}
+
+        state.set_hb_experiment_config("furnace", {"some": "other_config"})
+
+        captured = capsys.readouterr()
+        assert "WARNING: Replacing existing experiment configuration" in captured.out
+        assert "for instrument furnace some: config -> other_config" in captured.out
+        assert state.expected_heartbeats["furnace"]["experiment"] == {
+            "some": "other_config"
+        }
 
     def test_get_expected_heartbeat(self):
         state = cstate()

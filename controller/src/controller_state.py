@@ -334,11 +334,14 @@ class cstate:
             instrument_name: The name of the instrument for which to set the expected heartbeat.
             experiment_config: The experiment configuration for the expected heartbeat.
         """
-        if self._expected_heartbeats[instrument_name]["experiment"] != {}:
-            print(
-                f"Warning: Replacing existing experiment config for instrument {instrument_name}."
-            )
-        self._expected_heartbeats[instrument_name]["experiment"] = experiment_config
+        current_config = self._expected_heartbeats[instrument_name]["experiment"]
+        for key, value in experiment_config.items():
+            if current_config.get(key, None) is not None:
+                print(
+                    "WARNING: Replacing existing experiment configuration for "
+                    f"instrument {instrument_name} {key}: {current_config[key]} -> {value}."
+                )
+            self._expected_heartbeats[instrument_name]["experiment"][key] = value
 
     def get_expected_heartbeat(self, instrument_name: str) -> Dict[str, Any]:
         """

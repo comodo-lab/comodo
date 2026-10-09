@@ -67,6 +67,22 @@ def c_idle(client, msg, obj):
             f"Experiment {temp_id} valid. Assigned experiment id: {obj.experiment_id}"
         )
 
+        # Send live experiment config to instruments and update expected heartbeats
+        instruments_config = exp_config["config"].get("instruments", {})
+        for instrument_name in instruments_config:
+            mqtt.MQTTPublisher.get_instance().publish(
+                f"instruments/{instrument_name}/configure",
+                json.dumps(instruments_config[instrument_name]),
+            )
+            obj.set_hb_experiment_config(
+                instrument_name, instruments_config[instrument_name]
+            )
+        # Also expect experiment id
+        for instrument_name in obj.expected_heartbeats:
+            obj.set_hb_experiment_config(
+                instrument_name, {"experiment_id": obj.experiment_id}
+            )
+
         # Update state and callback of controller
         client.callback = c_starting
         mqtt.MQTTPublisher.get_instance().publish(

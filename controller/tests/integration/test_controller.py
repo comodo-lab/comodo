@@ -96,8 +96,8 @@ def test_control_loop(
         ]
     )
     messages = message_bus.get_messages()
-    # expected_messages = validate + passed + start + timer
-    expected_messages = 4
+    # expected_messages = validate + passed + start + furnace config + timer
+    expected_messages = 5
     assert len(messages) == expected_messages
     assert messages[0].topic == "controller/command/validate"
     assert messages[1].topic == "controller/validator/passed"
@@ -106,9 +106,11 @@ def test_control_loop(
         "experiment_id": "D123-456",
         "valid": True,
     }
-    assert messages[2].topic == "controller/command/start"
-    assert messages[3].topic == "controller/timer/command/start"
-    assert json.loads(messages[3].payload) == {
+    assert messages[2].topic == "instruments/furnace/configure"
+    assert json.loads(messages[2].payload) == {"offset": 273}
+    assert messages[3].topic == "controller/command/start"
+    assert messages[4].topic == "controller/timer/command/start"
+    assert json.loads(messages[4].payload) == {
         "source": "instrument_setup",
         "experiment_id": "D123-456",
     }
