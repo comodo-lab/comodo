@@ -110,12 +110,12 @@ class TestGetEnvOrSecret:
 class TestAssignSerialID:
     @pytest.fixture
     def state(self, mock_state):
-        state = mock_state("ready")
+        state = mock_state("idle")
+        state.status = "validating"
         return state
 
     def test_updates_serial_id_correctly_empty_dir(self, state, data_path):
-        assert state.experiment_id == "123"
-        assert state.status == "awaiting_instruments"
+        assert state.experiment_id == None
         assert state.exp_file == None
         current_year = str(datetime.now().year)[-2:]
 
@@ -133,8 +133,7 @@ class TestAssignSerialID:
         assert state.exp_file == f"{data_path}/{expected_uid}.json"
 
     def test_updates_serial_id_correctly_non_empty_dir(self, state, data_path):
-        assert state.experiment_id == "123"
-        assert state.status == "awaiting_instruments"
+        assert state.experiment_id == None
         assert state.exp_file == None
         current_year = str(datetime.now().year)[-2:]
 
@@ -152,8 +151,7 @@ class TestAssignSerialID:
         assert state.exp_file == f"{data_path}/{expected_uid}.json"
 
     def test_moves_file_correctly(self, state, data_path):
-        assert state.experiment_id == "123"
-        assert state.status == "awaiting_instruments"
+        assert state.experiment_id == None
 
         current_year = str(datetime.now().year)[-2:]
         d_path = f"{data_path}/D{current_year}-41.test_temp_exp.json"

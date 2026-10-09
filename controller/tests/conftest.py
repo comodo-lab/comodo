@@ -110,9 +110,13 @@ def mock_state(mock_comodo_config, mock_experiment_dict, mock_setpoints):
             return state_obj
 
         # ------------------------------- starting
+        state_obj.set_hb_experiment_config("furnace", {"experiment_id": "D123-456"})
+        state_obj.set_hb_experiment_config("pressure", {"experiment_id": "D123-456"})
+        state_obj.set_hb_experiment_config("mass_flow", {"experiment_id": "D123-456"})
+
         state_obj.experiment_start_time = datetime.now()
         state_obj.exp_config = mock_experiment_dict
-        state_obj.experiment_id = mock_experiment_dict["temp_id"]
+        state_obj.experiment_id = "D123-456"
         state_obj.status = "validating"
         state_obj._status_history = []
         if status == "starting":

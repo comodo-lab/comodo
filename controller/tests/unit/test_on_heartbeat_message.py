@@ -116,7 +116,7 @@ class TestOnHeartbeatMessage:
     def test_unconfigured_instrument(self, on_heartbeat_message_mocks):
         state = on_heartbeat_message_mocks["state"]
         heartbeat_client = on_heartbeat_message_mocks["heartbeat_client"]
-        assert state.experiment_id == "123"
+        assert state.experiment_id == "D123-456"
         assert state.status == "awaiting_instruments"
         assert "unconfigured_instrument" not in state.instrument_states
 
@@ -149,7 +149,7 @@ class TestOnHeartbeatMessage:
     def test_configured_instrument(self, on_heartbeat_message_mocks):
         state = on_heartbeat_message_mocks["state"]
         heartbeat_client = on_heartbeat_message_mocks["heartbeat_client"]
-        assert state.experiment_id == "123"
+        assert state.experiment_id == "D123-456"
         assert state.status == "awaiting_instruments"
         assert "furnace" in state.instrument_states
 
@@ -344,7 +344,7 @@ class TestHandleInstrumentHeartbeat:
         messages = handle_i_hb_mocks["messages"]()
         assert len(messages) == 1
         assert messages[0].topic == "controller/event/ready"
-        assert json.loads(messages[0].payload)["experiment_id"] == "123"
+        assert json.loads(messages[0].payload)["experiment_id"] == "D123-456"
 
 
 class TestHeartbeatValid:
@@ -411,7 +411,7 @@ class TestHeartbeatValid:
         messages = hb_valid_mocks["messages"]()
         assert len(messages) == 1
         assert messages[0].topic == "controller/command/stop"
-        assert json.loads(messages[0].payload)["experiment_id"] == "123"
+        assert json.loads(messages[0].payload)["experiment_id"] == "D123-456"
 
     def test_invalid_heartbeat(self, hb_valid_mocks, capsys):
         state = hb_valid_mocks["state"]
@@ -429,4 +429,4 @@ class TestHeartbeatValid:
         messages = hb_valid_mocks["messages"]()
         assert len(messages) == 1
         assert messages[0].topic == "controller/command/stop"
-        assert json.loads(messages[0].payload)["experiment_id"] == "123"
+        assert json.loads(messages[0].payload)["experiment_id"] == "D123-456"
