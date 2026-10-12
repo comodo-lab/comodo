@@ -57,7 +57,7 @@ def mock_load_config(firmware_env):
         "MEASUREMENT_INTERVALS": json.loads(firmware_env["MEASUREMENT_INTERVALS"])
         or {},
         "HEARTBEAT_INTERVAL": float(firmware_env["HEARTBEAT_INTERVAL"]),
-        "experiment": {"id": None},
+        "experiment": {"experiment_id": None},
     }
     return config
 
@@ -95,7 +95,7 @@ def expected_config(firmware_env, experiment=None):
     parsed here the same way config.load_config() parses them, to match the real types.
     """
     if experiment is None:
-        experiment = {"id": None}
+        experiment = {"experiment_id": None}
     config = mock_load_config(firmware_env)
     printable_config = {
         "name": config["INSTRUMENT_NAME"],

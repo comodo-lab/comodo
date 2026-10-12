@@ -129,7 +129,9 @@ class InstrumentState:
         elif msg.topic.endswith("start"):
             # Save experiment id and move to running
             try:
-                self.instrument.config["experiment"]["id"] = payload["experiment_id"]
+                self.instrument.config["experiment"]["experiment_id"] = payload[
+                    "experiment_id"
+                ]
             except KeyError:
                 print(
                     f"WARNING: Received {msg.topic} without an experiment id. Ignoring..."
@@ -167,7 +169,10 @@ class InstrumentState:
                 self.instrument.set_and_go_to_setpoint(variable, setpoint)
                 self._can_set_setpoint = True
                 if self.status == "error" and self._can_measure:
-                    if self.instrument.config["experiment"].get("id") is None:
+                    if (
+                        self.instrument.config["experiment"].get("experiment_id")
+                        is None
+                    ):
                         self.status = "awaiting_experiment"
                     else:
                         self.status = "running"
@@ -185,7 +190,7 @@ class InstrumentState:
         for variable, setpoint in self.instrument.config["DEFAULT_SETPOINTS"].items():
             self.instrument.set_and_go_to_setpoint(variable, setpoint)
         # Reset experiment id and move to awaiting_experiment
-        self.instrument.config["experiment"]["id"] = None
+        self.instrument.config["experiment"]["experiment_id"] = None
         self.status = "awaiting_experiment"
         print(
             f"Instrument {self.instrument.config['INSTRUMENT_NAME']} awaiting experiment."
@@ -196,7 +201,7 @@ class InstrumentState:
         Callback function for the mqtt client when the instrument cannot take measurements or set setpoints
         Refers to running callback.
         """
-        if self.instrument.config["experiment"].get("id") is None:
+        if self.instrument.config["experiment"].get("experiment_id") is None:
             self.awaiting_experiment_cb(_client, msg, _obj)
         else:
             self.running_cb(_client, msg, _obj)

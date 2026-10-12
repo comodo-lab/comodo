@@ -442,6 +442,14 @@ channels:
                 - running
                 - error
 
+  instrumentConfiguration:
+    address: instruments/+/configure
+    messages:
+      instrumentConfiguration:
+        payload:
+          type: object
+          additionalProperties: true
+
   instrumentSetpoint:
     address: instruments/+/+/setpoint
     messages:
