@@ -1,3 +1,4 @@
+import copy
 import json
 import pytest
 import time as t
@@ -234,3 +235,148 @@ def test_control_loop(
     stop_message = f"Experiment D123-456 finished and the controller has been reset."
     assert stop_message in capsys.readouterr().out
     assert "error" not in capsys.readouterr().out.lower()
+
+
+def test_recover_on_exceptions_while_starting(
+    message_bus,
+    state,
+    controller_client,
+    heartbeat_client,
+    mock_validate,
+    mqtt_validator_mocks,
+    mock_serial_id,
+    mock_dump,
+    mock_experiment_dict,
+):
+    assert state.status == "idle"
+
+    mock_serial_id.side_effect = Exception("Serial ID assignment failed")
+
+    message_bus.publish(
+        topic="controller/command/validate",
+        payload=json.dumps({"file": "some_file", "temp_id": "123"}),
+    )
+    t.sleep(0.1)
+
+    # Should not move on to starting the experiment
+    assert controller_client.callback.__name__ == "c_idle"
+    assert message_bus.get_messages("controller/command/start") == []
+    # Should go through error and recover to idle, rather than staying in validating
+    assert state._status_history == ["validating", "error", "idle"]
+    assert state.status == "idle"
+    state.reset.assert_called_once()
+    assert state.experiment_id is None
+
+
+def test_recover_on_exceptions_while_running(
+    message_bus,
+    state,
+    controller_client,
+    heartbeat_client,
+    mock_validate,
+    mqtt_validator_mocks,
+    mock_serial_id,
+    mock_dump,
+    mock_experiment_dict,
+):
+    assert state.status == "idle"
+
+    # Start an experiment
+    message_bus.publish(
+        topic="controller/command/validate",
+        payload=json.dumps({"file": "some_file", "temp_id": "123"}),
+    )
+    t.sleep(0.1)
+    assert state.status == "awaiting_instruments"
+    assert controller_client.callback.__name__ == "c_ready"
+
+    # A malformed setpoint (column without instrument/variable) crashes c_running
+    state.setpoints.insert(0, {"broken_column": 1, "duration": 2})
+
+    # Instruments ready, so the controller moves to running and pops the first setpoint
+    message_bus.publish(
+        topic="controller/event/ready",
+        payload=json.dumps({"experiment_id": "D123-456"}),
+    )
+    # Wait for the stop to be handled by c_stopping (which pauses for 1s)
+    t.sleep(1.5)
+
+    # Should go through error, then stop the experiment normally and recover to idle
+    assert state._status_history == [
+        "validating",
+        "starting",
+        "awaiting_instruments",
+        "ready",
+        "running",
+        "error",
+        "stopping",
+        "idle",
+    ]
+    assert state.status == "idle"
+    assert controller_client.callback.__name__ == "c_idle"
+    state.reset.assert_called_once()
+    assert state.experiment_id is None
+    # Instruments were running, so they should be told to stop
+    messages = message_bus.get_messages("controller/command/stop")
+    assert len(messages) == 1
+    assert json.loads(messages[0].payload) == {"experiment_id": "D123-456"}
+    # Experiment data should be saved as in a normal stop
+    mock_dump.assert_called_once()
+
+
+def test_recover_on_exceptions_while_stopping(
+    message_bus,
+    state,
+    controller_client,
+    heartbeat_client,
+    mock_validate,
+    mqtt_validator_mocks,
+    mock_serial_id,
+    mock_dump,
+    mock_experiment_dict,
+):
+    assert state.status == "idle"
+
+    # Start an experiment and get it running
+    message_bus.publish(
+        topic="controller/command/validate",
+        payload=json.dumps({"file": "some_file", "temp_id": "123"}),
+    )
+    t.sleep(0.1)
+    message_bus.publish(
+        topic="controller/event/ready",
+        payload=json.dumps({"experiment_id": "D123-456"}),
+    )
+    t.sleep(0.1)
+    assert state.status == "running"
+    assert controller_client.callback.__name__ == "c_running"
+
+    # Stopping fails while saving the experiment data
+    mock_dump.side_effect = Exception("Database dump failed")
+
+    # Stop requested while running, so c_running calls c_stopping directly
+    message_bus.publish(
+        topic="controller/command/stop",
+        payload=json.dumps({"experiment_id": "D123-456"}),
+    )
+    # Wait for c_stopping (which pauses for 1s)
+    t.sleep(1.5)
+
+    # Should recover once (not once per nested callback) and not retry stopping
+    assert state._status_history == [
+        "validating",
+        "starting",
+        "awaiting_instruments",
+        "ready",
+        "running",
+        "stopping",
+        "error",
+        "idle",
+    ]
+    assert state.status == "idle"
+    assert controller_client.callback.__name__ == "c_idle"
+    mock_dump.assert_called_once()
+    state.reset.assert_called_once()
+    assert state.experiment_id is None
+    # Only the requested stop, recovery should not publish another one
+    assert len(message_bus.get_messages("controller/command/stop")) == 1

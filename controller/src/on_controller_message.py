@@ -1,3 +1,4 @@
+import functools
 import json
 import time as t
 from datetime import datetime
@@ -11,6 +12,46 @@ import src.publish_error as pub_err
 import src.validation as val
 
 
+def recover_on_exception(state_callback):
+    """
+    Decorator for controller state callbacks. On an unhandled exception it moves the
+    controller to the error state, stops the instruments if the experiment had started,
+    resets it, and returns to idle, then re-raises so the generic MQTT wrapper still
+    logs and publishes the error.
+    """
+
+    @functools.wraps(state_callback)
+    def wrapper(client, msg, obj):
+        try:
+            return state_callback(client, msg, obj)
+        except Exception as e:
+            if getattr(e, "controller_recovered", False):
+                raise
+            e.controller_recovered = True
+            crashed_status = obj.status
+            experiment_id = obj.experiment_id
+            print(
+                f"Recovering controller from exception in state '{crashed_status}' during experiment '{experiment_id}'..."
+            )
+            # Publish stop signal if experiment had started and did not already try to stop normally.
+            obj.status = "error"
+            if (
+                crashed_status not in ("idle", "validating", "stopping", "error")
+                and experiment_id
+            ):
+                mqtt.MQTTPublisher.get_instance().publish(
+                    "controller/command/stop",
+                    json.dumps({"experiment_id": experiment_id}),
+                )
+            else:
+                obj.reset()
+                client.callback = c_idle
+            raise
+
+    return wrapper
+
+
+@recover_on_exception
 def c_idle(client, msg, obj):
     """
     Callback for the controller when it is idle.
@@ -23,6 +64,8 @@ def c_idle(client, msg, obj):
     Otherwise, it resets to the idle state and publishes an error.
     """
     if msg.topic != "controller/command/validate":
+        if msg.topic == "controller/command/stop":
+            return
         if msg.topic.startswith("controller/command/"):
             pub_err.incompatible_controller_status(obj, msg)
         return
@@ -95,6 +138,7 @@ def c_idle(client, msg, obj):
         obj.status = "idle"
 
 
+@recover_on_exception
 def c_starting(client, msg, obj):
     """
     Callback for the controller when a valid experiment configuration is received.
@@ -135,6 +179,7 @@ def c_starting(client, msg, obj):
     )
 
 
+@recover_on_exception
 def c_ready(client, msg, obj):
     """
     Callback for the controller when instruments respond to the configuration.
@@ -162,6 +207,7 @@ def c_ready(client, msg, obj):
     )
 
 
+@recover_on_exception
 def c_running(client, msg, obj):
     """
     Callback for the controller when the experiment is running.
@@ -219,6 +265,7 @@ def c_running(client, msg, obj):
     )
 
 
+@recover_on_exception
 def c_stopping(client, msg, obj):
     """
     Callback for the controller when the experiment is stopping.

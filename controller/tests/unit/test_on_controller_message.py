@@ -12,6 +12,7 @@ from tests.conftest import (
 )
 
 from src.on_controller_message import (
+    recover_on_exception,
     c_idle,
     c_starting,
     c_ready,
@@ -21,6 +22,102 @@ from src.on_controller_message import (
 )
 from utils.mqtt_validator import MQTTValidationException
 from src.validation import ExperimentValidationError
+
+
+class TestRecoverOnException:
+    @pytest.fixture
+    def recover_mocks(self, message_bus, mock_state, mqtt_mocks):
+        state = mock_state("idle")
+        client = MagicMock()
+        client.callback = "current_callback"
+
+        def get_decoded_bus_messages(topic=None):
+            return message_bus.get_messages(topic=topic, decoded=True)
+
+        yield {
+            "state": state,
+            "client": client,
+            "msg": MockMessage(topic="controller/command/run", payload="{}"),
+            "messages": get_decoded_bus_messages,
+        }
+
+    def set_state(self, state, status, experiment_id):
+        state.status = status
+        state.experiment_id = experiment_id
+        state._status_history = []
+
+    @staticmethod
+    @recover_on_exception
+    def crashing_callback(client, msg, obj):
+        raise RuntimeError("boom")
+
+    def test_no_exception_passes_through(self, recover_mocks):
+        @recover_on_exception
+        def ok_callback(client, msg, obj):
+            return "result"
+
+        m = recover_mocks
+        assert ok_callback(m["client"], m["msg"], m["state"]) == "result"
+        assert m["state"]._status_history == []
+        m["state"].reset.assert_not_called()
+        assert m["client"].callback == "current_callback"
+
+    def test_keeps_callback_name(self):
+        assert c_idle.__name__ == "c_idle"
+        assert c_running.__name__ == "c_running"
+
+    @pytest.mark.parametrize("status", ["idle", "validating", "stopping"])
+    def test_resets_without_stop_before_start_or_while_stopping(
+        self, recover_mocks, status
+    ):
+        m = recover_mocks
+        self.set_state(m["state"], status, "D123-456")
+
+        with pytest.raises(RuntimeError, match="boom"):
+            self.crashing_callback(m["client"], m["msg"], m["state"])
+
+        assert m["state"]._status_history == ["error", "idle"]
+        m["state"].reset.assert_called_once()
+        assert m["client"].callback == c_idle
+        assert m["messages"]("controller/command/stop") == []
+
+    @pytest.mark.parametrize(
+        "status", ["starting", "awaiting_instruments", "ready", "running"]
+    )
+    def test_publishes_stop_after_start(self, recover_mocks, status):
+        m = recover_mocks
+        self.set_state(m["state"], status, "D123-456")
+
+        with pytest.raises(RuntimeError, match="boom"):
+            self.crashing_callback(m["client"], m["msg"], m["state"])
+
+        # Stop is left to the normal stop path, so no reset here
+        assert m["state"]._status_history == ["error"]
+        m["state"].reset.assert_not_called()
+        assert m["client"].callback == "current_callback"
+        messages = m["messages"]("controller/command/stop")
+        assert len(messages) == 1
+        assert json.loads(messages[0].payload) == {"experiment_id": "D123-456"}
+
+    def test_recovers_once_when_nested(self, recover_mocks):
+        @recover_on_exception
+        def inner(client, msg, obj):
+            obj.status = "stopping"
+            raise RuntimeError("boom")
+
+        @recover_on_exception
+        def outer(client, msg, obj):
+            inner(client, msg, obj)
+
+        m = recover_mocks
+        self.set_state(m["state"], "running", "D123-456")
+
+        with pytest.raises(RuntimeError, match="boom"):
+            outer(m["client"], m["msg"], m["state"])
+
+        assert m["state"]._status_history == ["stopping", "error", "idle"]
+        m["state"].reset.assert_called_once()
+        assert m["messages"]("controller/command/stop") == []
 
 
 class TestIdle:
@@ -92,6 +189,20 @@ class TestIdle:
         idle_mocks["pub_err"].incompatible_controller_status.assert_called_once_with(
             idle_mocks["state"], msg
         )
+        idle_mocks["validate_experiment"].assert_not_called()
+        idle_mocks["serial_id"].assert_not_called()
+
+    def test_ignores_stop_command(self, idle_mocks):
+        assert idle_mocks["state"].experiment_id == None
+        assert idle_mocks["state"].status == "idle"
+        msg = MockMessage(topic="controller/command/stop", payload="not important")
+
+        c_idle(idle_mocks["controller_client"], msg, idle_mocks["state"])
+
+        assert idle_mocks["state"].experiment_id == None
+        assert idle_mocks["state"].status == "idle"
+        assert idle_mocks["controller_client"].callback == c_idle
+        idle_mocks["pub_err"].incompatible_controller_status.assert_not_called()
         idle_mocks["validate_experiment"].assert_not_called()
         idle_mocks["serial_id"].assert_not_called()
 
