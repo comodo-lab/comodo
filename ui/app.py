@@ -27,6 +27,8 @@ import meta_data_ui as md
 import saved_selector as sel
 import saved_configs as sc
 import heartbeats as hb
+import error_log as el
+import log_window as lw
 
 # Initialise publisher singleton
 id_suffix = random.randint(0, 32768)
@@ -70,6 +72,15 @@ sel.register_selector_callbacks(DEFAULTS)
 hb.start(
     config.config,
     id=f"ui-heartbeats-{id_suffix}",
+    broker_address=os.getenv("MQTT_HOST"),
+    user=os.getenv("MQTT_USER"),
+    password=os.getenv("MQTT_PASS"),
+    connection_timeout=5,
+)
+
+# Listen to errors published by any component
+el.start(
+    id=f"ui-errors-{id_suffix}",
     broker_address=os.getenv("MQTT_HOST"),
     user=os.getenv("MQTT_USER"),
     password=os.getenv("MQTT_PASS"),
@@ -179,6 +190,7 @@ def initialize_experiment_store(pathname, current_data):
 control_window = cw.get_control_panel(PARAM_DICT)
 graph_layout = gv.get_experiment_graph()
 metadata_workflow = wf.get_workflow_layout()
+log_window = lw.get_log_window()
 
 metadata_layout = md.get_metadata_layout()
 # Register metadata callbacks
@@ -220,6 +232,8 @@ def render_page(pathname, *states):
         return with_selector("config", "experiment-config-wrapper")
     elif pathname == "/workflow":
         return metadata_workflow
+    elif pathname == lw.LOG_PATH:
+        return log_window
     else:
         return html.Div("404 - Page not found")
 
@@ -247,6 +261,9 @@ def serve_layout():
             dcc.Location(id="url", refresh=False),
             dcc.Store(id="timezone-store"),
             dcc.Store(id="heartbeat-store"),
+            dcc.Store(id="error-store"),
+            # Kept per browser tab, so reloading does not show seen errors as new
+            dcc.Store(id="error-seen-store", storage_type="session"),
             *get_saved_stores(),
             html.Div(id="hidden-div", style={"display": "none"}),
             tm.get_header_bar(),
@@ -288,6 +305,12 @@ def serve_layout():
                     ),
                     dbc.NavItem(
                         dbc.NavLink("Workflow", href="/workflow", active="exact"),
+                        className="me-0",
+                    ),
+                    dbc.NavItem(
+                        dbc.NavLink(
+                            "Log", href=lw.LOG_PATH, active="exact", id="log-nav-link"
+                        ),
                         className="me-0",
                     ),
                 ],
