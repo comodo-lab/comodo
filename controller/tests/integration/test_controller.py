@@ -1,6 +1,7 @@
 import copy
 import json
 import pytest
+import threading
 import time as t
 from unittest.mock import patch
 
@@ -60,6 +61,19 @@ def mock_dump():
     with patch("src.on_controller_message.dump_database_for_experiment") as mock_dump:
         mock_dump.return_value = None
         yield mock_dump
+
+
+@pytest.fixture
+def thread_exceptions(monkeypatch):
+    """
+    Collects exceptions raised in the message bus callback threads, instead of pytest
+    reporting them as warnings, so tests can check the expected ones were raised.
+    """
+    caught = []
+    monkeypatch.setattr(
+        threading, "excepthook", lambda args: caught.append(args.exc_value)
+    )
+    return caught
 
 
 def test_control_loop(
@@ -253,6 +267,7 @@ def test_recover_on_exceptions_while_starting(
     mock_serial_id,
     mock_dump,
     mock_experiment_dict,
+    thread_exceptions,
 ):
     assert state.status == "idle"
 
@@ -272,6 +287,9 @@ def test_recover_on_exceptions_while_starting(
     assert state.status == "idle"
     state.reset.assert_called_once()
     assert state.experiment_id is None
+    # Recovery re-raises, so the generic MQTT wrapper still reports the error
+    assert len(thread_exceptions) == 1
+    assert str(thread_exceptions[0]) == "Serial ID assignment failed"
 
 
 def test_recover_on_exceptions_while_running(
@@ -284,6 +302,7 @@ def test_recover_on_exceptions_while_running(
     mock_serial_id,
     mock_dump,
     mock_experiment_dict,
+    thread_exceptions,
 ):
     assert state.status == "idle"
 
@@ -328,6 +347,9 @@ def test_recover_on_exceptions_while_running(
     assert json.loads(messages[0].payload) == {"experiment_id": "D123-456"}
     # Experiment data should be saved as in a normal stop
     mock_dump.assert_called_once()
+    # Recovery re-raises, so the generic MQTT wrapper still reports the error
+    assert len(thread_exceptions) == 1
+    assert isinstance(thread_exceptions[0], ValueError)
 
 
 def test_recover_on_exceptions_while_stopping(
@@ -340,6 +362,7 @@ def test_recover_on_exceptions_while_stopping(
     mock_serial_id,
     mock_dump,
     mock_experiment_dict,
+    thread_exceptions,
 ):
     assert state.status == "idle"
 
@@ -386,3 +409,6 @@ def test_recover_on_exceptions_while_stopping(
     assert state.experiment_id is None
     # Only the requested stop, recovery should not publish another one
     assert len(message_bus.get_messages("controller/command/stop")) == 1
+    # Re-raised once through both wrappers, so the generic MQTT wrapper still reports it
+    assert len(thread_exceptions) == 1
+    assert str(thread_exceptions[0]) == "Database dump failed"
