@@ -68,7 +68,10 @@ def heartbeat_valid(obj, heartbeat, instrument_name):
         expected["experiment"] == {}
         or heartbeat["config"].get("experiment", {}).get("experiment_id", None) is None
     ):
-        expected["experiment"] = heartbeat["config"].get("experiment", {})
+        expected = {
+            **expected,
+            "experiment": heartbeat["config"].get("experiment", {}),
+        }
 
     if heartbeat["config"] != expected:
         pub_err.invalid_instrument_config(

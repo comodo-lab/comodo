@@ -385,6 +385,25 @@ class TestHeartbeatValid:
         messages = hb_valid_mocks["messages"]()
         assert len(messages) == 0
 
+    def test_tolerating_setup_does_not_change_expected_config(self, hb_valid_mocks):
+        state = hb_valid_mocks["state"]
+        live_config = {"experiment_id": "D123-456", "temperature": {"offset": 273}}
+        expected = copy.deepcopy(hb_valid_mocks["expected_hb_config"])
+        expected["experiment"] = copy.deepcopy(live_config)
+        state.expected_heartbeats["furnace"] = expected
+
+        # Instrument has not received the experiment start yet
+        heartbeat = {"config": copy.deepcopy(hb_valid_mocks["expected_hb_config"])}
+        heartbeat["config"]["experiment"] = {"experiment_id": None}
+        assert heartbeat_valid(state, heartbeat, "furnace") == True
+        assert state.get_expected_heartbeat("furnace")["experiment"] == live_config
+
+        # Instrument now reports the experiment live config
+        heartbeat["config"]["experiment"] = copy.deepcopy(live_config)
+        assert heartbeat_valid(state, heartbeat, "furnace") == True
+        messages = hb_valid_mocks["messages"]()
+        assert len(messages) == 0
+
     def test_rejects_non_empty_experiment_live_config(self, hb_valid_mocks, capsys):
         state = hb_valid_mocks["state"]
         expected = state.get_expected_heartbeat("furnace")
