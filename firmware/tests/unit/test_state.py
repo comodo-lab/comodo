@@ -142,7 +142,7 @@ class TestInstrumentState:
 
         expected_topic = f"instruments/{mock_config['INSTRUMENT_NAME']}/heartbeat"
         expected_payload = {
-            "state": "running",
+            "state": {"status": "running"},
             "setpoints": is_mocks["setpoints"],
             "config": is_mocks["printed_config"],
         }

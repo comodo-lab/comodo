@@ -152,7 +152,9 @@ def mock_state(mock_comodo_config, mock_experiment_dict, mock_setpoints):
                 state_obj.instrument_states[instrument_name]["last_contact"] = (
                     t.time() - 1
                 )
-                state_obj.instrument_states[instrument_name]["state"] = "idle"
+                state_obj.instrument_states[instrument_name]["state"] = {
+                    "status": "idle"
+                }
                 state_obj.instrument_states[instrument_name]["setpoints"] = None
         state_obj.instrument_states = {}
         if status == "ready":

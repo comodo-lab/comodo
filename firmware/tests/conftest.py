@@ -139,14 +139,14 @@ async def wait_for_message(
         ) from e
 
 
-def heartbeat_matches(expected_state, expected_setpoints, hb_config):
+def heartbeat_matches(expected_status, expected_setpoints, hb_config):
     def matches(message):
         heartbeat = json.loads(message.payload)
-        if heartbeat["state"] != expected_state:
+        if heartbeat["state"] != {"status": expected_status}:
             return (
                 f"Wrong heartbeat: state mismatch. "
                 f"-- Received: {heartbeat['state']!r}. "
-                f"-- Expected {expected_state!r}"
+                f"-- Expected {({'status': expected_status})!r}"
             )
         if heartbeat["setpoints"] != expected_setpoints:
             return (

@@ -36,7 +36,7 @@ class TestCState:
         assert state.heartbeat() == {
             "config": {"experiment_id": None},
             "setpoints": {},
-            "state": "idle",
+            "state": {"status": "idle"},
         }
 
     def test_str(self):
@@ -44,7 +44,7 @@ class TestCState:
         state.experiment_id = "123"
         assert (
             str(state)
-            == '{"config": {"experiment_id": "123"}, "setpoints": {}, "state": "idle"}'
+            == '{"config": {"experiment_id": "123"}, "setpoints": {}, "state": {"status": "idle"}}'
         )
 
     def test_reset(self, mock_comodo_config):

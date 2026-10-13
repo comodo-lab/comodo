@@ -279,16 +279,22 @@ channels:
                 type: number
 
             state:
-              type: string
-              enum:
-                - idle
-                - validating
-                - starting
-                - awaiting_instruments
-                - ready
-                - running
-                - stopping
-                - error
+              type: object
+              additionalProperties: false
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum:
+                    - idle
+                    - validating
+                    - starting
+                    - awaiting_instruments
+                    - ready
+                    - running
+                    - stopping
+                    - error
 
   setpointControllerHeartbeat:
     address: setpoint_controllers/+/heartbeat
@@ -440,12 +446,18 @@ channels:
                 type: number
 
             state:
-              type: string
-              enum:
-                - initialising
-                - awaiting_experiment
-                - running
-                - error
+              type: object
+              additionalProperties: false
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum:
+                    - initialising
+                    - awaiting_experiment
+                    - running
+                    - error
 
   instrumentConfiguration:
     address: instruments/+/configure

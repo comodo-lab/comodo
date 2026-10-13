@@ -144,7 +144,7 @@ def test_control_loop(
     assert heartbeat_client.callback.__name__ == "on_heartbeat_message"
     for instrument in instrument_names:
         heartbeat = {
-            "state": "running",
+            "state": {"status": "running"},
             "setpoints": state.config.instruments[instrument]["default_setpoints"],
             "config": state.get_expected_heartbeat(instrument),
         }

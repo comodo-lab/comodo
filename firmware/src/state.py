@@ -92,7 +92,7 @@ class InstrumentState:
         """
         heartbeat = json.dumps(
             {
-                "state": self.status,
+                "state": {"status": self.status},
                 "setpoints": self.instrument.setpoints,
                 "config": self.instrument.print_config(),
             }

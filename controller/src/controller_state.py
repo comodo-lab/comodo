@@ -80,7 +80,7 @@ class cstate:
         return {
             "config": {"experiment_id": self.experiment_id},
             "setpoints": {},
-            "state": self.status,
+            "state": {"status": self.status},
         }
 
     def __str__(self) -> str:

@@ -205,8 +205,9 @@ def controller_state(data):
     heartbeat = (data or {}).get("heartbeats", {}).get(hb.CONTROLLER_TOPIC)
     if heartbeat is None or hb.CONTROLLER_TOPIC in data["stale"]:
         return None
-    payload = heartbeat["payload"]
-    return payload.get("state"), payload.get("config", {}).get("experiment_id")
+    state = heartbeat["payload"].get("state", {})
+    config = heartbeat["payload"].get("config", {})
+    return (state.get("status"), config.get("experiment_id"))
 
 
 def get_manual_panel(params=[]):

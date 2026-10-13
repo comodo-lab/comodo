@@ -44,12 +44,12 @@ def handle_instrument_heartbeat(obj, heartbeat, instrument_name):
     obj.instrument_states[instrument_name]["config"] = heartbeat["config"]
     if obj.status == "awaiting_instruments":
         # Assert state and config match, otherwise stop experiment
-        if heartbeat["state"] in ["initialising", "awaiting_experiment"]:
+        if heartbeat["state"]["status"] in ["initialising", "awaiting_experiment"]:
             return
         # Check if all instruments are ready and if so:
         # set the configured flag and publish ready event
         heartbeats_ready = all(
-            instrument["state"] in ["running"]
+            (instrument["state"] or {}).get("status") in ["running"]
             for instrument in obj.instrument_states.values()
         )
 
