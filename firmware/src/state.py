@@ -92,7 +92,13 @@ class InstrumentState:
         """
         heartbeat = json.dumps(
             {
-                "state": {"status": self.status},
+                "state": {
+                    "status": self.status,
+                    "measurements": {
+                        variable: self.instrument.previous_measurements.get(variable)
+                        for variable in self.instrument.config["ACTIVE_VARIABLES"]
+                    },
+                },
                 "setpoints": self.instrument.setpoints,
                 "config": self.instrument.print_config(),
             }

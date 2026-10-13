@@ -450,6 +450,7 @@ channels:
               additionalProperties: false
               required:
                 - status
+                - measurements
               properties:
                 status:
                   type: string
@@ -458,6 +459,13 @@ channels:
                     - awaiting_experiment
                     - running
                     - error
+                measurements:
+                  type: object
+                  # null until the variable is first measured
+                  additionalProperties:
+                    type:
+                      - number
+                      - "null"
 
   instrumentConfiguration:
     address: instruments/+/configure

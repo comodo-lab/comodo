@@ -137,12 +137,21 @@ class TestInstrumentState:
         mock_config = is_mocks["config"]
         istate = state.InstrumentState(mock_config)
         istate.status = "running"
+        is_mocks["instrument"].config["ACTIVE_VARIABLES"] = ["temperature", "pressure"]
+        # Pressure not measured yet, and an external sensor saved while simulating
+        is_mocks["instrument"].previous_measurements = {
+            "temperature": 120.5,
+            "mass_flow/mass_flow": 3.0,
+        }
 
         istate.publish_heartbeat()
 
         expected_topic = f"instruments/{mock_config['INSTRUMENT_NAME']}/heartbeat"
         expected_payload = {
-            "state": {"status": "running"},
+            "state": {
+                "status": "running",
+                "measurements": {"temperature": 120.5, "pressure": None},
+            },
             "setpoints": is_mocks["setpoints"],
             "config": is_mocks["printed_config"],
         }

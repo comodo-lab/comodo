@@ -142,11 +142,19 @@ async def wait_for_message(
 def heartbeat_matches(expected_status, expected_setpoints, hb_config):
     def matches(message):
         heartbeat = json.loads(message.payload)
-        if heartbeat["state"] != {"status": expected_status}:
+        if heartbeat["state"]["status"] != expected_status:
             return (
-                f"Wrong heartbeat: state mismatch. "
-                f"-- Received: {heartbeat['state']!r}. "
-                f"-- Expected {({'status': expected_status})!r}"
+                f"Wrong heartbeat: status mismatch. "
+                f"-- Received: {heartbeat['state']['status']!r}. "
+                f"-- Expected {expected_status!r}"
+            )
+        # Measurements change while simulating, so only check every variable is reported
+        measured = sorted(heartbeat["state"]["measurements"])
+        if measured != sorted(hb_config["variables"]):
+            return (
+                f"Wrong heartbeat: measurements mismatch. "
+                f"-- Received: {measured!r}. "
+                f"-- Expected {sorted(hb_config['variables'])!r}"
             )
         if heartbeat["setpoints"] != expected_setpoints:
             return (
