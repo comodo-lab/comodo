@@ -27,7 +27,7 @@ import meta_data_ui as md
 import saved_selector as sel
 import saved_configs as sc
 import heartbeats as hb
-import error_log as el
+import log_book as lb
 import log_window as lw
 
 # Initialise publisher singleton
@@ -78,8 +78,8 @@ hb.start(
     connection_timeout=5,
 )
 
-# Listen to errors published by any component
-el.start(
+# Listen to errors published by any component and experiment lifecycle messages
+lb.start(
     id=f"ui-errors-{id_suffix}",
     broker_address=os.getenv("MQTT_HOST"),
     user=os.getenv("MQTT_USER"),

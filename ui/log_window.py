@@ -2,7 +2,7 @@ from dash import html, callback, Output, Input, State
 from dash.exceptions import PreventUpdate
 import dash_ag_grid as dag
 
-import error_log as el
+import log_book as lb
 import top_matter as tm
 
 LOG_PATH = "/log"
@@ -12,10 +12,12 @@ UNSEEN_STYLE = {"backgroundColor": "var(--bs-danger)", "color": "white"}
 
 def get_log_window():
     """
-    Creates a table with the errors published by any component, newest first.
+    Creates a table with the errors published by any component and the experiment
+    lifecycle events, newest first. Errors are highlighted.
     """
     column_dicts = [
         {"headerName": "Time", "field": "time", "width": 180, "sort": "desc"},
+        {"headerName": "Type", "field": "type", "width": 100},
         {"headerName": "Source", "field": "source", "width": 180},
         {"headerName": "Code", "field": "code", "width": 200},
         {
@@ -30,8 +32,9 @@ def get_log_window():
     return html.Div(
         [
             html.P(
-                f"Errors published by the controller, instruments and other components "
-                f"since the UI started (up to the latest {el.MAX_ENTRIES}).",
+                "Errors published by the controller, instruments and other components, "
+                "and experiment start and stop messages, since the UI started "
+                f"(up to the latest {lb.MAX_ENTRIES}).",
                 className="text-muted",
             ),
             dag.AgGrid(
@@ -41,6 +44,9 @@ def get_log_window():
                 className="ag-theme-alpine",
                 defaultColDef={"resizable": True, "filter": True, "sortable": True},
                 getRowId="params.data.id",
+                rowClassRules={
+                    "text-danger fw-semibold": "params.data.type == 'error'"
+                },
                 style={"height": "75vh"},
             ),
         ]
@@ -54,9 +60,9 @@ def get_log_window():
 )
 def refresh_errors(n_intervals, current):
     """
-    Copies the errors received over MQTT to the browser, only when a new one has arrived.
+    Copies the log received over MQTT to the browser, only when a new entry has arrived.
     """
-    data = el.snapshot()
+    data = lb.snapshot()
     if current and data["counter"] == current["counter"]:
         raise PreventUpdate
     return data
@@ -74,6 +80,7 @@ def update_error_log(data, timezone):
         {
             "id": str(entry["id"]),
             "time": tm.format_time(entry["received"], timezone),
+            "type": entry["type"],
             "source": entry["source"],
             "code": entry["code"],
             "message": entry["message"],
@@ -92,9 +99,9 @@ def mark_errors_seen(pathname, data, seen):
     """
     Marks all errors as seen while the log page is open.
     """
-    if pathname != LOG_PATH or not data or data["counter"] == seen:
+    if pathname != LOG_PATH or not data or data["errors"] == seen:
         raise PreventUpdate
-    return data["counter"]
+    return data["errors"]
 
 
 @callback(
@@ -107,12 +114,12 @@ def update_log_tab(data, seen):
     """
     Highlights the log tab with the number of errors not yet seen in the log page.
     """
-    counter = data["counter"] if data else 0
+    errors = data["errors"] if data else 0
     seen = seen or 0
     # The UI restarted since the errors were last seen, so its counter started again
-    if seen > counter:
+    if seen > errors:
         seen = 0
-    unseen = counter - seen
+    unseen = errors - seen
     if unseen <= 0:
         return "Log", {}
     return f"Log ({unseen} new error{'s' if unseen > 1 else ''})", UNSEEN_STYLE
