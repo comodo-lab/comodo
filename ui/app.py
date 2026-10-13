@@ -19,7 +19,7 @@ app = Dash(
 import top_matter as tm
 import main_window as mw
 import control_window as cw
-import instrument_setup as ss
+import instrument_setup as ins
 import graph_view as gv
 import experiment_config as ec
 import workflow_ui as wf
@@ -129,7 +129,7 @@ def initialize_experiment_store(pathname, current_data):
 
 
 def get_instrument_window(row_data):
-    instrument_layout = ss.get_instrument_setup(data=row_data)
+    instrument_layout = ins.get_instrument_setup(data=row_data)
     return instrument_layout
 
 

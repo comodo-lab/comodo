@@ -31,6 +31,7 @@ from utils.mqtt_clients import MQTTPublisher
 from utils.influx_query import query_influxdb_params
 import saved_configs as sc
 import heartbeats as hb
+import instrument_setup as ins
 
 # Seconds to wait for the controller state to change after a click, before giving up
 CLICK_TIMEOUT = 5
@@ -93,6 +94,16 @@ def start_or_stop_experiment(n_clicks, experiment_id, heartbeats, *start_states)
 def start_experiment(
     table_data, instruments, exp_config, exp_meta, inst_meta, config_meta
 ):
+    # Group the instrument setup rows into the live config of each instrument
+    try:
+        instruments_config = ins.to_instrument_config(instruments)
+    except ValueError as e:
+        print(f"Invalid instrument setup: {e}")
+        MQTTPublisher.get_instance().publish(
+            "error/ui", json.dumps({"code": "instrument_setup", "message": str(e)})
+        )
+        return None, no_update, no_update, no_update
+
     # Save any unsaved changes, so the run can link to the versions used
     files = {}
     metas = {}
@@ -122,7 +133,7 @@ def start_experiment(
     ]
     experiment_config = {
         "temp_id": temp_id,
-        "config": {"resolution": resolution, "instruments": instruments},
+        "config": {"resolution": resolution, "instruments": instruments_config},
         "experiment_definition": experiment_definition,
     }
     json_data = json.dumps(experiment_config).encode("utf-8")
@@ -288,19 +299,15 @@ def get_control_component(param_name=None, min_val=0, max_val=100, step=1):
     Output({"type": "control-slider", "index": MATCH}, "value"),
     # Output("control-last-update", "children"),
     Input("interval", "n_intervals"),
-    State("instrument-store", "data"),
     State({"type": "control-slider", "index": MATCH}, "id"),
     State("timezone-store", "data"),
 )
-def update_control_component(n_intervals, instruments, slider_id, timezone):
+def update_control_component(n_intervals, slider_id, timezone):
     """
     Updates the control component based on the selected parameter.
     """
     # Extract the parameter name from the slider's id
     param_name = slider_id["index"]
-
-    # Find the corresponding instrument data
-    instrument = next((s for s in instruments if s["name"] == param_name), None)
 
     try:
         user_tz = pytz.timezone(timezone)
@@ -308,9 +315,6 @@ def update_control_component(n_intervals, instruments, slider_id, timezone):
     except Exception as e:
         print(f"Error getting current time: {e}")
         time = "N/A"
-
-    if not instrument:
-        return no_update, no_update  # , time
 
     # Query setpoint and actual value for the parameter
     try:

@@ -227,3 +227,28 @@ class TestValidateExperiment:
         ]
 
         assert result == json.loads(ve_mocks["experiment"])
+
+    def test_valid_instruments_live_config(self, ve_mocks):
+        experiment = json.loads(ve_mocks["experiment"])
+        experiment["config"]["instruments"] = {"I_A": {"offset": 273}}
+        ve_mocks["open"].return_value.__enter__.return_value.read.return_value = (
+            json.dumps(experiment)
+        )
+        ve_mocks["config"].instruments = {"I_A": {}, "I_B": {}}
+
+        result = validate_experiment("/fake/path", ve_mocks["config"])
+
+        assert result["config"]["instruments"] == {"I_A": {"offset": 273}}
+
+    def test_raises_on_unknown_instrument_live_config(self, ve_mocks):
+        experiment = json.loads(ve_mocks["experiment"])
+        experiment["config"]["instruments"] = {"I_C": {"offset": 273}}
+        ve_mocks["open"].return_value.__enter__.return_value.read.return_value = (
+            json.dumps(experiment)
+        )
+        ve_mocks["config"].instruments = {"I_A": {}, "I_B": {}}
+
+        with pytest.raises(ExperimentValidationError) as e:
+            validate_experiment("/fake/path", ve_mocks["config"])
+
+        assert "Live config for unknown instrument 'I_C'" in str(e.value)

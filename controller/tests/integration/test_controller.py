@@ -97,8 +97,8 @@ def test_control_loop(
         ]
     )
     messages = message_bus.get_messages()
-    # expected_messages = validate + passed + start + furnace config + timer
-    expected_messages = 5
+    # expected_messages = validate + passed + start + 3 * instrument config + timer
+    expected_messages = 7
     assert len(messages) == expected_messages
     assert messages[0].topic == "controller/command/validate"
     assert messages[1].topic == "controller/validator/passed"
@@ -108,10 +108,16 @@ def test_control_loop(
         "valid": True,
     }
     assert messages[2].topic == "instruments/furnace/configure"
-    assert json.loads(messages[2].payload) == {"offset": 273}
-    assert messages[3].topic == "controller/command/start"
-    assert messages[4].topic == "controller/timer/command/start"
-    assert json.loads(messages[4].payload) == {
+    assert json.loads(messages[2].payload) == {
+        "temperature": {"tolerance": 1, "offset": 273}
+    }
+    assert messages[3].topic == "instruments/pressure/configure"
+    assert json.loads(messages[3].payload) == {"pressure": {"tolerance": 0.5}}
+    assert messages[4].topic == "instruments/mass_flow/configure"
+    assert json.loads(messages[4].payload) == {"mass_flow": {"tolerance": 1}}
+    assert messages[5].topic == "controller/command/start"
+    assert messages[6].topic == "controller/timer/command/start"
+    assert json.loads(messages[6].payload) == {
         "source": "instrument_setup",
         "experiment_id": "D123-456",
     }

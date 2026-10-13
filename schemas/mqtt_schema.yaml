@@ -35,6 +35,11 @@ channels:
             config:
               type: object
               additionalProperties: true
+              properties:
+                instruments:
+                  type: object
+                  additionalProperties:
+                    type: object
             experiment_definition:
               type: array
               items:

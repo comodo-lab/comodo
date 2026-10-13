@@ -80,6 +80,15 @@ def validate_experiment(file_path, config):
         raise ExperimentValidationError(f"Experiment row validation failed: {e}")
 
     # --------------------------------------------------------------------------
+    # Check the live config is for instruments in comodo.yaml
+
+    for instrument_name in experiment_dict["config"].get("instruments", {}):
+        if instrument_name not in config.instruments:
+            raise ExperimentValidationError(
+                f"Live config for unknown instrument '{instrument_name}'."
+            )
+
+    # --------------------------------------------------------------------------
     # Return validated dict
 
     return experiment_dict
