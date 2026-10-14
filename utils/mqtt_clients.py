@@ -1,4 +1,4 @@
-from typing import Any, Callable, Optional, List, Union
+from typing import Any, Callable, Optional, Union
 import paho.mqtt.client as mqtt
 from datetime import datetime
 import json
@@ -159,7 +159,7 @@ class MQTTClient:
         self,
         id: str = "client",
         callback: Callable = on_client_message,
-        topics: Union[str, List[str]] = "#",
+        topics: Union[str, list[str]] = "#",
         broker_address: str = "localhost",
         port: int = 1883,
         user: Optional[str] = None,

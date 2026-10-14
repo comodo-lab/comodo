@@ -4,7 +4,6 @@ import pytest
 
 import json
 import threading
-from typing import Dict
 from unittest.mock import patch, MagicMock
 from paho.mqtt.client import topic_matches_sub
 
@@ -40,7 +39,7 @@ class InMemoryMessageBus:
     """
 
     def __init__(self):
-        self.subscribers: Dict[str, list] = {}  # pattern -> list of callbacks
+        self.subscribers: dict[str, list] = {}  # pattern -> list of callbacks
         self.lock = threading.Lock()
         self.message_history: list[MockMessage] = []
 

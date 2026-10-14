@@ -1,5 +1,4 @@
-import json
-from typing import Dict, Any, List, Set
+from typing import Any
 from datetime import datetime
 
 from utils.comodo_config import ComodoConfig
@@ -44,12 +43,12 @@ class cstate:
         self.experiment_id: str = None
         self.exp_file: str = None
         self.status: str = "idle"
-        self.exp_config: Dict[str, Any] = None
-        self.setpoints: List[Dict[str, Any]] = []
-        self.current_setpoint: Dict[str, Any] = None
-        self.past_setpoints: List[Dict[str, Any]] = []
-        self.instrument_states: Dict[str, Any] = {}
-        self.expected_heartbeats: Dict[str, Any] = {}
+        self.exp_config: dict[str, Any] = None
+        self.setpoints: list[dict[str, Any]] = []
+        self.current_setpoint: dict[str, Any] = None
+        self.past_setpoints: list[dict[str, Any]] = []
+        self.instrument_states: dict[str, Any] = {}
+        self.expected_heartbeats: dict[str, Any] = {}
         self.instruments_ready: bool = False
         self.config: ComodoConfig = None
 
@@ -73,7 +72,7 @@ class cstate:
             )
         self._config = value
 
-    def heartbeat(self) -> Dict[str, Any]:
+    def heartbeat(self) -> dict[str, Any]:
         """
         Generates a dictionary with the attributes that will get added to the heartbeat mqtt messages.
         """
@@ -184,11 +183,11 @@ class cstate:
         self._status = value
 
     @property
-    def exp_config(self) -> Dict[str, Any]:
+    def exp_config(self) -> dict[str, Any]:
         return self._exp_config
 
     @exp_config.setter
-    def exp_config(self, value: Dict[str, Any]) -> None:
+    def exp_config(self, value: dict[str, Any]) -> None:
         """
         Sets the experiment configuration.
 
@@ -205,11 +204,11 @@ class cstate:
         self._exp_config = value
 
     @property
-    def setpoints(self) -> List[Dict[str, Any]]:
+    def setpoints(self) -> list[dict[str, Any]]:
         return self._setpoints
 
     @setpoints.setter
-    def setpoints(self, value: List[Dict[str, Any]]) -> None:
+    def setpoints(self, value: list[dict[str, Any]]) -> None:
         """
         Sets the setpoints list.
 
@@ -226,11 +225,11 @@ class cstate:
         self._setpoints = value
 
     @property
-    def current_setpoint(self) -> Dict[str, Any]:
+    def current_setpoint(self) -> dict[str, Any]:
         return self._current_setpoint
 
     @current_setpoint.setter
-    def current_setpoint(self, value: Dict[str, Any]) -> None:
+    def current_setpoint(self, value: dict[str, Any]) -> None:
         """
         Sets the current setpoint.
 
@@ -247,11 +246,11 @@ class cstate:
         self._current_setpoint = value
 
     @property
-    def past_setpoints(self) -> List[Dict[str, Any]]:
+    def past_setpoints(self) -> list[dict[str, Any]]:
         return self._past_setpoints
 
     @past_setpoints.setter
-    def past_setpoints(self, value: List[Dict[str, Any]]) -> None:
+    def past_setpoints(self, value: list[dict[str, Any]]) -> None:
         """
         Sets the past setpoints list.
 
@@ -268,11 +267,11 @@ class cstate:
         self._past_setpoints = value
 
     @property
-    def instrument_states(self) -> Dict[str, Any]:
+    def instrument_states(self) -> dict[str, Any]:
         return self._instrument_states
 
     @instrument_states.setter
-    def instrument_states(self, value: Dict[str, Any]) -> None:
+    def instrument_states(self, value: dict[str, Any]) -> None:
         """
         Sets the instrument states dictionary.
 
@@ -289,11 +288,11 @@ class cstate:
         self._instrument_states = value
 
     @property
-    def expected_heartbeats(self) -> Dict[str, Any]:
+    def expected_heartbeats(self) -> dict[str, Any]:
         return self._expected_heartbeats
 
     @expected_heartbeats.setter
-    def expected_heartbeats(self, value: Dict[str, Any]) -> None:
+    def expected_heartbeats(self, value: dict[str, Any]) -> None:
         """
         Sets the expected heartbeats dictionary.
 
@@ -337,7 +336,7 @@ class cstate:
                 )
             self._expected_heartbeats[instrument_name]["experiment"][key] = value
 
-    def get_expected_heartbeat(self, instrument_name: str) -> Dict[str, Any]:
+    def get_expected_heartbeat(self, instrument_name: str) -> dict[str, Any]:
         """
         Retrieves the expected heartbeat configuration for a specific instrument.
 
