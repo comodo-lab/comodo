@@ -144,7 +144,7 @@ def main():
     else:
         print(f"Controller failed to start. watchdog unhealthy.")
     while wdog_state["healthy"]:
-        controller.publish("controller/heartbeat", f"{state}")
+        controller.publish("controller/heartbeat", json.dumps(state.heartbeat()))
         t.sleep(config.globals["heartbeat_interval"])
 
     print(f"Exiting...")

@@ -39,14 +39,6 @@ class TestCState:
             "state": {"status": "idle"},
         }
 
-    def test_str(self):
-        state = cstate()
-        state.experiment_id = "123"
-        assert (
-            str(state)
-            == '{"config": {"experiment_id": "123"}, "setpoints": {}, "state": {"status": "idle"}}'
-        )
-
     def test_reset(self, mock_comodo_config):
         state = cstate()
         state._experiment_start_time = datetime.now()

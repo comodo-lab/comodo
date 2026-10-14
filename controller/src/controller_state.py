@@ -83,12 +83,6 @@ class cstate:
             "state": {"status": self.status},
         }
 
-    def __str__(self) -> str:
-        """
-        Returns the string representation (heartbeat) of the cstate object.
-        """
-        return json.dumps(self.heartbeat())
-
     def reset(self) -> None:
         """
         Resets the state of the controller to its initial values.

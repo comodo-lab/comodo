@@ -52,6 +52,13 @@ def mock_state(mock_comodo_config, mock_experiment_dict, mock_setpoints):
 
         # Mock the config object
         state_obj.config = mock_comodo_config
+        state_obj.heartbeat = MagicMock(
+            return_value={
+                "config": {"experiment_id": None},
+                "setpoints": {},
+                "state": {"status": "idle"},
+            }
+        )
 
         # Use PropertyMock to track status changes
         def track_status(self, value):

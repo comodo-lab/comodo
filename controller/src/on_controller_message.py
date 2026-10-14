@@ -244,7 +244,6 @@ def c_running(client, msg, obj):
     next_setpoint = obj.setpoints.pop(0)
     obj.current_setpoint = next_setpoint
     print(f"Next setpoint: {next_setpoint}")
-    duration = next_setpoint.get("duration")
     for column_name, value in next_setpoint.items():
         if column_name == "duration":
             continue
