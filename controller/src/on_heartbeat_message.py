@@ -63,17 +63,10 @@ def handle_instrument_heartbeat(obj, heartbeat, instrument_name):
 
 def heartbeat_valid(obj, heartbeat, instrument_name):
     expected = obj.get_expected_heartbeat(instrument_name)
-    # Tolerate experiment config miss-match if either is empty (allows for setting up periods)
-    if (
-        expected["experiment"] == {}
-        or heartbeat["config"].get("experiment", {}).get("experiment_id", None) is None
-    ):
-        expected = {
-            **expected,
-            "experiment": heartbeat["config"].get("experiment", {}),
-        }
-
     if heartbeat["config"] != expected:
+        # Tolerate experiment config miss-match if in a settling status
+        if obj.status in ["awaiting_instruments", "stopping", "error"]:
+            return False
         pub_err.invalid_instrument_config(
             instrument_name, expected, heartbeat["config"]
         )

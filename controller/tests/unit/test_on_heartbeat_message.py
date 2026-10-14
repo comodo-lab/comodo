@@ -372,74 +372,34 @@ class TestHeartbeatValid:
         messages = hb_valid_mocks["messages"]()
         assert len(messages) == 0
 
-    def test_accepts_any_experiment_live_config_if_empty(self, hb_valid_mocks):
+    def test_invalid_heartbeat_settling_does_not_raise(self, hb_valid_mocks, capsys):
         state = hb_valid_mocks["state"]
-        assert state.get_expected_heartbeat("furnace")["experiment"] == {}
+        state.status = "awaiting_instruments"
+        state.get_expected_heartbeat("furnace")["experiment"] = {
+            "experiment_id": "D123-456",
+            "temperature": {"offset": 273},
+        }
         heartbeat = {"config": copy.deepcopy(hb_valid_mocks["expected_hb_config"])}
         heartbeat["config"]["experiment"] = {
-            "experiment_id": "some_id",
-            "calibration": {"random": "stuff"},
-        }
-        res = heartbeat_valid(state, heartbeat, "furnace")
-        assert res == True
-        messages = hb_valid_mocks["messages"]()
-        assert len(messages) == 0
-
-    def test_tolerating_setup_does_not_change_expected_config(self, hb_valid_mocks):
-        state = hb_valid_mocks["state"]
-        live_config = {"experiment_id": "D123-456", "temperature": {"offset": 273}}
-        expected = copy.deepcopy(hb_valid_mocks["expected_hb_config"])
-        expected["experiment"] = copy.deepcopy(live_config)
-        state.expected_heartbeats["furnace"] = expected
-
-        # Instrument has not received the experiment start yet
-        heartbeat = {"config": copy.deepcopy(hb_valid_mocks["expected_hb_config"])}
-        heartbeat["config"]["experiment"] = {"experiment_id": None}
-        assert heartbeat_valid(state, heartbeat, "furnace") == True
-        assert state.get_expected_heartbeat("furnace")["experiment"] == live_config
-
-        # Instrument now reports the experiment live config
-        heartbeat["config"]["experiment"] = copy.deepcopy(live_config)
-        assert heartbeat_valid(state, heartbeat, "furnace") == True
-        messages = hb_valid_mocks["messages"]()
-        assert len(messages) == 0
-
-    def test_rejects_non_empty_experiment_live_config(self, hb_valid_mocks, capsys):
-        state = hb_valid_mocks["state"]
-        expected = state.get_expected_heartbeat("furnace")
-        expected["experiment"] = {
-            "experiment_id": "an_id",
-            "calibration": {"some": "things"},
-        }
-        state.expected_heartbeats["furnace"] = expected
-        assert state.get_expected_heartbeat("furnace")["experiment"] != {}
-        heartbeat = {"config": copy.deepcopy(hb_valid_mocks["expected_hb_config"])}
-        heartbeat["config"]["experiment"] = {
-            "experiment_id": "some_id",
-            "calibration": {"random": "stuff"},
+            "experiment_id": "X456-789",
         }
 
         res = heartbeat_valid(state, heartbeat, "furnace")
 
         assert res == False
-        hb_valid_mocks["pub_err"].invalid_instrument_config.assert_called_once_with(
-            "furnace",
-            hb_valid_mocks["expected_hb_config"],
-            heartbeat["config"],
-        )
         captured = capsys.readouterr()
-        assert "Stopping experiment..." in captured.out
+        assert captured.out == ""
         messages = hb_valid_mocks["messages"]()
-        assert len(messages) == 1
-        assert messages[0].topic == "controller/command/stop"
-        assert json.loads(messages[0].payload)["experiment_id"] == "D123-456"
+        assert len(messages) == 0
 
-    def test_invalid_heartbeat(self, hb_valid_mocks, capsys):
+    def test_invalid_heartbeat_not_settling_raises(self, hb_valid_mocks, capsys):
         state = hb_valid_mocks["state"]
+        state.status = "running"
         heartbeat = {"config": {"some": "nonsense"}}
-        res = heartbeat_valid(state, heartbeat, "furnace")
-        assert res == False
 
+        res = heartbeat_valid(state, heartbeat, "furnace")
+
+        assert res == False
         hb_valid_mocks["pub_err"].invalid_instrument_config.assert_called_once_with(
             "furnace",
             hb_valid_mocks["expected_hb_config"],
