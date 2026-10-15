@@ -45,6 +45,9 @@ class TestInit:
             "watchdog_interval": None,
             "watchdog_timeout": None,
             "instrument_setup_wait": None,
+            "max_missed_heartbeats": None,
+            "bad_state_tolerance": None,
+            "missed_setpoint_tolerance": None,
         }
         assert config.instruments == {}
         assert config.sensors == {}
@@ -60,6 +63,9 @@ class TestInit:
             "watchdog_interval": None,
             "watchdog_timeout": None,
             "instrument_setup_wait": None,
+            "max_missed_heartbeats": None,
+            "bad_state_tolerance": None,
+            "missed_setpoint_tolerance": None,
         }
         assert config.instruments == {}
         assert config.sensors == {}
@@ -141,6 +147,9 @@ class TestPopulateGlobals:
                 "global.watchdog.interval",
                 "global.watchdog.timeout",
                 "global.instrument_setup.wait",
+                "global.max_missed_heartbeats",
+                "global.bad_state_tolerance",
+                "global.missed_setpoint_tolerance",
             ],
         )
         assert f"Missing {missing} in configuration" in str(e.value)
@@ -180,6 +189,9 @@ class TestPopulateGlobals:
             "watchdog_interval": 1,
             "watchdog_timeout": 5,
             "instrument_setup_wait": 10,
+            "max_missed_heartbeats": 3,
+            "bad_state_tolerance": 7,
+            "missed_setpoint_tolerance": 7,
         }
 
 

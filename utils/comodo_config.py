@@ -45,6 +45,9 @@ class ComodoConfig:
             "watchdog_interval": None,
             "watchdog_timeout": None,
             "instrument_setup_wait": None,
+            "max_missed_heartbeats": None,
+            "bad_state_tolerance": None,
+            "missed_setpoint_tolerance": None,
         }
 
         # Instruments and their variables
@@ -82,6 +85,9 @@ class ComodoConfig:
             "global.watchdog.interval",
             "global.watchdog.timeout",
             "global.instrument_setup.wait",
+            "global.experiment_monitoring.max_missed_heartbeats",
+            "global.experiment_monitoring.bad_state_tolerance",
+            "global.experiment_monitoring.missed_setpoint_tolerance",
         ]
         missing_params = find_missing_params(self.raw, req_params)
         if missing_params:
@@ -93,6 +99,10 @@ class ComodoConfig:
         self.globals["watchdog_interval"] = glob["watchdog"]["interval"]
         self.globals["watchdog_timeout"] = glob["watchdog"]["timeout"]
         self.globals["instrument_setup_wait"] = glob["instrument_setup"]["wait"]
+        exp_mon = glob["experiment_monitoring"]
+        self.globals["max_missed_heartbeats"] = exp_mon["max_missed_heartbeats"]
+        self.globals["bad_state_tolerance"] = exp_mon["bad_state_tolerance"]
+        self.globals["missed_setpoint_tolerance"] = exp_mon["missed_setpoint_tolerance"]
 
         # Check that all global parameters are positive numbers
         for key, value in self.globals.items():

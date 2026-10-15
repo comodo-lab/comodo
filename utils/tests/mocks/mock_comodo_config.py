@@ -18,6 +18,9 @@ def mock_comodo_config(mock_comodo_yaml_dict):
         "watchdog_interval": 1,
         "watchdog_timeout": 5,
         "instrument_setup_wait": 10,
+        "max_missed_heartbeats": 3,
+        "bad_state_tolerance": 7,
+        "missed_setpoint_tolerance": 7,
     }
 
     mock_config.instruments = {
