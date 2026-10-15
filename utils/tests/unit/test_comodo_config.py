@@ -602,6 +602,7 @@ class TestGetExpectedHeartbeat:
         config_with_insts = ComodoConfig()
         config_with_insts.globals = mock_comodo_config.globals
         config_with_insts.instruments = mock_comodo_config.instruments
+        config_with_insts.spcs = mock_comodo_config.spcs
 
         yield {
             "config_with_insts": config_with_insts,
@@ -617,6 +618,25 @@ class TestGetExpectedHeartbeat:
             "Instrument 'non_existent_instrument' not found in configuration."
             in str(e.value)
         )
+
+    def test_external_actuators(self, mocks_for_gehb):
+        config = mocks_for_gehb["config_with_insts"]
+
+        heartbeat = config.get_expected_heartbeat("pressure")
+
+        assert heartbeat == {
+            "name": "pressure",
+            "firmware": "pfeiffer.mpt200",
+            "address": "/dev/ttyUSB0",
+            "simulate": True,
+            "variables": ["pressure"],
+            "default_setpoints": {"pressure": 1},
+            "external_actuators": {"pressure": "mass_flow/mass_flow"},
+            "safe_stop_setpoints": {},
+            "measurement_intervals": {"pressure": 1},
+            "heartbeat_interval": 1,
+            "experiment": {},
+        }
 
     def test_full_comodo_yaml(self, mocks_for_gehb):
         config = mocks_for_gehb["config_with_insts"]
