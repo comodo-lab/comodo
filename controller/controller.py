@@ -145,6 +145,12 @@ def main():
         print(f"Controller failed to start. watchdog unhealthy.")
     while wdog_state["healthy"]:
         controller.publish("controller/heartbeat", json.dumps(state.heartbeat()))
+        if state.status == "error":
+            print("Controller in error state. Stopping...")
+            publisher.client.publish(
+                "controller/command/stop",
+                json.dumps({"experiment_id": state.experiment_id}),
+            )
         t.sleep(config.globals["heartbeat_interval"])
 
     print(f"Exiting...")

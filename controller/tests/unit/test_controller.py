@@ -274,6 +274,55 @@ class TestMain:
         assert "Controller started successfully." in captured.out
         assert "Exiting..." not in captured.out
 
+    def test_watchdog_loop_stops_experiment_if_controller_in_error(
+        self, main_mocks, mqtt_mocks, message_bus, capsys
+    ):
+        mocks = main_mocks
+        mocks["loaded_config"].globals = {
+            "heartbeat_interval": 2,
+            "watchdog_interval": 1,
+            "watchdog_timeout": 6,
+        }
+
+        def wd_timer_side_effect(client, msg, obj):
+            obj["healthy"] = True
+
+        mocks["callbacks"]["on_wd_timer_message"].side_effect = wd_timer_side_effect
+        state = mocks["cstate"].return_value
+        state_status_list = iter(["running", "error", "running"])
+
+        def sleep_side_effect(seconds):
+            try:
+                state.status = next(state_status_list)
+            except StopIteration:
+                raise SystemExit
+
+        mocks["sleep"].side_effect = sleep_side_effect
+
+        with pytest.raises(SystemExit):
+            main()
+
+        assert mocks["sleep"].call_args_list == [
+            call(1),  # Before wd starts
+            call(2),  # First loop
+            call(2),  # Second loop
+            call(2),  # Third loop
+            # SystemExit called here
+        ]
+        messages = message_bus.get_messages(decoded=True)
+        assert len(messages) == 5
+        assert messages[0].topic == "watchdog/timer/command/start"
+        assert json.loads(messages[0].payload) == {}
+        assert messages[1].topic == "controller/heartbeat"
+        assert messages[2].topic == "controller/heartbeat"
+        assert messages[3].topic == "controller/command/stop"
+        assert messages[4].topic == "controller/heartbeat"
+        captured = capsys.readouterr()
+        assert "Creating clients..." in captured.out
+        assert "Controller started successfully." in captured.out
+        assert "Controller in error state. Stopping..." in captured.out
+        assert "Exiting..." not in captured.out
+
     def test_watchdog_loop_exits_on_unhealthy(
         self, main_mocks, mqtt_mocks, message_bus, capsys
     ):
