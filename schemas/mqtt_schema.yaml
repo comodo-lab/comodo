@@ -295,6 +295,16 @@ channels:
                     - running
                     - stopping
                     - error
+                variables:
+                  type: object
+                  additionalProperties:
+                    type: string
+                    enum:
+                    - no_heartbeat
+                    - setpoint_mismatch
+                    - no_measurement
+                    - at_setpoint
+                    - adjusting
 
   setpointControllerHeartbeat:
     address: setpoint_controllers/+/heartbeat

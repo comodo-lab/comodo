@@ -1,7 +1,11 @@
+import copy
 from typing import Any
 from datetime import datetime
+import time as t
 
 from utils.comodo_config import ComodoConfig
+
+import src.publish_error as pub_err
 
 
 class cstate:
@@ -33,6 +37,8 @@ class cstate:
         "_config",
         "_expected_heartbeats",
         "_instruments_ready",
+        "_no_contact_tolerance",
+        "_adjusting_tolerance",
     ]
 
     def __init__(self) -> None:
@@ -51,6 +57,8 @@ class cstate:
         self.expected_heartbeats: dict[str, Any] = {}
         self.instruments_ready: bool = False
         self.config: ComodoConfig = None
+        self._no_contact_tolerance: float = None
+        self._adjusting_tolerance: float = None
 
     @property
     def config(self) -> ComodoConfig | None:
@@ -71,15 +79,25 @@ class cstate:
                 f"Config must be an instance of ComodoConfig or None, got {type(value).__name__}"
             )
         self._config = value
+        if value is not None:
+            self._no_contact_tolerance = (
+                value.globals["max_missed_heartbeats"]
+                * value.globals["heartbeat_interval"]
+            )
 
     def heartbeat(self) -> dict[str, Any]:
         """
         Generates a dictionary with the attributes that will get added to the heartbeat mqtt messages.
         """
+        variable_eval = self.evaluate_variables()
+        self.update_bad_instrument_counts(variable_eval)
         return {
             "config": {"experiment_id": self.experiment_id},
-            "setpoints": {},
-            "state": {"status": self.status},
+            "setpoints": variable_eval["setpoints"],
+            "state": {
+                "status": self.status,
+                "variables": variable_eval["status"],
+            },
         }
 
     def reset(self) -> None:
@@ -97,6 +115,7 @@ class cstate:
         self.instrument_states = {}
         self.reset_expected_heartbeats()
         self.instruments_ready = False
+        self._adjusting_tolerance = None
 
     @property
     def experiment_start_time(self) -> datetime:
@@ -202,6 +221,12 @@ class cstate:
                 f"Experiment configuration must be a dictionary or None, cannot accept {type(value)}."
             )
         self._exp_config = value
+        if value is not None and self.config is not None:
+            self._adjusting_tolerance = (
+                self.config.globals["missed_setpoint_tolerance"]
+                * value["config"]["resolution"]
+                / self.config.globals["heartbeat_interval"]
+            )
 
     @property
     def setpoints(self) -> list[dict[str, Any]]:
@@ -368,3 +393,117 @@ class cstate:
                 f"Instruments ready flag must be a boolean, cannot accept {type(value)}."
             )
         self._instruments_ready = value
+
+    def evaluate_variables(self) -> dict[str, Any]:
+        """
+        Evaluates whether instruments are at the expected setpoints and returns a summary.
+
+        Returns:
+            A dictionary containing the setpoints used in the evaluation and the instrument evaluation.
+        """
+        if not self.current_setpoint:
+            return {"setpoints": {}, "status": {}}
+        t_now = t.time()
+        current_setpoints = {
+            k: v for k, v in self.current_setpoint.items() if k != "duration"
+        }
+        ins_states = copy.deepcopy(self.instrument_states)
+        inst_measurements = {
+            f"{inst}/{var}": ins_states[inst]["state"]["measurements"][var]
+            for inst in ins_states
+            for var in ins_states[inst]["state"]["measurements"]
+        }
+        inst_setpoints = {
+            f"{inst}/{var}": ins_states[inst]["setpoints"][var]
+            for inst in ins_states
+            for var in ins_states[inst]["setpoints"]
+        }
+
+        variable_evaluation = {}
+        for variable, setpoint in current_setpoints.items():
+            inst, var = variable.split("/")
+            if t_now - ins_states[inst]["last_contact"] > self._no_contact_tolerance:
+                variable_evaluation[variable] = "no_heartbeat"
+            elif setpoint != inst_setpoints.get(variable, None):
+                variable_evaluation[variable] = "setpoint_mismatch"
+            elif inst_measurements.get(variable, None) is None:
+                variable_evaluation[variable] = "no_measurement"
+            else:
+
+                if (
+                    abs(setpoint - inst_measurements[variable])
+                    <= self.exp_config["config"]["instruments"][inst][var]["tolerance"]
+                ):
+                    variable_evaluation[variable] = "at_setpoint"
+                else:
+                    variable_evaluation[variable] = "adjusting"
+        return {
+            "setpoints": current_setpoints,
+            "status": variable_evaluation,
+        }
+
+    def update_bad_instrument_counts(self, variable_evaluation: dict) -> None:
+        """
+        Updates the bad instrument count based on the variable evaluation,
+        and compares it to the bad instrument tolerance.
+        If any instrument exceeds the tolerance, the controller status is set to "error".
+        """
+        if variable_evaluation.get("status", {}) == {}:
+            return
+        for inst, iconfig in self.config.instruments.items():
+            bad_state = False
+            adjusting = False
+            for var in iconfig["variables"]:
+                status = variable_evaluation["status"].get(f"{inst}/{var}", None)
+                if status is None or status == "at_setpoint":
+                    continue
+                if status in ["no_heartbeat", "setpoint_mismatch", "no_measurement"]:
+                    bad_state = True
+                    continue
+                if status == "adjusting":
+                    adjusting = True
+                    continue
+
+            self.instrument_states[inst]["bad_count"] = {
+                "bad_state": (
+                    0
+                    if not bad_state
+                    else (
+                        self.instrument_states[inst]
+                        .get("bad_count", {})
+                        .get("bad_state", 0)
+                        + 1
+                    )
+                ),
+                "adjusting": (
+                    0
+                    if not adjusting and not bad_state
+                    else (
+                        self.instrument_states[inst]
+                        .get("bad_count", {})
+                        .get("adjusting", 0)
+                        + int(adjusting)
+                    )
+                ),
+            }
+            if bad_state or adjusting:
+                if (
+                    self.instrument_states[inst]["bad_count"]["bad_state"]
+                    > self.config.globals["bad_state_tolerance"]
+                ):
+                    pub_err.print_and_publish(
+                        topic="error/controller",
+                        code="experiment",
+                        message=f"ERROR: Instrument {inst} in bad state for too long.",
+                    )
+                    self.status = "error"
+                if (
+                    self.instrument_states[inst]["bad_count"]["adjusting"]
+                    > self._adjusting_tolerance
+                ):
+                    pub_err.print_and_publish(
+                        topic="error/controller",
+                        code="experiment",
+                        message=f"ERROR: Instrument {inst} not keeping up with setpoints.",
+                    )
+                    self.status = "error"

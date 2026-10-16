@@ -9,16 +9,16 @@ def mock_experiment_dict():
         "config": {
             "resolution": 2,
             "instruments": {
-                "furnace": {"temperature": {"tolerance": 1, "offset": 273}},
-                "pressure": {"pressure": {"tolerance": 0.5}},
+                "furnace": {"temperature": {"tolerance": 5, "offset": 273}},
+                "pressure": {"pressure": {"tolerance": 0.2}},
                 "mass_flow": {"mass_flow": {"tolerance": 1}},
             },
         },
         "experiment_definition": [
             {"time": 0, "furnace/temperature": 25, "pressure/pressure": 1},
             {"time": 4, "furnace/temperature": 25, "pressure/pressure": 150},
-            {"time": 6, "furnace/temperature": 500, "pressure/pressure": 150},
-            {"time": 10, "furnace/temperature": 500, "pressure/pressure": 1},
+            {"time": 6, "furnace/temperature": 50, "pressure/pressure": 1.50},
+            {"time": 10, "furnace/temperature": 50, "pressure/pressure": 1},
             {"time": 12, "furnace/temperature": 25, "pressure/pressure": 1},
         ],
     }
@@ -30,10 +30,10 @@ def mock_setpoints():
     """Fixture that returns a list of setpoints as expected from split_setpoints."""
     return [
         {"duration": 2, "furnace/temperature": 25, "pressure/pressure": 1},
-        {"duration": 2, "furnace/temperature": 25, "pressure/pressure": 75.5},
-        {"duration": 2, "furnace/temperature": 25, "pressure/pressure": 150},
-        {"duration": 2, "furnace/temperature": 500, "pressure/pressure": 150},
-        {"duration": 2, "furnace/temperature": 500, "pressure/pressure": 75.5},
-        {"duration": 2, "furnace/temperature": 500, "pressure/pressure": 1},
+        {"duration": 2, "furnace/temperature": 25, "pressure/pressure": 1.25},
+        {"duration": 2, "furnace/temperature": 25, "pressure/pressure": 1.50},
+        {"duration": 2, "furnace/temperature": 50, "pressure/pressure": 1.50},
+        {"duration": 2, "furnace/temperature": 50, "pressure/pressure": 1.25},
+        {"duration": 2, "furnace/temperature": 50, "pressure/pressure": 1},
         {"duration": 2, "furnace/temperature": 25, "pressure/pressure": 1},
     ]
