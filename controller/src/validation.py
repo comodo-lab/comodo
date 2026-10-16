@@ -82,10 +82,26 @@ def validate_experiment(file_path, config):
     # --------------------------------------------------------------------------
     # Check the live config is for instruments in comodo.yaml
 
-    for instrument_name in experiment_dict["config"].get("instruments", {}):
+    instruments_config = experiment_dict["config"].get("instruments", {})
+    for instrument_name in instruments_config:
         if instrument_name not in config.instruments:
             raise ExperimentValidationError(
                 f"Live config for unknown instrument '{instrument_name}'."
+            )
+
+    # --------------------------------------------------------------------------
+    # Make sure all driving variables in the experiment have a tolerance defined in the live config
+
+    for driving_sensor in [a["driving_sensor"] for a in config.actuators.values()]:
+        instrument_name, variable = driving_sensor.split("/")
+        tolerance = (
+            instruments_config.get(instrument_name, {})
+            .get(variable, {})
+            .get("tolerance")
+        )
+        if not isinstance(tolerance, (int, float)):
+            raise ExperimentValidationError(
+                f"Missing tolerance for '{driving_sensor}' in the live config."
             )
 
     # --------------------------------------------------------------------------

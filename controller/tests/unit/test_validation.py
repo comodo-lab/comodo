@@ -252,3 +252,18 @@ class TestValidateExperiment:
             validate_experiment("/fake/path", ve_mocks["config"])
 
         assert "Live config for unknown instrument 'I_C'" in str(e.value)
+
+    def test_raises_on_missing_tolerance_in_live_config(self, ve_mocks):
+        experiment = json.loads(ve_mocks["experiment"])
+        experiment["config"]["instruments"] = {"I_A": {"offset": 273}}
+        ve_mocks["open"].return_value.__enter__.return_value.read.return_value = (
+            json.dumps(experiment)
+        )
+        ve_mocks["config"].instruments = {"I_A": {}}
+        ve_mocks["config"].actuators = {"I_A": {"driving_sensor": "I_A/V_A"}}
+        ve_mocks["config"].sensors = {"I_A/V_A": {}}
+
+        with pytest.raises(ExperimentValidationError) as e:
+            validate_experiment("/fake/path", ve_mocks["config"])
+
+        assert "Missing tolerance for 'I_A/V_A' in the live config" in str(e.value)
