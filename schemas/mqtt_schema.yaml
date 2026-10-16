@@ -301,7 +301,6 @@ channels:
                     type: string
                     enum:
                     - no_heartbeat
-                    - setpoint_mismatch
                     - no_measurement
                     - at_setpoint
                     - adjusting

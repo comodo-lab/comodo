@@ -453,7 +453,7 @@ class TestCState:
         }
         state._current_setpoint = {
             "inst_1/var_1": 1,  # no_heartbeat
-            "inst_2/var_2": 2,  # setpoint_mismatch
+            "inst_2/var_2": 2,  # no_measurement
             "inst_2/var_3": 3,  # no_measurement
             "inst_3/var_4": 4,  # at_setpoint
             "inst_3/var_5": 5,  # adjusting
@@ -467,10 +467,10 @@ class TestCState:
             "inst_2": {
                 "last_contact": 7,
                 "setpoints": {
-                    "var_2": 20,  # setpoint_mismatch
+                    "var_2": 2,
                     "var_3": 3,
                 },
-                "state": {"measurements": {"var_2": 5, "var_3": None}},
+                "state": {"measurements": {"var_2": None}},  # one None, one not passed
             },
             "inst_3": {
                 "last_contact": 9,
@@ -500,7 +500,7 @@ class TestCState:
             },
             "status": {
                 "inst_1/var_1": "no_heartbeat",
-                "inst_2/var_2": "setpoint_mismatch",
+                "inst_2/var_2": "no_measurement",
                 "inst_2/var_3": "no_measurement",
                 "inst_3/var_4": "at_setpoint",
                 "inst_3/var_5": "adjusting",
@@ -625,7 +625,7 @@ class TestCState:
         state._instrument_states = {"inst_1": {}}
 
         var_eval = {
-            "status": {"inst_1/var_1": "setpoint_mismatch", "inst_1/var_2": "adjusting"}
+            "status": {"inst_1/var_1": "no_measurement", "inst_1/var_2": "adjusting"}
         }
         state.update_bad_instrument_counts(var_eval)
         state.update_bad_instrument_counts(var_eval)
@@ -647,7 +647,7 @@ class TestCState:
 
         var_eval = {
             "status": {
-                "inst_1/var_1": "setpoint_mismatch",
+                "inst_1/var_1": "no_measurement",
                 "inst_1/var_2": "at_setpoint",
             }
         }
@@ -680,7 +680,7 @@ class TestCState:
             "inst_1": {"variables": {"var_1": {}}},
         }
         state._instrument_states = {"inst_1": {}}
-        var_eval = {"status": {"inst_1/var_1": "setpoint_mismatch"}}
+        var_eval = {"status": {"inst_1/var_1": "no_measurement"}}
         with patch("src.controller_state.pub_err.print_and_publish") as mock_pub_err:
             state.update_bad_instrument_counts(var_eval)
             state.update_bad_instrument_counts(var_eval)

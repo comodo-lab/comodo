@@ -407,16 +407,11 @@ class cstate:
         current_setpoints = {
             k: v for k, v in self.current_setpoint.items() if k != "duration"
         }
-        ins_states = copy.deepcopy(self.instrument_states)
+        ins_states = self.instrument_states
         inst_measurements = {
             f"{inst}/{var}": ins_states[inst]["state"]["measurements"][var]
             for inst in ins_states
             for var in ins_states[inst]["state"]["measurements"]
-        }
-        inst_setpoints = {
-            f"{inst}/{var}": ins_states[inst]["setpoints"][var]
-            for inst in ins_states
-            for var in ins_states[inst]["setpoints"]
         }
 
         variable_evaluation = {}
@@ -424,8 +419,6 @@ class cstate:
             inst, var = variable.split("/")
             if t_now - ins_states[inst]["last_contact"] > self._no_contact_tolerance:
                 variable_evaluation[variable] = "no_heartbeat"
-            elif setpoint != inst_setpoints.get(variable, None):
-                variable_evaluation[variable] = "setpoint_mismatch"
             elif inst_measurements.get(variable, None) is None:
                 variable_evaluation[variable] = "no_measurement"
             else:
@@ -457,7 +450,7 @@ class cstate:
                 status = variable_evaluation["status"].get(f"{inst}/{var}", None)
                 if status is None or status == "at_setpoint":
                     continue
-                if status in ["no_heartbeat", "setpoint_mismatch", "no_measurement"]:
+                if status in ["no_heartbeat", "no_measurement"]:
                     bad_state = True
                     continue
                 if status == "adjusting":
