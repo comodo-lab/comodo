@@ -94,9 +94,11 @@ def start_or_stop_experiment(n_clicks, experiment_id, heartbeats, *start_states)
 def start_experiment(
     table_data, instruments, exp_config, exp_meta, inst_meta, config_meta
 ):
-    # Group the instrument setup rows into the live config of each instrument
+    # Group the instrument setup rows into the live config of each instrument,
+    # which needs a tolerance for every variable with setpoints in the experiment
     try:
         instruments_config = ins.to_instrument_config(instruments)
+        ins.check_tolerances(instruments_config, ins.experiment_variables(table_data))
     except ValueError as e:
         print(f"Invalid instrument setup: {e}")
         MQTTPublisher.get_instance().publish(

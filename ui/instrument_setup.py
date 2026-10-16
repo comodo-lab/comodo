@@ -57,6 +57,40 @@ def to_instrument_config(rows):
     return config
 
 
+def experiment_variables(rows):
+    """
+    Returns the variables (instrument/variable) with setpoints in the experiment rows.
+    """
+    return sorted(
+        {
+            key
+            for row in rows or []
+            for key in row
+            if "/" in key and not key.endswith("_profile")
+        }
+    )
+
+
+def check_tolerances(config, variables):
+    """
+    Raises a ValueError if any of the variables (instrument/variable) has no numeric
+    tolerance in the instrument live config, as the controller needs it to check the
+    instruments reach their setpoints.
+    """
+    missing = []
+    for name in variables:
+        instrument, _, variable = name.partition("/")
+        section = config.get(instrument, {}).get(variable)
+        tolerance = section.get("tolerance") if isinstance(section, dict) else None
+        if not isinstance(tolerance, (int, float)):
+            missing.append(name)
+    if missing:
+        raise ValueError(
+            f"Missing tolerance for {', '.join(missing)}. "
+            "Add a 'tolerance' row for each in the instrument setup."
+        )
+
+
 def get_instrument_setup(data=[]):
     """
     Creates a dash-ag-grid component for the instrument live config, with editing and

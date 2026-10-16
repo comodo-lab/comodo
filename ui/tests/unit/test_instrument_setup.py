@@ -87,3 +87,60 @@ class TestAddDeleteRows:
 
     def test_delete_nothing_selected(self):
         assert ins.delete_selected(1, None, self.ROWS) == self.ROWS
+
+
+class TestExperimentVariables:
+    def test_variables_with_setpoints(self):
+        rows = [
+            {
+                "id": "x",
+                "time": 0,
+                "furnace/temperature": 25,
+                "furnace/temperature_profile": "linear",
+                "pressure/pressure": 1,
+            },
+            {"time": 10, "furnace/temperature": 50, "pressure/pressure": 2},
+        ]
+        assert ins.experiment_variables(rows) == [
+            "furnace/temperature",
+            "pressure/pressure",
+        ]
+
+    def test_no_rows(self):
+        assert ins.experiment_variables(None) == []
+
+
+class TestCheckTolerances:
+    VARIABLES = ["furnace/temperature", "pressure/pressure"]
+
+    def test_all_tolerances(self):
+        config = {
+            "furnace": {"temperature": {"tolerance": 1}, "offset": 273},
+            "pressure": {"pressure": {"tolerance": 0.5}},
+        }
+        ins.check_tolerances(config, self.VARIABLES)
+
+    @pytest.mark.parametrize(
+        "pressure_config",
+        [
+            {},  # instrument missing
+            {"pressure": {}},  # variable without tolerance
+            {"pressure": {"tolerance": "fast"}},  # not a number
+            {"pressure": 1},  # key instead of variable
+        ],
+    )
+    def test_missing_tolerance(self, pressure_config):
+        config = {"furnace": {"temperature": {"tolerance": 1}}}
+        if pressure_config:
+            config["pressure"] = pressure_config
+        with pytest.raises(
+            ValueError, match="Missing tolerance for pressure/pressure."
+        ):
+            ins.check_tolerances(config, self.VARIABLES)
+
+    def test_lists_all_missing(self):
+        with pytest.raises(
+            ValueError,
+            match="Missing tolerance for furnace/temperature, pressure/pressure.",
+        ):
+            ins.check_tolerances({}, self.VARIABLES)
