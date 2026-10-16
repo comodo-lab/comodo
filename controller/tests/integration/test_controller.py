@@ -20,6 +20,7 @@ from src.on_controller_message import (
     c_stopping,
 )
 from src.on_heartbeat_message import on_heartbeat_message
+from src.controller_state import cstate
 
 
 @pytest.fixture
@@ -255,6 +256,159 @@ def test_control_loop(
     stop_message = f"Experiment D123-456 finished and the controller has been reset."
     assert stop_message in capsys.readouterr().out
     assert "error" not in capsys.readouterr().out.lower()
+
+
+@pytest.fixture
+def start_monitored_experiment(
+    message_bus,
+    mqtt_mocks,
+    mock_comodo_config,
+    mock_validate,
+    mqtt_validator_mocks,
+    mock_serial_id,
+):
+    """
+    Returns a function that starts an experiment with a real controller state (so the
+    instruments are evaluated on every controller heartbeat) and the given config
+    globals, with every instrument responding once at its first setpoints.
+    It returns the controller state and client, once the experiment is running.
+    """
+
+    def start(**config_globals):
+        mock_comodo_config.globals.update(config_globals)
+        state = cstate()
+        state.config = mock_comodo_config
+        state.reset()
+        for client_id, topics, callback in [
+            ("controller", "controller/#", c_idle),
+            ("heartbeat", "instruments/+/heartbeat", on_heartbeat_message),
+        ]:
+            mqtt_mocks["client_class"](
+                id=client_id, topics=topics, callback=callback, obj=state
+            )
+
+        message_bus.publish(
+            topic="controller/command/validate",
+            payload=json.dumps({"file": "some_file", "temp_id": "123"}),
+        )
+        t.sleep(0.1)
+        assert state.status == "awaiting_instruments"
+        for instrument in state.config.instruments:
+            message_bus.publish(
+                f"instruments/{instrument}/heartbeat",
+                json.dumps(instrument_heartbeat(state, instrument)),
+            )
+        t.sleep(0.1)
+        assert state.status == "running"
+        return state, mqtt_mocks["client_instance"]("controller")
+
+    return start
+
+
+def instrument_heartbeat(state, instrument, measurements=None):
+    """
+    Returns a heartbeat of a running instrument with the expected config, at its default
+    setpoints (the first setpoints of the mock experiment). Its measurements are at the
+    setpoints, unless given.
+    """
+    setpoints = state.config.instruments[instrument]["default_setpoints"]
+    return {
+        "state": {
+            "status": "running",
+            "measurements": dict(setpoints) if measurements is None else measurements,
+        },
+        "setpoints": setpoints,
+        "config": copy.deepcopy(state.get_expected_heartbeat(instrument)),
+    }
+
+
+def get_controller_heartbeats(message_bus):
+    messages = message_bus.get_messages("controller/heartbeat", decoded=True)
+    return [json.loads(m.payload) for m in messages]
+
+
+def test_experiment_stops_if_instruments_stop_responding(
+    message_bus, start_monitored_experiment, mock_dump
+):
+    # No heartbeat means silent for over 0.3s (max_missed_heartbeats * heartbeat
+    # interval), and the 3rd evaluation of an instrument in a bad state is an error
+    state, controller_client = start_monitored_experiment(
+        heartbeat_interval=0.1, bad_state_tolerance=2
+    )
+
+    # Instruments are evaluated on every controller heartbeat, at their setpoints first
+    message_bus.publish("controller/heartbeat", json.dumps(state.heartbeat()))
+    assert get_controller_heartbeats(message_bus)[-1]["state"] == {
+        "status": "running",
+        "variables": {
+            "furnace/temperature": "at_setpoint",
+            "pressure/pressure": "at_setpoint",
+        },
+    }
+
+    # Instruments stop responding, and are in a bad state for 3 controller heartbeats
+    t.sleep(0.4)
+    for _ in range(3):
+        message_bus.publish("controller/heartbeat", json.dumps(state.heartbeat()))
+    assert [
+        hb["state"]["status"] for hb in get_controller_heartbeats(message_bus)[1:]
+    ] == [
+        "running",
+        "running",
+        "error",
+    ]
+    assert get_controller_heartbeats(message_bus)[-1]["state"]["variables"] == {
+        "furnace/temperature": "no_heartbeat",
+        "pressure/pressure": "no_heartbeat",
+    }
+    errors = message_bus.get_messages("error/controller", decoded=True)
+    assert sorted(json.loads(m.payload)["message"] for m in errors) == [
+        "ERROR: Instrument furnace in bad state for too long.",
+        "ERROR: Instrument pressure in bad state for too long.",
+    ]
+
+
+def test_experiment_stops_if_instruments_cannot_keep_up_with_setpoints(
+    message_bus, start_monitored_experiment, mock_dump
+):
+    # Adjusting for more than 1 setpoint (missed_setpoint_tolerance * resolution 2s /
+    # heartbeat interval 1s = 2 controller heartbeats) is an error, so the 3rd is an error
+    state, controller_client = start_monitored_experiment(missed_setpoint_tolerance=1)
+
+    # Instruments are evaluated on every controller heartbeat, at their setpoints first
+    message_bus.publish("controller/heartbeat", json.dumps(state.heartbeat()))
+    assert get_controller_heartbeats(message_bus)[-1]["state"] == {
+        "status": "running",
+        "variables": {
+            "furnace/temperature": "at_setpoint",
+            "pressure/pressure": "at_setpoint",
+        },
+    }
+
+    # The furnace keeps responding with the right setpoint, but its temperature drops
+    # out of tolerance (5) and does not recover for 3 controller heartbeats
+    message_bus.publish(
+        "instruments/furnace/heartbeat",
+        json.dumps(instrument_heartbeat(state, "furnace", {"temperature": 10})),
+    )
+    t.sleep(0.1)
+    for _ in range(3):
+        message_bus.publish("controller/heartbeat", json.dumps(state.heartbeat()))
+    assert [
+        hb["state"]["status"] for hb in get_controller_heartbeats(message_bus)[1:]
+    ] == [
+        "running",
+        "running",
+        "error",
+    ]
+    assert get_controller_heartbeats(message_bus)[-1]["state"]["variables"] == {
+        "furnace/temperature": "adjusting",
+        "pressure/pressure": "at_setpoint",
+    }
+    errors = message_bus.get_messages("error/controller", decoded=True)
+    assert [json.loads(m.payload)["message"] for m in errors] == [
+        "ERROR: Instrument furnace not keeping up with setpoints."
+    ]
 
 
 def test_recover_on_exceptions_while_starting(
