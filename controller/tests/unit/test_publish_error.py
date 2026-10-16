@@ -80,7 +80,7 @@ class TestPublishError:
 
         pe_mocks["print_and_publish_error"].assert_called_once_with(
             topic="error/controller",
-            message=exp_err,
+            error=exp_err,
         )
 
     def test_missing_keys(self, pe_mocks):
