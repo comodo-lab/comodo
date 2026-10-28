@@ -43,12 +43,18 @@ class UiConfig:
 
     @property
     def ini_instrument_dict(self):
+        """
+        Default instrument live config rows ({name, key, value}), where name is an
+        instrument or one of its variables (instrument/variable).
+        """
         result = []
         for name, sensor in self.config.sensors.items():
-            result.append({"name": name, "tolerance": sensor.get("tolerance", 1.0)})
+            result.append(
+                {"name": name, "key": "tolerance", "value": sensor.get("tolerance", 1.0)}
+            )
         for name in self.config.actuators:
             if name not in self.config.sensors:
-                result.append({"name": name, "tolerance": 1.0})
+                result.append({"name": name, "key": "tolerance", "value": 1.0})
         return result
 
     @property

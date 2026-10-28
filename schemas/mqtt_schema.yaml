@@ -35,6 +35,11 @@ channels:
             config:
               type: object
               additionalProperties: true
+              properties:
+                instruments:
+                  type: object
+                  additionalProperties:
+                    type: object
             experiment_definition:
               type: array
               items:
@@ -274,16 +279,31 @@ channels:
                 type: number
 
             state:
-              type: string
-              enum:
-                - idle
-                - validating
-                - starting
-                - awaiting_instruments
-                - ready
-                - running
-                - stopping
-                - error
+              type: object
+              additionalProperties: false
+              required:
+                - status
+              properties:
+                status:
+                  type: string
+                  enum:
+                    - idle
+                    - validating
+                    - starting
+                    - awaiting_instruments
+                    - ready
+                    - running
+                    - stopping
+                    - error
+                variables:
+                  type: object
+                  additionalProperties:
+                    type: string
+                    enum:
+                    - no_heartbeat
+                    - no_measurement
+                    - at_setpoint
+                    - adjusting
 
   setpointControllerHeartbeat:
     address: setpoint_controllers/+/heartbeat
@@ -435,12 +455,34 @@ channels:
                 type: number
 
             state:
-              type: string
-              enum:
-                - initialising
-                - awaiting_experiment
-                - running
-                - error
+              type: object
+              additionalProperties: false
+              required:
+                - status
+                - measurements
+              properties:
+                status:
+                  type: string
+                  enum:
+                    - initialising
+                    - awaiting_experiment
+                    - running
+                    - error
+                measurements:
+                  type: object
+                  # null until the variable is first measured
+                  additionalProperties:
+                    type:
+                      - number
+                      - "null"
+
+  instrumentConfiguration:
+    address: instruments/+/configure
+    messages:
+      instrumentConfiguration:
+        payload:
+          type: object
+          additionalProperties: true
 
   instrumentSetpoint:
     address: instruments/+/+/setpoint

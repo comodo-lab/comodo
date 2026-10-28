@@ -8,6 +8,10 @@ global:
     interval: 1
   instrument_setup:
     wait: 10
+  experiment_monitoring:
+    max_missed_heartbeats: 3
+    bad_state_tolerance: 7
+    missed_setpoint_tolerance: 7
   watchdog:
     timeout: 5
     interval: 1
@@ -17,9 +21,7 @@ global:
 @pytest.fixture
 def sample_config_yaml(tmp_path):
     """Minimal comodo.yaml with one sensor-only and one actuator variable."""
-    content = (
-        GLOBALS
-        + """
+    content = GLOBALS + """
 instruments:
   test_sensor:
     firmware: test.sensor
@@ -49,7 +51,6 @@ instruments:
           type: float
           safe_stop_setpoint: 0
 """
-    )
     f = tmp_path / "comodo.yaml"
     f.write_text(content)
     return str(f)
@@ -58,9 +59,7 @@ instruments:
 @pytest.fixture
 def sample_config_with_pid(tmp_path):
     """comodo.yaml with an actuator-only variable driven by a setpoint controller."""
-    content = (
-        GLOBALS
-        + """
+    content = GLOBALS + """
 instruments:
   test_sensor:
     firmware: test.sensor
@@ -94,7 +93,6 @@ instruments:
           K_AW: 0.05
           K_DF: 0.01
 """
-    )
     f = tmp_path / "comodo.yaml"
     f.write_text(content)
     return str(f)

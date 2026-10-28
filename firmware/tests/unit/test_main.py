@@ -100,7 +100,7 @@ class TestTimerFunctions:
         mock_istate = timer_mocks["state"]
         mock_istate._can_measure = False
         mock_istate._can_set_setpoint = True
-        mock_istate.instrument.config["experiment"]["id"] = "e-123"
+        mock_istate.instrument.config["experiment"]["experiment_id"] = "e-123"
         mock_istate.status = "error"
         var_name = "temperature"
         m_interval = 1.0

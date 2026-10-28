@@ -71,7 +71,7 @@ class TestSnapshot:
         assert hb.snapshot(now=105.1)["stale"] == ["controller/heartbeat"]
 
 
-class TestGetState:
+class TestGetStatusDisplay:
     def data(self, payload, stale=False):
         topic = "instruments/a/heartbeat"
         return topic, {
@@ -79,23 +79,23 @@ class TestGetState:
             "stale": [topic] if stale else [],
         }
 
-    def test_known_state(self):
-        topic, data = self.data({"state": "running"})
-        state = tm.get_state(data, topic, tm.INSTRUMENT_STATES, lambda p: p["state"])
-        assert state == ("Running", "success")
+    def test_known_status(self):
+        topic, data = self.data({"state": {"status": "running"}})
+        display = tm.get_status_display(data, topic, tm.INSTRUMENT_STATUS_LIST)
+        assert display == ("Running", "success")
 
     def test_no_heartbeat(self):
-        state = tm.get_state(
-            {"heartbeats": {}, "stale": []}, "x", tm.INSTRUMENT_STATES, lambda p: p
+        display = tm.get_status_display(
+            {"heartbeats": {}, "stale": []}, "x", tm.INSTRUMENT_STATUS_LIST
         )
-        assert state == tm.NO_HEARTBEAT
+        assert display == tm.NO_HEARTBEAT
 
     def test_lost_heartbeat(self):
-        topic, data = self.data({"state": "running"}, stale=True)
-        state = tm.get_state(data, topic, tm.INSTRUMENT_STATES, lambda p: p["state"])
-        assert state == tm.LOST_HEARTBEAT
+        topic, data = self.data({"state": {"status": "running"}}, stale=True)
+        display = tm.get_status_display(data, topic, tm.INSTRUMENT_STATUS_LIST)
+        assert display == tm.LOST_HEARTBEAT
 
-    def test_unknown_state(self):
-        topic, data = self.data({"state": "exploded"})
-        state = tm.get_state(data, topic, tm.INSTRUMENT_STATES, lambda p: p["state"])
-        assert state == ("Unknown (exploded)", "secondary")
+    def test_unknown_status(self):
+        topic, data = self.data({"state": {"status": "exploded"}})
+        display = tm.get_status_display(data, topic, tm.INSTRUMENT_STATUS_LIST)
+        assert display == ("Unknown (exploded)", "secondary")

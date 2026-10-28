@@ -3,6 +3,10 @@ global:
     interval: 1
   instrument_setup:
     wait: 10
+  experiment_monitoring:
+    max_missed_heartbeats: 3
+    bad_state_tolerance: 7
+    missed_setpoint_tolerance: 7
   watchdog:
     timeout: 5
     interval: 1

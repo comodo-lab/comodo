@@ -28,7 +28,7 @@ async def measurement_tick(istate, variable_name, interval, ready_event):
         else:
             istate._can_measure = True
             if istate.status == "error" and istate._can_set_setpoint:
-                if istate.instrument.config["experiment"].get("id") is None:
+                if istate.instrument.config["experiment"].get("experiment_id") is None:
                     istate.status = "awaiting_experiment"
                 else:
                     istate.status = "running"

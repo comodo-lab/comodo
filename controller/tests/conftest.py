@@ -52,6 +52,13 @@ def mock_state(mock_comodo_config, mock_experiment_dict, mock_setpoints):
 
         # Mock the config object
         state_obj.config = mock_comodo_config
+        state_obj.heartbeat = MagicMock(
+            return_value={
+                "config": {"experiment_id": None},
+                "setpoints": {},
+                "state": {"status": "idle"},
+            }
+        )
 
         # Use PropertyMock to track status changes
         def track_status(self, value):
@@ -74,9 +81,19 @@ def mock_state(mock_comodo_config, mock_experiment_dict, mock_setpoints):
             state_obj.current_setpoint = None
             state_obj.past_setpoints = []
             state_obj.instrument_states = {}
+            state_obj.expected_heartbeats = {
+                "furnace": mock_comodo_config.get_expected_heartbeat("furnace"),
+                "pressure": mock_comodo_config.get_expected_heartbeat("pressure"),
+                "mass_flow": mock_comodo_config.get_expected_heartbeat("mass_flow"),
+            }
             state_obj.instruments_ready = False
 
         state_obj.reset = MagicMock(side_effect=reset)
+        state_obj.get_expected_heartbeat = (
+            lambda instrument_name: state_obj.expected_heartbeats.get(
+                instrument_name, {}
+            )
+        )
 
         # ------------------------------- idle (default new cstate)
         state_obj.experiment_start_time = None
@@ -89,15 +106,29 @@ def mock_state(mock_comodo_config, mock_experiment_dict, mock_setpoints):
         state_obj.current_setpoint = None
         state_obj.past_setpoints = []
         state_obj.instrument_states = {}
+        state_obj.expected_heartbeats = {
+            "furnace": mock_comodo_config.get_expected_heartbeat("furnace"),
+            "pressure": mock_comodo_config.get_expected_heartbeat("pressure"),
+            "mass_flow": mock_comodo_config.get_expected_heartbeat("mass_flow"),
+        }
         state_obj.instruments_ready = False
 
         if status == "idle":
             return state_obj
 
         # ------------------------------- starting
+        state_obj.set_hb_experiment_config(
+            "furnace", mock_experiment_dict["config"]["instruments"]["furnace"]
+        )
+        state_obj._expected_heartbeats["furnace"]["experiment"][
+            "experiment_id"
+        ] = "D123-456"
+        state_obj.set_hb_experiment_config("pressure", {"experiment_id": "D123-456"})
+        state_obj.set_hb_experiment_config("mass_flow", {"experiment_id": "D123-456"})
+
         state_obj.experiment_start_time = datetime.now()
         state_obj.exp_config = mock_experiment_dict
-        state_obj.experiment_id = mock_experiment_dict["temp_id"]
+        state_obj.experiment_id = "D123-456"
         state_obj.status = "validating"
         state_obj._status_history = []
         if status == "starting":
@@ -128,7 +159,9 @@ def mock_state(mock_comodo_config, mock_experiment_dict, mock_setpoints):
                 state_obj.instrument_states[instrument_name]["last_contact"] = (
                     t.time() - 1
                 )
-                state_obj.instrument_states[instrument_name]["state"] = "idle"
+                state_obj.instrument_states[instrument_name]["state"] = {
+                    "status": "idle"
+                }
                 state_obj.instrument_states[instrument_name]["setpoints"] = None
         state_obj.instrument_states = {}
         if status == "ready":

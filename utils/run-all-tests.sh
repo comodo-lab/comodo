@@ -78,6 +78,11 @@ echo
 echo "$separator"
 printf "%-24s | %-36s | %-10s\n" "Component" "Result" "Coverage"
 echo "$separator"
+
+# Overall outcome, for the final conclusion
+all_passed=true
+any_warnings=false
+
 for name in "${components[@]}" $( [[ "$run_integration" == true ]] && echo integration ); do
     output="${outputs[$name]}"
     exit_code="${exit_codes[$name]}"
@@ -100,6 +105,14 @@ for name in "${components[@]}" $( [[ "$run_integration" == true ]] && echo integ
         result="ERROR (exit code $exit_code)"
     fi
 
+    # Chech for failures or warnings (no pytest summary -> error)
+    if [[ -z "$summary" || "$result" =~ failed|error ]]; then
+        all_passed=false
+    fi
+    if [[ "$result" =~ warning ]]; then
+        any_warnings=true
+    fi
+
     # Get coverage percentage from pytest-cov output
     cov_sum=$(printf '%s\n' "$output" |
         grep -E "\| TOTAL.*[0-9]+%$" |
@@ -117,3 +130,22 @@ for name in "${components[@]}" $( [[ "$run_integration" == true ]] && echo integ
         "$coverage"
 done
 echo "$separator"
+
+# Print a conclusion that is hard to miss, coloured when printing to a terminal
+if [[ -t 1 ]]; then
+    red=$'\e[1;31m' yellow=$'\e[1;33m' green=$'\e[1;32m' reset=$'\e[0m'
+else
+    red="" yellow="" green="" reset=""
+fi
+if [[ "$all_passed" == true ]]; then
+    echo "${green}     ---------------------------------  ALL TESTS PASSED  ---------------------------------${reset}"
+else
+    echo "${red}     ---------------------------  TESTS FAILED / ERRORS FOUND  ----------------------------${reset}"
+fi
+if [[ "$any_warnings" == true ]]; then
+    echo "${yellow}     ---------------------------------  WARNINGS RAISED  ----------------------------------${reset}"
+fi
+echo "$separator"
+
+# Exit with an error if anything did not pass
+[[ "$all_passed" == true ]]

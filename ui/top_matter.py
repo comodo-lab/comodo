@@ -6,8 +6,8 @@ import pytz
 
 import heartbeats as hb
 
-# Display name and card/badge colour of each state reported in the heartbeats
-CONTROLLER_STATES = {
+# Display name and card/badge colour of each status reported in the heartbeats
+CONTROLLER_STATUS_LIST = {
     "idle": ("Idle", "primary"),
     "validating": ("Validating", "info"),
     "starting": ("Starting", "warning"),
@@ -17,13 +17,13 @@ CONTROLLER_STATES = {
     "stopping": ("Stopping", "warning"),
     "error": ("Error", "danger"),
 }
-INSTRUMENT_STATES = {
+INSTRUMENT_STATUS_LIST = {
     "initialising": ("Initialising", "secondary"),
     "awaiting_experiment": ("Awaiting Experiment", "info"),
     "running": ("Running", "success"),
     "error": ("Error", "danger"),
 }
-SPC_STATES = {
+SPC_STATUS_LIST = {
     "idle": ("Idle", "secondary"),
     "adjusting": ("Adjusting", "success"),
     "ready": ("Ready", "success"),
@@ -130,17 +130,17 @@ def format_time(epoch, timezone):
     return datetime.fromtimestamp(epoch, tz).strftime("%Y-%m-%d %H:%M:%S")
 
 
-def get_state(data, topic, states, get_value):
+def get_status_display(data, topic, status_list):
     """
-    Returns the display name and colour of the state in the latest heartbeat on topic.
+    Returns the display name and colour of the status in the latest heartbeat on topic.
     """
     heartbeat = data["heartbeats"].get(topic)
     if heartbeat is None:
         return NO_HEARTBEAT
     if topic in data["stale"]:
         return LOST_HEARTBEAT
-    value = get_value(heartbeat["payload"])
-    return states.get(value, (f"Unknown ({value})", "secondary"))
+    status = (heartbeat["payload"].get("state") or {}).get("status")
+    return status_list.get(status, (f"Unknown ({status})", "secondary"))
 
 
 @callback(
@@ -175,9 +175,7 @@ def update_controller_cards(data):
     """
     Updates the controller status and experiment ID cards from the controller heartbeat.
     """
-    title, color = get_state(
-        data, hb.CONTROLLER_TOPIC, CONTROLLER_STATES, lambda p: p.get("state")
-    )
+    title, color = get_status_display(data, hb.CONTROLLER_TOPIC, CONTROLLER_STATUS_LIST)
     heartbeat = data["heartbeats"].get(hb.CONTROLLER_TOPIC)
     if heartbeat is None or hb.CONTROLLER_TOPIC in data["stale"]:
         return title, color, "Awaiting Experiment", "primary"
@@ -215,18 +213,10 @@ def update_instruments_card(data):
     """
     rows = []
     for source in data["sources"]:
-        if source["kind"] == "spc":
-            # Setpoint controllers report their state as an object
-            name, color = get_state(
-                data,
-                source["topic"],
-                SPC_STATES,
-                lambda p: (p.get("state") or {}).get("status"),
-            )
-        else:
-            name, color = get_state(
-                data, source["topic"], INSTRUMENT_STATES, lambda p: p.get("state")
-            )
+        status_list = (
+            SPC_STATUS_LIST if source["kind"] == "spc" else INSTRUMENT_STATUS_LIST
+        )
+        name, color = get_status_display(data, source["topic"], status_list)
         # Grid cells: the badges stretch to the width of the status column
         rows.append(dbc.Badge(name, color=color))
         rows.append(html.Span(source["label"]))

@@ -27,7 +27,7 @@ def on_heartbeat_message(client, msg, obj):
         return
 
     instrument_name = msg.topic.split("/")[1]
-    if instrument_name in obj.instrument_states.keys():
+    if instrument_name in obj.instrument_states:
         handle_instrument_heartbeat(obj, message, instrument_name)
     else:
         pub_err.unconfigured_instrument(msg, instrument_name)
@@ -44,12 +44,12 @@ def handle_instrument_heartbeat(obj, heartbeat, instrument_name):
     obj.instrument_states[instrument_name]["config"] = heartbeat["config"]
     if obj.status == "awaiting_instruments":
         # Assert state and config match, otherwise stop experiment
-        if heartbeat["state"] in ["initialising", "awaiting_experiment"]:
+        if heartbeat["state"]["status"] in ["initialising", "awaiting_experiment"]:
             return
         # Check if all instruments are ready and if so:
         # set the configured flag and publish ready event
         heartbeats_ready = all(
-            instrument["state"] in ["running"]
+            (instrument["state"] or {}).get("status") in ["running"]
             for instrument in obj.instrument_states.values()
         )
 
@@ -62,11 +62,11 @@ def handle_instrument_heartbeat(obj, heartbeat, instrument_name):
 
 
 def heartbeat_valid(obj, heartbeat, instrument_name):
-    expected = obj.config.get_expected_heartbeat(instrument_name)
-    # Accept an arbitrary experiment live config
-    expected["experiment"] = heartbeat["config"].get("experiment", {})
-
+    expected = obj.get_expected_heartbeat(instrument_name)
     if heartbeat["config"] != expected:
+        # Tolerate experiment config miss-match if in a settling status
+        if obj.status in ["awaiting_instruments", "stopping", "error"]:
+            return False
         pub_err.invalid_instrument_config(
             instrument_name, expected, heartbeat["config"]
         )

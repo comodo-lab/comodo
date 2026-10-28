@@ -23,11 +23,14 @@ classes:
     slots:
       - heartbeat
       - instrument_setup
+      - experiment_monitoring
       - watchdog
     slot_usage:
       heartbeat:
         required: true
       instrument_setup:
+        required: true
+      experiment_monitoring:
         required: true
       watchdog:
         required: true
@@ -44,6 +47,19 @@ classes:
       - wait
     slot_usage:
       wait:
+        required: true
+
+  ExperimentMonitoringConfig:
+    slots:
+      - max_missed_heartbeats
+      - bad_state_tolerance
+      - missed_setpoint_tolerance
+    slot_usage:
+      max_missed_heartbeats:
+        required: true
+      bad_state_tolerance:
+        required: true
+      missed_setpoint_tolerance:
         required: true
 
   WatchdogConfig:
@@ -161,6 +177,11 @@ slots:
     range: InstrumentSetupConfig
     inlined: true
 
+  experiment_monitoring:
+    range: ExperimentMonitoringConfig
+    inlined: true
+    inlined_as_list: false
+
   watchdog:
     range: WatchdogConfig
     inlined: true
@@ -172,6 +193,15 @@ slots:
     range: float
 
   wait:
+    range: float
+
+  max_missed_heartbeats:
+    range: float
+
+  bad_state_tolerance:
+    range: float
+
+  missed_setpoint_tolerance:
     range: float
 
   firmware:

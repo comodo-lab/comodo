@@ -24,7 +24,10 @@ def heartbeats(state, experiment_id=None, stale=False):
     return {
         "heartbeats": {
             hb.CONTROLLER_TOPIC: {
-                "payload": {"state": state, "config": {"experiment_id": experiment_id}},
+                "payload": {
+                    "state": {"status": state},
+                    "config": {"experiment_id": experiment_id},
+                },
                 "received": NOW,
             }
         },

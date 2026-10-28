@@ -11,7 +11,7 @@ import pytest
 import time
 import threading
 import queue
-from typing import Dict, Any, Optional
+from typing import Any, Optional
 from dataclasses import dataclass, field
 import json
 import fnmatch

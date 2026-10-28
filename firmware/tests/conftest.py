@@ -57,7 +57,7 @@ def mock_load_config(firmware_env):
         "MEASUREMENT_INTERVALS": json.loads(firmware_env["MEASUREMENT_INTERVALS"])
         or {},
         "HEARTBEAT_INTERVAL": float(firmware_env["HEARTBEAT_INTERVAL"]),
-        "experiment": {"id": None},
+        "experiment": {"experiment_id": None},
     }
     return config
 
@@ -95,7 +95,7 @@ def expected_config(firmware_env, experiment=None):
     parsed here the same way config.load_config() parses them, to match the real types.
     """
     if experiment is None:
-        experiment = {"id": None}
+        experiment = {"experiment_id": None}
     config = mock_load_config(firmware_env)
     printable_config = {
         "name": config["INSTRUMENT_NAME"],
@@ -139,14 +139,22 @@ async def wait_for_message(
         ) from e
 
 
-def heartbeat_matches(expected_state, expected_setpoints, hb_config):
+def heartbeat_matches(expected_status, expected_setpoints, hb_config):
     def matches(message):
         heartbeat = json.loads(message.payload)
-        if heartbeat["state"] != expected_state:
+        if heartbeat["state"]["status"] != expected_status:
             return (
-                f"Wrong heartbeat: state mismatch. "
-                f"-- Received: {heartbeat['state']!r}. "
-                f"-- Expected {expected_state!r}"
+                f"Wrong heartbeat: status mismatch. "
+                f"-- Received: {heartbeat['state']['status']!r}. "
+                f"-- Expected {expected_status!r}"
+            )
+        # Measurements change while simulating, so only check every variable is reported
+        measured = sorted(heartbeat["state"]["measurements"])
+        if measured != sorted(hb_config["variables"]):
+            return (
+                f"Wrong heartbeat: measurements mismatch. "
+                f"-- Received: {measured!r}. "
+                f"-- Expected {sorted(hb_config['variables'])!r}"
             )
         if heartbeat["setpoints"] != expected_setpoints:
             return (

@@ -137,12 +137,21 @@ class TestInstrumentState:
         mock_config = is_mocks["config"]
         istate = state.InstrumentState(mock_config)
         istate.status = "running"
+        is_mocks["instrument"].config["ACTIVE_VARIABLES"] = ["temperature", "pressure"]
+        # Pressure not measured yet, and an external sensor saved while simulating
+        is_mocks["instrument"].previous_measurements = {
+            "temperature": 120.5,
+            "mass_flow/mass_flow": 3.0,
+        }
 
         istate.publish_heartbeat()
 
         expected_topic = f"instruments/{mock_config['INSTRUMENT_NAME']}/heartbeat"
         expected_payload = {
-            "state": "running",
+            "state": {
+                "status": "running",
+                "measurements": {"temperature": 120.5, "pressure": None},
+            },
             "setpoints": is_mocks["setpoints"],
             "config": is_mocks["printed_config"],
         }
@@ -188,6 +197,7 @@ class TestInstrumentState:
         mock_config = is_mocks["config"]
         istate = state.InstrumentState(mock_config)
         istate.status = "awaiting_experiment"
+        istate.instrument.config["experiment"] = {"some": "info"}
 
         mock_msg = MockMessage(
             topic=f"instruments/{mock_config['INSTRUMENT_NAME']}/configure",
@@ -197,7 +207,10 @@ class TestInstrumentState:
 
         is_mocks["mqtt_val"].validate_message.assert_called_once()
         is_mocks["mqtt_val"].validate_message.assert_called_once()
-        assert istate.instrument.config["experiment"] == {"some_other": "data"}
+        assert istate.instrument.config["experiment"] == {
+            "some": "info",
+            "some_other": "data",
+        }
         assert istate.status == "awaiting_experiment"
 
     def test_awaiting_experiment_start_missing_id(self, is_mocks, capsys):
@@ -209,7 +222,7 @@ class TestInstrumentState:
         istate.awaiting_experiment_cb(istate.client, mock_msg)
 
         is_mocks["mqtt_val"].validate_message.assert_called_once()
-        assert istate.instrument.config["experiment"]["id"] is None
+        assert istate.instrument.config["experiment"]["experiment_id"] is None
         assert istate.status == "awaiting_experiment"  # Status should remain unchanged
         assert istate.client.callback == istate.awaiting_experiment_cb
         captured = capsys.readouterr()
@@ -230,7 +243,7 @@ class TestInstrumentState:
         istate.awaiting_experiment_cb(istate.client, mock_msg)
 
         is_mocks["mqtt_val"].validate_message.assert_called_once()
-        assert istate.instrument.config["experiment"]["id"] == "e-123"
+        assert istate.instrument.config["experiment"]["experiment_id"] == "e-123"
         assert istate.status == "running"
         assert istate.client.callback == istate.running_cb
 
@@ -381,7 +394,7 @@ class TestInstrumentState:
         mock_set_and_go = is_mocks["instrument"].set_and_go_to_setpoint
         with patch.object(state.InstrumentState, "reset") as mock_reset:
             istate = state.InstrumentState(mock_config)
-            istate.instrument.config["experiment"]["id"] = "e-123"
+            istate.instrument.config["experiment"]["experiment_id"] = "e-123"
             istate._can_measure = True
             istate._can_set_setpoint = False
             istate.status = "error"
@@ -444,7 +457,7 @@ class TestInstrumentState:
         mock_config = is_mocks["config"]
         istate = state.InstrumentState(mock_config)
         istate.status = "running"
-        istate.instrument.config["experiment"]["id"] = "e-123"
+        istate.instrument.config["experiment"]["experiment_id"] = "e-123"
 
         istate.reset()
 
@@ -452,7 +465,7 @@ class TestInstrumentState:
             is_mocks["instrument"].set_and_go_to_setpoint.assert_any_call(
                 variable, setpoint
             )
-        assert istate.instrument.config["experiment"]["id"] is None
+        assert istate.instrument.config["experiment"]["experiment_id"] is None
         assert istate.status == "awaiting_experiment"
         assert istate.client.callback == istate.awaiting_experiment_cb
 
@@ -481,7 +494,7 @@ class TestInstrumentState:
             patch.object(state.InstrumentState, "running_cb") as mock_run,
         ):
             istate = state.InstrumentState(mock_config)
-            istate.instrument.config["experiment"]["id"] = "e-123"
+            istate.instrument.config["experiment"]["experiment_id"] = "e-123"
             istate.status = "error"
 
             mock_msg = MockMessage(

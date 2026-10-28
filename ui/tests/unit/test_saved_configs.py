@@ -12,7 +12,10 @@ NOW = datetime(2026, 9, 25, 14, 3, 11)
 LATER = datetime(2026, 9, 25, 15, 0, 0)
 
 DEFAULT_EXPERIMENT = [{"time": 0, "a": 1, "a_profile": "linear", "id": "x"}]
-DEFAULT_INSTRUMENTS = [{"name": "a", "tolerance": 1.0}, {"name": "b", "tolerance": 1.0}]
+DEFAULT_INSTRUMENTS = [
+    {"name": "a/x", "key": "tolerance", "value": 1.0},
+    {"name": "b/y", "key": "tolerance", "value": 1.0},
+]
 
 
 @pytest.fixture(autouse=True)
@@ -92,16 +95,28 @@ class TestReconcile:
 
     def test_named_rows_follow_default_names_and_fields(self):
         rows = [
-            {"name": "a", "tolerance": 5.0, "default_setpoint": 3},
-            {"name": "gone", "tolerance": 2.0},
+            {"name": "a", "value": 5.0, "default_setpoint": 3},
+            {"name": "gone", "value": 2.0},
+        ]
+        default = [{"name": "a", "value": 1.0}, {"name": "b", "value": 1.0}]
+        assert sc.reconcile("config", rows, default) == [
+            {"name": "a", "value": 5.0},
+            {"name": "b", "value": 1.0},
+        ]
+
+    def test_instrument_rows_kept_and_missing_defaults_added(self):
+        rows = [
+            {"name": "a", "key": "offset", "value": 273},
+            {"name": "a/x", "key": "tolerance", "value": 5.0},
         ]
         assert sc.reconcile("instruments", rows, DEFAULT_INSTRUMENTS) == [
-            {"name": "a", "tolerance": 5.0},
-            {"name": "b", "tolerance": 1.0},
+            {"name": "a", "key": "offset", "value": 273},
+            {"name": "a/x", "key": "tolerance", "value": 5.0},
+            {"name": "b/y", "key": "tolerance", "value": 1.0},
         ]
 
     def test_reconciled_changes_are_dirty(self):
-        sc.save("instruments", "old", [{"name": "a", "tolerance": 5.0}], NOW)
+        sc.save("instruments", "old", [DEFAULT_INSTRUMENTS[0]], NOW)
         data, meta = sc.initial_state("instruments", DEFAULT_INSTRUMENTS)
         assert sc.is_dirty(data, meta)
 
@@ -117,7 +132,7 @@ class TestSaveIfChanged:
         assert meta is self.meta
 
     def test_modified_appends_datetime(self):
-        data = [{"name": "a", "tolerance": 2.0}, {"name": "b", "tolerance": 1.0}]
+        data = [{**DEFAULT_INSTRUMENTS[0], "value": 2.0}, DEFAULT_INSTRUMENTS[1]]
         filename, meta = sc.save_if_changed("instruments", data, self.meta, LATER)
         assert filename != self.filename
         assert meta["name"] == "setup 2026-09-25 15:00:00"

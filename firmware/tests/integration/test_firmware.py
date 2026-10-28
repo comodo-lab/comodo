@@ -85,7 +85,7 @@ async def test_main_with_generic_instrument(message_bus, firmware_env, monkeypat
             heartbeat_matches(
                 "running",
                 default_setpoints,
-                expected_config(firmware_env, {"id": "e-123"}),
+                expected_config(firmware_env, {"experiment_id": "e-123"}),
             ),
         )
 
@@ -100,7 +100,7 @@ async def test_main_with_generic_instrument(message_bus, firmware_env, monkeypat
             heartbeat_matches(
                 "running",
                 {"temperature": 40, "pressure": default_setpoints["pressure"]},
-                expected_config(firmware_env, {"id": "e-123"}),
+                expected_config(firmware_env, {"experiment_id": "e-123"}),
             ),
         )
         await wait_for_message(
@@ -118,7 +118,7 @@ async def test_main_with_generic_instrument(message_bus, firmware_env, monkeypat
             heartbeat_matches(
                 "running",
                 {"temperature": 40, "pressure": 2.0},
-                expected_config(firmware_env, {"id": "e-123"}),
+                expected_config(firmware_env, {"experiment_id": "e-123"}),
             ),
         )
         await wait_for_message(
@@ -141,7 +141,7 @@ async def test_main_with_generic_instrument(message_bus, firmware_env, monkeypat
             heartbeat_matches(
                 "running",
                 {"temperature": 100, "pressure": 0.5},
-                expected_config(firmware_env, {"id": "e-123"}),
+                expected_config(firmware_env, {"experiment_id": "e-123"}),
             ),
         )
         await wait_for_message(
@@ -187,7 +187,7 @@ async def test_main_with_generic_instrument(message_bus, firmware_env, monkeypat
             heartbeat_matches(
                 "running",
                 default_setpoints,
-                expected_config(firmware_env, {"id": "e-456"}),
+                expected_config(firmware_env, {"experiment_id": "e-456"}),
             ),
         )
     finally:

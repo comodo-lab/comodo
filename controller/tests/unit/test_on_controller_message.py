@@ -1,6 +1,6 @@
 import pytest
 import json
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 from tests.conftest import (
     MockMessage,
@@ -12,6 +12,7 @@ from tests.conftest import (
 )
 
 from src.on_controller_message import (
+    recover_on_exception,
     c_idle,
     c_starting,
     c_ready,
@@ -21,6 +22,102 @@ from src.on_controller_message import (
 )
 from utils.mqtt_validator import MQTTValidationException
 from src.validation import ExperimentValidationError
+
+
+class TestRecoverOnException:
+    @pytest.fixture
+    def recover_mocks(self, message_bus, mock_state, mqtt_mocks):
+        state = mock_state("idle")
+        client = MagicMock()
+        client.callback = "current_callback"
+
+        def get_decoded_bus_messages(topic=None):
+            return message_bus.get_messages(topic=topic, decoded=True)
+
+        yield {
+            "state": state,
+            "client": client,
+            "msg": MockMessage(topic="controller/command/run", payload="{}"),
+            "messages": get_decoded_bus_messages,
+        }
+
+    def set_state(self, state, status, experiment_id):
+        state.status = status
+        state.experiment_id = experiment_id
+        state._status_history = []
+
+    @staticmethod
+    @recover_on_exception
+    def crashing_callback(client, msg, obj):
+        raise RuntimeError("boom")
+
+    def test_no_exception_passes_through(self, recover_mocks):
+        @recover_on_exception
+        def ok_callback(client, msg, obj):
+            return "result"
+
+        m = recover_mocks
+        assert ok_callback(m["client"], m["msg"], m["state"]) == "result"
+        assert m["state"]._status_history == []
+        m["state"].reset.assert_not_called()
+        assert m["client"].callback == "current_callback"
+
+    def test_keeps_callback_name(self):
+        assert c_idle.__name__ == "c_idle"
+        assert c_running.__name__ == "c_running"
+
+    @pytest.mark.parametrize("status", ["idle", "validating", "stopping"])
+    def test_resets_without_stop_before_start_or_while_stopping(
+        self, recover_mocks, status
+    ):
+        m = recover_mocks
+        self.set_state(m["state"], status, "D123-456")
+
+        with pytest.raises(RuntimeError, match="boom"):
+            self.crashing_callback(m["client"], m["msg"], m["state"])
+
+        assert m["state"]._status_history == ["error", "idle"]
+        m["state"].reset.assert_called_once()
+        assert m["client"].callback == c_idle
+        assert m["messages"]("controller/command/stop") == []
+
+    @pytest.mark.parametrize(
+        "status", ["starting", "awaiting_instruments", "ready", "running"]
+    )
+    def test_publishes_stop_after_start(self, recover_mocks, status):
+        m = recover_mocks
+        self.set_state(m["state"], status, "D123-456")
+
+        with pytest.raises(RuntimeError, match="boom"):
+            self.crashing_callback(m["client"], m["msg"], m["state"])
+
+        # Stop is left to the normal stop path, so no reset here
+        assert m["state"]._status_history == ["error"]
+        m["state"].reset.assert_not_called()
+        assert m["client"].callback == "current_callback"
+        messages = m["messages"]("controller/command/stop")
+        assert len(messages) == 1
+        assert json.loads(messages[0].payload) == {"experiment_id": "D123-456"}
+
+    def test_recovers_once_when_nested(self, recover_mocks):
+        @recover_on_exception
+        def inner(client, msg, obj):
+            obj.status = "stopping"
+            raise RuntimeError("boom")
+
+        @recover_on_exception
+        def outer(client, msg, obj):
+            inner(client, msg, obj)
+
+        m = recover_mocks
+        self.set_state(m["state"], "running", "D123-456")
+
+        with pytest.raises(RuntimeError, match="boom"):
+            outer(m["client"], m["msg"], m["state"])
+
+        assert m["state"]._status_history == ["stopping", "error", "idle"]
+        m["state"].reset.assert_called_once()
+        assert m["messages"]("controller/command/stop") == []
 
 
 class TestIdle:
@@ -41,6 +138,7 @@ class TestIdle:
             patch("src.on_controller_message.c_starting") as mock_c_starting,
         ):
             state = mock_state("idle")
+            state.set_hb_experiment_config = MagicMock()
             mqtt_mocks["client_class"](
                 id="controller",
                 topics="controller/#",
@@ -91,6 +189,20 @@ class TestIdle:
         idle_mocks["pub_err"].incompatible_controller_status.assert_called_once_with(
             idle_mocks["state"], msg
         )
+        idle_mocks["validate_experiment"].assert_not_called()
+        idle_mocks["serial_id"].assert_not_called()
+
+    def test_ignores_stop_command(self, idle_mocks):
+        assert idle_mocks["state"].experiment_id == None
+        assert idle_mocks["state"].status == "idle"
+        msg = MockMessage(topic="controller/command/stop", payload="not important")
+
+        c_idle(idle_mocks["controller_client"], msg, idle_mocks["state"])
+
+        assert idle_mocks["state"].experiment_id == None
+        assert idle_mocks["state"].status == "idle"
+        assert idle_mocks["controller_client"].callback == c_idle
+        idle_mocks["pub_err"].incompatible_controller_status.assert_not_called()
         idle_mocks["validate_experiment"].assert_not_called()
         idle_mocks["serial_id"].assert_not_called()
 
@@ -186,6 +298,7 @@ class TestIdle:
         )
         messages = idle_mocks["messages"]()
         assert len(messages) == 0
+        idle_mocks["state"].set_hb_experiment_config.assert_not_called()
 
     def test_valid_file(self, idle_mocks, capsys):
         assert idle_mocks["state"].experiment_id == None
@@ -216,6 +329,54 @@ class TestIdle:
         )
         assert messages[1].topic == "controller/command/start"
         assert '{"experiment_id": "D123-456"}' in messages[1].payload
+        assert idle_mocks["state"].set_hb_experiment_config.call_args_list == [
+            (("furnace", {"experiment_id": "D123-456"}),),
+            (("pressure", {"experiment_id": "D123-456"}),),
+            (("mass_flow", {"experiment_id": "D123-456"}),),
+        ]
+
+    def test_valid_file_with_instrument_config(self, idle_mocks, capsys):
+        assert idle_mocks["state"].experiment_id == None
+        assert idle_mocks["state"].experiment_start_time == None
+        assert idle_mocks["state"].status == "idle"
+        idle_mocks["validate_experiment"].return_value = {
+            "temp_id": "123",
+            "experiment_definition": ["some data"],
+            "config": {"resolution": 42, "instruments": {"furnace": {"offset": 273}}},
+        }
+
+        c_idle(idle_mocks["controller_client"], idle_mocks["msg"], idle_mocks["state"])
+
+        captured = capsys.readouterr()
+        assert "Validating experiment 123..." in captured.out
+        assert "Experiment 123 valid. Assigned experiment id: D123-456" in captured.out
+        idle_mocks["validate_experiment"].assert_called_once_with(
+            "valid_file.json", idle_mocks["state"].config
+        )
+        # Split setpoints called
+        idle_mocks["split_setpoints"].assert_called_once_with(["some data"], 42)
+        idle_mocks["serial_id"].assert_called_once_with(idle_mocks["state"])
+        assert idle_mocks["state"].experiment_start_time != None
+        assert idle_mocks["state"].experiment_id == "D123-456"
+        assert idle_mocks["state"].status == "validating"
+        assert idle_mocks["controller_client"].callback == idle_mocks["c_starting"]
+        messages = idle_mocks["messages"]()
+        assert len(messages) == 3
+        assert messages[0].topic == "controller/validator/passed"
+        assert (
+            '{"temp_id": "123", "experiment_id": "D123-456", "valid": true}'
+            in messages[0].payload
+        )
+        assert messages[1].topic == "instruments/furnace/configure"
+        assert messages[1].payload == '{"offset": 273}'
+        assert messages[2].topic == "controller/command/start"
+        assert '{"experiment_id": "D123-456"}' in messages[2].payload
+        assert idle_mocks["state"].set_hb_experiment_config.call_args_list == [
+            (("furnace", {"offset": 273}),),
+            (("furnace", {"experiment_id": "D123-456"}),),
+            (("pressure", {"experiment_id": "D123-456"}),),
+            (("mass_flow", {"experiment_id": "D123-456"}),),
+        ]
 
 
 class TestStarting:
@@ -251,7 +412,6 @@ class TestStarting:
     # ========================================
 
     def test_incompatible_controller_status(self, start_mocks):
-        assert start_mocks["state"].experiment_id == "123"
         assert start_mocks["state"].status == "validating"
         assert start_mocks["controller_client"].callback == c_starting
 
@@ -265,7 +425,6 @@ class TestStarting:
         assert len(messages) == 0
 
     def test_accepts_stop_signal(self, start_mocks):
-        assert start_mocks["state"].experiment_id == "123"
         assert start_mocks["state"].status == "validating"
         assert start_mocks["controller_client"].callback == c_starting
 
@@ -278,7 +437,7 @@ class TestStarting:
 
     def test_valid_start(self, start_mocks, capsys):
         state = start_mocks["state"]
-        assert state.experiment_id == "123"
+        assert state.experiment_id == "D123-456"
         assert state.status == "validating"
         assert start_mocks["controller_client"].callback == c_starting
 
@@ -286,16 +445,16 @@ class TestStarting:
 
         msg = MockMessage(
             topic="controller/command/start",
-            payload=json.dumps({"experiment_id": "123"}),
+            payload=json.dumps({"experiment_id": "D123-456"}),
         )
         c_starting(start_mocks["controller_client"], msg, start_mocks["state"])
 
         captured = capsys.readouterr()
-        assert "Awaiting instruments for experiment 123..." in captured.out
+        assert "Awaiting instruments for experiment D123-456..." in captured.out
         # goes through starting to awaiting_instruments
         assert state._status_history == ["starting", "awaiting_instruments"]
         # State object updated correctly
-        assert state.experiment_id == "123"
+        assert state.experiment_id == "D123-456"
         assert state.setpoints is not None
         assert state.status == "awaiting_instruments"
         assert start_mocks["controller_client"].callback == start_mocks["c_ready"]
@@ -315,7 +474,7 @@ class TestStarting:
         assert len(messages) == 1
         assert messages[0].topic == "controller/timer/command/start"
         assert messages[0].payload == json.dumps(
-            {"source": "instrument_setup", "experiment_id": "123"}
+            {"source": "instrument_setup", "experiment_id": "D123-456"}
         )
 
 
@@ -352,13 +511,13 @@ class TestReady:
     # ========================================
 
     def test_incompatible_controller_status(self, ready_mocks):
-        assert ready_mocks["state"].experiment_id == "123"
+        assert ready_mocks["state"].experiment_id == "D123-456"
         assert ready_mocks["state"].status == "awaiting_instruments"
         assert ready_mocks["controller_client"].callback == c_ready
 
         msg = MockMessage(
             topic="controller/command/something_else",
-            payload=json.dumps({"experiment_id": "123"}),
+            payload=json.dumps({"experiment_id": "D123-456"}),
         )
         c_ready(ready_mocks["controller_client"], msg, ready_mocks["state"])
 
@@ -369,7 +528,6 @@ class TestReady:
         assert len(messages) == 0
 
     def test_accepts_stop_signal(self, ready_mocks):
-        assert ready_mocks["state"].experiment_id == "123"
         assert ready_mocks["state"].status == "awaiting_instruments"
         assert ready_mocks["controller_client"].callback == c_ready
 
@@ -381,25 +539,25 @@ class TestReady:
         assert len(messages) == 0
 
     def test_updates_states_correctly(self, ready_mocks, capsys):
-        assert ready_mocks["state"].experiment_id == "123"
+        assert ready_mocks["state"].experiment_id == "D123-456"
         assert ready_mocks["state"].status == "awaiting_instruments"
         assert ready_mocks["controller_client"].callback == c_ready
 
         msg = MockMessage(
             topic="controller/event/ready",
-            payload=json.dumps({"experiment_id": "123"}),
+            payload=json.dumps({"experiment_id": "D123-456"}),
         )
         c_ready(ready_mocks["controller_client"], msg, ready_mocks["state"])
 
         captured = capsys.readouterr()
-        assert "Instruments ready, starting experiment 123..." in captured.out
+        assert "Instruments ready, starting experiment D123-456..." in captured.out
         assert ready_mocks["state"].status == "ready"
-        assert ready_mocks["state"].experiment_id == "123"
+        assert ready_mocks["state"].experiment_id == "D123-456"
         assert ready_mocks["controller_client"].callback == ready_mocks["c_running"]
         messages = ready_mocks["messages"]()
         assert len(messages) == 1
         assert messages[0].topic == "controller/command/run"
-        assert messages[0].payload == '{"experiment_id": "123"}'
+        assert messages[0].payload == '{"experiment_id": "D123-456"}'
 
 
 class TestRunning:
@@ -432,13 +590,13 @@ class TestRunning:
 
     def test_incompatible_controller_status(self, run_mocks):
         state = run_mocks["state"]
-        assert state.experiment_id == "123"
+        assert state.experiment_id == "D123-456"
         assert state.status == "ready"
         assert run_mocks["controller_client"].callback == c_running
 
         msg = MockMessage(
             topic="controller/command/something_else",
-            payload=json.dumps({"experiment_id": "123"}),
+            payload=json.dumps({"experiment_id": "D123-456"}),
         )
         c_running(run_mocks["controller_client"], msg, state)
 
@@ -451,7 +609,6 @@ class TestRunning:
 
     def test_accepts_stop_signal(self, run_mocks):
         state = run_mocks["state"]
-        assert state.experiment_id == "123"
         assert state.status == "ready"
         assert run_mocks["controller_client"].callback == c_running
 
@@ -464,13 +621,13 @@ class TestRunning:
 
     def test_sends_end_signal_when_setpoints_empty(self, run_mocks):
         state = run_mocks["state"]
-        assert state.experiment_id == "123"
+        assert state.experiment_id == "D123-456"
         assert run_mocks["controller_client"].callback == c_running
         state.setpoints = []
 
         msg = MockMessage(
             topic="controller/command/run",
-            payload=json.dumps({"experiment_id": "123"}),
+            payload=json.dumps({"experiment_id": "D123-456"}),
         )
         c_running(run_mocks["controller_client"], msg, state)
 
@@ -478,18 +635,19 @@ class TestRunning:
         messages = run_mocks["messages"]()
         assert len(messages) == 1
         assert messages[0].topic == "controller/event/end"
-        assert messages[0].payload == json.dumps({"experiment_id": "123"})
+        assert messages[0].payload == json.dumps({"experiment_id": "D123-456"})
 
     def test_updates_state_on_first_setpoint_only(self, run_mocks):
         state = run_mocks["state"]
-        assert state.experiment_id == "123"
+        assert state.experiment_id == "D123-456"
         assert state.status == "ready"
         assert run_mocks["controller_client"].callback == c_running
         assert state.current_setpoint is None
         assert state.setpoints != []
 
         msg = MockMessage(
-            topic="controller/command/run", payload=json.dumps({"experiment_id": "123"})
+            topic="controller/command/run",
+            payload=json.dumps({"experiment_id": "D123-456"}),
         )
         c_running(run_mocks["controller_client"], msg, state)
 
@@ -500,7 +658,8 @@ class TestRunning:
         # Should not update state on second setpoint
         state.status = "idle"
         msg = MockMessage(
-            topic="controller/command/run", payload=json.dumps({"experiment_id": "123"})
+            topic="controller/command/run",
+            payload=json.dumps({"experiment_id": "D123-456"}),
         )
         c_running(run_mocks["controller_client"], msg, state)
 
@@ -508,14 +667,15 @@ class TestRunning:
 
     def test_saves_past_setpoints(self, run_mocks):
         state = run_mocks["state"]
-        assert state.experiment_id == "123"
+        assert state.experiment_id == "D123-456"
         assert state.status == "ready"
         assert run_mocks["controller_client"].callback == c_running
         assert state.current_setpoint is None
         assert state.setpoints != []
 
         msg = MockMessage(
-            topic="controller/command/run", payload=json.dumps({"experiment_id": "123"})
+            topic="controller/command/run",
+            payload=json.dumps({"experiment_id": "D123-456"}),
         )
         c_running(run_mocks["controller_client"], msg, state)
 
@@ -531,7 +691,7 @@ class TestRunning:
 
     def test_sets_current_setpoint(self, run_mocks):
         state = run_mocks["state"]
-        assert state.experiment_id == "123"
+        assert state.experiment_id == "D123-456"
         assert state.status == "ready"
         assert run_mocks["controller_client"].callback == c_running
         assert state.current_setpoint is None
@@ -539,7 +699,8 @@ class TestRunning:
         assert all_setpoints != []
 
         msg = MockMessage(
-            topic="controller/command/run", payload=json.dumps({"experiment_id": "123"})
+            topic="controller/command/run",
+            payload=json.dumps({"experiment_id": "D123-456"}),
         )
         c_running(run_mocks["controller_client"], msg, state)
 
@@ -547,7 +708,7 @@ class TestRunning:
 
     def test_drops_current_setpoint_from_list(self, run_mocks):
         state = run_mocks["state"]
-        assert state.experiment_id == "123"
+        assert state.experiment_id == "D123-456"
         assert state.status == "ready"
         assert run_mocks["controller_client"].callback == c_running
         assert state.current_setpoint is None
@@ -555,7 +716,8 @@ class TestRunning:
         assert all_setpoints != []
 
         msg = MockMessage(
-            topic="controller/command/run", payload=json.dumps({"experiment_id": "123"})
+            topic="controller/command/run",
+            payload=json.dumps({"experiment_id": "D123-456"}),
         )
         c_running(run_mocks["controller_client"], msg, state)
 
@@ -563,7 +725,7 @@ class TestRunning:
 
     def test_sends_setpoint(self, run_mocks):
         state = run_mocks["state"]
-        assert state.experiment_id == "123"
+        assert state.experiment_id == "D123-456"
         assert state.status == "ready"
         assert run_mocks["controller_client"].callback == c_running
         assert state.current_setpoint is None
@@ -571,7 +733,8 @@ class TestRunning:
         instruments = [k for k in first_sp if k != "duration"]
 
         msg = MockMessage(
-            topic="controller/command/run", payload=json.dumps({"experiment_id": "123"})
+            topic="controller/command/run",
+            payload=json.dumps({"experiment_id": "D123-456"}),
         )
         c_running(run_mocks["controller_client"], msg, state)
 
@@ -587,7 +750,7 @@ class TestRunning:
 
     def test_starts_setpoint_timer(self, run_mocks):
         state = run_mocks["state"]
-        assert state.experiment_id == "123"
+        assert state.experiment_id == "D123-456"
         assert state.status == "ready"
         assert run_mocks["controller_client"].callback == c_running
         assert state.current_setpoint is None
@@ -595,7 +758,8 @@ class TestRunning:
         instruments = [k for k in first_sp if k != "duration"]
 
         msg = MockMessage(
-            topic="controller/command/run", payload=json.dumps({"experiment_id": "123"})
+            topic="controller/command/run",
+            payload=json.dumps({"experiment_id": "D123-456"}),
         )
         c_running(run_mocks["controller_client"], msg, state)
 
@@ -604,13 +768,13 @@ class TestRunning:
         assert messages[-1].topic == "controller/timer/command/start"
         assert json.loads(messages[-1].payload) == {
             "source": "setpoint",
-            "experiment_id": "123",
+            "experiment_id": "D123-456",
             "duration": first_sp["duration"],
         }
 
     def test_saves_and_clears_last_setpoint(self, run_mocks):
         state = run_mocks["state"]
-        assert state.experiment_id == "123"
+        assert state.experiment_id == "D123-456"
         assert run_mocks["controller_client"].callback == c_running
         last_setpoint = state.setpoints[-1].copy()
         state.current_setpoint = last_setpoint.copy()
@@ -618,7 +782,8 @@ class TestRunning:
         state.setpoints = []
 
         msg = MockMessage(
-            topic="controller/command/run", payload=json.dumps({"experiment_id": "123"})
+            topic="controller/command/run",
+            payload=json.dumps({"experiment_id": "D123-456"}),
         )
         c_running(run_mocks["controller_client"], msg, state)
 
@@ -665,7 +830,6 @@ class TestStopping:
     def test_invalid_message(self, stop_mocks):
         err = MQTTValidationException("Invalid JSON")
         stop_mocks["validate_message"].side_effect = err
-        assert stop_mocks["state"].experiment_id == "123"
         assert stop_mocks["state"].status == "running"
         stop_mocks["controller_client"].callback = c_stopping
 
@@ -680,13 +844,13 @@ class TestStopping:
         assert len(messages) == 0
 
     def test_incompatible_controller_status(self, stop_mocks):
-        assert stop_mocks["state"].experiment_id == "123"
+        assert stop_mocks["state"].experiment_id == "D123-456"
         assert stop_mocks["state"].status == "running"
         assert stop_mocks["controller_client"].callback == c_stopping
 
         msg = MockMessage(
             topic="controller/command/something_else",
-            payload=json.dumps({"experiment_id": "123"}),
+            payload=json.dumps({"experiment_id": "D123-456"}),
         )
         c_stopping(stop_mocks["controller_client"], msg, stop_mocks["state"])
 
@@ -698,7 +862,7 @@ class TestStopping:
         assert len(messages) == 0
 
     def test_checks_uid(self, stop_mocks):
-        assert stop_mocks["state"].experiment_id == "123"
+        assert stop_mocks["state"].experiment_id == "D123-456"
         assert stop_mocks["state"].status == "running"
         assert stop_mocks["controller_client"].callback == c_stopping
 
@@ -716,12 +880,13 @@ class TestStopping:
         assert len(messages) == 0
 
     def test_valid_end(self, stop_mocks, capsys):
-        assert stop_mocks["state"].experiment_id == "123"
+        assert stop_mocks["state"].experiment_id == "D123-456"
         assert stop_mocks["state"].status == "running"
         assert stop_mocks["controller_client"].callback == c_stopping
 
         msg = MockMessage(
-            topic="controller/event/end", payload=json.dumps({"experiment_id": "123"})
+            topic="controller/event/end",
+            payload=json.dumps({"experiment_id": "D123-456"}),
         )
         c_stopping(stop_mocks["controller_client"], msg, stop_mocks["state"])
 
@@ -732,17 +897,19 @@ class TestStopping:
         assert stop_mocks["controller_client"].callback == stop_mocks["c_idle"]
         messages = stop_mocks["messages"]()
         assert len(messages) == 0
-        stop_message = f"Experiment 123 finished and the controller has been reset."
+        stop_message = (
+            f"Experiment D123-456 finished and the controller has been reset."
+        )
         assert stop_message in capsys.readouterr().out
 
     def test_valid_stop_from_any_callback(self, stop_mocks, capsys):
-        assert stop_mocks["state"].experiment_id == "123"
+        assert stop_mocks["state"].experiment_id == "D123-456"
         assert stop_mocks["state"].status == "running"
         stop_mocks["controller_client"].callback = "mock_callback"
 
         msg = MockMessage(
             topic="controller/command/stop",
-            payload=json.dumps({"experiment_id": "123"}),
+            payload=json.dumps({"experiment_id": "D123-456"}),
         )
         c_stopping(stop_mocks["controller_client"], msg, stop_mocks["state"])
 
@@ -752,5 +919,7 @@ class TestStopping:
         stop_mocks["state"].reset.assert_called_once()
         messages = stop_mocks["messages"]()
         assert len(messages) == 0
-        stop_message = f"Experiment 123 was stopped and the controller has been reset."
+        stop_message = (
+            f"Experiment D123-456 was stopped and the controller has been reset."
+        )
         assert stop_message in capsys.readouterr().out

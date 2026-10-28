@@ -1,3 +1,4 @@
+import functools
 import json
 import time as t
 from datetime import datetime
@@ -11,6 +12,46 @@ import src.publish_error as pub_err
 import src.validation as val
 
 
+def recover_on_exception(state_callback):
+    """
+    Decorator for controller state callbacks. On an unhandled exception it moves the
+    controller to the error state, stops the instruments if the experiment had started,
+    resets it, and returns to idle, then re-raises so the generic MQTT wrapper still
+    logs and publishes the error.
+    """
+
+    @functools.wraps(state_callback)
+    def wrapper(client, msg, obj):
+        try:
+            return state_callback(client, msg, obj)
+        except Exception as e:
+            if getattr(e, "controller_recovered", False):
+                raise
+            e.controller_recovered = True
+            crashed_status = obj.status
+            experiment_id = obj.experiment_id
+            print(
+                f"Recovering controller from exception in state '{crashed_status}' during experiment '{experiment_id}'..."
+            )
+            # Publish stop signal if experiment had started and did not already try to stop normally.
+            obj.status = "error"
+            if (
+                crashed_status not in ("idle", "validating", "stopping", "error")
+                and experiment_id
+            ):
+                mqtt.MQTTPublisher.get_instance().publish(
+                    "controller/command/stop",
+                    json.dumps({"experiment_id": experiment_id}),
+                )
+            else:
+                obj.reset()
+                client.callback = c_idle
+            raise
+
+    return wrapper
+
+
+@recover_on_exception
 def c_idle(client, msg, obj):
     """
     Callback for the controller when it is idle.
@@ -23,6 +64,8 @@ def c_idle(client, msg, obj):
     Otherwise, it resets to the idle state and publishes an error.
     """
     if msg.topic != "controller/command/validate":
+        if msg.topic == "controller/command/stop":
+            return
         if msg.topic.startswith("controller/command/"):
             pub_err.incompatible_controller_status(obj, msg)
         return
@@ -67,6 +110,22 @@ def c_idle(client, msg, obj):
             f"Experiment {temp_id} valid. Assigned experiment id: {obj.experiment_id}"
         )
 
+        # Send live experiment config to instruments and update expected heartbeats
+        instruments_config = exp_config["config"].get("instruments", {})
+        for instrument_name in instruments_config:
+            mqtt.MQTTPublisher.get_instance().publish(
+                f"instruments/{instrument_name}/configure",
+                json.dumps(instruments_config[instrument_name]),
+            )
+            obj.set_hb_experiment_config(
+                instrument_name, instruments_config[instrument_name]
+            )
+        # Also expect experiment id
+        for instrument_name in obj.expected_heartbeats:
+            obj.set_hb_experiment_config(
+                instrument_name, {"experiment_id": obj.experiment_id}
+            )
+
         # Update state and callback of controller
         client.callback = c_starting
         mqtt.MQTTPublisher.get_instance().publish(
@@ -79,6 +138,7 @@ def c_idle(client, msg, obj):
         obj.status = "idle"
 
 
+@recover_on_exception
 def c_starting(client, msg, obj):
     """
     Callback for the controller when a valid experiment configuration is received.
@@ -119,6 +179,7 @@ def c_starting(client, msg, obj):
     )
 
 
+@recover_on_exception
 def c_ready(client, msg, obj):
     """
     Callback for the controller when instruments respond to the configuration.
@@ -146,6 +207,7 @@ def c_ready(client, msg, obj):
     )
 
 
+@recover_on_exception
 def c_running(client, msg, obj):
     """
     Callback for the controller when the experiment is running.
@@ -182,7 +244,6 @@ def c_running(client, msg, obj):
     next_setpoint = obj.setpoints.pop(0)
     obj.current_setpoint = next_setpoint
     print(f"Next setpoint: {next_setpoint}")
-    duration = next_setpoint.get("duration")
     for column_name, value in next_setpoint.items():
         if column_name == "duration":
             continue
@@ -203,6 +264,7 @@ def c_running(client, msg, obj):
     )
 
 
+@recover_on_exception
 def c_stopping(client, msg, obj):
     """
     Callback for the controller when the experiment is stopping.

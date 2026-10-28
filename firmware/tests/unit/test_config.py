@@ -49,7 +49,7 @@ class TestConfig:
                 "SAFE_STOP_SETPOINTS": '{"flow": 0}',
                 "MEASUREMENT_INTERVALS": '{"flow": 0.5}',
                 "HEARTBEAT_INTERVAL": "2.5",
-                "experiment": '{"id": "experiment-1"}',
+                "experiment": '{"experiment_id": "experiment-1"}',
             }
         )
 
@@ -62,7 +62,7 @@ class TestConfig:
         assert result["SAFE_STOP_SETPOINTS"] == {"flow": 0}
         assert result["MEASUREMENT_INTERVALS"] == {"flow": 0.5}
         assert result["HEARTBEAT_INTERVAL"] == 2.5
-        assert result["experiment"] == {"id": "experiment-1"}
+        assert result["experiment"] == {"experiment_id": "experiment-1"}
 
     @pytest.mark.parametrize("value", ["true", "TRUE", "1", "yes", "Yes"])
     def test_load_config_parses_truthy_simulate_values(self, config_mocks, value):

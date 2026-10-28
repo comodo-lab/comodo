@@ -121,13 +121,19 @@ def reconcile(kind, rows, default):
     """
     Fits saved rows to the current comodo.yaml, which may have changed since they were saved.
     Experiment rows keep only the current columns, filling missing ones from the default row.
-    Instruments and config keep only the current names and fields, filling missing ones from the default.
+    Instrument rows are kept, adding the default rows missing from them.
+    Config keeps only the current names and fields, filling missing ones from the default.
     """
     default = strip_ids(default)
     if kind == "experiment":
         template = default[0]
         fitted = [{key: row.get(key, value) for key, value in template.items()} for row in rows]
         return fitted or default
+    if kind == "instruments":
+        saved = {(row.get("name"), row.get("key")) for row in rows}
+        return rows + [
+            item for item in default if (item["name"], item["key"]) not in saved
+        ]
     saved = {row.get("name"): row for row in rows}
     return [
         {key: saved.get(item["name"], {}).get(key, value) for key, value in item.items()}

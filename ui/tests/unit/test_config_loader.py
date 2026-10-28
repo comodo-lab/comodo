@@ -38,8 +38,8 @@ class TestUiConfig:
         config = UiConfig(sample_config_with_pid)
         instruments = config.ini_instrument_dict
         assert instruments == [
-            {"name": "test_sensor/value", "tolerance": 0.5},
-            {"name": "test_spc/output", "tolerance": 1.0},
+            {"name": "test_sensor/value", "key": "tolerance", "value": 0.5},
+            {"name": "test_spc/output", "key": "tolerance", "value": 1.0},
         ]
 
     def test_pid_target_uses_sensor_range(self, sample_config_with_pid):
@@ -82,8 +82,8 @@ class TestUiConfig:
         config = UiConfig(sample_config_yaml)
         instruments = config.ini_instrument_dict
         assert instruments == [
-            {"name": "test_sensor/reading", "tolerance": 1.0},
-            {"name": "test_actuator/output", "tolerance": 0.5},
+            {"name": "test_sensor/reading", "key": "tolerance", "value": 1.0},
+            {"name": "test_actuator/output", "key": "tolerance", "value": 0.5},
         ]
 
     def test_ini_experiment_config(self, sample_config_yaml):

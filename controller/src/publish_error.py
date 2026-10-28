@@ -18,7 +18,7 @@ def message_validation(error):
     """
     mqtt_val.print_and_publish_error(
         topic="error/controller",
-        message=str(error),
+        error=str(error),
     )
 
 
