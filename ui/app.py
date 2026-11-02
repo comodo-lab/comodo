@@ -25,11 +25,9 @@ from src import (
     log_book as lb,
     log_window as lw,
     main_window as mw,
-    meta_data_ui as md,
     saved_configs as sc,
     saved_selector as sel,
     top_matter as tm,
-    workflow_ui as wf,
 )
 
 # Initialise publisher singleton
@@ -191,12 +189,7 @@ def initialize_experiment_store(pathname, current_data):
 
 control_window = cw.get_control_panel(PARAM_DICT)
 graph_layout = gv.get_experiment_graph()
-metadata_workflow = wf.get_workflow_layout()
 log_window = lw.get_log_window()
-
-metadata_layout = md.get_metadata_layout()
-# Register metadata callbacks
-wf.register_workflow_callbacks(app)
 
 
 @app.callback(
@@ -224,16 +217,12 @@ def render_page(pathname, *states):
         return with_selector("instruments", "instrument-wrapper")
     elif pathname == "/designer":
         return with_selector("experiment", "designer-wrapper")
-    elif pathname == "/metadata":
-        return metadata_layout
     elif pathname == "/control":
         return control_window
     elif pathname == "/graph":
         return graph_layout
     elif pathname == "/experiment-config":
         return with_selector("config", "experiment-config-wrapper")
-    elif pathname == "/workflow":
-        return metadata_workflow
     elif pathname == lw.LOG_PATH:
         return log_window
     else:
@@ -294,19 +283,11 @@ def serve_layout():
                         className="me-0",
                     ),
                     dbc.NavItem(
-                        dbc.NavLink("Metadata Entry", href="/metadata", active="exact"),
-                        className="me-0",
-                    ),
-                    dbc.NavItem(
                         dbc.NavLink("Control Panel", href="/control", active="exact"),
                         className="me-0",
                     ),
                     dbc.NavItem(
                         dbc.NavLink("Graph View", href="/graph", active="exact"),
-                        className="me-0",
-                    ),
-                    dbc.NavItem(
-                        dbc.NavLink("Workflow", href="/workflow", active="exact"),
                         className="me-0",
                     ),
                     dbc.NavItem(
