@@ -18,9 +18,5 @@ COPY ui/src                 /ui/src
 COPY ui/tests               /ui/tests
 COPY ui/README.md           /ui/README.md
 
-# Copy entrypoint that handles *_FILE secrets
-COPY ui/entrypoint.sh       /entrypoint.sh
-RUN chmod +x /entrypoint.sh
 # Start ui
-ENTRYPOINT ["/entrypoint.sh"]
 CMD ["python", "-u", "/ui/app.py"]
