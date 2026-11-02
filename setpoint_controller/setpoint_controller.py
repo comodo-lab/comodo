@@ -258,7 +258,7 @@ class SetpointController:
             topics=[
                 f"instruments/{sensor_instrument}/{sensor_variable}/setpoint",
                 f"instruments/{sensor_instrument}/{sensor_variable}/measurement",
-                f"setpoint_controllers/{spc_id}/setup",
+                f"setpoint_controllers/{spc_id}/configure",
                 "controller/command/start",
                 "controller/event/end",
                 "controller/command/stop",
@@ -285,10 +285,12 @@ class SetpointController:
             spc.publish_heartbeat()
             return
 
-        if msg.topic == f"setpoint_controllers/{spc.spc_id}/setup":
+        if msg.topic == f"setpoint_controllers/{spc.spc_id}/configure":
             for k, v in message.items():
                 if k not in ["enabled", "experiment_id", "pid"]:
-                    error = f"Cannot configure spc parameter: {k}. Aborting setup."
+                    error = (
+                        f"Cannot configure spc parameter: {k}. Aborting configuration."
+                    )
                     mqtt.MQTTPublisher.get_instance().publish(
                         "error/setpoint_controller",
                         json.dumps(
@@ -306,7 +308,16 @@ class SetpointController:
                     not_configurable.append(k)
             if not_configurable:
                 e = ", ".join(not_configurable)
-                error = f"Cannot configure PID parameter: {e}. Aborting setup."
+                error = f"Cannot configure PID parameter: {e}. Aborting configuration."
+                mqtt.MQTTPublisher.get_instance().publish(
+                    "error/setpoint_controller",
+                    json.dumps({"code": "pid_configuration_error", "message": error}),
+                )
+            elif pid_config and spc.state.experiment_id is not None:
+                error = (
+                    "Cannot configure PID while experiment "
+                    f"{spc.state.experiment_id} is running. Aborting configuration."
+                )
                 mqtt.MQTTPublisher.get_instance().publish(
                     "error/setpoint_controller",
                     json.dumps({"code": "pid_configuration_error", "message": error}),

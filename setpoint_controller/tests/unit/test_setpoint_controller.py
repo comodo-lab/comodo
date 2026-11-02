@@ -293,7 +293,7 @@ class Test_SetpointController_init:
             topics=[
                 "instruments/I1/A/setpoint",
                 "instruments/I1/A/measurement",
-                "setpoint_controllers/I1-A--I2-B/setup",
+                "setpoint_controllers/I1-A--I2-B/configure",
                 "controller/command/start",
                 "controller/event/end",
                 "controller/command/stop",
@@ -611,13 +611,13 @@ class Test_on_measurement_message:
         )
 
 
-class Test_on_setup_message:
+class Test_on_configure_message:
 
     @pytest.fixture
     def osum_mocks(self, mock_spc, mqtt_mocks, mqtt_validator_mocks):
         def make_msg(config):
             return MockMessage(
-                f"setpoint_controllers/{mock_spc.spc_id}/setup",
+                f"setpoint_controllers/{mock_spc.spc_id}/configure",
                 json.dumps(config),
             )
 
@@ -647,7 +647,7 @@ class Test_on_setup_message:
         assert topic == "error/setpoint_controller"
         assert message["code"] == "spc_configuration_error"
         assert (
-            "Cannot configure spc parameter: something_else. Aborting setup."
+            "Cannot configure spc parameter: something_else. Aborting configuration."
             in message["message"]
         )
         assert mock_spc.state.experiment_id == None
@@ -733,7 +733,7 @@ class Test_on_setup_message:
         assert topic == "error/setpoint_controller"
         assert message["code"] == "pid_configuration_error"
         assert (
-            "Cannot configure PID parameter: non_configurable_param. Aborting setup."
+            "Cannot configure PID parameter: non_configurable_param. Aborting configuration."
             in message["message"]
         )
 
@@ -754,6 +754,62 @@ class Test_on_setup_message:
         assert mock_spc.state.enabled == False
         assert mock_spc.pid.k_p == new_k_p
         assert mock_spc.pid.k_i == new_k_i
+        mock_spc.publish_heartbeat.assert_called_once()
+
+    def test_rejects_pid_while_experiment_running(self, osum_mocks):
+        mock_spc = osum_mocks["spc"]
+        mock_spc.state.experiment_id = "exp123"
+        mock_spc.pid.k_p = 1.0
+        mock_spc.pid.configurable = ["k_p"]
+        config = {"enabled": False, "pid": {"k_p": 4.2}}
+        msg = osum_mocks["make_msg"](config)
+
+        SetpointController.on_message(osum_mocks["client"], msg, mock_spc)
+
+        assert mock_spc.pid.k_p == 1.0
+        assert mock_spc.state.enabled == True
+        assert mock_spc.state.experiment_id == "exp123"
+        osum_mocks["publisher"].publish.assert_called_once()
+        topic, message = parse_message_args(
+            osum_mocks["publisher"].publish.call_args[0]
+        )
+        assert topic == "error/setpoint_controller"
+        assert message["code"] == "pid_configuration_error"
+        assert (
+            "Cannot configure PID while experiment exp123 is running. "
+            "Aborting configuration." in message["message"]
+        )
+        mock_spc.publish_heartbeat.assert_called_once()
+
+    def test_accepts_non_pid_configuration_while_experiment_running(
+        self, osum_mocks
+    ):
+        mock_spc = osum_mocks["spc"]
+        mock_spc.state.experiment_id = "exp123"
+        config = {"enabled": False}
+        msg = osum_mocks["make_msg"](config)
+
+        SetpointController.on_message(osum_mocks["client"], msg, mock_spc)
+
+        assert mock_spc.state.enabled == False
+        osum_mocks["publisher"].publish.assert_not_called()
+        mock_spc.publish_heartbeat.assert_called_once()
+
+    def test_accepts_pid_with_experiment_id_before_experiment_starts(
+        self, osum_mocks
+    ):
+        mock_spc = osum_mocks["spc"]
+        assert mock_spc.state.experiment_id == None
+        mock_spc.pid.k_p = 1.0
+        mock_spc.pid.configurable = ["k_p"]
+        config = {"experiment_id": "exp123", "pid": {"k_p": 4.2}}
+        msg = osum_mocks["make_msg"](config)
+
+        SetpointController.on_message(osum_mocks["client"], msg, mock_spc)
+
+        assert mock_spc.pid.k_p == 4.2
+        assert mock_spc.state.experiment_id == "exp123"
+        osum_mocks["publisher"].publish.assert_not_called()
         mock_spc.publish_heartbeat.assert_called_once()
 
 

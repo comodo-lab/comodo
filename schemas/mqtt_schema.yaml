@@ -404,6 +404,41 @@ channels:
                     - type: string
                     - type: "null"
 
+  setpointControllerConfiguration:
+    address: setpoint_controllers/+/configure
+    messages:
+      setpointControllerConfiguration:
+        payload:
+          type: object
+          additionalProperties: false
+          properties:
+            enabled:
+              type: boolean
+            experiment_id:
+              type: string
+            pid:
+              type: object
+              additionalProperties: false
+              properties:
+                k_p:
+                  type: number
+                k_i:
+                  type: number
+                k_d:
+                  type: number
+                k_df:
+                  type: number
+                k_aw:
+                  type: number
+                max:
+                  type: number
+                min:
+                  type: number
+                max_rate:
+                  oneOf:
+                    - type: number
+                    - type: "null"
+
   instrumentHeartbeat:
     address: instruments/+/heartbeat
     messages:

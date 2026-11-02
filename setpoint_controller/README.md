@@ -40,6 +40,8 @@ Additional optional environment variables include:
 The controller subscribes to the following MQTT topics:
 - `sensors/SENSOR/setpoint`: The desired setpoint for the external sensor.
 - `measurement/SENSOR`: The current measurements from the external sensor.
+- `setpoint_controllers/SPC_ID/configure`: Enables/disables the controller, sets its `experiment_id`, or updates its `pid` parameters.
+  PID parameters cannot be changed while an experiment is running.
 And publishes to:
 - `heartbeat/pid/SENSOR__ACTUATOR`: The health state of the PID controller.
 - `pid/SENSOR__ACTUATOR/setpoint`: When the PID controller's setpoint is updated (or None, on startup).
