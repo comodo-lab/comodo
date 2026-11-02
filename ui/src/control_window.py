@@ -29,9 +29,9 @@ import plotly.graph_objects as go
 
 from utils.mqtt_clients import MQTTPublisher
 from utils.influx_query import query_influxdb_params
-import saved_configs as sc
-import heartbeats as hb
-import instrument_setup as ins
+import src.saved_configs as sc
+import src.heartbeats as hb
+import src.instrument_setup as ins
 
 # Seconds to wait for the controller state to change after a click, before giving up
 CLICK_TIMEOUT = 5

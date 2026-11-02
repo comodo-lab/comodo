@@ -5,8 +5,7 @@ from datetime import datetime
 import pytest
 import yaml
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
-import saved_configs as sc
+import src.saved_configs as sc
 
 NOW = datetime(2026, 9, 25, 14, 3, 11)
 LATER = datetime(2026, 9, 25, 15, 0, 0)
@@ -127,7 +126,9 @@ class TestSaveIfChanged:
         self.meta = sc.make_meta(self.filename, sc.load("instruments", self.filename))
 
     def test_unchanged_reuses_file(self):
-        filename, meta = sc.save_if_changed("instruments", DEFAULT_INSTRUMENTS, self.meta)
+        filename, meta = sc.save_if_changed(
+            "instruments", DEFAULT_INSTRUMENTS, self.meta
+        )
         assert filename == self.filename
         assert meta is self.meta
 
@@ -146,7 +147,9 @@ class TestSaveIfChanged:
 
     def test_renamed_keeps_new_name(self):
         meta = {**self.meta, "name": "renamed"}
-        filename, meta = sc.save_if_changed("instruments", DEFAULT_INSTRUMENTS, meta, LATER)
+        filename, meta = sc.save_if_changed(
+            "instruments", DEFAULT_INSTRUMENTS, meta, LATER
+        )
         assert filename != self.filename
         assert meta["name"] == "renamed"
 

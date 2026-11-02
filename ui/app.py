@@ -1,14 +1,14 @@
+import os
+import random
+import logging
+
 from dash import Dash, html, dcc, Input, Output, callback, State, no_update
 from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 
-from dash import Dash, html
-
 from utils.mqtt_clients import MQTTPublisher
-from config_loader import UiConfig
-import os
-import random
-import logging
+
+from src.config_loader import UiConfig
 
 app = Dash(
     external_stylesheets=[dbc.themes.LUX],
@@ -16,19 +16,21 @@ app = Dash(
 )
 
 # Import UI modules after creating the app so their global callbacks are registered.
-import top_matter as tm
-import main_window as mw
-import control_window as cw
-import instrument_setup as ins
-import graph_view as gv
-import experiment_config as ec
-import workflow_ui as wf
-import meta_data_ui as md
-import saved_selector as sel
-import saved_configs as sc
-import heartbeats as hb
-import log_book as lb
-import log_window as lw
+from src import (
+    control_window as cw,
+    experiment_config as ec,
+    graph_view as gv,
+    heartbeats as hb,
+    instrument_setup as ins,
+    log_book as lb,
+    log_window as lw,
+    main_window as mw,
+    meta_data_ui as md,
+    saved_configs as sc,
+    saved_selector as sel,
+    top_matter as tm,
+    workflow_ui as wf,
+)
 
 # Initialise publisher singleton
 id_suffix = random.randint(0, 32768)

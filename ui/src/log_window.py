@@ -2,8 +2,8 @@ from dash import html, callback, Output, Input, State
 from dash.exceptions import PreventUpdate
 import dash_ag_grid as dag
 
-import log_book as lb
-import top_matter as tm
+import src.log_book as lb
+import src.top_matter as tm
 
 LOG_PATH = "/log"
 # Log tab highlighted while there are errors not yet seen

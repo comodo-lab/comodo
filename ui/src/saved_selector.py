@@ -2,7 +2,7 @@ from dash import html, dcc, callback, Output, Input, State
 from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 
-import saved_configs as sc
+import src.saved_configs as sc
 
 # Store holding the data of each kind of saved configuration
 STORES = {

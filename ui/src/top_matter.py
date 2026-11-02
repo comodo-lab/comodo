@@ -1,10 +1,11 @@
-from dash import html, callback, Output, Input, State
-from dash.exceptions import PreventUpdate
-import dash_bootstrap_components as dbc
 from datetime import datetime
 import pytz
 
-import heartbeats as hb
+from dash import html, callback, Output, Input, State
+from dash.exceptions import PreventUpdate
+import dash_bootstrap_components as dbc
+
+import src.heartbeats as hb
 
 # Display name and card/badge colour of each status reported in the heartbeats
 CONTROLLER_STATUS_LIST = {

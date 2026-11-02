@@ -7,9 +7,8 @@ from types import SimpleNamespace
 import pytest
 from dash.exceptions import PreventUpdate
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
-import log_book as lb
-import log_window as lw
+import src.log_book as lb
+import src.log_window as lw
 
 
 @pytest.fixture(autouse=True)

@@ -8,9 +8,8 @@ from dash.exceptions import PreventUpdate
 for var in ("INFLUX_TOKEN", "INFLUX_ORG", "INFLUX_BUCKET"):
     os.environ.setdefault(var, "test")
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
-import control_window as cw
-import heartbeats as hb
+import src.control_window as cw
+import src.heartbeats as hb
 
 NOW = 1000.0
 

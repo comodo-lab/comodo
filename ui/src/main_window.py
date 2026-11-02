@@ -20,7 +20,7 @@ import dash_ag_grid as dag
 import pandas as pd
 import plotly.graph_objects as go
 
-from plot import plot_data_plotly
+from src.plot import plot_data_plotly
 
 PROFILES = ["linear", "logarithmic", "exponential", "step"]
 

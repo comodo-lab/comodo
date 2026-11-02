@@ -5,10 +5,9 @@ from types import SimpleNamespace
 
 import pytest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
-import heartbeats as hb
-import top_matter as tm
-from config_loader import UiConfig
+import src.heartbeats as hb
+import src.top_matter as tm
+from src.config_loader import UiConfig
 
 
 @pytest.fixture(autouse=True)
