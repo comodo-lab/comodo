@@ -71,7 +71,7 @@ def main():
     k_df = os.getenv("K_DF", None)
     max_output = os.getenv("OUT_MAX", None)
     min_output = os.getenv("OUT_MIN", None)
-    max_rate_output = os.getenv("OUT_MAX_R", None)
+    max_rate = os.getenv("MAX_RATE", None)
 
     # create dict of PID parameters and filter out None values
     pid_params = {
@@ -84,7 +84,7 @@ def main():
             "k_df": k_df,
             "max": max_output,
             "min": min_output,
-            "max_rate": max_rate_output,
+            "max_rate": max_rate,
         }.items()
         if v is not None
     }

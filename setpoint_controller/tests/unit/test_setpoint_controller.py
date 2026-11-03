@@ -161,7 +161,7 @@ class Test_main:
             call("K_DF", None),
             call("OUT_MAX", None),
             call("OUT_MIN", None),
-            call("OUT_MAX_R", None),
+            call("MAX_RATE", None),
         ]
 
     def test_publisher_initialized_once(self, mocks_for_main, mqtt_mocks):
@@ -781,9 +781,7 @@ class Test_on_configure_message:
         )
         mock_spc.publish_heartbeat.assert_called_once()
 
-    def test_accepts_non_pid_configuration_while_experiment_running(
-        self, osum_mocks
-    ):
+    def test_accepts_non_pid_configuration_while_experiment_running(self, osum_mocks):
         mock_spc = osum_mocks["spc"]
         mock_spc.state.experiment_id = "exp123"
         config = {"enabled": False}
@@ -795,9 +793,7 @@ class Test_on_configure_message:
         osum_mocks["publisher"].publish.assert_not_called()
         mock_spc.publish_heartbeat.assert_called_once()
 
-    def test_accepts_pid_with_experiment_id_before_experiment_starts(
-        self, osum_mocks
-    ):
+    def test_accepts_pid_with_experiment_id_before_experiment_starts(self, osum_mocks):
         mock_spc = osum_mocks["spc"]
         assert mock_spc.state.experiment_id == None
         mock_spc.pid.k_p = 1.0

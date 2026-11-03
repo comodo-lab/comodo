@@ -34,7 +34,7 @@ Additional optional environment variables include:
 - `K_DF`: Derivative filtering time constant. $\textcolor{#999999}{\small{\text{ Default: 0 (disabled). }}}$
 - `OUT_MIN`: Minimum limit for the actuator. $\textcolor{#999999}{\small{\text{ Default: 0. }}}$
 - `OUT_MAX`: Maximum limit for the actuator. $\textcolor{#999999}{\small{\text{ Default: 100. }}}$
-- `OUT_MAX_R`: Maximum rate of change for the actuator. $\textcolor{#999999}{\small{\text{ Default: None (unlimited). }}}$
+- `MAX_RATE`: Maximum rate of change for the actuator. $\textcolor{#999999}{\small{\text{ Default: None (unlimited). }}}$
 
 ### MQTT Topics
 The controller subscribes to the following MQTT topics:

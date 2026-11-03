@@ -57,6 +57,7 @@ channels:
                           - k_d
                           - k_df
                           - k_aw
+                          - max_rate
                         properties:
                           k_p:
                             type: number
@@ -67,10 +68,6 @@ channels:
                           k_df:
                             type: number
                           k_aw:
-                            type: number
-                          max:
-                            type: number
-                          min:
                             type: number
                           max_rate:
                             oneOf:
@@ -336,10 +333,10 @@ channels:
                   additionalProperties:
                     type: string
                     enum:
-                    - no_heartbeat
-                    - no_measurement
-                    - at_setpoint
-                    - adjusting
+                      - no_heartbeat
+                      - no_measurement
+                      - at_setpoint
+                      - adjusting
 
   setpointControllerHeartbeat:
     address: setpoint_controllers/+/heartbeat

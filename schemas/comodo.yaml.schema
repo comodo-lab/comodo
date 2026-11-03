@@ -132,6 +132,7 @@ classes:
       - K_D
       - K_DF
       - K_AW
+      - MAX_RATE
     slot_usage:
       external_sensor:
         required: true
@@ -240,4 +241,6 @@ slots:
   K_DF:
     range: float
   K_AW:
+    range: float
+  MAX_RATE:
     range: float

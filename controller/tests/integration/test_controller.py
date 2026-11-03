@@ -133,7 +133,7 @@ def test_control_loop(
     spc_id = "pressure-pressure--mass_flow-mass_flow"
     assert messages[5].topic == f"setpoint_controllers/{spc_id}/configure"
     assert json.loads(messages[5].payload) == {
-        "pid": {"k_p": 10.0, "k_i": 1.0, "k_d": 0.1, "k_aw": 0.05, "k_df": 0.01}
+        "pid": {"k_p": 10.0, "k_i": 1.0, "k_d": 0.1, "k_aw": 0.05, "k_df": 0.01, "max_rate": None}
     }
     assert messages[6].topic == "controller/command/start"
     assert messages[7].topic == "controller/timer/command/start"
