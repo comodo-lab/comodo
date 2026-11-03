@@ -35,7 +35,7 @@ The stack consists of:
 - A series of sensors and actuators that interface with the physical world.
   These devices are responsible for collecting data and/or executing the actual experiment,
   and must have compatible [firmware](firmware/README.md) controlling them.
-- A [central configuration file](#central-configuration-file), `comodo.yaml`, which defines the experiment: (See [note here](#central-configuration-file).)
+- A [central configuration file](#central-configuration-file), `comodo.yaml`, which defines the experiment:
   - The instruments of an experiment (physical devices).
   - The variables measured by the instruments.
   - The sensor for each variable, and optionally their actuators and potential relationships between variables.
@@ -54,15 +54,14 @@ Each of these compose files can be run independently, allowing for flexible depl
 Currently, only [manual deployment](#manual-deployment) is supported, although a helper script automates the preparation steps (see [automatic deployment](#automatic-deployment)).
 
 ## Central Configuration File
-**NOTE:** *Currently nothing listens to this file, everything is hardcoded in:*
-*- The [ui's app](ui/app.py) app - See definition of `PARAMS`, `PARAM_DICT` and `INI_DATA_DICT`*
-*- The [ui's plotting](ui/plot.py) code - Maybe this is sort of generic?*
-*- The controller's code - See the [experiment schema](controller/schemas/schema_experiment.json)*
-*- The [firmware's main](firmware/main.py) code - See `# Sensor imports (trigger sensor registration)` section.*
-*- The [compose.firmware.yaml](compose.firmware.yaml) file.*
-*The intention is that the central configuration file will result in a fully automated deployment of the entire stack, including the firmware for the sensors and actuators.*
-*However, this is not yet implemented, and currently the deployment requires manually configuring the above files.*
-*Also, once the above are configured, one needs to [deploy the firmware stack](#setting-up-the-firmware-for-the-sensors-and-actuators).*
+The central configuration file, `comodo.yaml`, is the single source of truth for an experiment set-up:
+- It is validated against [the schema](schemas/comodo.yaml.schema) every time the core stack starts (the `config` service in `compose.yaml`).
+  The controller and UI will not start if validation fails.
+- The controller and UI read it at start-up (through [utils/comodo_config.py](utils/comodo_config.py)), which applies some extra checks (see below).
+- The firmware stack, `compose.firmware.yaml`, is generated from it (see [setting up the firmware](#setting-up-the-firmware-for-the-sensors-and-actuators)).
+
+After changing `comodo.yaml`, regenerate the firmware stack and restart the stacks for the changes to take effect.
+An example can be found in [comodo.yaml](comodo.yaml).
 
 The central configuration file, `comodo.yaml`, is where you define your experiment.
 This file is written in YAML format and contains all the necessary information to set up, run, and monitor your experiment.
@@ -90,10 +89,36 @@ That is, at the top level, the file is divided into two main sections: `global` 
 ### Global Settings
 Experiment global settings are defined in the `global` section of the `comodo.yaml` file.
 
-Currently implemented settings include:
-- `error_timeout`: The time in seconds to wait before considering an instrument unresponsive.
-- `measurement_interval`: The default interval in seconds at which measurements are taken from all instruments.
-  This can be overridden for individual instruments if needed.
+All of the settings below are required, and must be positive numbers:
+- `heartbeat`:
+  - `interval`: Time in seconds between heartbeat messages, for the controller, instruments and setpoint controllers.
+- `instrument_setup`:
+  - `wait`: Time in seconds the controller waits for all instruments to be ready when an experiment starts.
+    If they are not ready by then, the experiment is stopped.
+- `experiment_monitoring`:
+  - `max_missed_heartbeats`: Number of consecutive heartbeats an instrument may miss before it is considered unresponsive.
+  - `bad_state_tolerance`: Number of consecutive controller heartbeats an instrument may report a bad state before the experiment errors.
+  - `missed_setpoint_tolerance`: Number of experiment time steps (of the experiment's resolution) an instrument may take to reach its setpoint before the experiment errors.
+- `watchdog`: The watchdog checks that the controller is alive, by listening to its heartbeats.
+  - `interval`: Time in seconds between watchdog checks.
+  - `timeout`: Time in seconds without a controller heartbeat before the watchdog raises an error.
+    Must be greater than `interval`.
+
+For example:
+```yaml
+global:
+  heartbeat:
+    interval: 1
+  instrument_setup:
+    wait: 10
+  experiment_monitoring:
+    max_missed_heartbeats: 3
+    bad_state_tolerance: 7
+    missed_setpoint_tolerance: 7
+  watchdog:
+    timeout: 5
+    interval: 1
+```
 
 ### Instruments
 Instruments are meant to represent physical devices in your experiment.
@@ -108,6 +133,7 @@ Each instrument can have the following properties:
   This can be an IP address and port (e.g., `192.168.1.10:502`), a serial port (e.g., `/dev/ttyUSB0`), or any other identifier required to communicate with the instrument.
 - `simulate`: [optional] A boolean flag indicating whether the instrument should be run in simulation mode.
   If set to `true`, the instrument will not attempt to communicate with the physical device, and will instead simulate its behavior.
+  Defaults to `false`.
 - [`variables`](#variables): [required] The list of named variable(s) monitored or controlled by the instrument.
 
 #### Variables
@@ -118,8 +144,10 @@ Each variable can have the following properties:
 - `min`: [required] The minimum value the variable can take.
 - `max`: [required] The maximum value the variable can take.
 - `unit`: [optional] The unit of the variable (e.g., `°C`, `Pa`, `m/s`).
-- `default_setpoint`: This is required if the variable has an actuator **or** if it is associated with a setpoint_controller.
+- `default_setpoint`: The setpoint used as a baseline for the variable. Used as a default value, and at the end of any experiment.
+  Required if the variable has an actuator, or if it is the `external_sensor` of a setpoint controller.
 - `tolerance`: The margin around a setpoint within which the variable is considered to be at the setpoint.
+  Required in the same cases as `default_setpoint`.
 - [`sensor`](#sensors): [required] Defines how the variable is measured.
   Since all variables need to be measured, a sensor must always be specified.
 - [`actuator`](#actuators): [optional] Defines how the variable can be *directly* controlled.
@@ -132,8 +160,8 @@ A `sensor` defines how a variable is measured.
 All variables need to be measured, so a sensor must always be specified for a variable.
 
 Each sensor can have the following properties:
-- `type`: [required] The data type reported by the sensor (e.g., float, int, string).
-- `interval`: The time interval (in seconds) between measurements.
+- `interval`: [required] The time interval (in seconds) between measurements.
+- `type`: [optional] The data type reported by the sensor (e.g., float, int, string). Currently informational only.
 
 ##### Actuators
 An `actuator` defines how a variable can be controlled.
@@ -141,26 +169,51 @@ Not all variables are being directly controlled, so an actuator is optional for 
 When the variable is *indirectly* controlled by another variable's actuator, a `setpoint_controller` should be set for that variable.
 
 Each actuator can have the following properties:
-- `type`: [required] The data type accepted by the actuator (e.g., float, int, string).
-- `safe_stop_setpoint`: The setpoint to which the actuator should be set when the instrument is stopped by an emergency.
+- `safe_stop_setpoint`: [required] The setpoint to which the actuator should be set when the instrument is stopped by an emergency.
+- `type`: [optional] The data type accepted by the actuator (e.g., float, int, string). Currently informational only.
 
 ##### Setpoint Controllers
 A `setpoint_controller` defines a relationship between its variable's actuator and another variable's sensor.
+It can only be added to a variable that has an `actuator`.
 It is used to define a control feedback.
 That is, the actuator will be controlled based on the readings from an external sensor.
 
 The setpoint controller listens to the setpoint of the `external_sensor`, as well as its readings,
-and uses a PID controller, coupled with the `output_function` to compute the appropriate setpoint for the actuator.
+and uses a PID controller to compute the appropriate setpoint for the actuator.
+The actuator's setpoint is limited to its variable's `min` and `max`.
+Each setpoint controller runs as its own service in the firmware stack. See the [setpoint controller README](setpoint_controller/README.md) for details on how it works.
 
 Many actuators will use their own sensor for feedback, and so setpoint controllers are optional.
 
 A setpoint controller can have the following properties:
 - `external_sensor`: [required] The reference to the sensor that will be used as feedback for the controller.
-  The reference should be in the format `instrument_name.variable_name`.
-- `P`: [required] The proportional gain of the controller.
-- `I`: [required] The integral gain of the controller.
-- `D`: [required] The derivative gain of the controller.
-- `output_function`: [required] The function used to compute the actuator output based on the controller's calculations. <!-- not sure what this will be, really -->
+  The reference should be in the format `instrument_name/variable_name` (e.g., `pressure/pressure`).
+  That variable must have a `default_setpoint` and a `tolerance`.
+- `K_P`: [optional] The proportional gain. Defaults to 1.0.
+- `K_I`: [optional] The integral gain. Defaults to 0.1.
+- `K_D`: [optional] The derivative gain. Defaults to 0.05.
+- `K_AW`: [optional] The anti-windup gain. Defaults to 0 (disabled).
+- `K_DF`: [optional] The derivative filtering time constant. Defaults to 0 (disabled).
+- `MAX_RATE`: [optional] The maximum rate of change of the actuator's setpoint. Defaults to unlimited.
+
+The PID gains can also be changed from the UI, while no experiment is running.
+
+For example, to control the `mass_flow` actuator based on the readings of the `pressure` sensor:
+```yaml
+instruments:
+  mass_flow:
+    ...
+    variables:
+      mass_flow:
+        ...
+        actuator:
+          safe_stop_setpoint: 0
+        setpoint_controller:
+          external_sensor: pressure/pressure
+          K_P: 10.0
+          K_I: 1.0
+          K_D: 0.1
+```
 
 <!-- ### Visualizations
 The `visualizations` section is where you define how the data from the experiment will be monitored.
