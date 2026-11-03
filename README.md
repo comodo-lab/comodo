@@ -402,7 +402,7 @@ This also runs the [full stack test](#testing-the-full-stack) at the end. Use `-
 
 ### Testing the full stack
 
-An end-to-end integration test is available in [`integration_tests/`](integration_tests/).
+An end-to-end integration test is available in [`integration_tests/`](integration_tests/README.md).
 It starts the MQTT broker, the core stack (controller, UI, monitor), the firmware stack
 (instrument simulators and setpoint controllers) and a test runner, then runs a full experiment cycle.
 The data stack (InfluxDB, Telegraf, Grafana) is not included.
@@ -434,4 +434,4 @@ docker compose --env-file ../.env kill
 - `utils/`: Code shared by all components (MQTT clients, message validation, config loading), shared test mocks and fixtures, and helper scripts.
 - `schemas/`: The schema for `comodo.yaml`, and the schema for all [MQTT messages](#mqtt-topics).
 - `grafana/` and `telegraf/`: Configuration for Grafana (including the default dashboard) and Telegraf.
-- `integration_tests/`: The [full stack test](#testing-the-full-stack).
+- [`integration_tests/`](integration_tests/README.md): The [full stack test](#testing-the-full-stack).
