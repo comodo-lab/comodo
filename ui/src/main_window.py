@@ -139,7 +139,14 @@ def get_experiment_graph(data=None, resolution=1):
                 x=0.5,
                 y=0.5,
             )
-    graph = dcc.Graph(id="experiment-plot", figure=figure, responsive=True)
+    # Compact, so the table below is still visible
+    graph = dcc.Graph(
+        id="experiment-plot",
+        figure=figure,
+        responsive=True,
+        style={"height": "35vh", "minHeight": "220px"},
+        className="mb-3",
+    )
     return graph
 
 

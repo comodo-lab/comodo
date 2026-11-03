@@ -100,7 +100,8 @@ def get_main_window(row_data, resolution=1):
     designer_layout = mw.get_experiment_designer(data=row_data, params=PARAMS)
     graph_layout = mw.get_experiment_graph(data=row_data, resolution=resolution)
 
-    return html.Div([designer_layout, graph_layout])
+    # Graph first: it shows the shape of the experiment at a glance
+    return html.Div([graph_layout, designer_layout])
 
 
 @app.callback(
