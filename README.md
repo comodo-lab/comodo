@@ -21,10 +21,12 @@ This repo contains everything you need to get started using Comodo for automatin
       - [Bringing comodo down](#bringing-comodo-down)
     - [Setting up the firmware for the sensors and actuators](#setting-up-the-firmware-for-the-sensors-and-actuators)
     - [Debugging](#debugging)
+  - [MQTT topics](#mqtt-topics)
   - [Testing](#testing)
     - [Testing a component](#testing-a-component)
       - [Helper script](#helper-script)
     - [Testing the full stack](#testing-the-full-stack)
+    - [Repository structure](#repository-structure)
 
 
 ## What is Comodo?
@@ -39,14 +41,18 @@ The stack consists of:
   - The instruments of an experiment (physical devices).
   - The variables measured by the instruments.
   - The sensor for each variable, and optionally their actuators and potential relationships between variables.
+  - Optionally [setpoint controllers](setpoint_controller/README.md), which drive an actuator from another variable's sensor readings using a PID loop.
   <!-- - Desired monitoring visualizations. -->
 - The [user interface](ui/README.md), which allows users to configure and control experiments through a graphical interface (web app).
   The UI also contains an embedded Grafana dashboard to monitor the experiments.
 - The [controller](controller/README.md), which is responsible for orchestrating experiments.
   It is the backbone of Comodo, and communicates with all other components through MQTT messages.
+- A monitor, which checks every MQTT message against the [message schema](schemas/mqtt_schema.yaml), and reports invalid messages as errors.
 - An MQTT broker (RabbitMQ) for handling communication between the different components.
+  Each stack also runs an [MQTT probe](mqtt_probe/README.md), which checks the connection to the broker before the other services start.
 - A database (InfluxDB) for storing time series data from experiments.
   Data is received in form of MQTT messages, translated by Telegraf, and stored in InfluxDB.
+- A Grafana instance, which displays the data stored in InfluxDB, and is embedded in the UI.
 
 The different components are glued together using four compose files, which define and configure all the services required to run Comodo.
 Each of these compose files can be run independently, allowing for flexible deployment options.
@@ -62,9 +68,6 @@ The central configuration file, `comodo.yaml`, is the single source of truth for
 
 After changing `comodo.yaml`, regenerate the firmware stack and restart the stacks for the changes to take effect.
 An example can be found in [comodo.yaml](comodo.yaml).
-
-The central configuration file, `comodo.yaml`, is where you define your experiment.
-This file is written in YAML format and contains all the necessary information to set up, run, and monitor your experiment.
 
 The hierarchical structure of the `comodo.yaml` file is as follows:
 
@@ -100,7 +103,7 @@ All of the settings below are required, and must be positive numbers:
   - `bad_state_tolerance`: Number of consecutive controller heartbeats an instrument may report a bad state before the experiment errors.
   - `missed_setpoint_tolerance`: Number of experiment time steps (of the experiment's resolution) an instrument may take to reach its setpoint before the experiment errors.
 - `watchdog`: The watchdog checks that the controller is alive, by listening to its heartbeats.
-  - `interval`: Time in seconds between watchdog checks.
+  - `interval`: Expected time in seconds between controller heartbeats. The watchdog checks slightly more often than this.
   - `timeout`: Time in seconds without a controller heartbeat before the watchdog raises an error.
     Must be greater than `interval`.
 
@@ -129,6 +132,7 @@ Each instrument can have the following properties:
 - `firmware`: [required] The type of firmware the instrument is running.
   This defines how to communicate with the instrument, and it should match one of the supported firmware types in the [firmware directory](firmware/src/instruments/) or set to `generic_instrument`, which simulates variable measurements.
   Firmware types are written as `<manufacturer>.<model>`, matching the module `firmware/src/instruments/<manufacturer>/<model>.py` (e.g., `pfeiffer.mpt200`).
+  To add support for a new instrument, see [instrument modules](firmware/README.md#instrument-modules) in the firmware README.
 - `address`: [required] The address of the instrument.
   This can be an IP address and port (e.g., `192.168.1.10:502`), a serial port (e.g., `/dev/ttyUSB0`), or any other identifier required to communicate with the instrument.
 - `simulate`: [optional] A boolean flag indicating whether the instrument should be run in simulation mode.
@@ -166,7 +170,7 @@ Each sensor can have the following properties:
 ##### Actuators
 An `actuator` defines how a variable can be controlled.
 Not all variables are being directly controlled, so an actuator is optional for a variable.
-When the variable is *indirectly* controlled by another variable's actuator, a `setpoint_controller` should be set for that variable.
+When an actuator should be driven by *another* variable's sensor, add a [`setpoint_controller`](#setpoint-controllers) to the actuator's variable.
 
 Each actuator can have the following properties:
 - `safe_stop_setpoint`: [required] The setpoint to which the actuator should be set when the instrument is stopped by an emergency.
@@ -194,7 +198,7 @@ A setpoint controller can have the following properties:
 - `K_D`: [optional] The derivative gain. Defaults to 0.05.
 - `K_AW`: [optional] The anti-windup gain. Defaults to 0 (disabled).
 - `K_DF`: [optional] The derivative filtering time constant. Defaults to 0 (disabled).
-- `MAX_RATE`: [optional] The maximum rate of change of the actuator's setpoint. Defaults to unlimited.
+- `MAX_RATE`: [optional] The maximum rate of change of the actuator's setpoint, in units per second. Defaults to unlimited (Null).
 
 The PID gains can also be changed from the UI, while no experiment is running.
 
@@ -235,6 +239,8 @@ However, `./utils/contexts.sh` automates the preparation steps:
 ## Manual deployment
 
 ### Requirements
+- Docker, with the Compose plugin (`docker compose`).
+- For remote deployment, SSH access to the remote hosts with key-based (passwordless) login.
 - These ports must be available:
   - `1883` - MQTT broker
   - `8501` - UI
@@ -252,7 +258,7 @@ and fill in the required environment variables:
 - `MQTT_HOST` sets the address of your MQTT broker.
     If you're running the Comodo stack locally, set this to your host's IP address.
     If you're using a remote broker, set this to the appropriate IP address or FQDN.
-- `DATA_HOST` is the address of your InfluxDB instance.
+- `DATA_HOST` is the address of your InfluxDB and Grafana instances (the data stack).
     If you're running the Comodo stack locally, set this to your host's IP address.
     If you're using a remote InfluxDB instance, set this to the appropriate IP address or FQDN.
 - `FIRMWARE_HOST` is optional. If you're running the Comodo stack locally, leave this empty or comment it out.
@@ -282,11 +288,14 @@ or make sure the `ENV_*` variable is not defined in your shell environment.
 The Comodo stack is divided into four main compose files:
 - `compose.mqtt.yaml`: Defines the MQTT broker (RabbitMQ).
 - `compose.data.yaml`: Defines the data storage and monitoring components (InfluxDB, Telegraf and Grafana).
-- `compose.yaml`: Defines the core controller and UI components.
-- `compose.firmware.yaml`: Defines the firmware deployment for the sensors and actuators.
+- `compose.yaml`: Defines the core components: the controller, UI and monitor, plus a `config` service that validates `comodo.yaml` before they start.
+- `compose.firmware.yaml`: Defines the firmware for the sensors and actuators, and the setpoint controllers. Generated from `comodo.yaml`.
 
 Each of these components can run independently, so you can choose to deploy them on separate hosts if desired.
 Equally, you can run all components on a single host, using the host's ip address for the environment variables.
+
+The MQTT broker should be started first: the other stacks check they can reach the broker before starting, and will fail to start if they cannot.
+
 To set up Comodo, follow these steps:
 - Set up the [environment variables](#environment-variables).
 - Run the contexts script: `./utils/contexts.sh`. This will set up the necessary Docker contexts for remote deployment, and provide the correct compose commands to deploy.
@@ -333,16 +342,36 @@ docker compose -f firmware/compose.gen.yaml run --rm compose-gen
 There is a fifth compose file, `compose.debug.yaml`, which can be used to deploy debugging tools for the different components of Comodo.
 
 - To run the mqttui tool, which allows you to monitor MQTT messages, run:
-    `docker compose -f compose.debug.yaml run --build mqttui`
-  then, from another terminal, open a shell in the container with `docker exec -it comodo-mqttui sh`
-  and run `mqttui` there.
+  ```bash
+  docker compose -f compose.debug.yaml up --build mqttui -d && docker exec -it comodo-mqttui mqttui
+  ```
+
+## MQTT topics
+All components communicate through MQTT messages. Every message must match the [message schema](schemas/mqtt_schema.yaml), which the monitor checks.
+Telegraf subscribes to all topics and stores the messages in InfluxDB, which is where Grafana reads them from.
+The main topics are:
+- `ui/start`, `ui/stop`: The UI asks the controller to start or stop an experiment.
+- `controller/command/...`, `controller/event/...`: The experiment life cycle, published by the controller (e.g. `controller/command/start`, `controller/event/end`).
+  Instruments and setpoint controllers listen to these to start and stop.
+- `controller/heartbeat`: The controller's health and state, watched by the watchdog and shown in the UI.
+- `controller/timer/...`, `controller/validator/...`, `watchdog/...`: Internal to the controller.
+- `instruments/<instrument>/heartbeat`: Each instrument's health and state.
+- `instruments/<instrument>/configure`: Live configuration of an instrument, before an experiment starts.
+- `instruments/<instrument>/<variable>/setpoint`: The setpoint for a variable.
+- `instruments/<instrument>/<variable>/measurement`: The measurements for a variable.
+- `setpoint_controllers/<id>/heartbeat`, `setpoint_controllers/<id>/configure`: Same as for instruments, for setpoint controllers.
+  A setpoint controller listens to its sensor's `setpoint` and `measurement` topics, and publishes to its actuator's `setpoint` topic.
+- `error/<source>`: Errors from any component, shown in the UI's log.
+- `mqtt-probe/<id>`: Used by the [MQTT probes](mqtt_probe/README.md) to check the connection.
+
+To watch messages live, use [mqttui](#debugging).
 
 
 ## Testing
 
 ### Testing a component
 
-Each component of Comodo has its own unit and integration tests.
+Each component of Comodo has its own unit tests, and most also have integration tests.
 These are completely independent from the rest of the stack, and (may) use common mocks and fixtures defined in the `utils/tests/` directory.
 It is implied, then, that `integration tests` in this sense refer to integration within a component, not between components.
 
@@ -383,10 +412,26 @@ Before running, copy the mock configuration and regenerate the firmware compose 
 cp utils/tests/mocks/comodo.yaml ./
 docker compose -f firmware/compose.gen.yaml run --rm compose-gen
 ```
-Note that this overwrites your `comodo.yaml`.
+Note that this overwrites your `comodo.yaml` and `compose.firmware.yaml`, so back them up first if you have local changes.
 
 Then move into the integration_tests directory and execute:
 ```
 docker compose --env-file ../.env up --build --attach integration-test --force-recreate
 docker compose --env-file ../.env kill
 ```
+
+### Repository structure
+- `comodo.yaml`: The [central configuration file](#central-configuration-file).
+- `compose*.yaml`: The compose files for each stack (see [setting up Comodo](#setting-up-comodo)).
+- `env.template`: Template for the `.env` file (see [environment variables](#environment-variables)).
+- Components, each with its own `Dockerfile`, tests, and a `compose.yaml` to [run its tests](#testing-a-component):
+  - [`controller/`](controller/README.md): The controller.
+  - [`ui/`](ui/README.md): The user interface.
+  - [`firmware/`](firmware/README.md): The firmware for the instruments, and the template used to generate `compose.firmware.yaml`.
+  - [`setpoint_controller/`](setpoint_controller/README.md): The setpoint controllers.
+  - `monitor/`: The MQTT message monitor.
+  - [`mqtt_probe/`](mqtt_probe/README.md): The MQTT connection check used by each stack.
+- `utils/`: Code shared by all components (MQTT clients, message validation, config loading), shared test mocks and fixtures, and helper scripts.
+- `schemas/`: The schema for `comodo.yaml`, and the schema for all [MQTT messages](#mqtt-topics).
+- `grafana/` and `telegraf/`: Configuration for Grafana (including the default dashboard) and Telegraf.
+- `integration_tests/`: The [full stack test](#testing-the-full-stack).
