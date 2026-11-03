@@ -10,6 +10,7 @@ COPY utils/mqtt_clients.py  /ui/utils/mqtt_clients.py
 COPY utils/comodo_config.py /ui/utils/comodo_config.py
 COPY utils/interpolation.py /ui/utils/interpolation.py
 COPY utils/influx_query.py  /ui/utils/influx_query.py
+COPY setpoint_controller/src/pid.py /ui/utils/pid.py
 # Copy ui code
 COPY ui/pytest.ini          /ui/pytest.ini
 COPY ui/app.py              /ui/app.py

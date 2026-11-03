@@ -103,6 +103,20 @@ class TestReconcile:
             {"name": "b", "value": 1.0},
         ]
 
+    def test_spc_rows_follow_default_names_and_gains(self):
+        default = [
+            {"name": "a--b", "k_p": 1.0, "k_i": 0.1},
+            {"name": "c--d", "k_p": 2.0, "k_i": 0.2},
+        ]
+        saved = [
+            {"name": "a--b", "k_p": 5.0, "k_i": 0.5, "k_x": 9},
+            {"name": "gone--spc", "k_p": 7.0, "k_i": 0.7},
+        ]
+        assert sc.reconcile("spcs", saved, default) == [
+            {"name": "a--b", "k_p": 5.0, "k_i": 0.5},
+            {"name": "c--d", "k_p": 2.0, "k_i": 0.2},
+        ]
+
     def test_instrument_rows_kept_and_missing_defaults_added(self):
         rows = [
             {"name": "a", "key": "offset", "value": 273},
@@ -155,7 +169,12 @@ class TestSaveIfChanged:
 
 
 def test_save_run_links_files(data_dir):
-    files = {"experiment": "e.yaml", "instruments": "i.yaml", "config": "c.yaml"}
+    files = {
+        "experiment": "e.yaml",
+        "instruments": "i.yaml",
+        "config": "c.yaml",
+        "spcs": "s.yaml",
+    }
     filename = sc.save_run("ab12cd34", files, NOW)
     with open(data_dir / "runs" / filename) as f:
         record = yaml.safe_load(f)

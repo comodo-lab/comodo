@@ -27,6 +27,7 @@ from src import (
     main_window as mw,
     saved_configs as sc,
     saved_selector as sel,
+    spc_setup as spc,
     top_matter as tm,
 )
 
@@ -61,10 +62,12 @@ PARAM_DICT = config.param_dicts
 INI_EXPERIMENT_CONFIG = config.ini_experiment_config
 INI_DATA_DICT = config.ini_data_dict
 INI_INSTRUMENT_DICT = config.ini_instrument_dict
+INI_SPC_DICT = config.ini_spc_dict
 DEFAULTS = {
     "experiment": INI_DATA_DICT,
     "instruments": INI_INSTRUMENT_DICT,
     "config": INI_EXPERIMENT_CONFIG,
+    "spcs": INI_SPC_DICT,
 }
 sel.register_selector_callbacks(DEFAULTS)
 
@@ -156,6 +159,33 @@ def initialize_experiment_store(pathname, current_data):
 
 
 # ---------------------------------------------------
+# PID SETUP
+# ---------------------------------------------------
+
+
+@app.callback(
+    Output("spc-wrapper", "children"),
+    Input("spc-store", "data"),
+)
+def update_spc_page(data):
+    if data is None:
+        raise PreventUpdate  # Wait for initialization
+    return spc.get_spc_setup(data=data)
+
+
+@app.callback(
+    Output("spc-store", "data", allow_duplicate=True),
+    Input("url", "pathname"),
+    State("spc-store", "data"),
+    prevent_initial_call=True,
+)
+def initialize_spc_store(pathname, current_data):
+    if pathname == "/pid" and not current_data:
+        return INI_SPC_DICT
+    return no_update
+
+
+# ---------------------------------------------------
 # EXPERIMENT CONFIG
 # ---------------------------------------------------
 
@@ -215,6 +245,8 @@ def render_page(pathname, *states):
         return dcc.Location(href="/designer", id="redirect")
     elif pathname == "/instrument":
         return with_selector("instruments", "instrument-wrapper")
+    elif pathname == "/pid":
+        return with_selector("spcs", "spc-wrapper")
     elif pathname == "/designer":
         return with_selector("experiment", "designer-wrapper")
     elif pathname == "/control":
@@ -272,6 +304,10 @@ def serve_layout():
                             href="/instrument",
                             active="exact",
                         ),
+                        className="me-0",
+                    ),
+                    dbc.NavItem(
+                        dbc.NavLink("PID Setup", href="/pid", active="exact"),
                         className="me-0",
                     ),
                     dbc.NavItem(

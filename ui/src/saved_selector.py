@@ -9,6 +9,7 @@ STORES = {
     "experiment": "experiment-designer-store",
     "instruments": "instrument-store",
     "config": "experiment-config-store",
+    "spcs": "spc-store",
 }
 
 

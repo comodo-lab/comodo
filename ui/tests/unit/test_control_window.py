@@ -1,7 +1,11 @@
 import os
 import sys
 
+import json
+from unittest.mock import MagicMock
+
 import pytest
+from dash import no_update
 from dash.exceptions import PreventUpdate
 
 # utils.influx_query reads these at import time
@@ -10,6 +14,8 @@ for var in ("INFLUX_TOKEN", "INFLUX_ORG", "INFLUX_BUCKET"):
 
 import src.control_window as cw
 import src.heartbeats as hb
+import src.saved_configs as sc
+import src.spc_setup as spc
 
 NOW = 1000.0
 
@@ -82,3 +88,51 @@ class TestAfterClick:
         click = self.click("idle", ago=cw.CLICK_TIMEOUT)
         out = cw.update_experiment_button(heartbeats("idle"), click)
         assert out == ("Start experiment", "success", None, False)
+
+
+class TestStartExperiment:
+    SPC_ID = "s-v--a-o"
+    GAINS = {"k_p": 10.0, "k_i": 1.0, "k_d": 0.1, "k_aw": 0.05, "k_df": 0.01}
+
+    @pytest.fixture
+    def publisher(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(sc, "DATA_DIR", str(tmp_path))
+        mock = MagicMock()
+        monkeypatch.setattr(cw.MQTTPublisher, "get_instance", lambda: mock)
+        return mock
+
+    def start(self, spcs):
+        meta = {"file": None, "name": "test", "saved_name": "test", "saved": None}
+        return cw.start_experiment(
+            [{"id": "x", "time": 0, "s/v": 1, "s/v_profile": "linear"}],
+            [{"name": "s/v", "key": "tolerance", "value": 1}],
+            [{"name": "resolution", "value": 2}],
+            spcs,
+            *[dict(meta) for _ in sc.KINDS],
+        )
+
+    def test_sends_spc_config(self, publisher, tmp_path):
+        out = self.start([{"name": self.SPC_ID, **self.GAINS}])
+
+        topic, payload = publisher.publish.call_args.args
+        assert topic == "ui/start"
+        experiment = json.loads(payload)
+        assert experiment["config"] == {
+            "resolution": 2,
+            "instruments": {"s": {"v": {"tolerance": 1}}},
+            "spcs": {self.SPC_ID: {"pid": {**self.GAINS, "max_rate": None}}},
+        }
+        # A version of each kind is saved and linked from the run, including spcs
+        assert len(out) == 1 + len(sc.KINDS)
+        assert out[-1]["saved"] == [{"name": self.SPC_ID, **self.GAINS}]
+        assert len(list((tmp_path / "runs").iterdir())) == 1
+        assert len(list((tmp_path / "spcs").iterdir())) == 1
+
+    def test_invalid_spc_config_does_not_start(self, publisher):
+        out = self.start([{"name": self.SPC_ID, **self.GAINS, "k_p": "abc"}])
+
+        publisher.publish.assert_called_once()
+        topic, payload = publisher.publish.call_args.args
+        assert topic == "error/ui"
+        assert json.loads(payload)["code"] == "spc_setup"
+        assert out == (None, *[no_update] * len(sc.KINDS))

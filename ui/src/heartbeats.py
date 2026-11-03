@@ -75,6 +75,19 @@ def snapshot(now=None):
     }
 
 
+def controller_state(data):
+    """
+    Returns the state and experiment_id in the latest controller heartbeat of a
+    snapshot, or None if there is no recent heartbeat.
+    """
+    heartbeat = (data or {}).get("heartbeats", {}).get(CONTROLLER_TOPIC)
+    if heartbeat is None or CONTROLLER_TOPIC in data["stale"]:
+        return None
+    state = heartbeat["payload"].get("state", {})
+    config = heartbeat["payload"].get("config", {})
+    return (state.get("status"), config.get("experiment_id"))
+
+
 def start(config, id, **mqtt_kwargs):
     """
     Subscribes to the heartbeats of the controller, instruments and

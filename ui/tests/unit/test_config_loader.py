@@ -2,7 +2,7 @@ import pytest
 import sys
 import os
 
-from src.config_loader import UiConfig
+from src.config_loader import UiConfig, PID_DEFAULTS
 
 
 class TestUiConfig:
@@ -84,6 +84,41 @@ class TestUiConfig:
             {"name": "test_sensor/reading", "key": "tolerance", "value": 1.0},
             {"name": "test_actuator/output", "key": "tolerance", "value": 0.5},
         ]
+
+    def test_ini_spc_dict(self, sample_config_with_pid):
+        config = UiConfig(sample_config_with_pid)
+        assert config.ini_spc_dict == [
+            {
+                "name": "test_sensor-value--test_spc-output",
+                "k_p": 10.0,
+                "k_i": 1.0,
+                "k_d": 0.1,
+                "k_aw": 0.05,
+                "k_df": 0.01,
+                "max_rate": None,
+            }
+        ]
+
+    def test_ini_spc_dict_max_rate(self, sample_config_with_pid):
+        with open(sample_config_with_pid) as f:
+            content = f.read()
+        with open(sample_config_with_pid, "w") as f:
+            f.write(content.replace("          K_DF: 0.01\n", "          K_DF: 0.01\n          MAX_RATE: 5.0\n"))
+        assert UiConfig(sample_config_with_pid).ini_spc_dict[0]["max_rate"] == 5.0
+
+    def test_ini_spc_dict_defaults_missing_values(self, sample_config_with_pid):
+        with open(sample_config_with_pid) as f:
+            content = f.read()
+        with open(sample_config_with_pid, "w") as f:
+            f.write(content.replace("          K_AW: 0.05\n", "").replace("          K_DF: 0.01\n", ""))
+        config = UiConfig(sample_config_with_pid)
+        row = config.ini_spc_dict[0]
+        assert row["k_p"] == 10.0
+        assert row["k_aw"] == PID_DEFAULTS["k_aw"]
+        assert row["k_df"] == PID_DEFAULTS["k_df"]
+
+    def test_ini_spc_dict_without_spcs(self, sample_config_yaml):
+        assert UiConfig(sample_config_yaml).ini_spc_dict == []
 
     def test_ini_experiment_config(self, sample_config_yaml):
         config = UiConfig(sample_config_yaml)

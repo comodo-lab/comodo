@@ -32,6 +32,7 @@ from utils.influx_query import query_influxdb_params
 import src.saved_configs as sc
 import src.heartbeats as hb
 import src.instrument_setup as ins
+import src.spc_setup as spc
 
 # Seconds to wait for the controller state to change after a click, before giving up
 CLICK_TIMEOUT = 5
@@ -66,15 +67,18 @@ clientside_callback(
     Output("experiment-meta-store", "data", allow_duplicate=True),
     Output("instruments-meta-store", "data", allow_duplicate=True),
     Output("config-meta-store", "data", allow_duplicate=True),
+    Output("spcs-meta-store", "data", allow_duplicate=True),
     Input("experiment-button", "n_clicks"),
     State("experiment-button", "value"),
     State("heartbeat-store", "data"),
     State("experiment-designer-store", "data"),
     State("instrument-store", "data"),
     State("experiment-config-store", "data"),
+    State("spc-store", "data"),
     State("experiment-meta-store", "data"),
     State("instruments-meta-store", "data"),
     State("config-meta-store", "data"),
+    State("spcs-meta-store", "data"),
     prevent_initial_call=True,
 )
 def start_or_stop_experiment(n_clicks, experiment_id, heartbeats, *start_states):
@@ -83,16 +87,28 @@ def start_or_stop_experiment(n_clicks, experiment_id, heartbeats, *start_states)
     """
     if not n_clicks:
         raise PreventUpdate
-    click = {"state": controller_state(heartbeats), "time": time.time()}
+    click = {"state": hb.controller_state(heartbeats), "time": time.time()}
     if experiment_id:
         client = MQTTPublisher.get_instance()
         client.publish("ui/stop", json.dumps({"experiment_id": experiment_id}))
-        return busy("Stopping experiment"), click, None, no_update, no_update, no_update
+        return (
+            busy("Stopping experiment"),
+            click,
+            None,
+            *[no_update] * len(sc.KINDS),
+        )
     return busy("Starting experiment"), click, *start_experiment(*start_states)
 
 
 def start_experiment(
-    table_data, instruments, exp_config, exp_meta, inst_meta, config_meta
+    table_data,
+    instruments,
+    exp_config,
+    spcs,
+    exp_meta,
+    inst_meta,
+    config_meta,
+    spcs_meta,
 ):
     # Group the instrument setup rows into the live config of each instrument,
     # which needs a tolerance for every variable with setpoints in the experiment
@@ -104,7 +120,16 @@ def start_experiment(
         MQTTPublisher.get_instance().publish(
             "error/ui", json.dumps({"code": "instrument_setup", "message": str(e)})
         )
-        return None, no_update, no_update, no_update
+        return None, *[no_update] * len(sc.KINDS)
+    # The PID gains of each setpoint controller, checked by the controller in their heartbeats
+    try:
+        spcs_config = spc.to_spc_config(spcs)
+    except ValueError as e:
+        print(f"Invalid setpoint controller setup: {e}")
+        MQTTPublisher.get_instance().publish(
+            "error/ui", json.dumps({"code": "spc_setup", "message": str(e)})
+        )
+        return None, *[no_update] * len(sc.KINDS)
 
     # Save any unsaved changes, so the run can link to the versions used
     files = {}
@@ -114,6 +139,7 @@ def start_experiment(
             ("experiment", table_data, exp_meta),
             ("instruments", instruments, inst_meta),
             ("config", exp_config, config_meta),
+            ("spcs", spcs, spcs_meta),
         ):
             files[kind], metas[kind] = sc.save_if_changed(kind, data, meta)
     except OSError as e:
@@ -135,7 +161,11 @@ def start_experiment(
     ]
     experiment_config = {
         "temp_id": temp_id,
-        "config": {"resolution": resolution, "instruments": instruments_config},
+        "config": {
+            "resolution": resolution,
+            "instruments": instruments_config,
+            "spcs": spcs_config,
+        },
         "experiment_definition": experiment_definition,
     }
     json_data = json.dumps(experiment_config).encode("utf-8")
@@ -155,6 +185,7 @@ def start_experiment(
         metas.get("experiment", no_update),
         metas.get("instruments", no_update),
         metas.get("config", no_update),
+        metas.get("spcs", no_update),
     )
 
 
@@ -173,7 +204,7 @@ def update_experiment_button(data, click):
     After a click, the button stays busy until the controller state changes,
     or CLICK_TIMEOUT passes (e.g. the controller rejected the request).
     """
-    current = controller_state(data)
+    current = hb.controller_state(data)
     if (
         click
         and (time.time() - click["time"] < CLICK_TIMEOUT)
@@ -197,19 +228,6 @@ def update_experiment_button(data, click):
 
 def busy(text):
     return [dbc.Spinner(size="sm", spinner_class_name="me-2"), text]
-
-
-def controller_state(data):
-    """
-    Returns the state and experiment_id in the latest controller heartbeat,
-    or None if there is no recent heartbeat.
-    """
-    heartbeat = (data or {}).get("heartbeats", {}).get(hb.CONTROLLER_TOPIC)
-    if heartbeat is None or hb.CONTROLLER_TOPIC in data["stale"]:
-        return None
-    state = heartbeat["payload"].get("state", {})
-    config = heartbeat["payload"].get("config", {})
-    return (state.get("status"), config.get("experiment_id"))
 
 
 def get_manual_panel(params=[]):
