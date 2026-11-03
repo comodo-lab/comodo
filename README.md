@@ -15,7 +15,7 @@ This repo contains everything you need to get started using Comodo for automatin
         - [Setpoint Controllers](#setpoint-controllers)
   - [Automatic deployment](#automatic-deployment)
   - [Manual deployment](#manual-deployment)
-    - [Requirements:](#requirements)
+    - [Requirements](#requirements)
     - [Environment variables](#environment-variables)
     - [Setting up Comodo](#setting-up-comodo)
       - [Bringing comodo down](#bringing-comodo-down)
@@ -25,7 +25,7 @@ This repo contains everything you need to get started using Comodo for automatin
     - [Testing a component](#testing-a-component)
       - [Helper script](#helper-script)
     - [Testing the full stack](#testing-the-full-stack)
-    - [Temporary experiment trigger:](#temporary-experiment-trigger)
+    - [Temporary experiment trigger](#temporary-experiment-trigger)
 
 
 ## What is Comodo?
@@ -36,20 +36,20 @@ The stack consists of:
 - A series of sensors and actuators that interface with the physical world.
   These devices are responsible for collecting data and/or executing the actual experiment,
   and must have compatible [firmware](firmware/README.md) controlling them.
-- A [central configuration file](#central-configuration-file), `comodo.yml`, which defines the experiment: (See [note here](#central-configuration-file).)
+- A [central configuration file](#central-configuration-file), `comodo.yaml`, which defines the experiment: (See [note here](#central-configuration-file).)
   - The instruments of an experiment (physical devices).
   - The variables measured by the instruments.
   - The sensor for each variable, and optionally their actuators and potential relationships between variables.
   <!-- - Desired monitoring visualizations. -->
-- The [user interface](controller/ui/README.md), which allows users to configure and control experiments through a graphical interface (web app).
+- The [user interface](ui/README.md), which allows users to configure and control experiments through a graphical interface (web app).
   The UI also contains an embedded Grafana dashboard to monitor the experiments.
 - The [controller](controller/README.md), which is responsible for orchestrating experiments.
   It is the backbone of Comodo, and communicates with all other components through MQTT messages.
 - An MQTT broker (RabbitMQ) for handling communication between the different components.
 - A database (InfluxDB) for storing time series data from experiments.
-  Data is recived in form of MQTT messages, translated by Telegraf, and stored in InfluxDB.
+  Data is received in form of MQTT messages, translated by Telegraf, and stored in InfluxDB.
 
-The different components are glued together using four `comodo-nexus` compose files, which define and configure all the services required to run Comodo.
+The different components are glued together using four compose files, which define and configure all the services required to run Comodo.
 Each of these compose files can be run independently, allowing for flexible deployment options.
 
 Currently, only [manual deployment](#manual-deployment) is supported.
@@ -65,10 +65,10 @@ Currently, only [manual deployment](#manual-deployment) is supported.
 *However, this is not yet implemented, and currently the deployment requires manually configuring the above files.*
 *Also, once the above are configured, one needs to [deploy the firmware stack](#setting-up-the-firmware-for-the-sensors-and-actuators).*
 
-The central configuration file, `comodo.yml`, is where you define your experiment.
+The central configuration file, `comodo.yaml`, is where you define your experiment.
 This file is written in YAML format and contains all the necessary information to set up, run, and monitor your experiment.
 
-The hierarchical structure of the `comodo.yml` file is as follows:
+The hierarchical structure of the `comodo.yaml` file is as follows:
 
 ```yaml
 global: # Global settings for the experiment
@@ -89,7 +89,7 @@ That is, at the top level, the file is divided into two main sections: `global` 
 <!-- - The [`visualizations`](#visualizations) section defines how the data from the experiment will be monitored in the UI. -->
 
 ### Global Settings
-Experiment global settings are defined in the `global` section of the `comodo.yml` file.
+Experiment global settings are defined in the `global` section of the `comodo.yaml` file.
 
 Currently implemented settings include:
 - `error_timeout`: The time in seconds to wait before considering an instrument unresponsive.
@@ -112,7 +112,7 @@ Each instrument can have the following properties:
 
 #### Variables
 
-Variables represents specific measurement points in an instrument.
+Variables represent specific measurement points in an instrument.
 
 Each variable can have the following properties:
 - `min`: [required] The minimum value the variable can take.
@@ -176,7 +176,7 @@ Currently not available.
 
 ## Manual deployment
 
-### Requirements:
+### Requirements
 - These ports must be available:
   - `1883` - MQTT broker
   - `8501` - UI
@@ -223,8 +223,8 @@ or make sure the `ENV_*` variable is not defined in your shell environment.
 ### Setting up Comodo
 The Comodo stack is divided into four main compose files:
 - `compose.mqtt.yaml`: Defines the MQTT broker (RabbitMQ).
-- `compose.data.yaml`: Defines the data storage components (InfluxDB and Telegraf).
-- `docker-compose.yaml`: Defines the core controller and UI components.
+- `compose.data.yaml`: Defines the data storage and monitoring components (InfluxDB, Telegraf and Grafana).
+- `compose.yaml`: Defines the core controller and UI components.
 - `compose.firmware.yaml`: Defines the firmware deployment for the sensors and actuators.
 
 Each of these components can run independently, so you can choose to deploy them on separate hosts if desired.
@@ -263,7 +263,12 @@ If you must bring the stack down and want to start from scratch, run:
 
 ### Setting up the firmware for the sensors and actuators
 
-Currently this is done through the `compose.firmware.yaml` file (see [note here](#central-configuration-file).)
+The firmware services are defined in `compose.firmware.yaml`, which is generated from `comodo.yaml`.
+Do not edit it directly: edit `comodo.yaml` and regenerate it with:
+```bash
+docker compose -f firmware/compose.gen.yaml run --rm compose-gen
+```
+`./utils/contexts.sh` runs this step automatically.
 
 ### Debugging
 
@@ -271,7 +276,8 @@ There is a fifth compose file, `compose.debug.yaml`, which can be used to deploy
 
 - To run the mqttui tool, which allows you to monitor MQTT messages, run:
     `docker compose -f compose.debug.yaml run --build mqttui`
-  and then run `mqttui` inside the container.
+  then, from another terminal, open a shell in the container with `docker exec -it comodo-mqttui sh`
+  and run `mqttui` there.
 
 
 ## Testing
@@ -292,34 +298,42 @@ docker compose up --build
 
 This uses pytest to discover and run all tests, and also use coverage to create a report.
 
-After running the tests, the report can be accessed with:
+After running the tests, the report can be accessed with (replace `controller` with the component's name, e.g. `firmware-tests_memory`):
 ```
 xdg-open $(docker volume inspect controller-tests_memory -f '{{ .Mountpoint }}')/htmlcov/class_index.html
 ```
 
-Note: At the time of writing, only these components have comprehensive tests:
-- Controller
-- Setpoint Controller
+Components with tests: controller, firmware, monitor, setpoint controller, UI and utils.
 
 #### Helper script
 
 For convenience, there is a helper script to run the tests for all components, which can be run from the base directory with:
 ```bash
-./utils/run_all_tests.sh
+./utils/run-all-tests.sh
 ```
+This also runs the [full stack test](#testing-the-full-stack) at the end. Use `--noint` (or `--no_integration`) to skip it.
 
 ### Testing the full stack
 
 An end-to-end integration test is available in [`integration_tests/`](integration_tests/).
-It starts all services — RabbitMQ, controller, monitor, firmware simulators,
-setpoint controller, and a test runner — then runs a full experiment cycle:
+It starts the MQTT broker, the core stack (controller, UI, monitor), the firmware stack
+(instrument simulators and setpoint controllers) and a test runner, then runs a full experiment cycle.
+The data stack (InfluxDB, Telegraf, Grafana) is not included.
 
-To run, move into the integration_tests directory and execute:
+Before running, copy the mock configuration and regenerate the firmware compose file, from the base directory:
+```
+cp utils/tests/mocks/comodo.yaml ./
+docker compose -f firmware/compose.gen.yaml run --rm compose-gen
+```
+Note that this overwrites your `comodo.yaml`.
+
+Then move into the integration_tests directory and execute:
 ```
 docker compose --env-file ../.env up --build --attach integration-test --force-recreate
+docker compose --env-file ../.env kill
 ```
 
-### Temporary experiment trigger:
+### Temporary experiment trigger
 
 UI currently out of step due to instrument refactor, to start an experiment use:
 ```
