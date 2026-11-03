@@ -43,7 +43,7 @@ def controller_client(mqtt_mocks, state):
 def heartbeat_client(mqtt_mocks, state):
     mqtt_mocks["client_class"](
         id="heartbeat",
-        topics="instruments/+/heartbeat",
+        topics=["instruments/+/heartbeat", "setpoint_controllers/+/heartbeat"],
         callback=on_heartbeat_message,
         obj=state,
     )
@@ -112,8 +112,8 @@ def test_control_loop(
         ]
     )
     messages = message_bus.get_messages()
-    # expected_messages = validate + passed + start + 3 * instrument config + timer
-    expected_messages = 7
+    # expected_messages = validate + passed + 3 * instrument config + spc config + start + timer
+    expected_messages = 8
     assert len(messages) == expected_messages
     assert messages[0].topic == "controller/command/validate"
     assert messages[1].topic == "controller/validator/passed"
@@ -130,9 +130,14 @@ def test_control_loop(
     assert json.loads(messages[3].payload) == {"pressure": {"tolerance": 0.2}}
     assert messages[4].topic == "instruments/mass_flow/configure"
     assert json.loads(messages[4].payload) == {"mass_flow": {"tolerance": 1}}
-    assert messages[5].topic == "controller/command/start"
-    assert messages[6].topic == "controller/timer/command/start"
-    assert json.loads(messages[6].payload) == {
+    spc_id = "pressure-pressure--mass_flow-mass_flow"
+    assert messages[5].topic == f"setpoint_controllers/{spc_id}/configure"
+    assert json.loads(messages[5].payload) == {
+        "pid": {"k_p": 10.0, "k_i": 1.0, "k_d": 0.1, "k_aw": 0.05, "k_df": 0.01}
+    }
+    assert messages[6].topic == "controller/command/start"
+    assert messages[7].topic == "controller/timer/command/start"
+    assert json.loads(messages[7].payload) == {
         "source": "instrument_setup",
         "experiment_id": "D123-456",
     }
@@ -160,15 +165,23 @@ def test_control_loop(
         message_bus.publish(msg.topic, msg.payload.decode())
     t.sleep(0.1)
 
-    # Each instrument heartbeat should be processed
+    # Not ready until the setpoint controller reports the expected PID config
+    assert state.instruments_ready is False
+    message_bus.publish(
+        f"setpoint_controllers/{spc_id}/heartbeat",
+        json.dumps(spc_heartbeat(state, spc_id)),
+    )
+    t.sleep(0.1)
+
+    # Each instrument and spc heartbeat should be processed
     assert state.instruments_ready is True
     # Should go through c_ready and into c_running
     assert controller_client.callback.__name__ == "c_running"
     assert state._status_history[3:] == ["ready", "running"]
     assert state.status == "running"
     messages = message_bus.get_messages()[checked_messages:]
-    # expected_messages = heartbeats + ready + run + setpoints + timer
-    expected_messages = len(instrument_names) + 2 + len(driving_sensors) + 1
+    # expected_messages = heartbeats + spc heartbeat + ready + run + setpoints + timer
+    expected_messages = len(instrument_names) + 1 + 2 + len(driving_sensors) + 1
     assert len(messages) == expected_messages
     heartbeat_instruments = []
     for i, msg in enumerate(messages[: len(instrument_names)]):
@@ -178,13 +191,15 @@ def test_control_loop(
         heartbeat_instruments.append(topic_parts[1])
         assert topic_parts[2] == "heartbeat"
     assert sorted(heartbeat_instruments) == instrument_names
-    assert messages[len(instrument_names)].topic == "controller/event/ready"
-    assert messages[len(instrument_names) + 1].topic == "controller/command/run"
-    assert json.loads(messages[len(instrument_names) + 1].payload) == {
+    n_heartbeats = len(instrument_names) + 1
+    assert messages[n_heartbeats - 1].topic == f"setpoint_controllers/{spc_id}/heartbeat"
+    assert messages[n_heartbeats].topic == "controller/event/ready"
+    assert messages[n_heartbeats + 1].topic == "controller/command/run"
+    assert json.loads(messages[n_heartbeats + 1].payload) == {
         "experiment_id": "D123-456"
     }
     # Setpoint messages (for each instrument) then timer
-    setpoint_start = len(instrument_names) + 2
+    setpoint_start = n_heartbeats + 2
     setpoint_sensors = []
     for i, msg in enumerate(messages[setpoint_start:-1]):
         topic_parts = msg.topic.split("/")
@@ -281,7 +296,11 @@ def start_monitored_experiment(
         state.reset()
         for client_id, topics, callback in [
             ("controller", "controller/#", c_idle),
-            ("heartbeat", "instruments/+/heartbeat", on_heartbeat_message),
+            (
+                "heartbeat",
+                ["instruments/+/heartbeat", "setpoint_controllers/+/heartbeat"],
+                on_heartbeat_message,
+            ),
         ]:
             mqtt_mocks["client_class"](
                 id=client_id, topics=topics, callback=callback, obj=state
@@ -297,6 +316,11 @@ def start_monitored_experiment(
             message_bus.publish(
                 f"instruments/{instrument}/heartbeat",
                 json.dumps(instrument_heartbeat(state, instrument)),
+            )
+        for spc_id in state.config.spcs:
+            message_bus.publish(
+                f"setpoint_controllers/{spc_id}/heartbeat",
+                json.dumps(spc_heartbeat(state, spc_id)),
             )
         t.sleep(0.1)
         assert state.status == "running"
@@ -319,6 +343,35 @@ def instrument_heartbeat(state, instrument, measurements=None):
         },
         "setpoints": setpoints,
         "config": copy.deepcopy(state.get_expected_heartbeat(instrument)),
+    }
+
+
+def spc_heartbeat(state, spc_id, pid=None):
+    """
+    Returns a heartbeat of a setpoint controller with the PID config of the experiment,
+    unless given.
+    """
+    spc = state.config.spcs[spc_id]
+    expected_pid = state.get_expected_spc_config(spc_id)["pid"]
+    return {
+        "state": {
+            "status": "adjusting",
+            "enabled": True,
+            "sensor_measurement": None,
+            "actuator_setpoint": None,
+            "experiment_id": state.experiment_id,
+        },
+        "setpoints": {"sensor_setpoint": None},
+        "config": {
+            "sensor": spc["external_sensor"],
+            "actuator": spc["actuator"],
+            "pid": {
+                "max": 100.0,
+                "min": 0.0,
+                "max_rate": None,
+                **(expected_pid if pid is None else pid),
+            },
+        },
     }
 
 

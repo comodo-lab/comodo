@@ -178,6 +178,19 @@ class TestPublishError:
             type="WARNING",
         )
 
+    def test_unconfigured_spc(self, pe_mocks):
+        msg = MockMessage(topic="spc/test_spc/hb", payload=json.dumps({"bad": "info"}))
+        exp_err = 'Setpoint controller test_spc is not configured. Unexpected heartbeat message:\n    spc/test_spc/hb  {"bad": "info"}'
+
+        pub_err.unconfigured_spc(msg, "test_spc")
+
+        pe_mocks["print_and_publish"].assert_called_once_with(
+            topic="error/heartbeat",
+            code="unconfigured_spc",
+            message=exp_err,
+            type="WARNING",
+        )
+
     def test_controller_timeout(self, pe_mocks):
         exp_err = "Timed out waiting for instruments."
 
@@ -211,6 +224,17 @@ class TestPublishError:
 
         pe_mocks["print_and_publish"].assert_called_once_with(
             topic="error/instrument",
+            code="configuration",
+            message=exp_err,
+        )
+
+    def test_invalid_spc_config(self, pe_mocks):
+        exp_err = "Setpoint controller 'test_spc' misconfigured. Expected PID: {'k_p': 1.0}; Received: {'k_p': 2.0}."
+
+        pub_err.invalid_spc_config("test_spc", {"k_p": 1.0}, {"k_p": 2.0})
+
+        pe_mocks["print_and_publish"].assert_called_once_with(
+            topic="error/setpoint_controller",
             code="configuration",
             message=exp_err,
         )

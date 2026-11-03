@@ -267,3 +267,41 @@ class TestValidateExperiment:
             validate_experiment("/fake/path", ve_mocks["config"])
 
         assert "Missing tolerance for 'I_A/V_A' in the live config" in str(e.value)
+
+    def test_valid_spcs_live_config(self, ve_mocks):
+        experiment = json.loads(ve_mocks["experiment"])
+        experiment["config"]["spcs"] = {"I_A-V_A--I_B-V_B": {"pid": {"k_p": 1.0}}}
+        ve_mocks["open"].return_value.__enter__.return_value.read.return_value = (
+            json.dumps(experiment)
+        )
+        ve_mocks["config"].spcs = {"I_A-V_A--I_B-V_B": {}}
+
+        result = validate_experiment("/fake/path", ve_mocks["config"])
+
+        assert result["config"]["spcs"] == {"I_A-V_A--I_B-V_B": {"pid": {"k_p": 1.0}}}
+
+    def test_raises_on_unknown_spc_live_config(self, ve_mocks):
+        experiment = json.loads(ve_mocks["experiment"])
+        experiment["config"]["spcs"] = {"I_C-V_C--I_B-V_B": {"pid": {"k_p": 1.0}}}
+        ve_mocks["open"].return_value.__enter__.return_value.read.return_value = (
+            json.dumps(experiment)
+        )
+        ve_mocks["config"].spcs = {"I_A-V_A--I_B-V_B": {}}
+
+        with pytest.raises(ExperimentValidationError) as e:
+            validate_experiment("/fake/path", ve_mocks["config"])
+
+        assert "Live config for unknown setpoint controller 'I_C-V_C--I_B-V_B'" in str(
+            e.value
+        )
+
+    def test_raises_on_missing_spc_live_config(self, ve_mocks):
+        ve_mocks["config"].spcs = {"I_A-V_A--I_B-V_B": {}}
+
+        with pytest.raises(ExperimentValidationError) as e:
+            validate_experiment("/fake/path", ve_mocks["config"])
+
+        assert (
+            "Missing PID config for setpoint controller(s) I_A-V_A--I_B-V_B "
+            "in the live config" in str(e.value)
+        )

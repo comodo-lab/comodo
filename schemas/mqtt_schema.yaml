@@ -40,6 +40,42 @@ channels:
                   type: object
                   additionalProperties:
                     type: object
+                spcs:
+                  type: object
+                  additionalProperties:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - pid
+                    properties:
+                      pid:
+                        type: object
+                        additionalProperties: false
+                        required:
+                          - k_p
+                          - k_i
+                          - k_d
+                          - k_df
+                          - k_aw
+                        properties:
+                          k_p:
+                            type: number
+                          k_i:
+                            type: number
+                          k_d:
+                            type: number
+                          k_df:
+                            type: number
+                          k_aw:
+                            type: number
+                          max:
+                            type: number
+                          min:
+                            type: number
+                          max_rate:
+                            oneOf:
+                              - type: number
+                              - type: "null"
             experiment_definition:
               type: array
               items:

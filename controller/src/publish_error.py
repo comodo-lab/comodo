@@ -105,6 +105,18 @@ def unconfigured_instrument(msg, instrument_name):
     )
 
 
+def unconfigured_spc(msg, spc_id):
+    """
+    Publishes a warning message when a setpoint controller heartbeat is received and the setpoint controller is not configured.
+    """
+    print_and_publish(
+        topic="error/heartbeat",
+        code="unconfigured_spc",
+        message=f"Setpoint controller {spc_id} is not configured. Unexpected heartbeat message:\n    {msg.topic}  {msg.payload.decode('utf-8')}",
+        type="WARNING",
+    )
+
+
 def controller_timeout(uid, who_timedout):
     """
     Publishes an error message when a timeout occurs.
@@ -131,6 +143,15 @@ def invalid_instrument_config(instrument_name, expected, received):
     e = f"Instrument '{instrument_name}' misconfigured. Expected: {expected}; Received: {received}."
     print_and_publish(
         topic="error/instrument",
+        code="configuration",
+        message=e,
+    )
+
+
+def invalid_spc_config(spc_id, expected, received):
+    e = f"Setpoint controller '{spc_id}' misconfigured. Expected PID: {expected}; Received: {received}."
+    print_and_publish(
+        topic="error/setpoint_controller",
         code="configuration",
         message=e,
     )

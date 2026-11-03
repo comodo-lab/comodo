@@ -204,7 +204,7 @@ class TestMain:
             call(
                 id="heartbeat",
                 callback=mocks["callbacks"]["on_heartbeat_message"],
-                topics="instruments/+/heartbeat",
+                topics=["instruments/+/heartbeat", "setpoint_controllers/+/heartbeat"],
                 obj=state,
                 broker_address="test_host",
                 user="test_user",
