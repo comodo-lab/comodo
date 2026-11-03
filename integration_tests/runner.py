@@ -51,6 +51,7 @@ def default_setpoints(mock_comodo_config):
 def bus():
     collected = {
         "heartbeats": {},
+        "spc_heartbeats": {},
         "measurement": {},
         "errors": [],
         "end": None,
@@ -66,6 +67,8 @@ def bus():
         p = msg.payload.decode(errors="replace")
         if "/heartbeat" in t:
             collected["heartbeats"][t] = time.time()
+            if t.startswith("setpoint_controllers/"):
+                collected["spc_heartbeats"][t] = json.loads(p)
         elif t.endswith("/measurement"):
             collected["measurement"][t] = p
         elif t.startswith("error/"):
@@ -171,9 +174,62 @@ def test_default_setpoints(bus, default_setpoints):
     )
 
 
+def wait_for_spc_pid(bus, spcs_config, timeout):
+    """
+    Waits for every setpoint controller to report the PID values in spcs_config
+    ({spc_id: {"pid": {...}}}) in its heartbeat. Returns the ones that did not.
+    """
+    pending = dict(spcs_config)
+    deadline = time.time() + timeout
+    last_report = 0.0
+    while True:
+        for spc_id, spc_config in list(pending.items()):
+            heartbeat = bus["spc_heartbeats"].get(
+                f"setpoint_controllers/{spc_id}/heartbeat"
+            )
+            if heartbeat is None:
+                continue
+            reported = heartbeat["config"]["pid"]
+            if all(reported.get(k) == v for k, v in spc_config["pid"].items()):
+                pending.pop(spc_id)
+        now = time.time()
+        if not pending or now >= deadline:
+            return pending
+        if now - last_report >= 3:
+            print(f"  Waiting for PID values from: {sorted(pending)}")
+            last_report = now
+        time.sleep(0.5)
+
+
+def with_pid(spcs_config, **gains):
+    """Returns spcs_config with the given PID gains changed in every setpoint controller."""
+    return {
+        spc_id: {"pid": {**spc_config["pid"], **gains}}
+        for spc_id, spc_config in spcs_config.items()
+    }
+
+
 @pytest.mark.order(3)
+def test_spc_configured_while_idle(bus, mock_experiment_dict):
+    # Slightly different from the experiment's, so the experiment start has to change them back
+    spcs_config = with_pid(mock_experiment_dict["config"]["spcs"], k_df=0.03)
+    assert spcs_config, "The mock experiment has no setpoint controllers"
+
+    for spc_id, spc_config in spcs_config.items():
+        bus["c"].publish(
+            f"setpoint_controllers/{spc_id}/configure", json.dumps(spc_config)
+        )
+    print(f"  → setpoint_controllers/+/configure published")
+
+    pending = wait_for_spc_pid(bus, spcs_config, HEARTBEAT_TIMEOUT)
+    if pending:
+        pytest.fail(f"PID values not applied by: {sorted(pending)}")
+
+
+@pytest.mark.order(4)
 def test_experiment_completes(bus, mock_experiment_dict):
     experiment = mock_experiment_dict
+    experiment["config"]["spcs"] = with_pid(experiment["config"]["spcs"], k_df=0.02)
 
     bus["c"].publish("ui/start", json.dumps(experiment))
     print(f"  → ui/start published")
@@ -185,6 +241,10 @@ def test_experiment_completes(bus, mock_experiment_dict):
             pytest.fail(f"Error received: {bus['errors']}")
         if bus["end"] is not None:
             print(f"  ← controller/event/end received")
+            # The experiment's PID values replaced the ones configured while idle
+            pending = wait_for_spc_pid(bus, experiment["config"]["spcs"], 0)
+            if pending:
+                pytest.fail(f"Experiment PID values not applied by: {sorted(pending)}")
             return
         now = time.time()
         elapsed = int(now - (deadline - EXPERIMENT_TIMEOUT))
@@ -195,7 +255,7 @@ def test_experiment_completes(bus, mock_experiment_dict):
     pytest.fail("Experiment did not complete (no controller/event/end)")
 
 
-@pytest.mark.order(4)
+@pytest.mark.order(5)
 def test_no_errors(bus):
     if bus["errors"]:
         lines = "\n".join(f"  [{t}] {p[:200]}" for t, p in bus["errors"])
