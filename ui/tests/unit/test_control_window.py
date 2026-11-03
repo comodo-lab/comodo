@@ -163,3 +163,53 @@ class TestToggleManualControl:
         is_open, children, _ = cw.toggle_manual_control(2, True)
         assert not is_open
         assert children[-1].children == "Take Manual Control"
+
+
+class TestManualValues:
+    def store(self, stale=(), **heartbeats):
+        return {
+            "heartbeats": {t: {"payload": p, "received": 0} for t, p in heartbeats.items()},
+            "stale": list(stale),
+        }
+
+    FURNACE = "instruments/furnace/heartbeat"
+    PRESSURE = "instruments/pressure/heartbeat"
+    SPC = "setpoint_controllers/pressure-pressure--mass_flow-mass_flow/heartbeat"
+
+    def instrument(self, variable, measurement, setpoints):
+        return {
+            "state": {"status": "running", "measurements": {variable: measurement}},
+            "setpoints": setpoints,
+            "config": {},
+        }
+
+    def test_actuator(self):
+        data = self.store(
+            **{self.FURNACE: self.instrument("temperature", 24.5, {"temperature": 25})}
+        )
+        assert cw.manual_values(data, "furnace/temperature") == (24.5, 25)
+
+    def test_spc_sensor_setpoint(self):
+        data = self.store(
+            **{
+                self.PRESSURE: self.instrument("pressure", 1.1, {}),
+                self.SPC: {
+                    "config": {"sensor": "pressure/pressure", "actuator": "mass_flow/mass_flow"},
+                    "setpoints": {"sensor_setpoint": 1.5},
+                },
+            }
+        )
+        assert cw.manual_values(data, "pressure/pressure") == (1.1, 1.5)
+
+    def test_missing_or_stale(self):
+        data = self.store(
+            stale=[self.FURNACE],
+            **{self.FURNACE: self.instrument("temperature", 24.5, {"temperature": 25})},
+        )
+        assert cw.manual_values(data, "furnace/temperature") == (None, None)
+        assert cw.manual_values(None, "furnace/temperature") == (None, None)
+
+    def test_update_skips_unknown_values(self):
+        data = self.store(**{self.FURNACE: self.instrument("temperature", 24.5, {})})
+        out = cw.update_control_component(data, {"index": "furnace/temperature"})
+        assert out == (24.5, no_update)

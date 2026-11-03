@@ -18,7 +18,6 @@ import plotly.express as px
 import uuid
 import json
 import time
-import pytz
 
 
 import dash_ag_grid as dag
@@ -28,7 +27,6 @@ import pandas as pd
 import plotly.graph_objects as go
 
 from utils.mqtt_clients import MQTTPublisher
-from utils.influx_query import query_influxdb_params
 import src.saved_configs as sc
 import src.heartbeats as hb
 import src.instrument_setup as ins
@@ -390,51 +388,42 @@ def get_control_component(param_name=None, min_val=0, max_val=100, step=1):
     return control_component
 
 
+def manual_values(data, param_name):
+    """
+    Returns the (measurement, setpoint) of param_name (instrument/variable) from the
+    heartbeats in the heartbeat-store, or None for each one not available.
+    The setpoint comes from the setpoint controller driving the variable, if any,
+    as the instrument only reports setpoints of its actuators.
+    """
+    heartbeats = (data or {}).get("heartbeats", {})
+    stale = (data or {}).get("stale", [])
+    fresh = {t: hb["payload"] for t, hb in heartbeats.items() if t not in stale}
+
+    instrument, variable = param_name.split("/", 1)
+    payload = fresh.get(hb.instrument_topic(instrument), {})
+    measurement = payload.get("state", {}).get("measurements", {}).get(variable)
+    setpoint = payload.get("setpoints", {}).get(variable)
+    for topic, spc_payload in fresh.items():
+        if (
+            topic.startswith("setpoint_controllers/")
+            and spc_payload["config"]["sensor"] == param_name
+        ):
+            setpoint = spc_payload["setpoints"]["sensor_setpoint"]
+    return measurement, setpoint
+
+
 @callback(
     Output({"type": "control-gauge", "index": MATCH}, "value"),
     Output({"type": "control-slider", "index": MATCH}, "value"),
-    # Output("control-last-update", "children"),
-    Input("interval", "n_intervals"),
+    Input("heartbeat-store", "data"),
     State({"type": "control-slider", "index": MATCH}, "id"),
-    State("timezone-store", "data"),
 )
-def update_control_component(n_intervals, slider_id, timezone):
+def update_control_component(data, slider_id):
     """
-    Updates the control component based on the selected parameter.
+    Shows the latest measurement (gauge) and setpoint (slider) of the parameter.
     """
-    # Extract the parameter name from the slider's id
-    param_name = slider_id["index"]
-
-    try:
-        user_tz = pytz.timezone(timezone)
-        time = pytz.datetime.datetime.now(user_tz).strftime("%Y-%m-%d %H:%M:%S")
-    except Exception as e:
-        print(f"Error getting current time: {e}")
-        time = "N/A"
-
-    # Query setpoint and actual value for the parameter
-    try:
-        setpoint_results = query_influxdb_params(
-            fields=["value"],
-            topics=[f"instruments/{param_name}/setpoint"],
-            start="-1m",
-            aggregate="last",
-        )
-        actual_results = query_influxdb_params(
-            fields=["value"],
-            topics=[f"instruments/{param_name}/measurement"],
-            start="-1m",
-            aggregate="last",
-        )
-        if not setpoint_results or not actual_results:
-            return no_update, no_update
-        setpoint = setpoint_results[-1].get_value()
-
-        actual_value = actual_results[-1].get_value()
-    except Exception as e:
-        if "list index out of range" not in str(e):
-            print(f"Error querying InfluxDB for {param_name}: {e}")
-        return no_update, no_update  # , time
-
-    # Update the gauge and slider values
-    return actual_value, setpoint  # , time
+    measurement, setpoint = manual_values(data, slider_id["index"])
+    return (
+        no_update if measurement is None else measurement,
+        no_update if setpoint is None else setpoint,
+    )
