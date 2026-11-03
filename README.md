@@ -47,7 +47,7 @@ The stack consists of:
   The UI also contains an embedded Grafana dashboard to monitor the experiments.
 - The [controller](controller/README.md), which is responsible for orchestrating experiments.
   It is the backbone of Comodo, and communicates with all other components through MQTT messages.
-- A monitor, which checks every MQTT message against the [message schema](schemas/mqtt_schema.yaml), and reports invalid messages as errors.
+- A [monitor](monitor/README.md), which checks every MQTT message against the [message schema](schemas/mqtt_schema.yaml), and reports invalid messages as errors.
 - An MQTT broker (RabbitMQ) for handling communication between the different components.
   Each stack also runs an [MQTT probe](mqtt_probe/README.md), which checks the connection to the broker before the other services start.
 - A database (InfluxDB) for storing time series data from experiments.
@@ -429,7 +429,7 @@ docker compose --env-file ../.env kill
   - [`ui/`](ui/README.md): The user interface.
   - [`firmware/`](firmware/README.md): The firmware for the instruments, and the template used to generate `compose.firmware.yaml`.
   - [`setpoint_controller/`](setpoint_controller/README.md): The setpoint controllers.
-  - `monitor/`: The MQTT message monitor.
+  - [`monitor/`](monitor/README.md): The MQTT message monitor.
   - [`mqtt_probe/`](mqtt_probe/README.md): The MQTT connection check used by each stack.
 - `utils/`: Code shared by all components (MQTT clients, message validation, config loading), shared test mocks and fixtures, and helper scripts.
 - `schemas/`: The schema for `comodo.yaml`, and the schema for all [MQTT messages](#mqtt-topics).
