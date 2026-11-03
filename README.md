@@ -432,6 +432,6 @@ docker compose --env-file ../.env kill
   - [`monitor/`](monitor/README.md): The MQTT message monitor.
   - [`mqtt_probe/`](mqtt_probe/README.md): The MQTT connection check used by each stack.
 - `utils/`: Code shared by all components (MQTT clients, message validation, config loading), shared test mocks and fixtures, and helper scripts.
-- `schemas/`: The schema for `comodo.yaml`, and the schema for all [MQTT messages](#mqtt-topics).
+- [`schemas/`](schemas/README.md): The schema for `comodo.yaml`, and the schema for all [MQTT messages](#mqtt-topics).
 - `grafana/` and `telegraf/`: Configuration for Grafana (including the default dashboard) and Telegraf.
 - [`integration_tests/`](integration_tests/README.md): The [full stack test](#testing-the-full-stack).
