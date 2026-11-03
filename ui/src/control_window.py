@@ -53,10 +53,19 @@ def get_control_panel(params=[]):
                     ),
                     dbc.Col(
                         dbc.Button(
-                            toggle_label,
+                            # Disabled until instruments support manual control
+                            toggle_label
+                            + [
+                                html.Small(
+                                    "(coming soon...)",
+                                    className="text-muted",
+                                    style={"textTransform": "none"},
+                                )
+                            ],
                             color=toggle_color,
                             id="manual-control-toggle",
                             n_clicks=0,
+                            disabled=True,
                         ),
                         width=3,
                         className="d-grid",
