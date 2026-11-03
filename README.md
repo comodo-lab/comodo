@@ -240,9 +240,12 @@ To set up Comodo, follow these steps:
 - Visit `localhost:8501` on the core host to access the Comodo UI.
 
 <details id="publishing-a-grafana-dashboard">
-<summary>How do I publishing a Grafana dashboard?</summary>
+<summary>How do I publish a Grafana dashboard?</summary>
 
 - Visit the Grafana UI at `localhost:3000`.
+- Click "Sign in". Dashboards can be viewed anonymously, but sharing or editing them requires an account.
+  On first login, use username `admin` and password `admin`; Grafana will then ask you to set a new password.
+  The new password is kept in the `grafana-storage` volume, so it persists until the volume is removed (e.g. with `docker compose -f compose.data.yaml down -v`).
 - Select "Dashboards" on the navigation panel on the left.
 - Select the dashboard you want.
 - Click the "Share" icon at the top of the page, which will copy a shortened url.
