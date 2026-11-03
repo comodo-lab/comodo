@@ -11,7 +11,7 @@ from utils.mqtt_clients import MQTTPublisher
 from src.config_loader import UiConfig
 
 app = Dash(
-    external_stylesheets=[dbc.themes.LUX],
+    external_stylesheets=[dbc.themes.LUX, dbc.icons.BOOTSTRAP],
     suppress_callback_exceptions=True,
 )
 

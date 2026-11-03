@@ -39,15 +39,67 @@ CLICK_TIMEOUT = 5
 
 
 def get_control_panel(params=[]):
+    toggle_label, toggle_color = manual_toggle(False)
     layout = html.Div(
         [
-            dbc.Button("Start experiment", color="success", id="experiment-button"),
+            dbc.Row(
+                [
+                    dbc.Col(
+                        dbc.Button(
+                            content("Start experiment", "play-circle"),
+                            color="success",
+                            id="experiment-button",
+                        ),
+                        width=9,
+                        className="d-grid",
+                    ),
+                    dbc.Col(
+                        dbc.Button(
+                            toggle_label,
+                            color=toggle_color,
+                            id="manual-control-toggle",
+                            n_clicks=0,
+                        ),
+                        width=3,
+                        className="d-grid",
+                    ),
+                ],
+                className="g-2",
+            ),
             dcc.Store(id="experiment-button-click"),
-            get_manual_panel(params=params),
+            # Hidden rather than removed, so its controls keep updating
+            dbc.Collapse(
+                get_manual_panel(params=params),
+                id="manual-control-collapse",
+                is_open=False,
+            ),
         ],
         className="d-grid gap-2",
     )
     return layout
+
+
+def manual_toggle(is_open):
+    """Returns the (content, color) of the manual control toggle."""
+    if is_open:
+        return content("Hide Manual Control", "sliders", SMALL_ICON_SIZE), "warning"
+    return content("Take Manual Control", "sliders", SMALL_ICON_SIZE), "light"
+
+
+@callback(
+    Output("manual-control-collapse", "is_open"),
+    Output("manual-control-toggle", "children"),
+    Output("manual-control-toggle", "color"),
+    Input("manual-control-toggle", "n_clicks"),
+    State("manual-control-collapse", "is_open"),
+    prevent_initial_call=True,
+)
+def toggle_manual_control(n_clicks, is_open):
+    # Fires when the tab is rendered, as prevent_initial_call does not apply
+    # to inputs inserted by another callback (render_page)
+    if not n_clicks:
+        raise PreventUpdate
+    return not is_open, *manual_toggle(not is_open)
 
 
 # Disables the button in the browser as soon as it is clicked, to prevent double clicks.
@@ -213,21 +265,44 @@ def update_experiment_button(data, click):
         raise PreventUpdate
 
     if current is None:
-        return "No controller heartbeat", "secondary", None, True
+        no_heartbeat = content("No controller heartbeat", "exclamation-circle")
+        return no_heartbeat, "secondary", None, True
     state, experiment_id = current
     if state == "idle":
-        return "Start experiment", "success", None, False
+        return content("Start experiment", "play-circle"), "success", None, False
     if state == "validating":
         return busy("Validating experiment"), "success", None, True
     if state == "stopping":
         return busy("Stopping experiment"), "danger", None, True
     if experiment_id:
-        return f"Stop experiment {experiment_id}", "danger", experiment_id, False
-    return f"Controller {state}", "secondary", None, True
+        return (
+            content(f"Stop experiment {experiment_id}", "stop-circle"),
+            "danger",
+            experiment_id,
+            False,
+        )
+    return content(f"Controller {state}", "hourglass-split"), "secondary", None, True
+
+
+# Size of the icons in the experiment and manual control buttons
+ICON_SIZE = "3.5rem"
+SMALL_ICON_SIZE = "2rem"
+
+
+def content(text, icon, size=ICON_SIZE):
+    """Button content: a Bootstrap icon, with the text below it."""
+    return [
+        html.I(className=f"bi bi-{icon} d-block my-2", style={"fontSize": size}),
+        html.Div(text),
+    ]
 
 
 def busy(text):
-    return [dbc.Spinner(size="sm", spinner_class_name="me-2"), text]
+    spinner = dbc.Spinner(
+        spinner_style={"width": ICON_SIZE, "height": ICON_SIZE},
+        spinner_class_name="my-2",
+    )
+    return [spinner, html.Div(text)]
 
 
 def get_manual_panel(params=[]):
@@ -240,8 +315,8 @@ def get_manual_panel(params=[]):
         )
 
     control_rows = [
-        dbc.Row(html.H2("Manual Control Window")),
-        dbc.Row(html.Hr()),
+        dbc.Row(html.Hr(className="border-warning border-2 opacity-100 mt-2")),
+        dbc.Row(html.H2("Manual Control Window", className="mt-2")),
         dbc.Row(html.P("Last update: N/A", id="control-last-update")),
     ]
 

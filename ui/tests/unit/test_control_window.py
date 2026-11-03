@@ -41,19 +41,26 @@ def heartbeats(state, experiment_id=None, stale=False):
 
 
 def label(output):
-    """The button text, without the spinner if there is one."""
-    children = output[0]
-    return children[-1] if isinstance(children, list) else children
+    """The button text, without its icon or spinner."""
+    return output[0][-1].children
+
+
+def icon(output):
+    return output[0][0].className
 
 
 class TestButtonStates:
     def test_idle_starts(self):
         out = cw.update_experiment_button(heartbeats("idle"), None)
-        assert out == ("Start experiment", "success", None, False)
+        assert label(out) == "Start experiment"
+        assert "bi-play-circle" in icon(out)
+        assert out[1:] == ("success", None, False)
 
     def test_running_stops(self):
         out = cw.update_experiment_button(heartbeats("running", "exp-7"), None)
-        assert out == ("Stop experiment exp-7", "danger", "exp-7", False)
+        assert label(out) == "Stop experiment exp-7"
+        assert "bi-stop-circle" in icon(out)
+        assert out[1:] == ("danger", "exp-7", False)
 
     def test_awaiting_instruments_can_stop(self):
         out = cw.update_experiment_button(
@@ -69,7 +76,8 @@ class TestButtonStates:
 
     def test_no_heartbeat(self):
         out = cw.update_experiment_button(heartbeats("idle", stale=True), None)
-        assert out == ("No controller heartbeat", "secondary", None, True)
+        assert label(out) == "No controller heartbeat"
+        assert out[1:] == ("secondary", None, True)
 
 
 class TestAfterClick:
@@ -87,7 +95,8 @@ class TestAfterClick:
     def test_gives_up_after_timeout(self):
         click = self.click("idle", ago=cw.CLICK_TIMEOUT)
         out = cw.update_experiment_button(heartbeats("idle"), click)
-        assert out == ("Start experiment", "success", None, False)
+        assert label(out) == "Start experiment"
+        assert out[1:] == ("success", None, False)
 
 
 class TestStartExperiment:
@@ -136,3 +145,21 @@ class TestStartExperiment:
         assert topic == "error/ui"
         assert json.loads(payload)["code"] == "spc_setup"
         assert out == (None, *[no_update] * len(sc.KINDS))
+
+
+class TestToggleManualControl:
+    def test_ignores_render(self):
+        with pytest.raises(PreventUpdate):
+            cw.toggle_manual_control(0, False)
+
+    def test_opens(self):
+        is_open, children, color = cw.toggle_manual_control(1, False)
+        assert is_open
+        assert children[-1].children == "Hide Manual Control"
+        assert "bi-sliders" in children[0].className
+        assert color == "warning"
+
+    def test_closes(self):
+        is_open, children, _ = cw.toggle_manual_control(2, True)
+        assert not is_open
+        assert children[-1].children == "Take Manual Control"
