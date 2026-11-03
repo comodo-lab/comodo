@@ -122,7 +122,7 @@ def update_designer_page(data, exp_config):
     prevent_initial_call=True,
 )
 def initialize_experiment_store(pathname, current_data):
-    if pathname == "/designer" and not current_data:
+    if pathname == "/timeline" and not current_data:
         return INI_DATA_DICT
     return no_update
 
@@ -154,7 +154,7 @@ def update_instrument_page(data):
     prevent_initial_call=True,
 )
 def initialize_experiment_store(pathname, current_data):
-    if pathname == "/instrument" and not current_data:
+    if pathname == "/instruments" and not current_data:
         return INI_INSTRUMENT_DICT
     return no_update
 
@@ -181,7 +181,7 @@ def update_spc_page(data):
     prevent_initial_call=True,
 )
 def initialize_spc_store(pathname, current_data):
-    if pathname == "/pid" and not current_data:
+    if pathname == "/pids" and not current_data:
         return INI_SPC_DICT
     return no_update
 
@@ -213,7 +213,7 @@ def update_experiment_config_page(data):
     prevent_initial_call=True,
 )
 def initialize_experiment_store(pathname, current_data):
-    if pathname == "/experiment-config" and not current_data:
+    if pathname == "/global" and not current_data:
         return INI_EXPERIMENT_CONFIG
     return no_update
 
@@ -243,18 +243,18 @@ def render_page(pathname, *states):
         )
 
     if pathname in ["/", None]:
-        return dcc.Location(href="/designer", id="redirect")
-    elif pathname == "/instrument":
+        return dcc.Location(href="/timeline", id="redirect")
+    elif pathname == "/instruments":
         return with_selector("instruments", "instrument-wrapper")
-    elif pathname == "/pid":
+    elif pathname == "/pids":
         return with_selector("spcs", "spc-wrapper")
-    elif pathname == "/designer":
+    elif pathname == "/timeline":
         return with_selector("experiment", "designer-wrapper")
     elif pathname == "/control":
         return control_window
-    elif pathname == "/graph":
+    elif pathname == "/data":
         return graph_layout
-    elif pathname == "/experiment-config":
+    elif pathname == "/global":
         return with_selector("config", "experiment-config-wrapper")
     elif pathname == lw.LOG_PATH:
         return log_window
@@ -265,7 +265,7 @@ def render_page(pathname, *states):
 def get_saved_stores():
     """
     Stores pre-populated with the latest saved version of each kind,
-    so Control Panel works without visiting each tab first.
+    so Experiment Control works without visiting each tab first.
     """
     stores = []
     for kind in sc.KINDS:
@@ -276,6 +276,46 @@ def get_saved_stores():
 
 
 # A function, so the latest saved versions are loaded on every page load
+def nav_link(label, href, **kwargs):
+    return dbc.NavItem(dbc.NavLink(label, href=href, active="exact", **kwargs))
+
+
+def get_nav_bar():
+    """
+    Tabs, with the ones that define an experiment grouped under Experiment Settings.
+    """
+    settings = html.Div(
+        [
+            html.Div(
+                "Experiment Settings",
+                className="text-center text-uppercase small fw-bold mb-1",
+            ),
+            dbc.Nav(
+                [
+                    nav_link("Timeline", "/timeline"),
+                    nav_link("Instruments", "/instruments"),
+                    nav_link("PID Controllers", "/pids"),
+                    nav_link("Global", "/global"),
+                ],
+                pills=True,
+                justified=True,
+            ),
+        ],
+        className="bg-light border rounded p-2 flex-grow-1",
+    )
+    operation = dbc.Nav(
+        [
+            nav_link("Experiment Control", "/control"),
+            nav_link("Data Monitor", "/data"),
+            nav_link(lw.LOG_LABEL, lw.LOG_PATH, id="log-nav-link"),
+        ],
+        pills=True,
+        justified=True,
+        className="flex-grow-1",
+    )
+    return html.Div([settings, operation], className="d-flex align-items-center gap-3")
+
+
 def serve_layout():
     return dbc.Container(
         [
@@ -291,52 +331,7 @@ def serve_layout():
             *get_saved_stores(),
             html.Div(id="hidden-div", style={"display": "none"}),
             tm.get_header_bar(),
-            dbc.Nav(
-                [
-                    dbc.NavItem(
-                        dbc.NavLink(
-                            "Experiment Designer", href="/designer", active="exact"
-                        ),
-                        className="me-0",
-                    ),
-                    dbc.NavItem(
-                        dbc.NavLink(
-                            "Instrument Setup",
-                            href="/instrument",
-                            active="exact",
-                        ),
-                        className="me-0",
-                    ),
-                    dbc.NavItem(
-                        dbc.NavLink("PID Setup", href="/pid", active="exact"),
-                        className="me-0",
-                    ),
-                    dbc.NavItem(
-                        dbc.NavLink(
-                            "Experiment Config",
-                            href="/experiment-config",
-                            active="exact",
-                        ),
-                        className="me-0",
-                    ),
-                    dbc.NavItem(
-                        dbc.NavLink("Control Panel", href="/control", active="exact"),
-                        className="me-0",
-                    ),
-                    dbc.NavItem(
-                        dbc.NavLink("Graph View", href="/graph", active="exact"),
-                        className="me-0",
-                    ),
-                    dbc.NavItem(
-                        dbc.NavLink(
-                            "Log", href=lw.LOG_PATH, active="exact", id="log-nav-link"
-                        ),
-                        className="me-0",
-                    ),
-                ],
-                pills=True,
-                justified=True,
-            ),
+            get_nav_bar(),
             html.Hr(),
             html.Div(id="page-content"),
         ],

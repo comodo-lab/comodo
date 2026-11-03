@@ -5,7 +5,8 @@ import dash_ag_grid as dag
 import src.log_book as lb
 import src.top_matter as tm
 
-LOG_PATH = "/log"
+LOG_PATH = "/logs"
+LOG_LABEL = "Event Log"
 # Log tab highlighted while there are errors not yet seen
 UNSEEN_STYLE = {"backgroundColor": "var(--bs-danger)", "color": "white"}
 
@@ -121,5 +122,5 @@ def update_log_tab(data, seen):
         seen = 0
     unseen = errors - seen
     if unseen <= 0:
-        return "Log", {}
-    return f"Log ({unseen} new error{'s' if unseen > 1 else ''})", UNSEEN_STYLE
+        return LOG_LABEL, {}
+    return f"{LOG_LABEL} ({unseen} new error{'s' if unseen > 1 else ''})", UNSEEN_STYLE
