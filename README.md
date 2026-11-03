@@ -25,7 +25,6 @@ This repo contains everything you need to get started using Comodo for automatin
     - [Testing a component](#testing-a-component)
       - [Helper script](#helper-script)
     - [Testing the full stack](#testing-the-full-stack)
-    - [Temporary experiment trigger](#temporary-experiment-trigger)
 
 
 ## What is Comodo?
@@ -52,7 +51,7 @@ The stack consists of:
 The different components are glued together using four compose files, which define and configure all the services required to run Comodo.
 Each of these compose files can be run independently, allowing for flexible deployment options.
 
-Currently, only [manual deployment](#manual-deployment) is supported.
+Currently, only [manual deployment](#manual-deployment) is supported, although a helper script automates the preparation steps (see [automatic deployment](#automatic-deployment)).
 
 ## Central Configuration File
 **NOTE:** *Currently nothing listens to this file, everything is hardcoded in:*
@@ -104,8 +103,9 @@ However, an instrument has a single `firmware` and `address`, which define how t
 Each instrument can have the following properties:
 - `firmware`: [required] The type of firmware the instrument is running.
   This defines how to communicate with the instrument, and it should match one of the supported firmware types in the [firmware directory](firmware/src/instruments/) or set to `generic_instrument`, which simulates variable measurements.
+  Firmware types are written as `<manufacturer>.<model>`, matching the module `firmware/src/instruments/<manufacturer>/<model>.py` (e.g., `pfeiffer.mpt200`).
 - `address`: [required] The address of the instrument.
-  This can be an IP address and port (e.g., `192.168.10:502`), a serial port (e.g., `/dev/ttyUSB0`), or any other identifier required to communicate with the instrument.
+  This can be an IP address and port (e.g., `192.168.1.10:502`), a serial port (e.g., `/dev/ttyUSB0`), or any other identifier required to communicate with the instrument.
 - `simulate`: [optional] A boolean flag indicating whether the instrument should be run in simulation mode.
   If set to `true`, the instrument will not attempt to communicate with the physical device, and will instead simulate its behavior.
 - [`variables`](#variables): [required] The list of named variable(s) monitored or controlled by the instrument.
@@ -172,7 +172,12 @@ Each visualization can have the following properties:
 <!-- lots to specify here still -->
 
 ## Automatic deployment
-Currently not available.
+Not yet available: the stacks still have to be started by hand, as described in [manual deployment](#manual-deployment).
+
+However, `./utils/contexts.sh` automates the preparation steps:
+- It regenerates `compose.firmware.yaml` from `comodo.yaml`.
+- It creates Docker contexts for any stacks deployed to remote hosts (based on the `*_HOST` and `*_HOST_USER` variables in `.env`).
+- It prints the exact `docker compose` commands to run for each stack, locally or remotely.
 
 ## Manual deployment
 
@@ -331,12 +336,4 @@ Then move into the integration_tests directory and execute:
 ```
 docker compose --env-file ../.env up --build --attach integration-test --force-recreate
 docker compose --env-file ../.env kill
-```
-
-### Temporary experiment trigger
-
-UI currently out of step due to instrument refactor, to start an experiment use:
-```
-source .env
-mosquitto_pub -u ${MQTT_USER} -P ${MQTT_PASS} -h ${MQTT_HOST} -t ui/start -f start.json
 ```
