@@ -1,39 +1,51 @@
-# This compose file runs the integration tests for the comodo stack and exits when done.
-# Before running the tests, make sure you have copied the latest mock comodo yaml and regenerated the firmware compose:
-#   cp utils/tests/mocks/comodo.yaml ./
-#   docker compose -f "./firmware/compose.gen.yaml" run --rm compose-gen
-# To run the tests, cd into integration_tests/ and execute:
-#   docker compose --env-file ../.env up --build --attach integration-test --force-recreate
-#   docker compose --env-file ../.env kill
+# This compose file runs the integration test runner against an already running comodo stack, and exits when done.
+# It does not start the stack: use utils/run-integration-tests.sh, which starts the stacks with the mock configuration,
+# runs this, and tears everything down. See integration_tests/README.md for details.
+#
+# To run only the test runner (from the repository root), against a stack started with the mock configuration:
+#   docker compose --env-file .env -f integration_tests/compose.yaml run --rm --build integration-test
 #
 # Note that pytest captures prints from the runner.py code, not from the stack itself.
-# If debugging code in the stack, you need to attach to the service being debugged, e.g.:
-#   docker compose --env-file ../.env up --build --attach integration-test  --attach monitor --force-recreate
-# and then exit with Ctrl-C when done.
-# Alternatively, you can just attach to everything except rabbitmq, e.g.:
-#   docker compose --env-file ../.env up --build --no-attach rabbitmq --force-recreate
 
-include:
-  - path: ../compose.debug.yaml
-  - path: ../compose.yaml
-  - path: ../compose.data.yaml
-  - path: ../compose.mqtt.yaml
-  - path: ../compose.firmware.yaml
+x-templates:
+  mqtt-env: &mqtt-env
+    MQTT_HOST: ${MQTT_HOST:-rabbitmq}
+    MQTT_USER: ${MQTT_USER}
+    MQTT_PASS: ${MQTT_PASS}
+
+name: comodo-integration
 
 services:
+  mqtt-probe-integration:
+    build:
+      context: ../
+      dockerfile: mqtt_probe/Dockerfile
+    environment:
+      <<: *mqtt-env
+      MQTT_PROBE_ID: integration
+
   integration-test:
     build:
       context: ../
       dockerfile: integration_tests/Dockerfile
     container_name: integration-test
-    env_file:
-      - ../.env
     environment:
+      <<: *mqtt-env
+      INFLUX_URL: http://${DATA_HOST:-influxdb}:8086
+      INFLUX_TOKEN: ${INFLUX_TOKEN}
+      INFLUX_BUCKET: ${INFLUX_BUCKET}
+      INFLUX_ORG: ${INFLUX_ORG}
       HEARTBEAT_TIMEOUT: ${HEARTBEAT_TIMEOUT:-20}
+      SETPOINT_TIMEOUT: ${SETPOINT_TIMEOUT:-30}
       EXPERIMENT_TIMEOUT: ${EXPERIMENT_TIMEOUT:-40}
       INFLUX_TIMEOUT: ${INFLUX_TIMEOUT:-30}
     volumes:
+      # The core stack always runs on this machine
       - ../controller/data:/controller_data:ro
     depends_on:
-      mqtt-probe-core:
+      mqtt-probe-integration:
         condition: service_healthy
+
+networks:
+  default:
+    name: comodo

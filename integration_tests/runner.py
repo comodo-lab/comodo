@@ -21,7 +21,7 @@ SETPOINT_TIMEOUT = int(os.environ.get("SETPOINT_TIMEOUT", 30))
 EXPERIMENT_TIMEOUT = int(os.environ.get("EXPERIMENT_TIMEOUT", 120))
 INFLUX_TIMEOUT = int(os.environ.get("INFLUX_TIMEOUT", 30))
 
-INFLUX_URL = os.environ.get("INFLUX_URL", "http://influxdb:8086")
+INFLUX_URL = os.environ["INFLUX_URL"]
 INFLUX_TOKEN = os.environ["INFLUX_TOKEN"]
 INFLUX_ORG = os.environ["INFLUX_ORG"]
 INFLUX_BUCKETS = os.environ["INFLUX_BUCKET"].split(",")

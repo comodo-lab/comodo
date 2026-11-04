@@ -1,4 +1,5 @@
 name: comodo-debug
+
 services:
   mqttui:
     # Run this with:
@@ -13,10 +14,10 @@ services:
     container_name: comodo-mqttui
     tty: true
     environment:
-      MQTT_HOST: ${MQTT_HOST}
+      MQTT_HOST: ${MQTT_HOST:-rabbitmq}
       MQTT_USER: ${MQTT_USER}
       MQTT_PASS: ${MQTT_PASS}
-      MQTTUI_BROKER: mqtt://${MQTT_HOST}:1883
+      MQTTUI_BROKER: mqtt://${MQTT_HOST:-rabbitmq}:1883
       MQTTUI_USERNAME: ${MQTT_USER}
       MQTTUI_PASSWORD: ${MQTT_PASS}
       MQTTUI_CLIENTID: mqttui-comodo
@@ -38,3 +39,7 @@ services:
           sleep 1
         done &
         exec sleep infinity
+
+networks:
+  default:
+    name: comodo

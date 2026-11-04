@@ -30,28 +30,12 @@ jobs:
       - name: Set up environment variables
         run: |
           cat > .env <<'EOF'
-          MQTT_HOST=rabbitmq
           MQTT_USER=comodo_mqtt_user
           MQTT_PASS=comodo_mqtt_password
-          DATA_HOST=influxdb
           INFLUX_TOKEN=comodo_influx_token
           INFLUX_BUCKET=comodo
           INFLUX_ORG=comodo
           EOF
 
-      - name: Generate firmware compose file
-        run: |
-          cp utils/tests/mocks/comodo.yaml ./
-          docker compose -f "./firmware/compose.gen.yaml" run --rm compose-gen
-
       - name: Run integration tests
-        run: |
-          set -eo pipefail
-          cd ./integration_tests
-          docker compose --env-file ../.env up --build --attach integration-test --abort-on-container-exit --exit-code-from integration-test --force-recreate
-
-      - name: Tear down integration stack
-        if: ${{ always() }}
-        run: |
-          cd ./integration_tests
-          docker compose --env-file ../.env down --volumes --remove-orphans
+        run: ./utils/run-integration-tests.sh

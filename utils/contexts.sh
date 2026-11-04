@@ -89,29 +89,26 @@ if [ ! -z "${FIRMWARE_HOST_USER}" ] && [ ! -z "${FIRMWARE_HOST}" ]; then
   firmware_local=false
 fi
 
-echo ""
-echo ""
-echo "Deploy remote stacks with:"
-if [ "$mqtt_local" = false ]; then
-  echo "  docker --context comodo_mqtt_host compose -f compose.mqtt.yaml up --build -d"
-fi
-if [ "$data_local" = false ]; then
-  echo "  docker --context comodo_data_host compose -f compose.data.yaml up --build -d"
-fi
-if [ "$firmware_local" = false ]; then
-  echo "  docker --context comodo_firmware_host compose -f compose.firmware.yaml up --build -d"
-fi
-echo "Deploy local stacks with:"
-if [ "$mqtt_local" = true ]; then
-  echo "  docker compose -f compose.mqtt.yaml up --build -d"
-fi
-if [ "$data_local" = true ]; then
-  echo "  docker compose -f compose.data.yaml up --build -d"
-fi
-if [ "$firmware_local" = true ]; then
-  echo "  docker compose -f compose.firmware.yaml up --build -d"
+if [ -z "${MQTT_HOST}" ] && { [ "$data_local" = false ] || [ "$firmware_local" = false ]; }; then
+  echo ""
+  echo -e "\033[31mWARNING:\033[0m MQTT_HOST is blank, but some stacks are remote."
+  echo "  The remote stacks will be looking for a local (to them) broker, and won't be able to communicate with the rest of the stack."
+  echo "  Set MQTT_HOST to an address that the remote hosts can reach."
 fi
 
+echo ""
+echo ""
+# The broker has to be up first: the other stacks check they can reach it before starting
+echo "Deploy the stacks, in this order, with:"
+mqtt_context=""
+data_context=""
+firmware_context=""
+if [ "$mqtt_local" = false ]; then mqtt_context="--context comodo_mqtt_host "; fi
+if [ "$data_local" = false ]; then data_context="--context comodo_data_host "; fi
+if [ "$firmware_local" = false ]; then firmware_context="--context comodo_firmware_host "; fi
+echo "  docker ${mqtt_context}compose -f compose.mqtt.yaml up --build -d --wait"
+echo "  docker ${data_context}compose -f compose.data.yaml up --build -d"
+echo "  docker ${firmware_context}compose -f compose.firmware.yaml up --build -d"
 echo "  docker compose up --build -d"
 
 echo ""

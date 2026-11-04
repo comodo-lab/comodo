@@ -3,6 +3,8 @@ import requests
 import os
 
 BACKEND_GRAFANA_URL = f"http://{os.getenv('GRAFANA_HOST', 'grafana')}:3000"
+# Grafana as seen from the browser, for the embedded dashboard
+PUBLIC_GRAFANA_URL = f"http://{os.getenv('GRAFANA_PUBLIC_HOST', 'localhost')}:3000"
 QUERY_PATH = "/api/search"
 QUERY_PARAMS = "?query=&system-metrics"
 
@@ -41,7 +43,7 @@ def get_experiment_graph():
         comodo_dashboard = get_dashboard_json()
         if not comodo_dashboard:
             return "Sad no dashboard noises"
-        url = f"{BACKEND_GRAFANA_URL}{comodo_dashboard.get('url')}{DISPLAY_PARAMS}"
+        url = f"{PUBLIC_GRAFANA_URL}{comodo_dashboard.get('url')}{DISPLAY_PARAMS}"
 
     print(f"Using Grafana URL: \n{url}")
 

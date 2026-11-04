@@ -1,6 +1,6 @@
 x-templates:
   mqtt-env: &mqtt-env
-    MQTT_HOST: ${MQTT_HOST}
+    MQTT_HOST: ${MQTT_HOST:-rabbitmq}
     MQTT_USER: ${MQTT_USER}
     MQTT_PASS: ${MQTT_PASS}
   influx-env: &influx-env
@@ -91,3 +91,7 @@ volumes:
     name: comodo-influx-config
   grafana-storage:
     name: comodo-grafana
+
+networks:
+  default:
+    name: comodo

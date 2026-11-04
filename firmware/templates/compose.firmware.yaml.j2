@@ -3,7 +3,7 @@
 
 x-templates:
   mqtt-env: &mqtt-env
-    MQTT_HOST: ${MQTT_HOST}
+    MQTT_HOST: ${MQTT_HOST:-rabbitmq}
     MQTT_USER: ${MQTT_USER}
     MQTT_PASS: ${MQTT_PASS}
   instrument-env: &instrument-env
@@ -107,3 +107,6 @@ services:
 volumes:
   massflow_read:
 {% endif %}
+networks:
+  default:
+    name: comodo

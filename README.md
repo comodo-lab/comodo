@@ -234,7 +234,7 @@ Not yet available: the stacks still have to be started by hand, as described in 
 However, `./utils/contexts.sh` automates the preparation steps:
 - It regenerates `compose.firmware.yaml` from `comodo.yaml`.
 - It creates Docker contexts for any stacks deployed to remote hosts (based on the `*_HOST` and `*_HOST_USER` variables in `.env`).
-- It prints the exact `docker compose` commands to run for each stack, locally or remotely.
+- It prints the exact `docker compose` commands to run for each stack, locally or remotely, in the order they need to be started.
 
 ## Manual deployment
 
@@ -256,11 +256,13 @@ cp env.template .env
 and fill in the required environment variables:
 
 - `MQTT_HOST` sets the address of your MQTT broker.
-    If you're running the Comodo stack locally, set this to your host's IP address.
+    If the broker runs on this machine, leave this empty: the containers then reach it by its service name.
+    If some stacks run on other hosts (e.g. the firmware), set it to an address of this machine that they can reach.
     If you're using a remote broker, set this to the appropriate IP address or FQDN.
 - `DATA_HOST` is the address of your InfluxDB and Grafana instances (the data stack).
-    If you're running the Comodo stack locally, set this to your host's IP address.
+    If the data stack runs on this machine, leave this empty.
     If you're using a remote InfluxDB instance, set this to the appropriate IP address or FQDN.
+    It is also used by your browser to show the Grafana dashboard in the UI (as `localhost` if empty).
 - `FIRMWARE_HOST` is optional. If you're running the Comodo stack locally, leave this empty or comment it out.
     It is only needed if you are deploying the stack from the controller host to a remote host.
     It should be the address of the host where the firmware for the sensors and actuators will run.
@@ -292,18 +294,20 @@ The Comodo stack is divided into four main compose files:
 - `compose.firmware.yaml`: Defines the firmware for the sensors and actuators, and the setpoint controllers. Generated from `comodo.yaml`.
 
 Each of these components can run independently, so you can choose to deploy them on separate hosts if desired.
-Equally, you can run all components on a single host, using the host's ip address for the environment variables.
+Equally, you can run all components on a single host, leaving the `*_HOST` environment variables empty.
+All the stacks on the same host share a Docker network (`comodo`), so a stack whose `*_HOST` is empty is reached by its service name,
+and a remote stack by the address in its `*_HOST`. So the same configuration works whether the stacks run on one host or several.
 
 The MQTT broker should be started first: the other stacks check they can reach the broker before starting, and will fail to start if they cannot.
 
 To set up Comodo, follow these steps:
 - Set up the [environment variables](#environment-variables).
 - Run the contexts script: `./utils/contexts.sh`. This will set up the necessary Docker contexts for remote deployment, and provide the correct compose commands to deploy.
-  They should be equivalent to the ones below, albeit using the correct contexts.
-  - `docker compose -f compose.mqtt.yaml up --build -d`.
+  They should be equivalent to the ones below, albeit using the correct contexts. The MQTT broker must be started first.
+  - `docker compose -f compose.mqtt.yaml up --build -d --wait`.
   - `docker compose -f compose.data.yaml up --build -d`.
-  - `docker compose up --build -d`.
   - `docker compose -f compose.firmware.yaml up --build -d`.
+  - `docker compose up --build -d`.
 - Visit `localhost:8501` on the core host to access the Comodo UI.
 
 <details id="publishing-a-grafana-dashboard">
@@ -403,22 +407,16 @@ This also runs the [full stack test](#testing-the-full-stack) at the end. Use `-
 ### Testing the full stack
 
 An end-to-end integration test is available in [`integration_tests/`](integration_tests/README.md).
-It starts the MQTT broker, the core stack (controller, UI, monitor), the firmware stack
-(instrument simulators and setpoint controllers) and a test runner, then runs a full experiment cycle.
-The data stack (InfluxDB, Telegraf, Grafana) is not included.
+It deploys every stack (MQTT broker, data, firmware and core) with the mock configuration, where all instruments are simulated,
+runs a full experiment cycle, checks the data in InfluxDB and the database dump, and tears the stacks down.
+Your `comodo.yaml` and `compose.firmware.yaml` are restored when it finishes.
 
-Before running, copy the mock configuration and regenerate the firmware compose file, from the base directory:
+From the base directory, run:
 ```
-cp utils/tests/mocks/comodo.yaml ./
-docker compose -f firmware/compose.gen.yaml run --rm compose-gen
+./utils/run-integration-tests.sh
 ```
-Note that this overwrites your `comodo.yaml` and `compose.firmware.yaml`, so back them up first if you have local changes.
-
-Then move into the integration_tests directory and execute:
-```
-docker compose --env-file ../.env up --build --attach integration-test --force-recreate
-docker compose --env-file ../.env kill
-```
+By default, all stacks run on this machine. With `--remote`, they are deployed to the hosts in your `.env`,
+which works as a commissioning test of a distributed deployment before deploying it with your real `comodo.yaml`.
 
 ### Repository structure
 - `comodo.yaml`: The [central configuration file](#central-configuration-file).
