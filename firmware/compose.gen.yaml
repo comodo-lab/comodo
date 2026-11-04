@@ -2,7 +2,7 @@ services:
   compose-gen:
     build:
       dockerfile_inline: |
-        FROM python:3.13-slim
+        FROM python:3.14-slim
         RUN pip install jinja2-cli[yaml]
     working_dir: /work
     volumes:

@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.14-slim
 
 # Install dependencies
 COPY monitor/requirements.txt ./requirements.txt

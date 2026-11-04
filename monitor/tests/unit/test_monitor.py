@@ -36,7 +36,7 @@ class TestOnMessage:
         )
         on_message(None, msg, None)
 
-        assert mocks["validate_message"].called_once_with(
+        mocks["validate_message"].assert_called_once_with(
             topic=msg.topic,
             payload=msg.payload,
             combine_exceptions=False,
@@ -60,7 +60,7 @@ class TestOnMessage:
         )
         on_message(None, msg, None)
 
-        assert mocks["validate_message"].called_once_with(
+        mocks["validate_message"].assert_called_once_with(
             topic=msg.topic,
             payload=msg.payload,
             combine_exceptions=False,
@@ -85,7 +85,7 @@ class TestOnMessage:
         )
         on_message(None, msg, None)
 
-        assert mocks["validate_message"].called_once_with(
+        mocks["validate_message"].assert_called_once_with(
             topic=msg.topic,
             payload=msg.payload,
             combine_exceptions=False,
@@ -110,7 +110,7 @@ class TestOnMessage:
         )
         on_message(None, msg, None)
 
-        assert mocks["validate_message"].called_once_with(
+        mocks["validate_message"].assert_called_once_with(
             topic=msg.topic,
             payload=msg.payload,
             combine_exceptions=False,
@@ -129,7 +129,7 @@ class TestOnMessage:
         )
         on_message(None, msg, None)
 
-        assert mocks["validate_message"].called_once_with(
+        mocks["validate_message"].assert_called_once_with(
             topic=msg.topic,
             payload=msg.payload,
             combine_exceptions=False,
