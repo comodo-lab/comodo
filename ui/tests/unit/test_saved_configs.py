@@ -5,8 +5,7 @@ from datetime import datetime
 import pytest
 import yaml
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
-import saved_configs as sc
+import src.saved_configs as sc
 
 NOW = datetime(2026, 9, 25, 14, 3, 11)
 LATER = datetime(2026, 9, 25, 15, 0, 0)
@@ -104,6 +103,20 @@ class TestReconcile:
             {"name": "b", "value": 1.0},
         ]
 
+    def test_spc_rows_follow_default_names_and_gains(self):
+        default = [
+            {"name": "a--b", "k_p": 1.0, "k_i": 0.1},
+            {"name": "c--d", "k_p": 2.0, "k_i": 0.2},
+        ]
+        saved = [
+            {"name": "a--b", "k_p": 5.0, "k_i": 0.5, "k_x": 9},
+            {"name": "gone--spc", "k_p": 7.0, "k_i": 0.7},
+        ]
+        assert sc.reconcile("spcs", saved, default) == [
+            {"name": "a--b", "k_p": 5.0, "k_i": 0.5},
+            {"name": "c--d", "k_p": 2.0, "k_i": 0.2},
+        ]
+
     def test_instrument_rows_kept_and_missing_defaults_added(self):
         rows = [
             {"name": "a", "key": "offset", "value": 273},
@@ -127,7 +140,9 @@ class TestSaveIfChanged:
         self.meta = sc.make_meta(self.filename, sc.load("instruments", self.filename))
 
     def test_unchanged_reuses_file(self):
-        filename, meta = sc.save_if_changed("instruments", DEFAULT_INSTRUMENTS, self.meta)
+        filename, meta = sc.save_if_changed(
+            "instruments", DEFAULT_INSTRUMENTS, self.meta
+        )
         assert filename == self.filename
         assert meta is self.meta
 
@@ -146,13 +161,20 @@ class TestSaveIfChanged:
 
     def test_renamed_keeps_new_name(self):
         meta = {**self.meta, "name": "renamed"}
-        filename, meta = sc.save_if_changed("instruments", DEFAULT_INSTRUMENTS, meta, LATER)
+        filename, meta = sc.save_if_changed(
+            "instruments", DEFAULT_INSTRUMENTS, meta, LATER
+        )
         assert filename != self.filename
         assert meta["name"] == "renamed"
 
 
 def test_save_run_links_files(data_dir):
-    files = {"experiment": "e.yaml", "instruments": "i.yaml", "config": "c.yaml"}
+    files = {
+        "experiment": "e.yaml",
+        "instruments": "i.yaml",
+        "config": "c.yaml",
+        "spcs": "s.yaml",
+    }
     filename = sc.save_run("ab12cd34", files, NOW)
     with open(data_dir / "runs" / filename) as f:
         record = yaml.safe_load(f)

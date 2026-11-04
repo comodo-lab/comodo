@@ -46,7 +46,6 @@ services:
         condition: service_completed_successfully
     volumes:
       - ./controller/data:/controller/data:rw
-      - ./schemas:/app/schemas/:rw
       - ./comodo.yaml:/app/comodo.yaml:ro
 
   ui:

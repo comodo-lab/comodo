@@ -72,6 +72,7 @@ class TestCState:
         state._current_setpoint = {"time": 0, "pressure": 0, "temperature": 0}
         state._past_setpoints = [{"time": 0, "pressure": 0, "temperature": 0}]
         state._instrument_states = {"T": "something"}
+        state._spc_states = {"S": "something"}
         state._expected_heartbeats = {"T": {"state": "running"}}
         state._instruments_ready = True
         state._config = mock_comodo_config
@@ -90,6 +91,7 @@ class TestCState:
         assert state._current_setpoint == None
         assert state._past_setpoints == []
         assert state._instrument_states == {}
+        assert state._spc_states == {}
         mock_reset_hb.assert_called_once_with()
         assert state._instruments_ready == False
         assert state._config == mock_comodo_config
@@ -394,6 +396,25 @@ class TestCState:
         expected_hb = state.get_expected_heartbeat("furnace")
 
         assert expected_hb == exp_furnace_hb
+
+    def test_can_set_spc_states(self):
+        state = cstate()
+        state.spc_states = {"S": {"config": None}}
+        assert state.spc_states == {"S": {"config": None}}
+
+    def test_cannot_set_wrong_type_spc_states(self):
+        state = cstate()
+        with pytest.raises(TypeError) as e:
+            state.spc_states = "not a dict"
+        assert "SPC states must be a dictionary" in str(e.value)
+
+    def test_get_expected_spc_config(self):
+        state = cstate()
+        assert state.get_expected_spc_config("S") is None
+        state._exp_config = {"config": {"spcs": {"S": {"pid": {"k_p": 1.0}}}}}
+
+        assert state.get_expected_spc_config("S") == {"pid": {"k_p": 1.0}}
+        assert state.get_expected_spc_config("other") is None
 
     def test_can_set_instruments_ready(self):
         state = cstate()

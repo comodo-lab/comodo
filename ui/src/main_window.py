@@ -20,7 +20,7 @@ import dash_ag_grid as dag
 import pandas as pd
 import plotly.graph_objects as go
 
-from plot import plot_data_plotly
+from src.plot import plot_data_plotly
 
 PROFILES = ["linear", "logarithmic", "exponential", "step"]
 
@@ -139,7 +139,14 @@ def get_experiment_graph(data=None, resolution=1):
                 x=0.5,
                 y=0.5,
             )
-    graph = dcc.Graph(id="experiment-plot", figure=figure, responsive=True)
+    # Compact, so the table below is still visible
+    graph = dcc.Graph(
+        id="experiment-plot",
+        figure=figure,
+        responsive=True,
+        style={"height": "35vh", "minHeight": "220px"},
+        className="mb-3",
+    )
     return graph
 
 

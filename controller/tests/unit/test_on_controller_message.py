@@ -378,6 +378,23 @@ class TestIdle:
             (("mass_flow", {"experiment_id": "D123-456"}),),
         ]
 
+    def test_valid_file_with_spc_config(self, idle_mocks):
+        spc_config = {"pid": {"k_p": 1.0, "k_i": 0.1}}
+        idle_mocks["validate_experiment"].return_value = {
+            "temp_id": "123",
+            "experiment_definition": ["some data"],
+            "config": {"resolution": 42, "spcs": {"I_A-V_A--I_B-V_B": spc_config}},
+        }
+
+        c_idle(idle_mocks["controller_client"], idle_mocks["msg"], idle_mocks["state"])
+
+        messages = idle_mocks["messages"]()
+        assert len(messages) == 3
+        assert messages[0].topic == "controller/validator/passed"
+        assert messages[1].topic == "setpoint_controllers/I_A-V_A--I_B-V_B/configure"
+        assert json.loads(messages[1].payload) == spc_config
+        assert messages[2].topic == "controller/command/start"
+
 
 class TestStarting:
     @pytest.fixture
@@ -469,6 +486,11 @@ class TestStarting:
                 "state": None,
                 "setpoints": None,
             }
+        # SPC config list updated correctly
+        assert state.spc_states == {
+            spc_id: {"last_contact": None, "config": None}
+            for spc_id in state.config.spcs
+        }
         # Timer message sent
         messages = start_mocks["messages"]()
         assert len(messages) == 1

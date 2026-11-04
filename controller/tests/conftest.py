@@ -81,6 +81,7 @@ def mock_state(mock_comodo_config, mock_experiment_dict, mock_setpoints):
             state_obj.current_setpoint = None
             state_obj.past_setpoints = []
             state_obj.instrument_states = {}
+            state_obj.spc_states = {}
             state_obj.expected_heartbeats = {
                 "furnace": mock_comodo_config.get_expected_heartbeat("furnace"),
                 "pressure": mock_comodo_config.get_expected_heartbeat("pressure"),
@@ -89,6 +90,11 @@ def mock_state(mock_comodo_config, mock_experiment_dict, mock_setpoints):
             state_obj.instruments_ready = False
 
         state_obj.reset = MagicMock(side_effect=reset)
+        state_obj.get_expected_spc_config = lambda spc_id: (
+            None
+            if state_obj.exp_config is None
+            else state_obj.exp_config["config"].get("spcs", {}).get(spc_id, None)
+        )
         state_obj.get_expected_heartbeat = (
             lambda instrument_name: state_obj.expected_heartbeats.get(
                 instrument_name, {}
@@ -106,6 +112,7 @@ def mock_state(mock_comodo_config, mock_experiment_dict, mock_setpoints):
         state_obj.current_setpoint = None
         state_obj.past_setpoints = []
         state_obj.instrument_states = {}
+        state_obj.spc_states = {}
         state_obj.expected_heartbeats = {
             "furnace": mock_comodo_config.get_expected_heartbeat("furnace"),
             "pressure": mock_comodo_config.get_expected_heartbeat("pressure"),
@@ -150,6 +157,9 @@ def mock_state(mock_comodo_config, mock_experiment_dict, mock_setpoints):
                     "state": None,
                     "setpoints": None,
                 }
+        for spc_id in state_obj.config.spcs:
+            if spc_id not in state_obj.spc_states:
+                state_obj.spc_states[spc_id] = {"last_contact": None, "config": None}
         if status == "awaiting_instruments":
             return state_obj
 

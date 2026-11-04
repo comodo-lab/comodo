@@ -105,6 +105,22 @@ def validate_experiment(file_path, config):
             )
 
     # --------------------------------------------------------------------------
+    # Check the live config has PID values for exactly the SPCs in comodo.yaml
+
+    spcs_config = experiment_dict["config"].get("spcs", {})
+    for spc_id in spcs_config:
+        if spc_id not in config.spcs:
+            raise ExperimentValidationError(
+                f"Live config for unknown setpoint controller '{spc_id}'."
+            )
+    missing = [spc_id for spc_id in config.spcs if spc_id not in spcs_config]
+    if missing:
+        raise ExperimentValidationError(
+            f"Missing PID config for setpoint controller(s) {', '.join(missing)} "
+            "in the live config."
+        )
+
+    # --------------------------------------------------------------------------
     # Return validated dict
 
     return experiment_dict

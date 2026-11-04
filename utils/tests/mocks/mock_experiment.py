@@ -13,6 +13,18 @@ def mock_experiment_dict():
                 "pressure": {"pressure": {"tolerance": 0.2}},
                 "mass_flow": {"mass_flow": {"tolerance": 1}},
             },
+            "spcs": {
+                "pressure-pressure--mass_flow-mass_flow": {
+                    "pid": {
+                        "k_p": 10.0,
+                        "k_i": 1.0,
+                        "k_d": 0.1,
+                        "k_aw": 0.05,
+                        "k_df": 0.01,
+                        "max_rate": None,
+                    }
+                },
+            },
         },
         "experiment_definition": [
             {"time": 0, "furnace/temperature": 25, "pressure/pressure": 1},

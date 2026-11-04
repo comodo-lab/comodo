@@ -140,16 +140,16 @@ class TestPopulateGlobals:
         with pytest.raises(KeyError) as e:
             config.populate_globals()
 
-        assert mock_missing_params.called_once_with(
+        mock_missing_params.assert_called_once_with(
             config.raw,
             [
                 "global.heartbeat.interval",
                 "global.watchdog.interval",
                 "global.watchdog.timeout",
                 "global.instrument_setup.wait",
-                "global.max_missed_heartbeats",
-                "global.bad_state_tolerance",
-                "global.missed_setpoint_tolerance",
+                "global.experiment_monitoring.max_missed_heartbeats",
+                "global.experiment_monitoring.bad_state_tolerance",
+                "global.experiment_monitoring.missed_setpoint_tolerance",
             ],
         )
         assert f"Missing {missing} in configuration" in str(e.value)
@@ -219,7 +219,7 @@ class TestPopulateInstruments:
             config.populate_instruments()
 
         assert "Missing 'instruments' section in configuration." in str(e.value)
-        assert mocks_for_inst["mock_find_missing_params"].not_called()
+        mocks_for_inst["mock_find_missing_params"].assert_not_called()
 
     def test_with_missing_keys(self, mocks_for_inst):
         config = mocks_for_inst["config_with_raw"]
@@ -231,7 +231,7 @@ class TestPopulateInstruments:
         with pytest.raises(KeyError) as e:
             config.populate_instruments()
 
-        assert mock_missing_params.called_once_with(
+        mock_missing_params.assert_called_once_with(
             config.raw["instruments"]["furnace"],
             ["firmware", "address", "variables"],
         )
@@ -289,8 +289,8 @@ class TestPopulateSensorsActuatorsSPCs:
         with pytest.raises(KeyError) as e:
             config.populate_sensors_actuators_spcs()
 
-        assert mock_missing_params.called_once_with(
-            {"actuator": {"some": "config"}}, ["min", "max", "sensor"]
+        mock_missing_params.assert_called_once_with(
+            {"actuator": {"some": "config"}}, ["min", "max"]
         )
         assert f"Missing {missing} for variable 'I_A/V_A'" in str(e.value)
 

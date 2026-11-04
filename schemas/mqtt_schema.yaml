@@ -40,6 +40,39 @@ channels:
                   type: object
                   additionalProperties:
                     type: object
+                spcs:
+                  type: object
+                  additionalProperties:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - pid
+                    properties:
+                      pid:
+                        type: object
+                        additionalProperties: false
+                        required:
+                          - k_p
+                          - k_i
+                          - k_d
+                          - k_df
+                          - k_aw
+                          - max_rate
+                        properties:
+                          k_p:
+                            type: number
+                          k_i:
+                            type: number
+                          k_d:
+                            type: number
+                          k_df:
+                            type: number
+                          k_aw:
+                            type: number
+                          max_rate:
+                            oneOf:
+                              - type: number
+                              - type: "null"
             experiment_definition:
               type: array
               items:
@@ -300,10 +333,10 @@ channels:
                   additionalProperties:
                     type: string
                     enum:
-                    - no_heartbeat
-                    - no_measurement
-                    - at_setpoint
-                    - adjusting
+                      - no_heartbeat
+                      - no_measurement
+                      - at_setpoint
+                      - adjusting
 
   setpointControllerHeartbeat:
     address: setpoint_controllers/+/heartbeat
@@ -402,6 +435,41 @@ channels:
                 experiment_id:
                   oneOf:
                     - type: string
+                    - type: "null"
+
+  setpointControllerConfiguration:
+    address: setpoint_controllers/+/configure
+    messages:
+      setpointControllerConfiguration:
+        payload:
+          type: object
+          additionalProperties: false
+          properties:
+            enabled:
+              type: boolean
+            experiment_id:
+              type: string
+            pid:
+              type: object
+              additionalProperties: false
+              properties:
+                k_p:
+                  type: number
+                k_i:
+                  type: number
+                k_d:
+                  type: number
+                k_df:
+                  type: number
+                k_aw:
+                  type: number
+                max:
+                  type: number
+                min:
+                  type: number
+                max_rate:
+                  oneOf:
+                    - type: number
                     - type: "null"
 
   instrumentHeartbeat:

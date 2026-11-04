@@ -18,7 +18,6 @@ import plotly.express as px
 import uuid
 import json
 import time
-import pytz
 
 
 import dash_ag_grid as dag
@@ -28,25 +27,86 @@ import pandas as pd
 import plotly.graph_objects as go
 
 from utils.mqtt_clients import MQTTPublisher
-from utils.influx_query import query_influxdb_params
-import saved_configs as sc
-import heartbeats as hb
-import instrument_setup as ins
+import src.saved_configs as sc
+import src.heartbeats as hb
+import src.instrument_setup as ins
+import src.spc_setup as spc
 
 # Seconds to wait for the controller state to change after a click, before giving up
 CLICK_TIMEOUT = 5
 
 
 def get_control_panel(params=[]):
+    toggle_label, toggle_color = manual_toggle(False)
     layout = html.Div(
         [
-            dbc.Button("Start experiment", color="success", id="experiment-button"),
+            dbc.Row(
+                [
+                    dbc.Col(
+                        dbc.Button(
+                            content("Start experiment", "play-circle"),
+                            color="success",
+                            id="experiment-button",
+                        ),
+                        width=9,
+                        className="d-grid",
+                    ),
+                    dbc.Col(
+                        dbc.Button(
+                            # Disabled until instruments support manual control
+                            toggle_label
+                            + [
+                                html.Small(
+                                    "(coming soon...)",
+                                    className="text-muted",
+                                    style={"textTransform": "none"},
+                                )
+                            ],
+                            color=toggle_color,
+                            id="manual-control-toggle",
+                            n_clicks=0,
+                            disabled=True,
+                        ),
+                        width=3,
+                        className="d-grid",
+                    ),
+                ],
+                className="g-2",
+            ),
             dcc.Store(id="experiment-button-click"),
-            get_manual_panel(params=params),
+            # Hidden rather than removed, so its controls keep updating
+            dbc.Collapse(
+                get_manual_panel(params=params),
+                id="manual-control-collapse",
+                is_open=False,
+            ),
         ],
         className="d-grid gap-2",
     )
     return layout
+
+
+def manual_toggle(is_open):
+    """Returns the (content, color) of the manual control toggle."""
+    if is_open:
+        return content("Hide Manual Control", "sliders", SMALL_ICON_SIZE), "warning"
+    return content("Take Manual Control", "sliders", SMALL_ICON_SIZE), "light"
+
+
+@callback(
+    Output("manual-control-collapse", "is_open"),
+    Output("manual-control-toggle", "children"),
+    Output("manual-control-toggle", "color"),
+    Input("manual-control-toggle", "n_clicks"),
+    State("manual-control-collapse", "is_open"),
+    prevent_initial_call=True,
+)
+def toggle_manual_control(n_clicks, is_open):
+    # Fires when the tab is rendered, as prevent_initial_call does not apply
+    # to inputs inserted by another callback (render_page)
+    if not n_clicks:
+        raise PreventUpdate
+    return not is_open, *manual_toggle(not is_open)
 
 
 # Disables the button in the browser as soon as it is clicked, to prevent double clicks.
@@ -66,15 +126,18 @@ clientside_callback(
     Output("experiment-meta-store", "data", allow_duplicate=True),
     Output("instruments-meta-store", "data", allow_duplicate=True),
     Output("config-meta-store", "data", allow_duplicate=True),
+    Output("spcs-meta-store", "data", allow_duplicate=True),
     Input("experiment-button", "n_clicks"),
     State("experiment-button", "value"),
     State("heartbeat-store", "data"),
     State("experiment-designer-store", "data"),
     State("instrument-store", "data"),
     State("experiment-config-store", "data"),
+    State("spc-store", "data"),
     State("experiment-meta-store", "data"),
     State("instruments-meta-store", "data"),
     State("config-meta-store", "data"),
+    State("spcs-meta-store", "data"),
     prevent_initial_call=True,
 )
 def start_or_stop_experiment(n_clicks, experiment_id, heartbeats, *start_states):
@@ -83,16 +146,28 @@ def start_or_stop_experiment(n_clicks, experiment_id, heartbeats, *start_states)
     """
     if not n_clicks:
         raise PreventUpdate
-    click = {"state": controller_state(heartbeats), "time": time.time()}
+    click = {"state": hb.controller_state(heartbeats), "time": time.time()}
     if experiment_id:
         client = MQTTPublisher.get_instance()
         client.publish("ui/stop", json.dumps({"experiment_id": experiment_id}))
-        return busy("Stopping experiment"), click, None, no_update, no_update, no_update
+        return (
+            busy("Stopping experiment"),
+            click,
+            None,
+            *[no_update] * len(sc.KINDS),
+        )
     return busy("Starting experiment"), click, *start_experiment(*start_states)
 
 
 def start_experiment(
-    table_data, instruments, exp_config, exp_meta, inst_meta, config_meta
+    table_data,
+    instruments,
+    exp_config,
+    spcs,
+    exp_meta,
+    inst_meta,
+    config_meta,
+    spcs_meta,
 ):
     # Group the instrument setup rows into the live config of each instrument,
     # which needs a tolerance for every variable with setpoints in the experiment
@@ -104,7 +179,16 @@ def start_experiment(
         MQTTPublisher.get_instance().publish(
             "error/ui", json.dumps({"code": "instrument_setup", "message": str(e)})
         )
-        return None, no_update, no_update, no_update
+        return None, *[no_update] * len(sc.KINDS)
+    # The PID gains of each setpoint controller, checked by the controller in their heartbeats
+    try:
+        spcs_config = spc.to_spc_config(spcs)
+    except ValueError as e:
+        print(f"Invalid setpoint controller setup: {e}")
+        MQTTPublisher.get_instance().publish(
+            "error/ui", json.dumps({"code": "spc_setup", "message": str(e)})
+        )
+        return None, *[no_update] * len(sc.KINDS)
 
     # Save any unsaved changes, so the run can link to the versions used
     files = {}
@@ -114,6 +198,7 @@ def start_experiment(
             ("experiment", table_data, exp_meta),
             ("instruments", instruments, inst_meta),
             ("config", exp_config, config_meta),
+            ("spcs", spcs, spcs_meta),
         ):
             files[kind], metas[kind] = sc.save_if_changed(kind, data, meta)
     except OSError as e:
@@ -135,7 +220,11 @@ def start_experiment(
     ]
     experiment_config = {
         "temp_id": temp_id,
-        "config": {"resolution": resolution, "instruments": instruments_config},
+        "config": {
+            "resolution": resolution,
+            "instruments": instruments_config,
+            "spcs": spcs_config,
+        },
         "experiment_definition": experiment_definition,
     }
     json_data = json.dumps(experiment_config).encode("utf-8")
@@ -155,6 +244,7 @@ def start_experiment(
         metas.get("experiment", no_update),
         metas.get("instruments", no_update),
         metas.get("config", no_update),
+        metas.get("spcs", no_update),
     )
 
 
@@ -173,7 +263,7 @@ def update_experiment_button(data, click):
     After a click, the button stays busy until the controller state changes,
     or CLICK_TIMEOUT passes (e.g. the controller rejected the request).
     """
-    current = controller_state(data)
+    current = hb.controller_state(data)
     if (
         click
         and (time.time() - click["time"] < CLICK_TIMEOUT)
@@ -182,34 +272,44 @@ def update_experiment_button(data, click):
         raise PreventUpdate
 
     if current is None:
-        return "No controller heartbeat", "secondary", None, True
+        no_heartbeat = content("No controller heartbeat", "exclamation-circle")
+        return no_heartbeat, "secondary", None, True
     state, experiment_id = current
     if state == "idle":
-        return "Start experiment", "success", None, False
+        return content("Start experiment", "play-circle"), "success", None, False
     if state == "validating":
         return busy("Validating experiment"), "success", None, True
     if state == "stopping":
         return busy("Stopping experiment"), "danger", None, True
     if experiment_id:
-        return f"Stop experiment {experiment_id}", "danger", experiment_id, False
-    return f"Controller {state}", "secondary", None, True
+        return (
+            content(f"Stop experiment {experiment_id}", "stop-circle"),
+            "danger",
+            experiment_id,
+            False,
+        )
+    return content(f"Controller {state}", "hourglass-split"), "secondary", None, True
+
+
+# Size of the icons in the experiment and manual control buttons
+ICON_SIZE = "3.5rem"
+SMALL_ICON_SIZE = "2rem"
+
+
+def content(text, icon, size=ICON_SIZE):
+    """Button content: a Bootstrap icon, with the text below it."""
+    return [
+        html.I(className=f"bi bi-{icon} d-block my-2", style={"fontSize": size}),
+        html.Div(text),
+    ]
 
 
 def busy(text):
-    return [dbc.Spinner(size="sm", spinner_class_name="me-2"), text]
-
-
-def controller_state(data):
-    """
-    Returns the state and experiment_id in the latest controller heartbeat,
-    or None if there is no recent heartbeat.
-    """
-    heartbeat = (data or {}).get("heartbeats", {}).get(hb.CONTROLLER_TOPIC)
-    if heartbeat is None or hb.CONTROLLER_TOPIC in data["stale"]:
-        return None
-    state = heartbeat["payload"].get("state", {})
-    config = heartbeat["payload"].get("config", {})
-    return (state.get("status"), config.get("experiment_id"))
+    spinner = dbc.Spinner(
+        spinner_style={"width": ICON_SIZE, "height": ICON_SIZE},
+        spinner_class_name="my-2",
+    )
+    return [spinner, html.Div(text)]
 
 
 def get_manual_panel(params=[]):
@@ -222,8 +322,8 @@ def get_manual_panel(params=[]):
         )
 
     control_rows = [
-        dbc.Row(html.H2("Manual Control Window")),
-        dbc.Row(html.Hr()),
+        dbc.Row(html.Hr(className="border-warning border-2 opacity-100 mt-2")),
+        dbc.Row(html.H2("Manual Control Window", className="mt-2")),
         dbc.Row(html.P("Last update: N/A", id="control-last-update")),
     ]
 
@@ -297,51 +397,42 @@ def get_control_component(param_name=None, min_val=0, max_val=100, step=1):
     return control_component
 
 
+def manual_values(data, param_name):
+    """
+    Returns the (measurement, setpoint) of param_name (instrument/variable) from the
+    heartbeats in the heartbeat-store, or None for each one not available.
+    The setpoint comes from the setpoint controller driving the variable, if any,
+    as the instrument only reports setpoints of its actuators.
+    """
+    heartbeats = (data or {}).get("heartbeats", {})
+    stale = (data or {}).get("stale", [])
+    fresh = {t: hb["payload"] for t, hb in heartbeats.items() if t not in stale}
+
+    instrument, variable = param_name.split("/", 1)
+    payload = fresh.get(hb.instrument_topic(instrument), {})
+    measurement = payload.get("state", {}).get("measurements", {}).get(variable)
+    setpoint = payload.get("setpoints", {}).get(variable)
+    for topic, spc_payload in fresh.items():
+        if (
+            topic.startswith("setpoint_controllers/")
+            and spc_payload["config"]["sensor"] == param_name
+        ):
+            setpoint = spc_payload["setpoints"]["sensor_setpoint"]
+    return measurement, setpoint
+
+
 @callback(
     Output({"type": "control-gauge", "index": MATCH}, "value"),
     Output({"type": "control-slider", "index": MATCH}, "value"),
-    # Output("control-last-update", "children"),
-    Input("interval", "n_intervals"),
+    Input("heartbeat-store", "data"),
     State({"type": "control-slider", "index": MATCH}, "id"),
-    State("timezone-store", "data"),
 )
-def update_control_component(n_intervals, slider_id, timezone):
+def update_control_component(data, slider_id):
     """
-    Updates the control component based on the selected parameter.
+    Shows the latest measurement (gauge) and setpoint (slider) of the parameter.
     """
-    # Extract the parameter name from the slider's id
-    param_name = slider_id["index"]
-
-    try:
-        user_tz = pytz.timezone(timezone)
-        time = pytz.datetime.datetime.now(user_tz).strftime("%Y-%m-%d %H:%M:%S")
-    except Exception as e:
-        print(f"Error getting current time: {e}")
-        time = "N/A"
-
-    # Query setpoint and actual value for the parameter
-    try:
-        setpoint_results = query_influxdb_params(
-            fields=["value"],
-            topics=[f"instruments/{param_name}/setpoint"],
-            start="-1m",
-            aggregate="last",
-        )
-        actual_results = query_influxdb_params(
-            fields=["value"],
-            topics=[f"instruments/{param_name}/measurement"],
-            start="-1m",
-            aggregate="last",
-        )
-        if not setpoint_results or not actual_results:
-            return no_update, no_update
-        setpoint = setpoint_results[-1].get_value()
-
-        actual_value = actual_results[-1].get_value()
-    except Exception as e:
-        if "list index out of range" not in str(e):
-            print(f"Error querying InfluxDB for {param_name}: {e}")
-        return no_update, no_update  # , time
-
-    # Update the gauge and slider values
-    return actual_value, setpoint  # , time
+    measurement, setpoint = manual_values(data, slider_id["index"])
+    return (
+        no_update if measurement is None else measurement,
+        no_update if setpoint is None else setpoint,
+    )

@@ -15,7 +15,6 @@ services:
     container_name: controller-test
     volumes:
       - memory:/memory  # Used to persist pytest cache between runs
-      - ../schemas:/app/schemas:ro
 
     command: bash -c "coverage run --source=. --omit='tests/*,*/__*,utils/*' -m pytest
       tests/ &&

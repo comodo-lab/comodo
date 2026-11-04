@@ -4,8 +4,7 @@ import sys
 import pytest
 from dash.exceptions import PreventUpdate
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
-import instrument_setup as ins
+import src.instrument_setup as ins
 
 
 class TestParseValue:

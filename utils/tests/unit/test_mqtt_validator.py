@@ -84,10 +84,10 @@ class TestValidateMessage:
             )
 
         assert "Unexpected topic: unexpected/topic" in str(e.value)
-        assert validate_message_mocks["mock_check_topic_expected"].called_once_with(
+        validate_message_mocks["mock_check_topic_expected"].assert_called_once_with(
             "asyncapi", "unexpected/topic"
         )
-        assert validate_message_mocks["mock_check_payload_json_validity"].not_called()
+        validate_message_mocks["mock_check_payload_json_validity"].assert_not_called()
 
     def test_unexpected_topic(self, validate_message_mocks):
         validate_message_mocks["mock_check_topic_expected"].side_effect = (
@@ -102,10 +102,10 @@ class TestValidateMessage:
             )
 
         assert "Unexpected topic: unexpected/topic" in str(e.value)
-        assert validate_message_mocks["mock_check_topic_expected"].called_once_with(
+        validate_message_mocks["mock_check_topic_expected"].assert_called_once_with(
             "asyncapi", "unexpected/topic"
         )
-        assert validate_message_mocks["mock_check_payload_json_validity"].not_called()
+        validate_message_mocks["mock_check_payload_json_validity"].assert_not_called()
 
     def test_invalid_payload_MQTT_only(self, validate_message_mocks):
         validate_message_mocks["mock_check_payload_json_validity"].side_effect = (
@@ -120,12 +120,12 @@ class TestValidateMessage:
             )
 
         assert "Invalid JSON payload for topic 'expected/topic'" in str(e.value)
-        assert validate_message_mocks["mock_check_topic_expected"].called_once_with(
+        validate_message_mocks["mock_check_topic_expected"].assert_called_once_with(
             "asyncapi", "expected/topic"
         )
-        assert validate_message_mocks[
+        validate_message_mocks[
             "mock_check_payload_json_validity"
-        ].called_once_with('{"key": "val"}')
+        ].assert_called_once_with('{"key": "val"}')
 
     def test_invalid_payload(self, validate_message_mocks):
         validate_message_mocks["mock_check_payload_json_validity"].side_effect = (
@@ -139,12 +139,12 @@ class TestValidateMessage:
                 combine_exceptions=False,
             )
 
-        assert validate_message_mocks["mock_check_topic_expected"].called_once_with(
+        validate_message_mocks["mock_check_topic_expected"].assert_called_once_with(
             "asyncapi", "expected/topic"
         )
-        assert validate_message_mocks[
+        validate_message_mocks[
             "mock_check_payload_json_validity"
-        ].called_once_with('{"key": "val"}')
+        ].assert_called_once_with('{"key": "val"}')
 
     def test_invalid_message_MQTT_only(self, validate_message_mocks):
         validate_message_mocks["mock_check_message_valid"].side_effect = (
@@ -165,16 +165,15 @@ class TestValidateMessage:
             )
 
         assert "Well this is odd..." in str(e.value)
-        assert validate_message_mocks["mock_check_topic_expected"].called_once_with(
+        validate_message_mocks["mock_check_topic_expected"].assert_called_once_with(
             "asyncapi", "expected/topic"
         )
-        assert validate_message_mocks[
+        validate_message_mocks[
             "mock_check_payload_json_validity"
-        ].called_once_with('{"key": "val"}')
-        assert validate_message_mocks["mock_check_message_valid"].called_once_with(
+        ].assert_called_once_with('{"key": "val"}')
+        validate_message_mocks["mock_check_message_valid"].assert_called_once_with(
             validate_message_mocks["mock_check_topic_expected"].return_value,
-            "expected/topic",
-            '{"key": "val"}',
+            validate_message_mocks["mock_check_payload_json_validity"].return_value,
         )
 
     def test_invalid_message(self, validate_message_mocks):
@@ -196,16 +195,15 @@ class TestValidateMessage:
             )
 
         assert "Well this is odd..." in str(e.value)
-        assert validate_message_mocks["mock_check_topic_expected"].called_once_with(
+        validate_message_mocks["mock_check_topic_expected"].assert_called_once_with(
             "asyncapi", "expected/topic"
         )
-        assert validate_message_mocks[
+        validate_message_mocks[
             "mock_check_payload_json_validity"
-        ].called_once_with("expected/topic", '{"key": "val"}')
-        assert validate_message_mocks["mock_check_message_valid"].called_once_with(
+        ].assert_called_once_with('{"key": "val"}')
+        validate_message_mocks["mock_check_message_valid"].assert_called_once_with(
             validate_message_mocks["mock_check_topic_expected"].return_value,
-            "expected/topic",
-            '{"key": "val"}',
+            validate_message_mocks["mock_check_payload_json_validity"].return_value,
         )
 
     def test_valid_message(self, validate_message_mocks):
@@ -218,14 +216,13 @@ class TestValidateMessage:
             combine_exceptions=True,
         )
 
-        assert validate_message_mocks["mock_check_topic_expected"].called_once_with(
+        validate_message_mocks["mock_check_topic_expected"].assert_called_once_with(
             "asyncapi", "expected/topic"
         )
-        assert mock_json_load.called_once_with("expected/topic", '{"key": "val"}')
-        assert validate_message_mocks["mock_check_message_valid"].called_once_with(
+        mock_json_load.assert_called_once_with('{"key": "val"}')
+        validate_message_mocks["mock_check_message_valid"].assert_called_once_with(
             validate_message_mocks["mock_check_topic_expected"].return_value,
-            "expected/topic",
-            '{"key": "val"}',
+            validate_message_mocks["mock_check_payload_json_validity"].return_value,
         )
         assert loaded == mock_json_load.return_value
 
@@ -250,8 +247,8 @@ class TestCheckTopicExpected:
 
         result = check_topic_expected("schema_name", "test/topic")
 
-        assert check_topic_mocks["mock_load_spec"].called_once_with("schema_name")
-        assert check_topic_mocks["mock_match_topic"].called_once_with(
+        check_topic_mocks["mock_load_spec"].assert_called_once_with("schema_name")
+        check_topic_mocks["mock_match_topic"].assert_called_once_with(
             "test/topic", mock_topic_map
         )
         assert result == mock_topic_map["test/topic"]
@@ -263,8 +260,8 @@ class TestCheckTopicExpected:
         with pytest.raises(MQTTValidationException):
             result = check_topic_expected("schema_name", "inexistent/topic")
 
-        assert check_topic_mocks["mock_load_spec"].called_once_with("schema_name")
-        assert check_topic_mocks["mock_match_topic"].called_once_with(
+        check_topic_mocks["mock_load_spec"].assert_called_once_with("schema_name")
+        check_topic_mocks["mock_match_topic"].assert_called_once_with(
             "inexistent/topic", mock_topic_map
         )
 

@@ -2,6 +2,17 @@ import copy
 import uuid
 
 from utils.comodo_config import ComodoConfig
+from utils.pid import PID
+
+PID_DEFAULTS = PID().get_config()
+PID_NAME_MAP = {
+    "k_p": "Proportional",
+    "k_i": "Integral",
+    "k_d": "Derivative",
+    "k_aw": "Anti-Windup",
+    "k_df": "Derivative Filter",
+    "max_rate": "Max Rate of Change",
+}
 
 
 class UiConfig:
@@ -50,12 +61,33 @@ class UiConfig:
         result = []
         for name, sensor in self.config.sensors.items():
             result.append(
-                {"name": name, "key": "tolerance", "value": sensor.get("tolerance", 1.0)}
+                {
+                    "name": name,
+                    "key": "tolerance",
+                    "value": sensor.get("tolerance", 1.0),
+                }
             )
         for name in self.config.actuators:
             if name not in self.config.sensors:
                 result.append({"name": name, "key": "tolerance", "value": 1.0})
         return result
+
+    @property
+    def ini_spc_dict(self):
+        """
+        Default setpoint controller rows ({name, k_p, ...}) with the PID parameters
+        from comodo.yaml, or the PID defaults if not set
+        """
+        return [
+            {
+                "name": spc_id,
+                **{
+                    key: spc.get(key.upper(), PID_DEFAULTS[key])
+                    for key in PID_NAME_MAP
+                },
+            }
+            for spc_id, spc in self.config.spcs.items()
+        ]
 
     @property
     def ini_experiment_config(self):

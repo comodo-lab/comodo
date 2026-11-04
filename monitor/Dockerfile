@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.14-slim
 
 # Install dependencies
 COPY monitor/requirements.txt ./requirements.txt
@@ -13,8 +13,9 @@ COPY schemas/mqtt_schema.yaml   /schemas/mqtt_schema.yaml
 # Copy monitor code
 COPY monitor/pytest.ini         /monitor/pytest.ini
 COPY monitor/monitor.py         /monitor/monitor.py
-# Copy monitor tests
+# Copy monitor tests and readme
 COPY monitor/tests              /monitor/tests
+COPY monitor/README.md          /monitor/README.md
 
 # Start monitor
 CMD ["python", "monitor.py"]

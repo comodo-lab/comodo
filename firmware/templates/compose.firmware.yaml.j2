@@ -62,6 +62,7 @@ services:
       INSTRUMENT_NAME: "{{ name }}"
       FIRMWARE: {{ instr.firmware }}
       ADDRESS: "{{ instr.address }}"
+      SIMULATE: "{{ instr.simulate | default(false) | lower }}"
       ACTIVE_VARIABLES: '{{ instr.variables.keys() | list | tojson }}'
       DEFAULT_SETPOINTS: '{{ instrument_default_setpoints.get(name) | tojson }}'
       EXTERNAL_ACTUATORS: '{{ external_actuators.get(name) | tojson }}'
@@ -89,13 +90,13 @@ services:
       HEARTBEAT_INTERVAL: {{ (global.heartbeat.interval) | float }}
       SENSOR: "{{ v_cfg.setpoint_controller.external_sensor }}"
       DEFAULT_SETPOINT: {{ all_default_setpoints.get(v_cfg.setpoint_controller.external_sensor) }}
-      ACTUATOR: "{{ name }}/{{ v_name }}"
-      K_P: {{ v_cfg.setpoint_controller.K_P }}
-      K_I: {{ v_cfg.setpoint_controller.K_I }}
-      K_D: {{ v_cfg.setpoint_controller.K_D }}{% if v_cfg.setpoint_controller.K_AW is defined %}
+      ACTUATOR: "{{ name }}/{{ v_name }}"{% if v_cfg.setpoint_controller.K_P is defined %}
+      K_P: {{ v_cfg.setpoint_controller.K_P }}{% endif %}{% if v_cfg.setpoint_controller.K_I is defined %}
+      K_I: {{ v_cfg.setpoint_controller.K_I }}{% endif %}{% if v_cfg.setpoint_controller.K_D is defined %}
+      K_D: {{ v_cfg.setpoint_controller.K_D }}{% endif %}{% if v_cfg.setpoint_controller.K_AW is defined %}
       K_AW: {{ v_cfg.setpoint_controller.K_AW }}{% endif %}{% if v_cfg.setpoint_controller.K_DF is defined %}
-      K_DF: {{ v_cfg.setpoint_controller.K_DF }}{% endif %}{% if v_cfg.setpoint_controller.OUT_MAX_R is defined %}
-      OUT_MAX_R: {{ v_cfg.setpoint_controller.OUT_MAX_R }}{% endif %}
+      K_DF: {{ v_cfg.setpoint_controller.K_DF }}{% endif %}{% if v_cfg.setpoint_controller.MAX_RATE is defined %}
+      MAX_RATE: {{ v_cfg.setpoint_controller.MAX_RATE }}{% endif %}
       OUT_MIN: {{ v_cfg.actuator.min | default(v_cfg.min ) }}
       OUT_MAX: {{ v_cfg.actuator.max | default(v_cfg.max ) }}
 {%- endif %}

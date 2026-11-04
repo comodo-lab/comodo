@@ -120,6 +120,13 @@ def c_idle(client, msg, obj):
             obj.set_hb_experiment_config(
                 instrument_name, instruments_config[instrument_name]
             )
+        # Send live experiment config to setpoint controllers, checked in their heartbeats
+        spcs_config = exp_config["config"].get("spcs", {})
+        for spc_id in spcs_config:
+            mqtt.MQTTPublisher.get_instance().publish(
+                f"setpoint_controllers/{spc_id}/configure",
+                json.dumps(spcs_config[spc_id]),
+            )
         # Also expect experiment id
         for instrument_name in obj.expected_heartbeats:
             obj.set_hb_experiment_config(
@@ -169,6 +176,9 @@ def c_starting(client, msg, obj):
                 "state": None,
                 "setpoints": None,
             }
+    for spc_id in obj.config.spcs:
+        if spc_id not in obj.spc_states:
+            obj.spc_states[spc_id] = {"last_contact": None, "config": None}
     # Update state and callback of controller
     print(f"Awaiting instruments for experiment {obj.experiment_id}...")
     obj.status = "awaiting_instruments"

@@ -1,14 +1,15 @@
-from dash import html, dcc, callback, Output, Input, State
+from dash import dcc, callback, Output, Input, State
 from dash.exceptions import PreventUpdate
 import dash_bootstrap_components as dbc
 
-import saved_configs as sc
+import src.saved_configs as sc
 
 # Store holding the data of each kind of saved configuration
 STORES = {
     "experiment": "experiment-designer-store",
     "instruments": "instrument-store",
     "config": "experiment-config-store",
+    "spcs": "spc-store",
 }
 
 
@@ -16,12 +17,16 @@ def meta_store_id(kind):
     return f"{kind}-meta-store"
 
 
-def get_status_badge(data, meta):
+def get_save_button(data, meta):
+    """
+    Returns the (label, color, disabled) of the save button: enabled when there are
+    unsaved changes, disabled once they have been saved.
+    """
     if data is None or meta is None:
-        return ""
+        return "Save", "secondary", True
     if sc.is_dirty(data, meta):
-        return dbc.Badge("Unsaved changes", color="warning")
-    return dbc.Badge("Saved", color="success")
+        return "Save changes", "success", False
+    return "Saved", "success", True
 
 
 def get_selector(kind, data, meta):
@@ -47,18 +52,15 @@ def get_selector(kind, data, meta):
                 ),
                 width=4,
             ),
-            dbc.Col(
-                dbc.Button("Save", id=f"{kind}-saved-save", color="primary"),
-                width=1,
-                className="d-grid",
-            ),
-            dbc.Col(
-                html.Div(get_status_badge(data, meta), id=f"{kind}-saved-status"),
-                width=2,
-            ),
+            dbc.Col(_save_button(kind, data, meta), width=3, className="d-grid"),
         ],
         className="mb-3 align-items-center",
     )
+
+
+def _save_button(kind, data, meta):
+    label, color, disabled = get_save_button(data, meta)
+    return dbc.Button(label, id=f"{kind}-saved-save", color=color, disabled=disabled)
 
 
 def register_selector_callbacks(defaults):
@@ -123,9 +125,11 @@ def _register_kind(kind, store_id, default):
         return meta, sc.list_saved(kind), meta["file"], meta["name"]
 
     @callback(
-        Output(f"{kind}-saved-status", "children"),
+        Output(f"{kind}-saved-save", "children"),
+        Output(f"{kind}-saved-save", "color"),
+        Output(f"{kind}-saved-save", "disabled"),
         Input(store_id, "data"),
         Input(meta_id, "data"),
     )
-    def update_status(data, meta):
-        return get_status_badge(data, meta)
+    def update_save_button(data, meta):
+        return get_save_button(data, meta)

@@ -1,34 +1,35 @@
-from dash import Dash, html, dcc, Input, Output, callback, State, no_update
-from dash.exceptions import PreventUpdate
-import dash_bootstrap_components as dbc
-
-from dash import Dash, html
-
-from utils.mqtt_clients import MQTTPublisher
-from config_loader import UiConfig
 import os
 import random
 import logging
 
+from dash import Dash, html, dcc, Input, Output, callback, State, no_update
+from dash.exceptions import PreventUpdate
+import dash_bootstrap_components as dbc
+
+from utils.mqtt_clients import MQTTPublisher
+
+from src.config_loader import UiConfig
+
 app = Dash(
-    external_stylesheets=[dbc.themes.LUX],
+    external_stylesheets=[dbc.themes.LUX, dbc.icons.BOOTSTRAP],
     suppress_callback_exceptions=True,
 )
 
 # Import UI modules after creating the app so their global callbacks are registered.
-import top_matter as tm
-import main_window as mw
-import control_window as cw
-import instrument_setup as ins
-import graph_view as gv
-import experiment_config as ec
-import workflow_ui as wf
-import meta_data_ui as md
-import saved_selector as sel
-import saved_configs as sc
-import heartbeats as hb
-import log_book as lb
-import log_window as lw
+from src import (
+    control_window as cw,
+    experiment_config as ec,
+    graph_view as gv,
+    heartbeats as hb,
+    instrument_setup as ins,
+    log_book as lb,
+    log_window as lw,
+    main_window as mw,
+    saved_configs as sc,
+    saved_selector as sel,
+    spc_setup as spc,
+    top_matter as tm,
+)
 
 # Initialise publisher singleton
 id_suffix = random.randint(0, 32768)
@@ -61,10 +62,12 @@ PARAM_DICT = config.param_dicts
 INI_EXPERIMENT_CONFIG = config.ini_experiment_config
 INI_DATA_DICT = config.ini_data_dict
 INI_INSTRUMENT_DICT = config.ini_instrument_dict
+INI_SPC_DICT = config.ini_spc_dict
 DEFAULTS = {
     "experiment": INI_DATA_DICT,
     "instruments": INI_INSTRUMENT_DICT,
     "config": INI_EXPERIMENT_CONFIG,
+    "spcs": INI_SPC_DICT,
 }
 sel.register_selector_callbacks(DEFAULTS)
 
@@ -97,7 +100,8 @@ def get_main_window(row_data, resolution=1):
     designer_layout = mw.get_experiment_designer(data=row_data, params=PARAMS)
     graph_layout = mw.get_experiment_graph(data=row_data, resolution=resolution)
 
-    return html.Div([designer_layout, graph_layout])
+    # Graph first: it shows the shape of the experiment at a glance
+    return html.Div([graph_layout, designer_layout])
 
 
 @app.callback(
@@ -118,7 +122,7 @@ def update_designer_page(data, exp_config):
     prevent_initial_call=True,
 )
 def initialize_experiment_store(pathname, current_data):
-    if pathname == "/designer" and not current_data:
+    if pathname == "/timeline" and not current_data:
         return INI_DATA_DICT
     return no_update
 
@@ -150,8 +154,35 @@ def update_instrument_page(data):
     prevent_initial_call=True,
 )
 def initialize_experiment_store(pathname, current_data):
-    if pathname == "/instrument" and not current_data:
+    if pathname == "/instruments" and not current_data:
         return INI_INSTRUMENT_DICT
+    return no_update
+
+
+# ---------------------------------------------------
+# PID SETUP
+# ---------------------------------------------------
+
+
+@app.callback(
+    Output("spc-wrapper", "children"),
+    Input("spc-store", "data"),
+)
+def update_spc_page(data):
+    if data is None:
+        raise PreventUpdate  # Wait for initialization
+    return spc.get_spc_setup(data=data)
+
+
+@app.callback(
+    Output("spc-store", "data", allow_duplicate=True),
+    Input("url", "pathname"),
+    State("spc-store", "data"),
+    prevent_initial_call=True,
+)
+def initialize_spc_store(pathname, current_data):
+    if pathname == "/pids" and not current_data:
+        return INI_SPC_DICT
     return no_update
 
 
@@ -182,19 +213,14 @@ def update_experiment_config_page(data):
     prevent_initial_call=True,
 )
 def initialize_experiment_store(pathname, current_data):
-    if pathname == "/experiment-config" and not current_data:
+    if pathname == "/global" and not current_data:
         return INI_EXPERIMENT_CONFIG
     return no_update
 
 
 control_window = cw.get_control_panel(PARAM_DICT)
 graph_layout = gv.get_experiment_graph()
-metadata_workflow = wf.get_workflow_layout()
 log_window = lw.get_log_window()
-
-metadata_layout = md.get_metadata_layout()
-# Register metadata callbacks
-wf.register_workflow_callbacks(app)
 
 
 @app.callback(
@@ -217,21 +243,19 @@ def render_page(pathname, *states):
         )
 
     if pathname in ["/", None]:
-        return dcc.Location(href="/designer", id="redirect")
-    elif pathname == "/instrument":
+        return dcc.Location(href="/timeline", id="redirect")
+    elif pathname == "/instruments":
         return with_selector("instruments", "instrument-wrapper")
-    elif pathname == "/designer":
+    elif pathname == "/pids":
+        return with_selector("spcs", "spc-wrapper")
+    elif pathname == "/timeline":
         return with_selector("experiment", "designer-wrapper")
-    elif pathname == "/metadata":
-        return metadata_layout
     elif pathname == "/control":
         return control_window
-    elif pathname == "/graph":
+    elif pathname == "/data":
         return graph_layout
-    elif pathname == "/experiment-config":
+    elif pathname == "/global":
         return with_selector("config", "experiment-config-wrapper")
-    elif pathname == "/workflow":
-        return metadata_workflow
     elif pathname == lw.LOG_PATH:
         return log_window
     else:
@@ -241,7 +265,7 @@ def render_page(pathname, *states):
 def get_saved_stores():
     """
     Stores pre-populated with the latest saved version of each kind,
-    so Control Panel works without visiting each tab first.
+    so Experiment Control works without visiting each tab first.
     """
     stores = []
     for kind in sc.KINDS:
@@ -252,6 +276,46 @@ def get_saved_stores():
 
 
 # A function, so the latest saved versions are loaded on every page load
+def nav_link(label, href, **kwargs):
+    return dbc.NavItem(dbc.NavLink(label, href=href, active="exact", **kwargs))
+
+
+def get_nav_bar():
+    """
+    Tabs, with the ones that define an experiment grouped under Experiment Settings.
+    """
+    settings = html.Div(
+        [
+            html.Div(
+                "Experiment Settings",
+                className="text-center text-uppercase small fw-bold mb-1",
+            ),
+            dbc.Nav(
+                [
+                    nav_link("Timeline", "/timeline"),
+                    nav_link("Instruments", "/instruments"),
+                    nav_link("PID Controllers", "/pids"),
+                    nav_link("Global", "/global"),
+                ],
+                pills=True,
+                justified=True,
+            ),
+        ],
+        className="bg-light border rounded p-2 flex-grow-1",
+    )
+    operation = dbc.Nav(
+        [
+            nav_link("Experiment Control", "/control"),
+            nav_link("Data Monitor", "/data"),
+            nav_link(lw.LOG_LABEL, lw.LOG_PATH, id="log-nav-link"),
+        ],
+        pills=True,
+        justified=True,
+        className="flex-grow-1",
+    )
+    return html.Div([settings, operation], className="d-flex align-items-center gap-3")
+
+
 def serve_layout():
     return dbc.Container(
         [
@@ -267,56 +331,7 @@ def serve_layout():
             *get_saved_stores(),
             html.Div(id="hidden-div", style={"display": "none"}),
             tm.get_header_bar(),
-            dbc.Nav(
-                [
-                    dbc.NavItem(
-                        dbc.NavLink(
-                            "Experiment Designer", href="/designer", active="exact"
-                        ),
-                        className="me-0",
-                    ),
-                    dbc.NavItem(
-                        dbc.NavLink(
-                            "Instrument Setup",
-                            href="/instrument",
-                            active="exact",
-                        ),
-                        className="me-0",
-                    ),
-                    dbc.NavItem(
-                        dbc.NavLink(
-                            "Experiment Config",
-                            href="/experiment-config",
-                            active="exact",
-                        ),
-                        className="me-0",
-                    ),
-                    dbc.NavItem(
-                        dbc.NavLink("Metadata Entry", href="/metadata", active="exact"),
-                        className="me-0",
-                    ),
-                    dbc.NavItem(
-                        dbc.NavLink("Control Panel", href="/control", active="exact"),
-                        className="me-0",
-                    ),
-                    dbc.NavItem(
-                        dbc.NavLink("Graph View", href="/graph", active="exact"),
-                        className="me-0",
-                    ),
-                    dbc.NavItem(
-                        dbc.NavLink("Workflow", href="/workflow", active="exact"),
-                        className="me-0",
-                    ),
-                    dbc.NavItem(
-                        dbc.NavLink(
-                            "Log", href=lw.LOG_PATH, active="exact", id="log-nav-link"
-                        ),
-                        className="me-0",
-                    ),
-                ],
-                pills=True,
-                justified=True,
-            ),
+            get_nav_bar(),
             html.Hr(),
             html.Div(id="page-content"),
         ],

@@ -1,11 +1,12 @@
 """
-Persistence of experiment designs, instrument setups, experiment configs and runs.
+Persistence of experiment designs, instrument setups, experiment configs,
+setpoint controller setups and runs.
 
 Each kind is saved as one YAML file per version in its own folder under DATA_DIR:
-    experiments/  instruments/  configs/  runs/
+    experiments/  instruments/  configs/  spcs/  runs/
 Files are never overwritten: saving always creates a new file, prefixed with a
 timestamp so that sorting by filename gives chronological order.
-Runs link the experiment, instruments and config files used to start an experiment.
+Runs link the experiment, instruments, config and spcs files used to start an experiment.
 """
 
 import os
@@ -17,11 +18,12 @@ import yaml
 
 DATA_DIR = os.getenv("UI_DATA_DIR", "/ui_data")
 
-KINDS = ("experiment", "instruments", "config")
+KINDS = ("experiment", "instruments", "config", "spcs")
 FOLDERS = {
     "experiment": "experiments",
     "instruments": "instruments",
     "config": "configs",
+    "spcs": "spcs",
     "run": "runs",
 }
 DEFAULT_NAME = "default"
@@ -100,7 +102,11 @@ def list_saved(kind):
             name = record["name"]
         except (OSError, yaml.YAMLError, KeyError, TypeError):
             continue
-        label = name if _TIMESTAMP_SUFFIX.search(name) else f"{name} ({record.get('saved_at')})"
+        label = (
+            name
+            if _TIMESTAMP_SUFFIX.search(name)
+            else f"{name} ({record.get('saved_at')})"
+        )
         options.append({"label": label, "value": filename})
     return options
 
@@ -122,12 +128,15 @@ def reconcile(kind, rows, default):
     Fits saved rows to the current comodo.yaml, which may have changed since they were saved.
     Experiment rows keep only the current columns, filling missing ones from the default row.
     Instrument rows are kept, adding the default rows missing from them.
-    Config keeps only the current names and fields, filling missing ones from the default.
+    Config and spcs keep only the current names and fields, filling missing ones from the default.
     """
     default = strip_ids(default)
     if kind == "experiment":
         template = default[0]
-        fitted = [{key: row.get(key, value) for key, value in template.items()} for row in rows]
+        fitted = [
+            {key: row.get(key, value) for key, value in template.items()}
+            for row in rows
+        ]
         return fitted or default
     if kind == "instruments":
         saved = {(row.get("name"), row.get("key")) for row in rows}
@@ -136,7 +145,10 @@ def reconcile(kind, rows, default):
         ]
     saved = {row.get("name"): row for row in rows}
     return [
-        {key: saved.get(item["name"], {}).get(key, value) for key, value in item.items()}
+        {
+            key: saved.get(item["name"], {}).get(key, value)
+            for key, value in item.items()
+        }
         for item in default
     ]
 
@@ -193,7 +205,7 @@ def save_if_changed(kind, data, meta, now=None):
 
 
 def save_run(experiment_id, files, now=None):
-    """Saves a run linking the experiment, instruments and config files it was started with."""
+    """Saves a run linking the experiment, instruments, config and spcs files it was started with."""
     now = now or datetime.now()
     filename = _new_path("run", experiment_id, now)
     record = {

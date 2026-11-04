@@ -128,7 +128,7 @@ def main():
     heartbeat = mqtt.MQTTClient(
         id="heartbeat",
         callback=on_heartbeat_message,
-        topics="instruments/+/heartbeat",
+        topics=["instruments/+/heartbeat", "setpoint_controllers/+/heartbeat"],
         obj=state,
         broker_address=mqtt_host,
         user=mqtt_user,

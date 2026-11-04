@@ -7,9 +7,8 @@ from types import SimpleNamespace
 import pytest
 from dash.exceptions import PreventUpdate
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
-import log_book as lb
-import log_window as lw
+import src.log_book as lb
+import src.log_window as lw
 
 
 @pytest.fixture(autouse=True)
@@ -176,23 +175,23 @@ class TestLogWindow:
             lw.mark_errors_seen(lw.LOG_PATH, data, 3)
 
     def test_tab_plain_without_unseen_errors(self):
-        assert lw.update_log_tab(None, None) == ("Log", {})
+        assert lw.update_log_tab(None, None) == (lw.LOG_LABEL, {})
         data = {"counter": 5, "errors": 2, "entries": []}
-        assert lw.update_log_tab(data, 2) == ("Log", {})
+        assert lw.update_log_tab(data, 2) == (lw.LOG_LABEL, {})
 
     def test_tab_highlighted_with_unseen_errors(self):
         assert lw.update_log_tab({"counter": 4, "errors": 1, "entries": []}, None) == (
-            "Log (1 new error)",
+            "Event Log (1 new error)",
             lw.UNSEEN_STYLE,
         )
         assert lw.update_log_tab({"counter": 5, "errors": 5, "entries": []}, 2) == (
-            "Log (3 new errors)",
+            "Event Log (3 new errors)",
             lw.UNSEEN_STYLE,
         )
 
     def test_tab_after_ui_restart(self):
         # Seen counter from before a restart is higher than the new counter
         assert lw.update_log_tab({"counter": 2, "errors": 2, "entries": []}, 10) == (
-            "Log (2 new errors)",
+            "Event Log (2 new errors)",
             lw.UNSEEN_STYLE,
         )

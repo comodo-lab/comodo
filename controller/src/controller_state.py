@@ -34,6 +34,7 @@ class cstate:
         "_current_setpoint",
         "_past_setpoints",
         "_instrument_states",
+        "_spc_states",
         "_config",
         "_expected_heartbeats",
         "_instruments_ready",
@@ -54,6 +55,7 @@ class cstate:
         self.current_setpoint: dict[str, Any] = None
         self.past_setpoints: list[dict[str, Any]] = []
         self.instrument_states: dict[str, Any] = {}
+        self.spc_states: dict[str, Any] = {}
         self.expected_heartbeats: dict[str, Any] = {}
         self.instruments_ready: bool = False
         self.config: ComodoConfig = None
@@ -113,6 +115,7 @@ class cstate:
         self.current_setpoint = None
         self.past_setpoints = []
         self.instrument_states = {}
+        self.spc_states = {}
         self.reset_expected_heartbeats()
         self.instruments_ready = False
         self._adjusting_tolerance = None
@@ -311,6 +314,41 @@ class cstate:
                 f"Instrument states must be a dictionary, cannot accept {type(value)}."
             )
         self._instrument_states = value
+
+    @property
+    def spc_states(self) -> dict[str, Any]:
+        return self._spc_states
+
+    @spc_states.setter
+    def spc_states(self, value: dict[str, Any]) -> None:
+        """
+        Sets the setpoint controller states dictionary.
+
+        Args:
+            value: The new value for the entire setpoint controller states dictionary.
+
+        Raises:
+            TypeError: If the provided setpoint controller states dictionary is not a dictionary.
+        """
+        if not isinstance(value, dict):
+            raise TypeError(
+                f"SPC states must be a dictionary, cannot accept {type(value)}."
+            )
+        self._spc_states = value
+
+    def get_expected_spc_config(self, spc_id: str) -> dict[str, Any] | None:
+        """
+        Retrieves the live config sent to a setpoint controller for the current experiment.
+
+        Args:
+            spc_id: The id of the setpoint controller.
+
+        Returns:
+            The live config for the setpoint controller, or None if there is none.
+        """
+        if self.exp_config is None:
+            return None
+        return self.exp_config["config"].get("spcs", {}).get(spc_id, None)
 
     @property
     def expected_heartbeats(self) -> dict[str, Any]:
