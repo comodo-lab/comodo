@@ -1,7 +1,9 @@
+import csv
 import json
 import os
 import time
 
+import influxdb_client
 import paho.mqtt.client as mqtt
 import pytest
 
@@ -17,10 +19,20 @@ MQTT_PASS = os.environ["MQTT_PASS"]
 HEARTBEAT_TIMEOUT = int(os.environ.get("HEARTBEAT_TIMEOUT", 20))
 SETPOINT_TIMEOUT = int(os.environ.get("SETPOINT_TIMEOUT", 30))
 EXPERIMENT_TIMEOUT = int(os.environ.get("EXPERIMENT_TIMEOUT", 120))
+INFLUX_TIMEOUT = int(os.environ.get("INFLUX_TIMEOUT", 30))
+
+INFLUX_URL = os.environ.get("INFLUX_URL", "http://influxdb:8086")
+INFLUX_TOKEN = os.environ["INFLUX_TOKEN"]
+INFLUX_ORG = os.environ["INFLUX_ORG"]
+INFLUX_BUCKETS = os.environ["INFLUX_BUCKET"].split(",")
+CONTROLLER_DATA = "/controller_data"
 
 
 @pytest.fixture
 def expected_heartbeats(mock_comodo_config):
+    """
+    Returns a list of all expected heartbeat topics, including the controller and all instruments and setpoint controllers.
+    """
     INSTRUMENT_TOPICS = [
         f"instruments/{ins}" for ins in mock_comodo_config.instruments.keys()
     ]
@@ -36,6 +48,9 @@ def expected_heartbeats(mock_comodo_config):
 
 @pytest.fixture
 def default_setpoints(mock_comodo_config):
+    """
+    Returns a dictionary of the default setpoints for all sensors that have a default setpoint defined in the mock_comodo_config.
+    """
     DEFAULT_SETPOINTS = {
         sensor_name: {
             "setpoint": sensor["default_setpoint"],
@@ -49,10 +64,15 @@ def default_setpoints(mock_comodo_config):
 
 @pytest.fixture(scope="module")
 def bus():
+    """
+    Connects to the MQTT broker and collects messages from all topics.
+    Returns a dictionary with the collected messages and the MQTT client.
+    """
     collected = {
         "heartbeats": {},
         "spc_heartbeats": {},
         "measurement": {},
+        "controller_status": None,
         "errors": [],
         "end": None,
         "connected": False,
@@ -69,6 +89,8 @@ def bus():
             collected["heartbeats"][t] = time.time()
             if t.startswith("setpoint_controllers/"):
                 collected["spc_heartbeats"][t] = json.loads(p)
+            elif t == "controller/heartbeat":
+                collected["controller_status"] = json.loads(p)["state"]["status"]
         elif t.endswith("/measurement"):
             collected["measurement"][t] = p
         elif t.startswith("error/"):
@@ -97,6 +119,10 @@ def bus():
 
 @pytest.mark.order(1)
 def test_services_ready(bus, expected_heartbeats):
+    """
+    Waits for all expected heartbeats to be received.
+    Fails if any unexpected heartbeats are received or if it times out waiting for expected heartbeats.
+    """
     missing_heartbeats = expected_heartbeats.copy()
     unexpected_heartbeats = []
     deadline = time.time() + HEARTBEAT_TIMEOUT
@@ -131,6 +157,10 @@ def test_services_ready(bus, expected_heartbeats):
 
 @pytest.mark.order(2)
 def test_default_setpoints(bus, default_setpoints):
+    """
+    Waits for all sensors to get to their default setpoints.
+    Fails if any sensor reports a setpoint outside its tolerance after a timeout.
+    """
     correct_setpoints = {}
     wrong_setpoints = {}
     extra_setpoints = {}
@@ -174,8 +204,60 @@ def test_default_setpoints(bus, default_setpoints):
     )
 
 
+@pytest.mark.order(3)
+def test_measurements_in_influx(bus, mock_comodo_config):
+    """
+    Checks that all expected measurements are being stored in InfluxDB.
+    Fails if any are missing after a timeout.
+    """
+    expected_topics = {
+        f"instruments/{sensor}/measurement" for sensor in mock_comodo_config.sensors
+    }
+    client = influxdb_client.InfluxDBClient(
+        url=INFLUX_URL, token=INFLUX_TOKEN, org=INFLUX_ORG
+    )
+    query_api = client.query_api()
+    found = set()
+    last_error = None
+    deadline = time.time() + INFLUX_TIMEOUT
+    last_report = 0.0
+    while time.time() < deadline:
+        for bucket in INFLUX_BUCKETS:
+            query = (
+                f'from(bucket: "{bucket}") |> range(start: -5m)'
+                f' |> filter(fn: (r) => r._field == "value")'
+                f' |> keep(columns: ["topic"]) |> distinct(column: "topic")'
+            )
+            try:
+                tables = query_api.query(query, org=INFLUX_ORG)
+                found |= {r.values.get("topic") for t in tables for r in t.records}
+                last_error = None
+            except Exception as e:
+                # InfluxDB may still be starting up
+                last_error = e
+        if expected_topics <= found:
+            client.close()
+            return
+        now = time.time()
+        if now - last_report >= 3:
+            missing = sorted(expected_topics - found)
+            print(f"  Waiting for measurements in InfluxDB: {missing}")
+            if last_error is not None:
+                print(f"  Last InfluxDB error: {last_error}")
+            last_report = now
+        time.sleep(1)
+    client.close()
+    pytest.fail(
+        f"Measurements not stored in InfluxDB."
+        f"\n  Expected: {sorted(expected_topics)}"
+        f"\n  Missing: {sorted(expected_topics - found)}"
+        f"\n  Last error: {last_error}"
+    )
+
+
 def wait_for_spc_pid(bus, spcs_config, timeout):
     """
+    Helper function for test_spc_configured_while_idle and test_experiment_completes.
     Waits for every setpoint controller to report the PID values in spcs_config
     ({spc_id: {"pid": {...}}}) in its heartbeat. Returns the ones that did not.
     """
@@ -202,15 +284,22 @@ def wait_for_spc_pid(bus, spcs_config, timeout):
 
 
 def with_pid(spcs_config, **gains):
-    """Returns spcs_config with the given PID gains changed in every setpoint controller."""
+    """
+    Helper function for test_spc_configured_while_idle and test_experiment_completes.
+    Returns spcs_config with the given PID gains changed in every setpoint controller.
+    """
     return {
         spc_id: {"pid": {**spc_config["pid"], **gains}}
         for spc_id, spc_config in spcs_config.items()
     }
 
 
-@pytest.mark.order(3)
+@pytest.mark.order(4)
 def test_spc_configured_while_idle(bus, mock_experiment_dict):
+    """
+    Configures the setpoint controllers with PID values different from the default.
+    Fails if spc does not get configured correctly.
+    """
     # Slightly different from the experiment's, so the experiment start has to change them back
     spcs_config = with_pid(mock_experiment_dict["config"]["spcs"], k_df=0.03)
     assert spcs_config, "The mock experiment has no setpoint controllers"
@@ -226,8 +315,13 @@ def test_spc_configured_while_idle(bus, mock_experiment_dict):
         pytest.fail(f"PID values not applied by: {sorted(pending)}")
 
 
-@pytest.mark.order(4)
+@pytest.mark.order(5)
 def test_experiment_completes(bus, mock_experiment_dict):
+    """
+    Starts the mock experiment and waits for it to complete (the controller/event/end message).
+    Can fail due to spc/instrument not getting configured correctly, sensors not following the setpoints,
+    or the experiment not completing in time.
+    """
     experiment = mock_experiment_dict
     experiment["config"]["spcs"] = with_pid(experiment["config"]["spcs"], k_df=0.02)
 
@@ -255,8 +349,78 @@ def test_experiment_completes(bus, mock_experiment_dict):
     pytest.fail("Experiment did not complete (no controller/event/end)")
 
 
-@pytest.mark.order(5)
+@pytest.mark.order(6)
+def test_database_dump(bus, mock_comodo_config):
+    """
+    Checks that the controller dumped the database to CSV files after the experiment completed.
+    Fails if the CSV files are not found or if they are missing measurements from any expected topic.
+    """
+    assert bus["end"] is not None, "The experiment did not complete"
+    experiment_id = json.loads(bus["end"])["experiment_id"]
+    exp_dir = f"{CONTROLLER_DATA}/{experiment_id}"
+    csv_files = [f"{exp_dir}/{bucket}.csv" for bucket in INFLUX_BUCKETS]
+
+    # The controller dumps the database while stopping, and returns to idle once done
+    deadline = time.time() + INFLUX_TIMEOUT
+    last_report = 0.0
+    while time.time() < deadline:
+        if bus["errors"]:
+            pytest.fail(f"Error received: {bus['errors']}")
+        dumped = all(os.path.exists(f) for f in csv_files)
+        if dumped and bus["controller_status"] == "idle":
+            break
+        now = time.time()
+        if now - last_report >= 3:
+            print(
+                f"  Waiting for the database dump in {exp_dir}..."
+                f" (controller: {bus['controller_status']})"
+            )
+            last_report = now
+        time.sleep(0.5)
+    else:
+        pytest.fail(
+            f"Database not dumped for {experiment_id}."
+            f"\n  Expected: {csv_files}"
+            f"\n  Found: {sorted(os.listdir(exp_dir)) if os.path.isdir(exp_dir) else []}"
+        )
+
+    assert os.path.exists(f"{CONTROLLER_DATA}/{experiment_id}.json")
+
+    expected_topics = {
+        f"instruments/{sensor}/measurement" for sensor in mock_comodo_config.sensors
+    } | {"controller/command/run"}
+    for csv_file in csv_files:
+        # Annotated CSV: each table has its own annotations (#...) and header row
+        records = []
+        header = None
+        with open(csv_file, newline="") as f:
+            for row in csv.reader(f):
+                if not row or row[0].startswith("#"):
+                    continue
+                if row[1:3] == ["result", "table"]:
+                    header = row
+                elif header is not None:
+                    records.append(dict(zip(header, row)))
+        assert records, f"{csv_file} has no data"
+        found_topics = {r.get("topic") for r in records}
+        missing = expected_topics - found_topics
+        assert not missing, f"{csv_file} is missing data from: {sorted(missing)}"
+        run_ids = {
+            r["_value"]
+            for r in records
+            if r.get("topic") == "controller/command/run"
+            and r["_field"] == "experiment_id"
+        }
+        assert run_ids == {
+            experiment_id
+        }, f"{csv_file} has setpoints from other experiments: {sorted(run_ids)}"
+
+
+@pytest.mark.order(7)
 def test_no_errors(bus):
+    """
+    Fails if *at any point during the integration test* error messages were generated.
+    """
     if bus["errors"]:
         lines = "\n".join(f"  [{t}] {p[:200]}" for t, p in bus["errors"])
         pytest.fail(f"{len(bus['errors'])} error(s):\n{lines}")

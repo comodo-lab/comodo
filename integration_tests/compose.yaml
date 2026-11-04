@@ -16,7 +16,7 @@
 include:
   - path: ../compose.debug.yaml
   - path: ../compose.yaml
-  # - path: ../compose.data.yaml
+  - path: ../compose.data.yaml
   - path: ../compose.mqtt.yaml
   - path: ../compose.firmware.yaml
 
@@ -31,6 +31,9 @@ services:
     environment:
       HEARTBEAT_TIMEOUT: ${HEARTBEAT_TIMEOUT:-20}
       EXPERIMENT_TIMEOUT: ${EXPERIMENT_TIMEOUT:-40}
+      INFLUX_TIMEOUT: ${INFLUX_TIMEOUT:-30}
+    volumes:
+      - ../controller/data:/controller_data:ro
     depends_on:
       mqtt-probe-core:
         condition: service_healthy
