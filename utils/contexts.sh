@@ -40,6 +40,7 @@ project_root=$(cd .. && pwd)
 docker compose -f "$project_root/firmware/compose.gen.yaml" run --rm compose-gen
 unset DOCKER_HOST
 source "$project_root/.env"
+source "$project_root/utils/local_ip.sh"
 
 existing_contexts=$(docker context ls --format '{{.Name}}' | grep 'comodo_' || true)
 if [ ! -z "$existing_contexts" ] && [ "$clean" != true ]; then
@@ -89,11 +90,26 @@ if [ ! -z "${FIRMWARE_HOST_USER}" ] && [ ! -z "${FIRMWARE_HOST}" ]; then
   firmware_local=false
 fi
 
+# With a blank MQTT_HOST the broker is local, so give the remote stacks this machine's IP address to reach it
+data_mqtt=""
+firmware_mqtt=""
 if [ -z "${MQTT_HOST}" ] && { [ "$data_local" = false ] || [ "$firmware_local" = false ]; }; then
-  echo ""
-  echo -e "\033[31mWARNING:\033[0m MQTT_HOST is blank, but some stacks are remote."
-  echo "  The remote stacks will be looking for a local (to them) broker, and won't be able to communicate with the rest of the stack."
-  echo "  Set MQTT_HOST to an address that the remote hosts can reach."
+  seeded=()
+  for stack in data firmware; do
+    local_var="${stack}_local"
+    host_var="${stack^^}_HOST"
+    if [ "${!local_var}" = false ]; then
+      ip=$(local_ip_for "${!host_var}")
+      if [ -z "$ip" ]; then
+        echo -e "\033[31mERROR:\033[0m Could not find the IP address this machine uses to reach ${!host_var}."
+        echo "  Set MQTT_HOST to an address of this machine that the remote hosts can reach."
+        exit 1
+      fi
+      declare "${stack}_mqtt=MQTT_HOST=$ip "
+      seeded+=("$stack: $ip (from ${!host_var})")
+    fi
+  done
+  local_ip_note "${seeded[@]}"
 fi
 
 echo ""
@@ -107,8 +123,8 @@ if [ "$mqtt_local" = false ]; then mqtt_context="--context comodo_mqtt_host "; f
 if [ "$data_local" = false ]; then data_context="--context comodo_data_host "; fi
 if [ "$firmware_local" = false ]; then firmware_context="--context comodo_firmware_host "; fi
 echo "  docker ${mqtt_context}compose -f compose.mqtt.yaml up --build -d --wait"
-echo "  docker ${data_context}compose -f compose.data.yaml up --build -d"
-echo "  docker ${firmware_context}compose -f compose.firmware.yaml up --build -d"
+echo "  ${data_mqtt}docker ${data_context}compose -f compose.data.yaml up --build -d"
+echo "  ${firmware_mqtt}docker ${firmware_context}compose -f compose.firmware.yaml up --build -d"
 echo "  docker compose up --build -d"
 
 echo ""

@@ -92,6 +92,8 @@ volumes:
   grafana-storage:
     name: comodo-grafana
 
+# Shared by all the stacks on the same host. The first stack to start creates it,
+# so the others warn that it "was not created for project ...", which is expected.
 networks:
   default:
     name: comodo

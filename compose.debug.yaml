@@ -28,10 +28,10 @@ services:
         while true; do
           echo "Connecting to MQTT broker..."
           mosquitto_sub \
-            -h "$MQTT_HOST" \
+            -h "$$MQTT_HOST" \
             -p 1883 \
-            -u "$MQTT_USER" \
-            -P "$MQTT_PASS" \
+            -u "$$MQTT_USER" \
+            -P "$$MQTT_PASS" \
             -t '#' \
             -v
 
@@ -40,6 +40,8 @@ services:
         done &
         exec sleep infinity
 
+# Shared by all the stacks on the same host. The first stack to start creates it,
+# so the others warn that it "was not created for project ...", which is expected.
 networks:
   default:
     name: comodo

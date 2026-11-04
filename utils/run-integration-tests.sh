@@ -59,6 +59,7 @@ if [[ ! -f .env ]]; then
   exit 1
 fi
 source .env
+source utils/local_ip.sh
 
 declare -A files=(
   [mqtt]=compose.mqtt.yaml
@@ -67,6 +68,8 @@ declare -A files=(
   [core]=compose.yaml
 )
 declare -A contexts=([mqtt]="" [data]="" [firmware]="" [core]="")
+# MQTT_HOST for the remote stacks, if it has to differ from .env's
+declare -A mqtt_hosts=([mqtt]="" [data]="" [firmware]="" [core]="")
 stacks=(mqtt data firmware core)
 
 if [[ "$remote" == true ]]; then
@@ -74,12 +77,21 @@ if [[ "$remote" == true ]]; then
   [[ -n "${MQTT_HOST:-}" && -n "${MQTT_HOST_USER:-}" ]] && contexts[mqtt]=comodo_mqtt_host
   [[ -n "${DATA_HOST:-}" && -n "${DATA_HOST_USER:-}" ]] && contexts[data]=comodo_data_host
   [[ -n "${FIRMWARE_HOST:-}" && -n "${FIRMWARE_HOST_USER:-}" ]] && contexts[firmware]=comodo_firmware_host
-  # Warn if a blank MQTT_HOST is used with other remote stacks
+  # With a blank MQTT_HOST the broker is local, so give the remote stacks this machine's IP address to reach it
   if [[ -z "${MQTT_HOST:-}" && ( -n "${contexts[data]}" || -n "${contexts[firmware]}" ) ]]; then
-    echo "MQTT_HOST is blank, but some stacks are remote.
-    The remote stacks will be looking for a local (to them) broker, and won't be able to communicate with the rest of the stack.
-    Please set MQTT_HOST to an address that the remote stacks can reach."
-    exit 1
+    seeded=()
+    for stack in data firmware; do
+      [[ -z "${contexts[$stack]}" ]] && continue
+      host_var="${stack^^}_HOST"
+      mqtt_hosts[$stack]=$(local_ip_for "${!host_var}")
+      if [[ -z "${mqtt_hosts[$stack]}" ]]; then
+        echo "Could not find the IP address this machine uses to reach ${!host_var}."
+        echo "Set MQTT_HOST to an address of this machine that the remote hosts can reach."
+        exit 1
+      fi
+      seeded+=("$stack: ${mqtt_hosts[$stack]} (from ${!host_var})")
+    done
+    local_ip_note "${seeded[@]}"
   fi
 else
   # Blank hosts make every container reach the other stacks by service name, on the shared comodo network
@@ -90,7 +102,10 @@ fi
 stack_compose() {
   local stack="$1"
   shift
-  if [[ -n "${contexts[$stack]}" ]]; then
+  if [[ -n "${mqtt_hosts[$stack]}" ]]; then
+    # The shell environment overrides .env
+    MQTT_HOST="${mqtt_hosts[$stack]}" docker --context "${contexts[$stack]}" compose --env-file .env -f "${files[$stack]}" "$@"
+  elif [[ -n "${contexts[$stack]}" ]]; then
     docker --context "${contexts[$stack]}" compose --env-file .env -f "${files[$stack]}" "$@"
   else
     docker compose --env-file .env -f "${files[$stack]}" "$@"

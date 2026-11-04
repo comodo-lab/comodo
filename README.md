@@ -257,7 +257,8 @@ and fill in the required environment variables:
 
 - `MQTT_HOST` sets the address of your MQTT broker.
     If the broker runs on this machine, leave this empty: the containers then reach it by its service name.
-    If some stacks run on other hosts (e.g. the firmware), set it to an address of this machine that they can reach.
+    If some stacks run on other hosts (e.g. the firmware), `./utils/contexts.sh` gives them this machine's current IP address to reach it in the commands it prints.
+    If this machine's IP address can change, set `MQTT_HOST` to a fixed address or hostname of it instead.
     If you're using a remote broker, set this to the appropriate IP address or FQDN.
 - `DATA_HOST` is the address of your InfluxDB and Grafana instances (the data stack).
     If the data stack runs on this machine, leave this empty.
