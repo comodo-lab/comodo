@@ -33,6 +33,10 @@ jobs:
           MQTT_HOST=rabbitmq
           MQTT_USER=comodo_mqtt_user
           MQTT_PASS=comodo_mqtt_password
+          DATA_HOST=influxdb
+          INFLUX_TOKEN=comodo_influx_token
+          INFLUX_BUCKET=comodo
+          INFLUX_ORG=comodo
           EOF
 
       - name: Generate firmware compose file
