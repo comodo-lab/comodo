@@ -1,6 +1,6 @@
 x-templates:
   mqtt-env: &mqtt-env
-    MQTT_HOST: ${MQTT_HOST}
+    MQTT_HOST: ${MQTT_HOST:-rabbitmq}
     MQTT_USER: ${MQTT_USER}
     MQTT_PASS: ${MQTT_PASS}
   influx-env: &influx-env
@@ -16,6 +16,7 @@ services:
     build:
       context: ./
       dockerfile: mqtt_probe/Dockerfile
+    init: true
     environment:
       <<: *mqtt-env
       MQTT_PROBE_ID: data
@@ -91,3 +92,9 @@ volumes:
     name: comodo-influx-config
   grafana-storage:
     name: comodo-grafana
+
+# Shared by all the stacks on the same host. The first stack to start creates it,
+# so the others warn that it "was not created for project ...", which is expected.
+networks:
+  default:
+    name: comodo

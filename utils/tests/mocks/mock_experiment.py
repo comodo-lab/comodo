@@ -28,7 +28,7 @@ def mock_experiment_dict():
         },
         "experiment_definition": [
             {"time": 0, "furnace/temperature": 25, "pressure/pressure": 1},
-            {"time": 4, "furnace/temperature": 25, "pressure/pressure": 150},
+            {"time": 4, "furnace/temperature": 25, "pressure/pressure": 1.50},
             {"time": 6, "furnace/temperature": 50, "pressure/pressure": 1.50},
             {"time": 10, "furnace/temperature": 50, "pressure/pressure": 1},
             {"time": 12, "furnace/temperature": 25, "pressure/pressure": 1},

@@ -1,4 +1,5 @@
 name: comodo-debug
+
 services:
   mqttui:
     # Run this with:
@@ -12,11 +13,12 @@ services:
         RUN apk update && apk add mqttui mosquitto-clients
     container_name: comodo-mqttui
     tty: true
+    init: true
     environment:
-      MQTT_HOST: ${MQTT_HOST}
+      MQTT_HOST: ${MQTT_HOST:-rabbitmq}
       MQTT_USER: ${MQTT_USER}
       MQTT_PASS: ${MQTT_PASS}
-      MQTTUI_BROKER: mqtt://${MQTT_HOST}:1883
+      MQTTUI_BROKER: mqtt://${MQTT_HOST:-rabbitmq}:1883
       MQTTUI_USERNAME: ${MQTT_USER}
       MQTTUI_PASSWORD: ${MQTT_PASS}
       MQTTUI_CLIENTID: mqttui-comodo
@@ -27,10 +29,10 @@ services:
         while true; do
           echo "Connecting to MQTT broker..."
           mosquitto_sub \
-            -h "$MQTT_HOST" \
+            -h "$$MQTT_HOST" \
             -p 1883 \
-            -u "$MQTT_USER" \
-            -P "$MQTT_PASS" \
+            -u "$$MQTT_USER" \
+            -P "$$MQTT_PASS" \
             -t '#' \
             -v
 
@@ -38,3 +40,9 @@ services:
           sleep 1
         done &
         exec sleep infinity
+
+# Shared by all the stacks on the same host. The first stack to start creates it,
+# so the others warn that it "was not created for project ...", which is expected.
+networks:
+  default:
+    name: comodo

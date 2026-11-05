@@ -182,6 +182,7 @@ The controller reads `comodo.yaml` from `/app/comodo.yaml`, and the following en
 - `INFLUX_HOST`, `INFLUX_ORG`, `INFLUX_BUCKET` and `INFLUX_TOKEN` (or `INFLUX_TOKEN_FILE`): The InfluxDB instance, used to save the experiment data.
 
 These are set by the main [`compose.yaml`](../compose.yaml) from the `.env` file.
+`INFLUX_HOST` is set from `DATA_HOST`, or to `influxdb` (the data stack's service name) if it is empty.
 
 ## Running tests
 

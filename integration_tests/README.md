@@ -5,6 +5,7 @@ Unlike each component's own tests, these start the real services together, and c
 
 - [Integration tests](#integration-tests)
   - [What is started](#what-is-started)
+    - [Local and remote (commissioning) tests](#local-and-remote-commissioning-tests)
   - [What is tested](#what-is-tested)
   - [Running the tests](#running-the-tests)
     - [Debugging](#debugging)
@@ -12,22 +13,30 @@ Unlike each component's own tests, these start the real services together, and c
   - [Updating the tests](#updating-the-tests)
 
 ## What is started
-The [compose file](compose.yaml) includes the stack's own compose files, so the services are the same as in a real deployment:
-- The MQTT broker (`compose.mqtt.yaml`).
-- The core stack: config validation, controller, UI and monitor (`compose.yaml`).
-- The data stack: InfluxDB, Telegraf and Grafana (`compose.data.yaml`).
-- The firmware stack: one firmware container per instrument, and one per setpoint controller (`compose.firmware.yaml`).
-  The instruments in the mock configuration are all simulated.
-- The debugging tools (`compose.debug.yaml`).
-- The test runner (`integration-test`), which runs [`runner.py`](runner.py) with pytest.
+The tests are run by [`integration_tests/run-integration-tests.sh`](run-integration-tests.sh), which:
+1. Backs up `comodo.yaml` and `compose.firmware.yaml`, copies the mock configuration ([`utils/tests/mocks/comodo.yaml`](../utils/tests/mocks/comodo.yaml)) in their place, and regenerates `compose.firmware.yaml`.
+   The instruments in the mock configuration are all simulated.
+2. Deploys every stack with its own compose file, using the commands printed by [`utils/contexts.sh`](../utils/contexts.sh), so it is tested too:
+   the MQTT broker (`compose.mqtt.yaml`), the data stack (`compose.data.yaml`), the firmware stack (`compose.firmware.yaml`), and the core stack (`compose.yaml`).
+3. Runs the tests in [`integration_tests.py`](integration_tests.py) with pytest, using [this compose file](compose.yaml).
+4. Tears the stacks down, and restores `comodo.yaml` and `compose.firmware.yaml`, however the script exits.
 
-The test runner mounts `controller/data/` (read only) to check the database dump.
-Note that the stack uses the same volumes and `controller/data/` folder as a local deployment,
-so the test data is added to the local InfluxDB, and each run adds an experiment to `controller/data/`.
+The test runner uses the same mocks (and the experiment in [`utils/tests/mocks/mock_experiment.py`](../utils/tests/mocks/mock_experiment.py)) to know what to expect.
+It reads `controller/data/` (read only) to check the database dump, so it has to run on the same machine as the core stack.
 
-The stack is configured with the mock configuration in [`utils/tests/mocks/comodo.yaml`](../utils/tests/mocks/comodo.yaml),
-and the experiment in [`utils/tests/mocks/mock_experiment.py`](../utils/tests/mocks/mock_experiment.py).
-The test runner uses the same mocks to know what to expect.
+### Local and remote (commissioning) tests
+By default, every stack runs on this machine, whatever the `*_HOST` variables in `.env` are (with `utils/contexts.sh --local`).
+This is how the tests run in CI.
+
+With `--remote`, the stacks are deployed exactly as configured in `.env`:
+stacks with both `*_HOST` and `*_HOST_USER` set are deployed to that host with docker contexts (see [`utils/contexts.sh`](../utils/contexts.sh)),
+and the rest on this machine. The core stack, and the test runner, always run on this machine.
+The existing comodo docker contexts are replaced with ones matching `.env` (with `utils/contexts.sh --clean`), so they can be used to deploy afterwards.
+This works as a commissioning test of an actual deployment (networking, hosts and credentials), with simulated instruments,
+before deploying it with the real `comodo.yaml`. [`utils/deploy.sh -t`](../README.md#automatic-deployment) does both: it runs these tests with `--remote`, and deploys only if they pass.
+
+Note that, in both cases, the stacks replace any comodo stack already running on the same hosts, and use the same volumes and `controller/data/` folder.
+So the test data is added to InfluxDB, and each run adds an experiment to `controller/data/`.
 
 ## What is tested
 The test runner subscribes to all MQTT topics, and runs the following tests in order, stopping at the first failure:
@@ -42,35 +51,37 @@ The test runner subscribes to all MQTT topics, and runs the following tests in o
 7. **No errors:** No message was received on any `error/...` topic during the whole run.
 
 ## Running the tests
-The tests need a `.env` file in the repository root, with at least `MQTT_HOST`, `MQTT_USER`, `MQTT_PASS`, `INFLUX_TOKEN`, `INFLUX_BUCKET` and `INFLUX_ORG`
-(see [environment variables](../README.md#environment-variables)).
+The tests need a `.env` file in the repository root, with at least `MQTT_USER`, `MQTT_PASS`, `INFLUX_TOKEN`, `INFLUX_BUCKET` and `INFLUX_ORG`
+(see [environment variables](../README.md#environment-variables)). For `--remote`, it also needs the hosts and users of the remote stacks.
 
-From the repository root, copy the mock configuration and regenerate the firmware compose file:
+From the repository root, run:
 ```shell
-cp utils/tests/mocks/comodo.yaml ./
-docker compose -f firmware/compose.gen.yaml run --rm compose-gen
+./integration_tests/run-integration-tests.sh            # All stacks on this machine
+./integration_tests/run-integration-tests.sh --remote   # Stacks deployed as configured in .env
 ```
-Note that this overwrites `comodo.yaml` and `compose.firmware.yaml`, so back them up first if you have local changes.
-
-Then, from the `integration_tests/` directory, run the tests and stop the stack when done:
-```shell
-docker compose --env-file ../.env up --build --attach integration-test --force-recreate
-docker compose --env-file ../.env kill
-```
+Run `./integration_tests/run-integration-tests.sh --help` for all options.
 
 The tests are also run by [`utils/run-all-tests.sh`](../utils/run-all-tests.sh), and in CI on pushes that change any component, and on pull requests to `main` and `dev`
 (see [`.github/workflows/integration_tests.yml`](../.github/workflows/integration_tests.yml)).
 
 ### Debugging
-The output only shows the test runner's prints. To also see the logs of a service, attach to it, e.g. the monitor:
+The output only shows the test runner's prints. To also see the logs of some services while the tests run, list them with `--logs`, e.g.:
 ```shell
-docker compose --env-file ../.env up --build --attach integration-test --attach monitor --force-recreate
+./integration_tests/run-integration-tests.sh --logs controller,monitor
 ```
-or attach to everything except the broker:
+Their logs are prefixed with the container name, and streamed until the tests finish (also for stacks deployed with `--remote`).
+
+To inspect the stacks after the tests, keep them running with `--keep`, and check the logs of a service, e.g.:
 ```shell
-docker compose --env-file ../.env up --build --no-attach rabbitmq --force-recreate
+docker logs comodo-controller
 ```
-and exit with Ctrl-C when done.
+`comodo.yaml` and `compose.firmware.yaml` are still restored, so use `--remove-orphans` the next time you deploy the firmware stack
+(`utils/deploy.sh` does). To just bring the test stacks down, run `./utils/deploy.sh --down`.
+
+With the stacks running with the mock configuration, the test runner can also be run on its own:
+```shell
+docker compose --env-file .env -f integration_tests/compose.yaml run --rm --build integration-test
+```
 
 To watch the MQTT messages while the tests run, use [mqttui](../README.md#debugging).
 
@@ -85,5 +96,5 @@ The timeouts (in seconds) can be changed with environment variables, set in the 
 - If you change the mock configuration (`utils/tests/mocks/comodo.yaml`), keep the other mocks in `utils/tests/mocks/` consistent with it,
   as the test runner reads its expectations from them.
 - The test runner only copies `utils/comodo_config.py` and `utils/tests/mocks/` (see the [Dockerfile](Dockerfile)).
-- The InfluxDB credentials are not overridden for the integration tests: if the `comodo-influx` volume already exists, the `INFLUX_*` values in `.env` must match the ones it was created with.
   If it needs any other shared code, add it to the Dockerfile.
+- If the `comodo-influx` volume already exists, the `INFLUX_*` values in `.env` must match the ones it was created with.

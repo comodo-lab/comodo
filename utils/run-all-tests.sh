@@ -60,15 +60,7 @@ done
 if [[ "$run_integration" == true ]]; then
     run_component \
         integration \
-        bash -c "
-            cd integration_tests &&
-            docker compose --env-file ../.env kill >/dev/null 2>&1 || true &&
-            docker compose --env-file ../.env up \
-                --build \
-                --attach integration-test \
-                --force-recreate &&
-            docker compose --env-file ../.env kill >/dev/null 2>&1 || true
-        "
+        ./integration_tests/run-integration-tests.sh
 else
     echo "Skipping integration tests."
 fi

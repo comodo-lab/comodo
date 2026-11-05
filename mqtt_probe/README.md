@@ -30,7 +30,8 @@ docker inspect --format '{{json .State.Health}}' <probe container>
 
 ## Configuration
 - `MQTT_HOST`: The hostname of the MQTT broker. Defaults to `localhost`.
+  The compose files set it from `.env`, or to `rabbitmq` (the broker's service name) if it is empty.
 - `MQTT_PORT`: The port of the MQTT broker. Defaults to `1883`.
 - `MQTT_USER` and `MQTT_PASS`: The credentials for the MQTT broker.
 - `MQTT_PROBE_ID`: The id of the probe, used in its topic. Defaults to `probe`.
-  Each compose file uses its own id: `core`, `data` and `firmware`.
+  Each compose file uses its own id: `core`, `data`, `firmware`, and `integration` for the [integration tests](../integration_tests/README.md).
