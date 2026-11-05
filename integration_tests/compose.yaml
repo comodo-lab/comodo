@@ -5,7 +5,7 @@
 # To run only the test runner (from the repository root), against a stack started with the mock configuration:
 #   docker compose --env-file .env -f integration_tests/compose.yaml run --rm --build integration-test
 #
-# Note that pytest captures prints from the runner.py code, not from the stack itself.
+# Note that pytest captures prints from the integration_tests.py code, not from the stack itself.
 
 x-templates:
   mqtt-env: &mqtt-env
