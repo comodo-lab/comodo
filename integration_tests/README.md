@@ -15,7 +15,7 @@ Unlike each component's own tests, these start the real services together, and c
 The tests are run by [`utils/run-integration-tests.sh`](../utils/run-integration-tests.sh), which:
 1. Backs up `comodo.yaml` and `compose.firmware.yaml`, copies the mock configuration ([`utils/tests/mocks/comodo.yaml`](../utils/tests/mocks/comodo.yaml)) in their place, and regenerates `compose.firmware.yaml`.
    The instruments in the mock configuration are all simulated.
-2. Deploys every stack with its own compose file, in the same way as a real deployment:
+2. Deploys every stack with its own compose file, using the commands printed by [`utils/contexts.sh`](../utils/contexts.sh), so it is tested too:
    the MQTT broker (`compose.mqtt.yaml`), the data stack (`compose.data.yaml`), the firmware stack (`compose.firmware.yaml`), and the core stack (`compose.yaml`).
 3. Runs the test runner ([`runner.py`](runner.py), with pytest), using [this compose file](compose.yaml).
 4. Tears the stacks down, and restores `comodo.yaml` and `compose.firmware.yaml`, however the script exits.
@@ -24,7 +24,7 @@ The test runner uses the same mocks (and the experiment in [`utils/tests/mocks/m
 It reads `controller/data/` (read only) to check the database dump, so it has to run on the same machine as the core stack.
 
 ### Local and remote (commissioning) tests
-By default, every stack runs on this machine, whatever the `*_HOST` variables in `.env` are.
+By default, every stack runs on this machine, whatever the `*_HOST` variables in `.env` are (with `utils/contexts.sh --local`).
 This is how the tests run in CI.
 
 With `--remote`, the stacks are deployed exactly as configured in `.env`:

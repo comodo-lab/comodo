@@ -5,10 +5,11 @@ help_str="
 This script runs the integration tests using the mock configuration.
 First, it backs up the existing 'comodo.yaml' and 'compose.firmware.yaml' files.
 Then, it uses the mock configuration ('utils/tests/mocks/comodo.yaml', where all instruments are simulated) and generates a 'compose.firmware.yaml' to match it.
-It then deploys every comodo stack with the mock configuration and runs the test runner against it.
+It then deploys every comodo stack with the mock configuration, using the commands from 'utils/contexts.sh' (so it is tested too),
+and runs the test runner against it.
 Finally, it tears the stacks down and restores 'comodo.yaml' and 'compose.firmware.yaml'.
 
-By default all stacks run on this machine, ignoring the *_HOST variables in the '.env' file.
+By default all stacks run on this machine, ignoring the *_HOST variables in the '.env' file (with 'utils/contexts.sh --local').
 With the --remote flag, the stacks are deployed exactly as configured in '.env'.
 That is, stacks with both *_HOST and *_HOST_USER set are deployed to that host using docker contexts (see 'utils/contexts.sh').
 This is useful to test the actual deployment topology.
@@ -59,57 +60,22 @@ if [[ ! -f .env ]]; then
   exit 1
 fi
 source .env
-source utils/local_ip.sh
 
-declare -A files=(
-  [mqtt]=compose.mqtt.yaml
-  [data]=compose.data.yaml
-  [firmware]=compose.firmware.yaml
-  [core]=compose.yaml
-)
-declare -A contexts=([mqtt]="" [data]="" [firmware]="" [core]="")
-# MQTT_HOST for the remote stacks, if it has to differ from .env's
-declare -A mqtt_hosts=([mqtt]="" [data]="" [firmware]="" [core]="")
 stacks=(mqtt data firmware core)
+# The compose command for each stack, as printed by contexts.sh, so the tests also test it
+declare -A commands
 
-if [[ "$remote" == true ]]; then
-  # Generate the contexts as in contexts.sh: a stack is remote if both its host and user are set
-  [[ -n "${MQTT_HOST:-}" && -n "${MQTT_HOST_USER:-}" ]] && contexts[mqtt]=comodo_mqtt_host
-  [[ -n "${DATA_HOST:-}" && -n "${DATA_HOST_USER:-}" ]] && contexts[data]=comodo_data_host
-  [[ -n "${FIRMWARE_HOST:-}" && -n "${FIRMWARE_HOST_USER:-}" ]] && contexts[firmware]=comodo_firmware_host
-  # With a blank MQTT_HOST the broker is local, so give the remote stacks this machine's IP address to reach it
-  if [[ -z "${MQTT_HOST:-}" && ( -n "${contexts[data]}" || -n "${contexts[firmware]}" ) ]]; then
-    seeded=()
-    for stack in data firmware; do
-      [[ -z "${contexts[$stack]}" ]] && continue
-      host_var="${stack^^}_HOST"
-      mqtt_hosts[$stack]=$(local_ip_for "${!host_var}")
-      if [[ -z "${mqtt_hosts[$stack]}" ]]; then
-        echo "Could not find the IP address this machine uses to reach ${!host_var}."
-        echo "Set MQTT_HOST to an address of this machine that the remote hosts can reach."
-        exit 1
-      fi
-      seeded+=("$stack: ${mqtt_hosts[$stack]} (from ${!host_var})")
-    done
-    local_ip_note "${seeded[@]}"
-  fi
-else
-  # Blank hosts make every container reach the other stacks by service name, on the shared comodo network
+if [[ "$remote" == false ]]; then
+  # Blank hosts make the test runner reach the stacks by service name, on the shared comodo network
   export MQTT_HOST="" DATA_HOST="" FIRMWARE_HOST=""
 fi
 
-# Generate the compose commands for each stack, using the appropriate context, if any
+# Runs a compose subcommand for the given stack, with the command from contexts.sh
 stack_compose() {
   local stack="$1"
   shift
-  if [[ -n "${mqtt_hosts[$stack]}" ]]; then
-    # The shell environment overrides .env
-    MQTT_HOST="${mqtt_hosts[$stack]}" docker --context "${contexts[$stack]}" compose --env-file .env -f "${files[$stack]}" "$@"
-  elif [[ -n "${contexts[$stack]}" ]]; then
-    docker --context "${contexts[$stack]}" compose --env-file .env -f "${files[$stack]}" "$@"
-  else
-    docker compose --env-file .env -f "${files[$stack]}" "$@"
-  fi
+  [[ -z "${commands[$stack]:-}" ]] && return 1
+  eval "${commands[$stack]} $(printf '%q ' "$@")"
 }
 runner_compose() {
   docker compose --env-file .env -f integration_tests/compose.yaml "$@"
@@ -152,6 +118,20 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 130' INT TERM
 
+# Get the compose commands for each stack from contexts.sh, which also creates the contexts for --remote
+# (replacing existing ones, so they match .env) and regenerates compose.firmware.yaml
+echo "Getting the deployment commands from contexts.sh..."
+contexts_args=(--commands-file "$backup_dir/commands")
+if [[ "$remote" == true ]]; then
+  contexts_args+=(--clean)
+else
+  contexts_args+=(--local)
+fi
+./utils/contexts.sh "${contexts_args[@]}" || exit 1
+while IFS=$'\t' read -r stack command; do
+  commands[$stack]="$command"
+done < "$backup_dir/commands"
+
 # Kill any running stacks, so they don't take long to stop when the test stacks replace them.
 # Done before setting up the test configuration, so the running firmware stack is found from its own compose file.
 echo "Killing any existing stacks..."
@@ -163,18 +143,13 @@ done
 # Set up the mock comodo.yaml and compose.firmware.yaml
 echo "Setting up test configuration..."
 cp utils/tests/mocks/comodo.yaml comodo.yaml
-if [[ "$remote" == true ]]; then
-  # Regenerates contexts and compose.firmware.yaml
-  ./utils/contexts.sh --clean || exit 1
-else
-  docker compose -f firmware/compose.gen.yaml run --rm compose-gen || exit 1
-fi
+docker compose -f firmware/compose.gen.yaml run --rm compose-gen || exit 1
 
 # Start the stacks
 echo "Starting the test stacks..."
 for stack in "${stacks[@]}"; do
   echo
-  echo "Starting the $stack stack${contexts[$stack]:+ on ${contexts[$stack]}}..."
+  echo "Starting the $stack stack: ${commands[$stack]} up ..."
   # The other stacks need the broker, so wait until it is healthy
   wait=""
   [[ "$stack" == mqtt ]] && wait="--wait"
