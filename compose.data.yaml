@@ -16,6 +16,7 @@ services:
     build:
       context: ./
       dockerfile: mqtt_probe/Dockerfile
+    init: true
     environment:
       <<: *mqtt-env
       MQTT_PROBE_ID: data

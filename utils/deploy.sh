@@ -128,7 +128,6 @@ if [[ "$down" == true ]]; then
   for ((i = ${#stacks[@]} - 1; i >= 0; i--)); do
     echo
     echo "Bringing down the ${stacks[$i]} stack: ${commands[${stacks[$i]}]} down ..."
-    stack_compose "${stacks[$i]}" kill
     stack_compose "${stacks[$i]}" down --remove-orphans
   done
   exit 0

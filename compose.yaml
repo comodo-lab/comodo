@@ -27,6 +27,7 @@ services:
     build:
       context: ./
       dockerfile: mqtt_probe/Dockerfile
+    init: true
     environment:
       <<: *mqtt-env
       MQTT_PROBE_ID: core
@@ -35,6 +36,7 @@ services:
     build:
       context: ./
       dockerfile: controller/Dockerfile
+    init: true
     environment:
       <<: [ *mqtt-env, *influx-env ]
     container_name: comodo-controller
@@ -52,6 +54,7 @@ services:
     build:
       context: ./
       dockerfile: ui/Dockerfile
+    init: true
     container_name: comodo-ui
     restart: unless-stopped
     depends_on:
@@ -71,6 +74,7 @@ services:
     build:
       context: ./
       dockerfile: monitor/Dockerfile
+    init: true
     depends_on:
       mqtt-probe-core:
         condition: service_healthy

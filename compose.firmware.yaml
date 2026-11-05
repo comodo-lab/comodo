@@ -14,6 +14,7 @@ x-templates:
     build:
       context: .
       dockerfile: firmware/Dockerfile
+    init: true
     depends_on:
       mqtt-probe-firmware:
         condition: service_healthy
@@ -25,6 +26,7 @@ services:
     build:
       context: ./
       dockerfile: mqtt_probe/Dockerfile
+    init: true
     environment:
       <<: *mqtt-env
       MQTT_PROBE_ID: firmware
@@ -86,6 +88,7 @@ services:
     build:
       context: .
       dockerfile: setpoint_controller/Dockerfile
+    init: true
     depends_on:
       mqtt-probe-firmware:
         condition: service_healthy

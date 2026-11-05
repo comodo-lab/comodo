@@ -20,6 +20,7 @@ services:
     build:
       context: ../
       dockerfile: mqtt_probe/Dockerfile
+    init: true
     environment:
       <<: *mqtt-env
       MQTT_PROBE_ID: integration
@@ -28,6 +29,7 @@ services:
     build:
       context: ../
       dockerfile: integration_tests/Dockerfile
+    init: true
     container_name: integration-test
     environment:
       <<: *mqtt-env

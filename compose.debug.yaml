@@ -13,6 +13,7 @@ services:
         RUN apk update && apk add mqttui mosquitto-clients
     container_name: comodo-mqttui
     tty: true
+    init: true
     environment:
       MQTT_HOST: ${MQTT_HOST:-rabbitmq}
       MQTT_USER: ${MQTT_USER}

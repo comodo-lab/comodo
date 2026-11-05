@@ -118,10 +118,8 @@ cleanup() {
     echo "Leaving the stacks running (--keep)."
   else
     echo "Tearing down the stacks..."
-    runner_compose kill >/dev/null 2>&1
     runner_compose down --remove-orphans >/dev/null 2>&1
     for ((i = ${#stacks[@]} - 1; i >= 0; i--)); do
-      stack_compose "${stacks[$i]}" kill 2>&1 | sed 's/^/  /'
       stack_compose "${stacks[$i]}" down --remove-orphans 2>&1 | sed 's/^/  /'
     done
   fi
@@ -152,14 +150,6 @@ fi
 while IFS=$'\t' read -r stack command; do
   commands[$stack]="$command"
 done < "$backup_dir/commands"
-
-# Kill any running stacks, so they don't take long to stop when the test stacks replace them.
-# Done before setting up the test configuration, so the running firmware stack is found from its own compose file.
-echo "Killing any existing stacks..."
-runner_compose kill >/dev/null 2>&1
-for stack in "${stacks[@]}"; do
-  stack_compose "$stack" kill >/dev/null 2>&1
-done
 
 # Set up the mock comodo.yaml and compose.firmware.yaml
 echo "Setting up test configuration..."
