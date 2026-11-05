@@ -9,9 +9,7 @@ x-templates:
     INFLUX_BUCKET: ${INFLUX_BUCKET}
     INFLUX_ORG: ${INFLUX_ORG}
   grafana-env: &grafana-env
-    GRAFANA_HOST: ${DATA_HOST:-grafana}
-    # Grafana as seen from the browser, for the embedded dashboard
-    GRAFANA_PUBLIC_HOST: ${DATA_HOST:-localhost}
+    GRAFANA_HOST: ${DATA_HOST:-localhost}
     GRAFANA_DASHBOARD_URL: ${GRAFANA_DASHBOARD_URL:-}
 
 name: comodo-core
