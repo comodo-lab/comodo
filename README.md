@@ -229,12 +229,26 @@ Each visualization can have the following properties:
 <!-- lots to specify here still -->
 
 ## Automatic deployment
-Not yet available: the stacks still have to be started by hand, as described in [manual deployment](#manual-deployment).
+Once the [requirements](#requirements), [environment variables](#environment-variables) and [`comodo.yaml`](#central-configuration-file) are set up,
+deploy Comodo from the base directory with:
+```shell
+./utils/deploy.sh
+```
+This:
+- Validates `comodo.yaml`, so an invalid configuration doesn't leave a half-deployed stack.
+- Runs `./utils/contexts.sh --clean`, which regenerates `compose.firmware.yaml` from `comodo.yaml`,
+  replaces the Docker contexts for any stacks deployed to remote hosts with ones matching the `*_HOST` and `*_HOST_USER` variables in `.env`,
+  and works out the `docker compose` command for each stack.
+- Asks before replacing any Comodo stacks already running.
+- Deploys the MQTT broker, and then the data, firmware and core stacks, stopping at the first failure.
 
-However, `./utils/contexts.sh` automates the preparation steps:
-- It regenerates `compose.firmware.yaml` from `comodo.yaml`.
-- It creates Docker contexts for any stacks deployed to remote hosts (based on the `*_HOST` and `*_HOST_USER` variables in `.env`).
-- It prints the exact `docker compose` commands to run for each stack, locally or remotely, in the order they need to be started.
+Useful options (run `./utils/deploy.sh --help` for all of them):
+- `-t`: Run the [integration tests](integration_tests/README.md) on the same hosts, with simulated instruments, and only deploy if they pass.
+- `-f`: Replace running stacks without asking.
+- `-l`: Deploy all the stacks on this machine, ignoring the `*_HOST` variables.
+- `--down`: Bring the stacks down.
+
+To deploy by hand instead, `./utils/contexts.sh` prints the commands to run, in order (see [manual deployment](#manual-deployment)).
 
 ## Manual deployment
 
