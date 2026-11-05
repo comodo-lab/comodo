@@ -341,11 +341,15 @@ To set up Comodo, follow these steps:
 
 
 #### Bringing comodo down
-If you must bring the stack down and want to start from scratch, run:
-- `docker compose -f compose.firmware.yaml down -v`
+To bring the stacks down, run `./utils/deploy.sh --down`, which brings down the core, firmware, data and MQTT stacks, in that order.
+By hand, run the `down` equivalent of the deployment commands from `./utils/contexts.sh`, in reverse order (with the same contexts for remote stacks).
+
+If you want to start from scratch, add `-v` to the `down` commands, which also removes the volumes:
+**this deletes all the data in InfluxDB**, and the Grafana and RabbitMQ settings. For example, for a local deployment:
 - `docker compose down -v`
-- `docker compose -f compose.mqtt.yaml down -v`
+- `docker compose -f compose.firmware.yaml down -v`
 - `docker compose -f compose.data.yaml down -v`
+- `docker compose -f compose.mqtt.yaml down -v`
 
 ### Setting up the firmware for the sensors and actuators
 
@@ -354,7 +358,7 @@ Do not edit it directly: edit `comodo.yaml` and regenerate it with:
 ```bash
 docker compose -f firmware/compose.gen.yaml run --rm compose-gen
 ```
-`./utils/contexts.sh` runs this step automatically.
+`./utils/contexts.sh` (and so `./utils/deploy.sh`) runs this step automatically.
 
 ### Debugging
 
@@ -364,6 +368,12 @@ There is a fifth compose file, `compose.debug.yaml`, which can be used to deploy
   ```bash
   docker compose -f compose.debug.yaml up --build mqttui -d && docker exec -it comodo-mqttui mqttui
   ```
+- To follow the logs of a service, use its container name, or its stack's compose file, e.g.:
+  ```bash
+  docker logs -f comodo-controller
+  docker compose logs -f monitor
+  ```
+  For a remote stack, add its context, e.g. `docker --context comodo_firmware_host compose -f compose.firmware.yaml logs -f`.
 
 ## MQTT topics
 All components communicate through MQTT messages. Every message must match the [message schema](schemas/mqtt_schema.yaml), which the monitor checks.

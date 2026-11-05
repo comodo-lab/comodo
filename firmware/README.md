@@ -38,7 +38,7 @@ In a standard deployment, these are extracted from the `comodo.yaml` file and te
 ```
 docker compose -f "./firmware/compose.gen.yaml" run --rm compose-gen
 ```
-from the comodo repository root (where the `comodo.yaml` file is located). `./utils/contexts.sh` also runs this step.
+from the comodo repository root (where the `comodo.yaml` file is located). `./utils/contexts.sh` (and so `./utils/deploy.sh`) also runs this step.
 
 The `compose.firmware.yaml` file then provides the stack of instrument firmware containers, each with its own configuration,
 as well as a container for each setpoint controller.

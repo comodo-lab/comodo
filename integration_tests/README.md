@@ -18,7 +18,7 @@ The tests are run by [`integration_tests/run-integration-tests.sh`](run-integrat
    The instruments in the mock configuration are all simulated.
 2. Deploys every stack with its own compose file, using the commands printed by [`utils/contexts.sh`](../utils/contexts.sh), so it is tested too:
    the MQTT broker (`compose.mqtt.yaml`), the data stack (`compose.data.yaml`), the firmware stack (`compose.firmware.yaml`), and the core stack (`compose.yaml`).
-3. Runs the [`integration_tests.py`](integration_tests.py) with pytest, using [this compose file](compose.yaml).
+3. Runs the tests in [`integration_tests.py`](integration_tests.py) with pytest, using [this compose file](compose.yaml).
 4. Tears the stacks down, and restores `comodo.yaml` and `compose.firmware.yaml`, however the script exits.
 
 The test runner uses the same mocks (and the experiment in [`utils/tests/mocks/mock_experiment.py`](../utils/tests/mocks/mock_experiment.py)) to know what to expect.
@@ -33,7 +33,7 @@ stacks with both `*_HOST` and `*_HOST_USER` set are deployed to that host with d
 and the rest on this machine. The core stack, and the test runner, always run on this machine.
 The existing comodo docker contexts are replaced with ones matching `.env` (with `utils/contexts.sh --clean`), so they can be used to deploy afterwards.
 This works as a commissioning test of an actual deployment (networking, hosts and credentials), with simulated instruments,
-before deploying it with the real `comodo.yaml`.
+before deploying it with the real `comodo.yaml`. [`utils/deploy.sh -t`](../README.md#automatic-deployment) does both: it runs these tests with `--remote`, and deploys only if they pass.
 
 Note that, in both cases, the stacks replace any comodo stack already running on the same hosts, and use the same volumes and `controller/data/` folder.
 So the test data is added to InfluxDB, and each run adds an experiment to `controller/data/`.
@@ -75,7 +75,8 @@ To inspect the stacks after the tests, keep them running with `--keep`, and chec
 ```shell
 docker logs comodo-controller
 ```
-`comodo.yaml` and `compose.firmware.yaml` are still restored, so use `--remove-orphans` the next time you deploy the firmware stack.
+`comodo.yaml` and `compose.firmware.yaml` are still restored, so use `--remove-orphans` the next time you deploy the firmware stack
+(`utils/deploy.sh` does). To just bring the test stacks down, run `./utils/deploy.sh --down`.
 
 With the stacks running with the mock configuration, the test runner can also be run on its own:
 ```shell
