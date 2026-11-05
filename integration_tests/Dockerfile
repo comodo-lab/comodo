@@ -10,6 +10,7 @@ COPY utils/comodo_config.py                 /integration_tests/utils/comodo_conf
 COPY utils/tests/mocks                      /integration_tests/utils/tests/mocks
 # Copy integration tests and readme
 COPY integration_tests/integration_tests.py /integration_tests/integration_tests.py
+COPY integration_tests/conftest.py          /integration_tests/conftest.py
 COPY integration_tests/README.md            /integration_tests/README.md
 
 # Start integration tests

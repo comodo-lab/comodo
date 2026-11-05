@@ -19,16 +19,20 @@ The core comodo stack and the test runner, always run on the machine executing t
 
 *Note:* The test stacks replace any comodo stack already running on the same hosts.
 
-Usage: ./integration_tests/run-integration-tests.sh [--remote|-r] [--keep|-k] [--help|-h]
+Usage: ./integration_tests/run-integration-tests.sh [--remote|-r] [--keep|-k] [--logs|-l SERVICES] [--help|-h]
 Options:
-  --remote, -r      Deploy the stacks as configured in .env, rather than all on this machine.
-  --keep,   -k      Leave the stacks running after the tests, e.g. to inspect them.
-                      Note: The original 'comodo.yaml' and 'compose.firmware.yaml' are still restored, so you might have to use the --remove-orphans flag on the next deployment.
-  --help,   -h      Show this help message and exit.
+  -r, --remote          Deploy the stacks as configured in .env, rather than all on this machine.
+  -k, --keep            Leave the stacks running after the tests, e.g. to inspect them.
+                          Note: The original 'comodo.yaml' and 'compose.firmware.yaml' are still restored, so you might have to use the --remove-orphans flag on the next deployment.
+  -l, --logs SERVICES   Stream the logs of the given services (comma separated, e.g. 'controller,monitor')
+                          into the output while the tests run, prefixed with the service name.
+  -h, --help            Show this help message and exit.
 "
 
 remote=false
 keep=false
+log_services=()
+log_pids=()
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -43,6 +47,10 @@ while [[ $# -gt 0 ]]; do
   --keep|-k)
     keep=true
     shift
+    ;;
+  --logs|-l)
+    IFS=',' read -ra log_services <<< "${2:-}"
+    shift 2
     ;;
   *)
     echo "Unknown option: $1"
@@ -88,10 +96,23 @@ for f in comodo.yaml compose.firmware.yaml; do
   [[ -f "$f" ]] && cp "$f" "$backup_dir/"
 done
 
+# Kills a process and all its descendants (docker runs compose as a child process of its own)
+kill_tree() {
+  local child
+  for child in $(pgrep -P "$1"); do
+    kill_tree "$child"
+  done
+  kill "$1" 2>/dev/null
+}
+
 # Define the cleanup function to restore the configuration and tear down the stacks
 cleanup() {
   # Don't let Ctrl+C interrupt the cleanup, or the configuration would not be restored
   trap '' INT TERM
+  # Stop streaming logs (and the docker processes behind them), so the teardown output isn't flooded
+  for pid in "${log_pids[@]}"; do
+    kill_tree "$pid"
+  done
   echo
   if [[ "$keep" == true ]]; then
     echo "Leaving the stacks running (--keep)."
@@ -145,6 +166,21 @@ echo "Setting up test configuration..."
 cp utils/tests/mocks/comodo.yaml comodo.yaml
 docker compose -f firmware/compose.gen.yaml run --rm compose-gen || exit 1
 
+# Find the stack of each service to stream logs from
+declare -A log_stacks
+for service in "${log_services[@]}"; do
+  for stack in "${stacks[@]}"; do
+    if stack_compose "$stack" config --services 2>/dev/null | grep -qx "$service"; then
+      log_stacks[$service]=$stack
+      break
+    fi
+  done
+  if [[ -z "${log_stacks[$service]:-}" ]]; then
+    echo "Unknown service for --logs: $service"
+    exit 1
+  fi
+done
+
 # Start the stacks
 echo "Starting the test stacks..."
 for stack in "${stacks[@]}"; do
@@ -159,7 +195,19 @@ for stack in "${stacks[@]}"; do
   fi
 done
 
+for service in "${log_services[@]}"; do
+  echo "Streaming the logs of $service..."
+  stack_compose "${log_stacks[$service]}" logs --follow "$service" &
+  log_pids+=($!)
+done
+
 echo
 echo "Running the integration tests..."
-runner_compose run --rm --build integration-test
+# Without a TTY (-T): a TTY puts the terminal in raw mode, which breaks the lines of the streamed logs.
+# pytest then can't tell it is writing to a terminal, so ask for colours if this script is.
+runner_args=()
+[[ -t 1 ]] && runner_args+=(-e PYTEST_ADDOPTS=--color=yes)
+# Tell pytest to end the line with the test's name, as the logs will be printed after it (see conftest.py)
+[[ ${#log_services[@]} -gt 0 ]] && runner_args+=(-e STREAMING_LOGS=1)
+runner_compose run --rm --build -T "${runner_args[@]}" integration-test
 exit $?

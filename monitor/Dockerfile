@@ -18,4 +18,4 @@ COPY monitor/tests              /monitor/tests
 COPY monitor/README.md          /monitor/README.md
 
 # Start monitor
-CMD ["python", "monitor.py"]
+CMD ["python", "-u", "monitor.py"]

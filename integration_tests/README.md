@@ -65,7 +65,13 @@ The tests are also run by [`utils/run-all-tests.sh`](../utils/run-all-tests.sh),
 (see [`.github/workflows/integration_tests.yml`](../.github/workflows/integration_tests.yml)).
 
 ### Debugging
-The output only shows the test runner's prints. To inspect the stacks after the tests, keep them running with `--keep`, and check the logs of a service, e.g.:
+The output only shows the test runner's prints. To also see the logs of some services while the tests run, list them with `--logs`, e.g.:
+```shell
+./integration_tests/run-integration-tests.sh --logs controller,monitor
+```
+Their logs are prefixed with the container name, and streamed until the tests finish (also for stacks deployed with `--remote`).
+
+To inspect the stacks after the tests, keep them running with `--keep`, and check the logs of a service, e.g.:
 ```shell
 docker logs comodo-controller
 ```
