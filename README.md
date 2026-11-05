@@ -414,7 +414,7 @@ Your `comodo.yaml` and `compose.firmware.yaml` are restored when it finishes.
 
 From the base directory, run:
 ```
-./utils/run-integration-tests.sh
+./integration_tests/run-integration-tests.sh
 ```
 By default, all stacks run on this machine. With `--remote`, they are deployed to the hosts in your `.env`,
 which works as a commissioning test of a distributed deployment before deploying it with your real `comodo.yaml`.

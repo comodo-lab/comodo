@@ -62,8 +62,6 @@ When changing `tests/mocks/comodo.yaml`, keep the other mocks consistent with it
   If `MQTT_HOST` is blank, the commands for remote stacks give them this machine's IP address to reach the broker.
   With `--local`, all the stacks are deployed on this machine. The integration tests use its commands, so they also test it.
   See [automatic deployment](../README.md#automatic-deployment) in the main README. Run `./utils/contexts.sh --help` for its options.
-- [`run-integration-tests.sh`](run-integration-tests.sh): Deploys every stack with the mock configuration,
-  runs the integration tests, and tears the stacks down. See the [integration tests](../integration_tests/README.md).
 - [`run-all-tests.sh`](run-all-tests.sh): Runs the tests of every component, and the integration tests, and prints a summary.
   Use `--noint` to skip the integration tests. See [helper script](../README.md#helper-script) in the main README.
 

@@ -12,7 +12,7 @@ Unlike each component's own tests, these start the real services together, and c
   - [Updating the tests](#updating-the-tests)
 
 ## What is started
-The tests are run by [`utils/run-integration-tests.sh`](../utils/run-integration-tests.sh), which:
+The tests are run by [`integration_tests/run-integration-tests.sh`](run-integration-tests.sh), which:
 1. Backs up `comodo.yaml` and `compose.firmware.yaml`, copies the mock configuration ([`utils/tests/mocks/comodo.yaml`](../utils/tests/mocks/comodo.yaml)) in their place, and regenerates `compose.firmware.yaml`.
    The instruments in the mock configuration are all simulated.
 2. Deploys every stack with its own compose file, using the commands printed by [`utils/contexts.sh`](../utils/contexts.sh), so it is tested too:
@@ -55,10 +55,10 @@ The tests need a `.env` file in the repository root, with at least `MQTT_USER`, 
 
 From the repository root, run:
 ```shell
-./utils/run-integration-tests.sh            # All stacks on this machine
-./utils/run-integration-tests.sh --remote   # Stacks deployed as configured in .env
+./integration_tests/run-integration-tests.sh            # All stacks on this machine
+./integration_tests/run-integration-tests.sh --remote   # Stacks deployed as configured in .env
 ```
-Run `./utils/run-integration-tests.sh --help` for all options.
+Run `./integration_tests/run-integration-tests.sh --help` for all options.
 
 The tests are also run by [`utils/run-all-tests.sh`](../utils/run-all-tests.sh), and in CI on pushes that change any component, and on pull requests to `main` and `dev`
 (see [`.github/workflows/integration_tests.yml`](../.github/workflows/integration_tests.yml)).

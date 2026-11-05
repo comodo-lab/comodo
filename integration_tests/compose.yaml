@@ -1,5 +1,5 @@
 # This compose file runs the integration test runner against an already running comodo stack, and exits when done.
-# It does not start the stack: use utils/run-integration-tests.sh, which starts the stacks with the mock configuration,
+# It does not start the stack: use integration_tests/run-integration-tests.sh, which starts the stacks with the mock configuration,
 # runs this, and tears everything down. See integration_tests/README.md for details.
 #
 # To run only the test runner (from the repository root), against a stack started with the mock configuration:

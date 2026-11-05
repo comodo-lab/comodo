@@ -19,7 +19,7 @@ The core comodo stack and the test runner, always run on the machine executing t
 
 *Note:* The test stacks replace any comodo stack already running on the same hosts.
 
-Usage: ./utils/run-integration-tests.sh [--remote|-r] [--keep|-k] [--help|-h]
+Usage: ./integration_tests/run-integration-tests.sh [--remote|-r] [--keep|-k] [--help|-h]
 Options:
   --remote, -r      Deploy the stacks as configured in .env, rather than all on this machine.
   --keep,   -k      Leave the stacks running after the tests, e.g. to inspect them.

@@ -15,7 +15,7 @@ Options:
   --clean, -c             Removes existing contexts before creating new ones.
   --local, -l             Deploy all the stacks on this machine, ignoring the *_HOST and *_HOST_USER variables.
   --commands-file, -o     Also write the compose command for each stack to FILE, as '<stack><TAB><command>' lines,
-                          without the compose subcommand (e.g. 'up'). Used by run-integration-tests.sh.
+                          without the compose subcommand (e.g. 'up'). Used by integration_tests/run-integration-tests.sh.
   --help,  -h             Show this help message and exit.
 "
 
