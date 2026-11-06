@@ -1,5 +1,5 @@
 import json
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from jsonschema import ValidationError
 import pytest
@@ -12,6 +12,8 @@ from tests.conftest import (
     message_bus,
     mqtt_mocks,
     mqtt_validator_mocks,
+    monitor_env,
+    run_to_completion,
 )
 
 
@@ -163,6 +165,74 @@ class TestOnMessage:
             "message": message,
         }
 
+
+class TestMonitor:
+    @pytest.fixture
+    def mon_mocks(self, mqtt_mocks, monitor_env):
+        with patch("monitor.asyncio.Event") as mock_event:
+            # Let the monitor return, rather than wait forever
+            mock_event.return_value.wait = AsyncMock()
+            yield {
+                "env": monitor_env,
+                "publisher_class": mqtt_mocks["publisher_class"],
+                "client_class": mqtt_mocks["client_class"],
+                "wait": mock_event.return_value.wait,
+            }
+
+    # ========================================
+
+    def test_initialises_publisher_from_env(self, mon_mocks):
+        run_to_completion(monitor())
+
+        mon_mocks["publisher_class"].get_instance.assert_called_once_with(
+            id="publisher-monitor",
+            broker_address="test_host",
+            user="test_user",
+            password="test_pass",
+            connection_timeout=60,
         )
+
+    def test_subscribes_to_all_topics_with_on_message(self, mon_mocks):
+        run_to_completion(monitor())
+
+        mon_mocks["client_class"].assert_called_once_with(
+            id="mqtt-monitor",
+            callback=on_message,
+            topics=["#"],
+            broker_address="test_host",
+            user="test_user",
+            password="test_pass",
+            connection_timeout=60,
+        )
+
+    def test_uses_defaults_without_env(self, mon_mocks, monkeypatch):
+        for key in mon_mocks["env"]:
+            monkeypatch.delenv(key)
+
+        run_to_completion(monitor())
+
+        mon_mocks["publisher_class"].get_instance.assert_called_once_with(
+            id="publisher-monitor",
+            broker_address="localhost",
+            user="guest",
+            password="guest",
+            connection_timeout=60,
+        )
+        mon_mocks["client_class"].assert_called_once_with(
+            id="mqtt-monitor",
+            callback=on_message,
+            topics=["#"],
+            broker_address="localhost",
+            user="guest",
+            password="guest",
+            connection_timeout=60,
+        )
+
+    def test_waits_forever(self, mon_mocks):
+        assert run_to_completion(monitor()) == 0
+
+        mon_mocks["wait"].assert_awaited_once_with()
+
+
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 0
