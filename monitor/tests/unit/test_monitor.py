@@ -14,125 +14,133 @@ from utils.tests.mocks.mock_mqtt_clients import (
 )
 from utils.tests.mocks.mock_mqtt_validator import mqtt_validator_mocks
 
+class TestPrintAndPublishError:
+    def test_with_topic(self, message_bus, capsys):
+        print_and_publish_error("some_code", "Some message", topic="a/topic", extra=1)
+
+        assert capsys.readouterr().out == "ERROR: Some message (topic: a/topic)\n"
+        messages = message_bus.get_messages(decoded=True)
+        assert len(messages) == 1
+        assert messages[0].topic == "error/message"
+        assert json.loads(messages[0].payload) == {
+            "code": "some_code",
+            "message": "Some message",
+            "topic": "a/topic",
+            "extra": 1,
+        }
+
+    def test_without_topic(self, message_bus, capsys):
+        print_and_publish_error("some_code", "Some message")
+
+        assert capsys.readouterr().out == "ERROR: Some message\n"
+        messages = message_bus.get_messages(decoded=True)
+        assert len(messages) == 1
+        assert messages[0].topic == "error/message"
+        assert json.loads(messages[0].payload) == {
+            "code": "some_code",
+            "message": "Some message",
+        }
+
 
 class TestOnMessage:
     @pytest.fixture
-    def on_message_mocks(self, mqtt_validator_mocks):
-        yield {
-            "validate_message": mqtt_validator_mocks["validate_message"],
-        }
+    def om_mocks(self, mqtt_validator_mocks):
+        with patch("monitor.print_and_publish_error") as mock_print_and_publish_error:
+            yield {
+                "validate_message": mqtt_validator_mocks["validate_message"],
+                "print_and_publish_error": mock_print_and_publish_error,
+            }
+
+    def run_on_message(self, mocks, topic, payload):
+        """Calls on_message with a message, and checks it was validated."""
+        msg = MockMessage(topic=topic, payload=payload)
+        on_message(None, msg, None)
+        mocks["validate_message"].assert_called_once_with(
+            topic=msg.topic,
+            payload=msg.payload,
+            combine_exceptions=False,
+        )
+        return msg
 
     # ========================================
 
-    def test_unexpected_topic(self, message_bus, on_message_mocks):
-        mocks = on_message_mocks
-        mocks["validate_message"].side_effect = MQTTValidationException(
+    def test_valid_message(self, om_mocks):
+        om_mocks["validate_message"].side_effect = None
+
+        self.run_on_message(om_mocks, "this/is/fine", '{"this": "is", "also": "fine"}')
+
+        om_mocks["print_and_publish_error"].assert_not_called()
+
+    def test_unexpected_topic(self, om_mocks):
+        om_mocks["validate_message"].side_effect = MQTTValidationException(
             "Unexpected topic"
         )
 
-        msg = MockMessage(
-            topic="something/unexpected",
-            payload='{"topic": "test", "error": "something wrong"}',
+        msg = self.run_on_message(
+            om_mocks, "something/unexpected", '{"topic": "test", "error": "wrong"}'
         )
-        on_message(None, msg, None)
 
-        mocks["validate_message"].assert_called_once_with(
-            topic=msg.topic,
-            payload=msg.payload,
-            combine_exceptions=False,
+        om_mocks["print_and_publish_error"].assert_called_once_with(
+            "unexpected_topic", f"Unexpected topic: {msg.topic}"
         )
-        messages = message_bus.get_messages(decoded=True)
-        assert len(messages) == 1
-        assert messages[0].topic == "error/message"
-        payload = json.loads(messages[0].payload)
-        assert payload["code"] == "unexpected_topic"
-        assert payload["message"] == f"Unexpected topic: {msg.topic}"
 
-    def test_invalid_json(self, message_bus, on_message_mocks):
-        mocks = on_message_mocks
-        mocks["validate_message"].side_effect = json.JSONDecodeError(
+    def test_invalid_json(self, om_mocks):
+        om_mocks["validate_message"].side_effect = json.JSONDecodeError(
             msg="not json", doc="json_doc", pos=0
         )
 
-        msg = MockMessage(
-            topic="this/is/fine",
-            payload="this is not valid json",
-        )
-        on_message(None, msg, None)
+        msg = self.run_on_message(om_mocks, "this/is/fine", "this is not valid json")
 
-        mocks["validate_message"].assert_called_once_with(
-            topic=msg.topic,
-            payload=msg.payload,
-            combine_exceptions=False,
+        om_mocks["print_and_publish_error"].assert_called_once_with(
+            "invalid_json", "not json: line 1 column 1 (char 0)", topic=msg.topic
         )
-        messages = message_bus.get_messages(decoded=True)
-        assert len(messages) == 1
-        assert messages[0].topic == "error/message"
-        payload = json.loads(messages[0].payload)
-        assert payload["code"] == "invalid_json"
-        assert payload["message"] == "not json: line 1 column 1 (char 0)"
-        assert payload["topic"] == msg.topic
 
-    def test_schema_mismatch(self, message_bus, on_message_mocks):
-        mocks = on_message_mocks
-        mocks["validate_message"].side_effect = ValidationError(
+    def test_schema_mismatch_at_root(self, om_mocks):
+        om_mocks["validate_message"].side_effect = ValidationError(
             "Well this is odd...", validator="whodis", path=[], schema={}, instance={}
         )
 
-        msg = MockMessage(
-            topic="this/is/fine",
-            payload='{"this": "does not", "match": "the schema"}',
+        msg = self.run_on_message(
+            om_mocks, "this/is/fine", '{"this": "does not", "match": "the schema"}'
         )
-        on_message(None, msg, None)
 
-        mocks["validate_message"].assert_called_once_with(
+        om_mocks["print_and_publish_error"].assert_called_once_with(
+            "validation_error",
+            "Well this is odd...",
             topic=msg.topic,
-            payload=msg.payload,
-            combine_exceptions=False,
+            failed_check="whodis",
+            offending_key="<root>",
         )
-        messages = message_bus.get_messages(decoded=True)
-        assert len(messages) == 1
-        assert messages[0].topic == "error/message"
-        payload = json.loads(messages[0].payload)
-        assert payload["code"] == "validation_error"
-        assert payload["message"] == "Well this is odd..."
-        assert payload["topic"] == msg.topic
-        assert payload["failed_check"] == "whodis"
-        assert payload["offending_key"] == "<root>"
 
-    def test_unexpected_exception(self, message_bus, on_message_mocks, capsys):
-        mocks = on_message_mocks
-        mocks["validate_message"].side_effect = Exception("Unexpected error")
-
-        msg = MockMessage(
-            topic="this/is/odd",
-            payload='{"an": "unexpected", "exception": "ocurred"}',
+    def test_schema_mismatch_in_nested_key(self, om_mocks):
+        om_mocks["validate_message"].side_effect = ValidationError(
+            "'x' is not of type 'number'",
+            validator="type",
+            path=["config", "pid", 0, "k_p"],
+            schema={},
+            instance={},
         )
-        on_message(None, msg, None)
 
-        mocks["validate_message"].assert_called_once_with(
+        msg = self.run_on_message(om_mocks, "this/is/fine", '{"config": "..."}')
+
+        om_mocks["print_and_publish_error"].assert_called_once_with(
+            "validation_error",
+            "'x' is not of type 'number'",
             topic=msg.topic,
-            payload=msg.payload,
-            combine_exceptions=False,
+            failed_check="type",
+            offending_key="config.pid.0.k_p",
         )
-        messages = message_bus.get_messages(decoded=True)
-        assert len(messages) == 0
-        captured = capsys.readouterr()
-        assert "ERROR: Message invalid: Unexpected error" in captured.out
 
-    def test_valid_message(self, message_bus, on_message_mocks):
-        mocks = on_message_mocks
-        mocks["validate_message"].side_effect = None
-        msg = MockMessage(
-            topic="this/is/fine",
-            payload='{"this": "is", "also": "fine"}',
+    def test_unexpected_exception(self, om_mocks, capsys):
+        om_mocks["validate_message"].side_effect = Exception("Unexpected error")
+
+        self.run_on_message(
+            om_mocks, "this/is/odd", '{"an": "unexpected", "exception": "ocurred"}'
         )
-        on_message(None, msg, None)
 
-        mocks["validate_message"].assert_called_once_with(
-            topic=msg.topic,
-            payload=msg.payload,
-            combine_exceptions=False,
+        om_mocks["print_and_publish_error"].assert_not_called()
+        assert capsys.readouterr().out == "ERROR: Message invalid: Unexpected error\n"
+
         )
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 0
