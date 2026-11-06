@@ -374,7 +374,6 @@ class TestMain:
             patch(
                 "main.start_instrument", new_callable=MagicMock
             ) as mock_start_instrument,
-            patch("main.traceback.print_exc") as mock_print_exc,
         ):
             monkeypatch.setenv("MQTT_HOST", "test-host")
             monkeypatch.setenv("MQTT_USER", "test-user")
@@ -391,7 +390,6 @@ class TestMain:
                 "publisher_instance": mock_publisher.return_value,
                 "async_run": mock_async_run,
                 "start_instrument": mock_start_instrument,
-                "print_exc": mock_print_exc,
             }
 
     def test_initialises_publisher_and_runs_start_instrument(self, main_mocks):
@@ -411,18 +409,20 @@ class TestMain:
         main_mocks["start_instrument"].return_value.close()
         main_mocks["publisher_instance"].assert_not_called()
 
-    def test_publishes_unhandled_exception(self, main_mocks):
+    def test_publishes_and_reraises_unhandled_exception(self, main_mocks):
         error = RuntimeError("startup failed")
         main_mocks["async_run"].side_effect = error
 
-        main.main()
+        with pytest.raises(RuntimeError) as raised:
+            main.main()
+
+        assert raised.value is error
 
         main_mocks["async_run"].assert_called_once()
         assert main_mocks["async_run"].call_args.args[0] is (
             main_mocks["start_instrument"].return_value
         )
         main_mocks["start_instrument"].return_value.close()
-        main_mocks["print_exc"].assert_called_once_with()
         main_mocks["publisher"].assert_any_call(
             broker_address="test-host",
             user="test-user",
