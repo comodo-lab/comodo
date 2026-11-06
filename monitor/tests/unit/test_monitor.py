@@ -4,15 +4,16 @@ from unittest.mock import patch
 from jsonschema import ValidationError
 import pytest
 
-from monitor import on_message
+from monitor import on_message, print_and_publish_error, monitor, main
 
 from utils.mqtt_validator import MQTTValidationException
-from utils.tests.mocks.mock_mqtt_clients import (
+from tests.conftest import (
     MockMessage,
     message_bus,
     mqtt_mocks,
+    mqtt_validator_mocks,
 )
-from utils.tests.mocks.mock_mqtt_validator import mqtt_validator_mocks
+
 
 class TestPrintAndPublishError:
     def test_with_topic(self, message_bus, capsys):
@@ -95,6 +96,19 @@ class TestOnMessage:
             "invalid_json", "not json: line 1 column 1 (char 0)", topic=msg.topic
         )
 
+    def test_payload_not_utf8(self, om_mocks):
+        om_mocks["validate_message"].side_effect = UnicodeDecodeError(
+            "utf-8", b"\x80abc", 0, 1, "invalid start byte"
+        )
+
+        msg = self.run_on_message(om_mocks, "this/is/fine", b"\x80abc")
+
+        om_mocks["print_and_publish_error"].assert_called_once_with(
+            "invalid_json",
+            "'utf-8' codec can't decode byte 0x80 in position 0: invalid start byte",
+            topic=msg.topic,
+        )
+
     def test_schema_mismatch_at_root(self, om_mocks):
         om_mocks["validate_message"].side_effect = ValidationError(
             "Well this is odd...", validator="whodis", path=[], schema={}, instance={}
@@ -131,15 +145,23 @@ class TestOnMessage:
             offending_key="config.pid.0.k_p",
         )
 
-    def test_unexpected_exception(self, om_mocks, capsys):
+    def test_unexpected_exception(self, om_mocks, message_bus, capsys):
         om_mocks["validate_message"].side_effect = Exception("Unexpected error")
 
-        self.run_on_message(
+        msg = self.run_on_message(
             om_mocks, "this/is/odd", '{"an": "unexpected", "exception": "ocurred"}'
         )
 
         om_mocks["print_and_publish_error"].assert_not_called()
-        assert capsys.readouterr().out == "ERROR: Message invalid: Unexpected error\n"
+        message = f"Could not validate message on {msg.topic}: Unexpected error"
+        assert capsys.readouterr().out == f"ERROR: {message}\n"
+        messages = message_bus.get_messages(decoded=True)
+        assert len(messages) == 1
+        assert messages[0].topic == "error/monitor"
+        assert json.loads(messages[0].payload) == {
+            "code": "exception",
+            "message": message,
+        }
 
         )
         messages = message_bus.get_messages(decoded=True)

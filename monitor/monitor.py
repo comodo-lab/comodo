@@ -27,9 +27,9 @@ def on_message(client, msg, obj):
             payload=msg.payload,
             combine_exceptions=False,
         )
-    except mqtt_val.MQTTValidationException as e:
+    except mqtt_val.MQTTValidationException:
         print_and_publish_error("unexpected_topic", f"Unexpected topic: {msg.topic}")
-    except json.JSONDecodeError as e:
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
         print_and_publish_error("invalid_json", str(e), topic=msg.topic)
     except ValidationError as e:
         offending_key = (
@@ -42,8 +42,13 @@ def on_message(client, msg, obj):
             failed_check=e.validator,
             offending_key=offending_key,
         )
-    except Exception as error:
-        print(f"ERROR: Message invalid: {error}")
+    except Exception as e:
+        message = f"Could not validate message on {msg.topic}: {e}"
+        print(f"ERROR: {message}")
+        mqtt.MQTTPublisher.get_instance().publish(
+            "error/monitor", json.dumps({"code": "exception", "message": message})
+        )
+        # Not raised, as MQTTClient would publish it on error/exception, which restarts the controller.
 
 
 async def monitor():
