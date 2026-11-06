@@ -1,7 +1,6 @@
 """Shared pytest fixtures and utilities for monitor tests."""
 
 import pytest
-from unittest.mock import AsyncMock, patch
 
 from utils.tests.mocks.mock_topic_map import mock_topic_map
 

@@ -1,5 +1,5 @@
 import json
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from jsonschema import ValidationError
 import pytest
@@ -234,5 +234,58 @@ class TestMonitor:
         mon_mocks["wait"].assert_awaited_once_with()
 
 
+class TestMain:
+    @pytest.fixture
+    def main_mocks(self, mqtt_mocks):
+        with (
+            patch("monitor.asyncio.run") as mock_async_run,
+            patch("monitor.monitor", new_callable=MagicMock) as mock_monitor,
+        ):
+            yield {
+                "publisher_class": mqtt_mocks["publisher_class"],
+                "async_run": mock_async_run,
+                "monitor": mock_monitor,
+            }
+
+    # ========================================
+
+    def test_runs_the_monitor(self, main_mocks, message_bus):
+        main()
+
+        main_mocks["monitor"].assert_called_once_with()
+        main_mocks["async_run"].assert_called_once_with(
+            main_mocks["monitor"].return_value
+        )
+        assert message_bus.get_messages() == []
+
+    def test_publishes_and_reraises_unhandled_exception(self, main_mocks, message_bus):
+        error = RuntimeError("monitor failed")
+        main_mocks["async_run"].side_effect = error
+
+        with pytest.raises(RuntimeError) as raised:
+            main()
+
+        assert raised.value is error
         messages = message_bus.get_messages(decoded=True)
-        assert len(messages) == 0
+        assert len(messages) == 1
+        assert messages[0].topic == "error/monitor"
+        assert json.loads(messages[0].payload) == {
+            "code": "exception",
+            "message": "monitor failed",
+        }
+
+    def test_prints_and_reraises_exception_if_it_cannot_be_published(
+        self, main_mocks, capsys
+    ):
+        error = ConnectionError("broker unreachable")
+        main_mocks["async_run"].side_effect = error
+        main_mocks["publisher_class"].get_instance.side_effect = RuntimeError(
+            "no publisher"
+        )
+
+        with pytest.raises(ConnectionError) as raised:
+            main()
+
+        # The original exception, not the one from publishing it
+        assert raised.value is error
+        assert capsys.readouterr().out == "Error: broker unreachable\n"
