@@ -74,6 +74,7 @@ services:
       SAFE_STOP_SETPOINTS: '{{ instrument_safe_stop_setpoints.get(name) | tojson }}'
       MEASUREMENT_INTERVALS: '{{ instrument_measurement_intervals.get(name) | tojson }}'
       HEARTBEAT_INTERVAL: {{ (global.heartbeat.interval) | float }}
+      MAX_MISSED_HEARTBEATS: {{ global.experiment_monitoring.max_missed_heartbeats }}
 {%- if instr.address.startswith('/dev/') %}
     devices:
       - "{{ instr.address }}:{{ instr.address }}"

@@ -513,6 +513,8 @@ channels:
                     type: number
                 heartbeat_interval:
                   type: number
+                max_missed_heartbeats:
+                  type: number
                 experiment:
                   type: object
                   additionalProperties: true

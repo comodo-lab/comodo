@@ -47,6 +47,7 @@ services:
       SAFE_STOP_SETPOINTS: '{"temperature": 0}'
       MEASUREMENT_INTERVALS: '{"temperature": 1}'
       HEARTBEAT_INTERVAL: 1.0
+      MAX_MISSED_HEARTBEATS: 3
 
   pressure:
     <<: *python-instrument-template
@@ -62,6 +63,7 @@ services:
       SAFE_STOP_SETPOINTS: 'null'
       MEASUREMENT_INTERVALS: '{"pressure": 1}'
       HEARTBEAT_INTERVAL: 1.0
+      MAX_MISSED_HEARTBEATS: 3
     devices:
       - "/dev/ttyUSB0:/dev/ttyUSB0"
     privileged: true
@@ -80,6 +82,7 @@ services:
       SAFE_STOP_SETPOINTS: '{"mass_flow": 0}'
       MEASUREMENT_INTERVALS: '{"mass_flow": 1}'
       HEARTBEAT_INTERVAL: 1.0
+      MAX_MISSED_HEARTBEATS: 3
     devices:
       - "/dev/ttyUSB2:/dev/ttyUSB2"
     privileged: true
