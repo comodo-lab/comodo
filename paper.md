@@ -27,27 +27,24 @@ bibliography: paper.bib
 
 # Summary
 
-`Comodo-Lab` is a software package for running, managing and
+`comodo` is a software stack for specifying, executing and
 developing laboratory experiments. It employs a distributed
-architecture with users accessing the interface through their browser
-locally, a server-hosted, controller module for orchestration and
-edge-hardware hosted firmware for controlling the instruments.
+architecture; a server-hosted controller module performs orchestration and 
+executes the experiment, edge-hardware hosted firmware controls instruments and
+users interact with the experiment via a web interface.
 
-The components of `Comodo-Lab` communicate with each other via MQTT
+The components of `comodo` communicate with each other via MQTT
 messages. In addition to providing experiment command and control this
 allows the automated recording of lab data and metadata, arranging it
 for later queries or the application of machine learning.
 
-`Comodo-Lab` is designed for users of laboratories employing bespoke
+`comodo` is designed for users of laboratories employing bespoke
 experimental setups, where proprietary software from a single
-manufacturer cannot provide a complete solution.
+manufacturer cannot provide a complete solution. 
 
-`Comodo-Lab` is run and deployed using Docker Compose, this provides a
+`comodo` is run and deployed using Docker Compose, this provides a
 repeatable setup and easy running. It also enables the components to
 communicate internally.
-
-`Comodo-Lab` has been deployed successfully in this work @author:mcfe
-and is soon to be deployed on a second experiment.
 
 # Statement of need
 
