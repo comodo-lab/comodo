@@ -65,6 +65,82 @@ There is a need for a generalised framework for running laboratory
 experiments, using modern technologies and architectures, easily
 extended to the hardware used in each unique experiment.
 
+# State of the field
+
+Several experiment control frameworks predate `comodo`, however, `comodo` 
+implements a novel approach to the problem, with a modern design inspired by the
+Internet of Things and designed to readily plug into Digital Twin frameworks.
+
+A comparison with selected pre-existing packages is given here. 
+
+## Large scale codes
+
+### Experimental Physics and Industrial Control System (EPICS)
+
+A mature and widely used solution for generalised experiment control in several
+facilities. Written in C++ and maintains  extensive but intimidating documentation.
+
+"EPICS (Experimental Physics and Industrial Control System) is a set of software tools and applications which provide a software infrastructure for use in building distributed control systems to operate devices such as Particle Accelerators, Large Experiments and major Telescopes"
+
+Similarities with  `comodo`:
+- remote control
+- automatic execution
+- alarm detection
+- feedback controls
+
+However: 
+- focuses on large, complex deployment 
+- focuses on scalability and throughput of data
+
+Is a facility size solution rather than bench size.
+
+### Bluesky 
+
+The Bluesky data collection framework is a Python framework for creating experiment
+designs and controlling instruments through an abstraction layer. 
+
+"Bluesky is a library for experiment control and collection of scientific data and metadata"
+
+Similarities with `comodo`:
+- streaming data
+- generalised experiments
+- experiment suspention / resumption
+- abstacted hardware
+
+However:
+- the user interface is interactive python
+- plans are typically one-shot runs, rather than a live service sometimes executing an experiment
+
+Bluesky is close to `comodo` is scale and intention but places a much heavier 
+load on the user, requiring syntactic definition of experiments and structures
+such as callbacks and visualisation. `comodo` handles these for the user.
+
+## Lab scale codes
+
+### Qudi-Core
+
+Qudi is a Python package which aims to allow users to define experiments distributed
+across multiple computers and instruments. 
+
+"[Qudi] provides a versatile framework for modular multi-instrument and multi-computer measurement applications."
+
+Similarities with `comodo`:
+- Supports distributed deployment
+
+However:
+- Requires a defined network topology, `comodo` is deployment agnostic due to its
+decentralised design
+
+### PLACE (Python package for Laboratory Automation, Control, and Experimentation)
+
+"PLACE provides a modular framework for automating laboratory instruments and managing the data acquisition process during experiments. PLACE already contains modules for many popular instruments and the continuing goal of PLACE is to develop additional modules for laboratory automation."
+
+Similarities with `comodo`:
+- Focus on modularity
+- Focus on a library of tools which should grow over time
+
+However:
+- Does not centrlise control in a long lived process
 
 # Software design
 
