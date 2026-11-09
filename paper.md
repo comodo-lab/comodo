@@ -7,20 +7,20 @@ tags:
   - provenance
   - telemetry
 authors:
-  - name: Oliver J. Woolland
-    orcid: 0000-0002-4565-9760
-    corresponding: true
-    equal-contrib: true
-    affiliation: '1'
   - name: Francisco Herrerías-Azcué
     orcid: 0000-0002-5906-221X
+    equal-contrib: true
+    corresponding: true
+    affiliation: '1'
+  - name: Oliver J. Woolland
+    orcid: 0000-0002-4565-9760
     equal-contrib: true
     affiliation: '1'
 affiliations:
  - name: University of Manchester 
    index: 1
    ror: 027m9bs27
-date: 15 August 2025
+date: 9 Novermber 2026
 bibliography: paper.bib
 
 ---
