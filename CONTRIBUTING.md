@@ -19,15 +19,15 @@ want.
 To contriubte bug fixes or new features to **comodo**, please follow the following 
 process:
 1. If it does not exist, raise an Issue on the [backlog](https://github.com/comodo-lab/comodo/issues)
-describing the bug / feature and the plan for changes
-2. Make a fork of the **comodo** repo
+describing the bug / feature and the plan for changes.
+2. Make a fork of the **comodo** repo.
 3. Comment on the backlog Issue notifying the community of your intention to work
 on the issue and how long you expect this might take (this is not a deadline, 
 but it helps others identify if a planned development has gone stale) and add a
-link to the branch on your fork where you are working
-4. When the contribution is ready, submit it via a Pull Request
+link to the branch on your fork where you are working.
+4. When the contribution is ready, submit it via a Pull Request.
 5. The original authors will review your submission and may request that you make 
-changes 
+changes.
 
 ## Docs
 
