@@ -538,6 +538,7 @@ channels:
                     - awaiting_experiment
                     - running
                     - error
+                    - safe_stop
                 measurements:
                   type: object
                   # null until the variable is first measured

@@ -1,6 +1,8 @@
 from unittest.mock import patch, MagicMock
 import pytest
 
+from utils.mqtt_clients import MQTTMessageError
+
 import json
 
 from tests.conftest import (
@@ -33,6 +35,7 @@ class TestInstrumentState:
                 "config": mock_load_config(firmware_env),
                 "client_class": mqtt_mocks["client_class"],
                 "client": mqtt_mocks["client_instance"],
+                "publisher": mqtt_mocks["publisher_instance"],
                 "mqtt_val": mock_mqtt_val,
                 "create_instrument": mock_create_instrument,
                 "instrument": instrument_instance,
@@ -133,6 +136,25 @@ class TestInstrumentState:
         assert istate._status == "error"
         assert istate.client.callback == istate.error_cb
 
+        istate.status = "safe_stop"
+        assert istate._status == "safe_stop"
+        assert istate.client.callback == istate.safe_stop_cb
+
+    @pytest.mark.parametrize("new_status", state.InstrumentState.allowed_status)
+    def test_cannot_set_status_during_safe_stop(self, is_mocks, capsys, new_status):
+        istate = state.InstrumentState(is_mocks["config"])
+        istate.status = "safe_stop"
+
+        istate.status = new_status
+
+        assert istate._status == "safe_stop"
+        assert istate.client.callback == istate.safe_stop_cb
+        captured = capsys.readouterr()
+        assert (
+            f"WARNING: Cannot update status from 'safe_stop' to '{new_status}'."
+            in captured.out
+        )
+
     def test_publish_heartbeat(self, is_mocks):
         mock_config = is_mocks["config"]
         istate = state.InstrumentState(mock_config)
@@ -155,9 +177,20 @@ class TestInstrumentState:
             "setpoints": is_mocks["setpoints"],
             "config": is_mocks["printed_config"],
         }
-        is_mocks["client"].publish.assert_called_once_with(
+        is_mocks["publisher"].publish.assert_called_once_with(
             expected_topic, json.dumps(expected_payload)
         )
+
+    def test_publish_heartbeat_does_not_raise_if_it_fails(self, is_mocks, capsys):
+        istate = state.InstrumentState(is_mocks["config"])
+        is_mocks["instrument"].previous_measurements = {}
+        is_mocks["publisher"].publish.side_effect = MQTTMessageError("not connected")
+
+        istate.publish_heartbeat()
+
+        is_mocks["publisher"].publish.assert_called_once()
+        captured = capsys.readouterr()
+        assert "WARNING: Could not publish heartbeat: not connected" in captured.out
 
     def test_initialising_cb(self, is_mocks, capsys):
         mock_config = is_mocks["config"]
@@ -453,6 +486,24 @@ class TestInstrumentState:
             assert istate.status == "error"
             mock_reset.assert_not_called()
 
+    def test_running_cb_ignores_setpoint_after_safe_stop(self, is_mocks, capsys):
+        # The watchdog may safe stop the instrument while a setpoint message is being handled
+        istate = state.InstrumentState(is_mocks["config"])
+        istate._status = "safe_stop"
+        msg = MockMessage(
+            topic="instruments/test_instrument/temperature/setpoint",
+            payload=json.dumps({"value": 40}),
+        )
+
+        istate.running_cb(istate.client, msg)
+
+        is_mocks["instrument"].set_and_go_to_setpoint.assert_not_called()
+        captured = capsys.readouterr()
+        assert (
+            "WARNING: Ignoring setpoint for temperature during safe stop."
+            in captured.out
+        )
+
     def test_reset(self, is_mocks):
         mock_config = is_mocks["config"]
         istate = state.InstrumentState(mock_config)
@@ -467,6 +518,17 @@ class TestInstrumentState:
             )
         assert istate.instrument.config["experiment"]["experiment_id"] is None
         assert istate.status == "awaiting_experiment"
+        assert istate.client.callback == istate.awaiting_experiment_cb
+
+    def test_reset_leaves_safe_stop(self, is_mocks):
+        istate = state.InstrumentState(is_mocks["config"])
+        istate.status = "safe_stop"
+        assert istate._status == "safe_stop"
+        assert istate.client.callback == istate.safe_stop_cb
+
+        istate.reset()
+
+        assert istate._status == "awaiting_experiment"
         assert istate.client.callback == istate.awaiting_experiment_cb
 
     def test_error_cb_awaiting_experiment(self, is_mocks):
@@ -505,3 +567,90 @@ class TestInstrumentState:
             mock_awe.assert_not_called()
             mock_run.assert_called_once()
             assert istate.status == "error"
+
+    def test_safe_stop(self, is_mocks, message_bus, capsys):
+        istate = state.InstrumentState(is_mocks["config"])
+        istate.status = "running"
+        istate.instrument.config["experiment"]["experiment_id"] = "e-123"
+        # The status is set first, so setpoints being handled meanwhile are ignored
+        status_when_setting = []
+        is_mocks["instrument"].set_and_go_to_setpoint.side_effect = (
+            lambda variable, setpoint: status_when_setting.append(istate.status)
+        )
+
+        istate.safe_stop("Some reason.")
+
+        is_mocks["instrument"].set_and_go_to_setpoint.assert_called_once_with(
+            "temperature", 0
+        )
+        assert status_when_setting == ["safe_stop"]
+        assert istate.instrument.config["experiment"]["experiment_id"] is None
+        assert istate.status == "safe_stop"
+        message = "[test_instrument] Safe stop triggered: Some reason."
+        captured = capsys.readouterr()
+        assert f"ERROR: {message}" in captured.out
+        assert "Safe stop setpoint for temperature applied: 0" in captured.out
+
+        messages = message_bus.get_messages("error/instrument", decoded=True)
+        assert len(messages) == 1
+        assert json.loads(messages[0].payload) == {
+            "code": "safe_stop",
+            "message": message,
+        }
+
+    def test_safe_stop_does_not_raise_if_publishing_fails(self, is_mocks, capsys):
+        istate = state.InstrumentState(is_mocks["config"])
+        is_mocks["publisher"].publish.side_effect = MQTTMessageError("not connected")
+        capsys.readouterr()  # Creating the exception prints it: only check what is printed after
+
+        istate.safe_stop("Some reason.")
+
+        is_mocks["instrument"].set_and_go_to_setpoint.assert_called_once_with(
+            "temperature", 0
+        )
+        assert istate.status == "safe_stop"
+        captured = capsys.readouterr()
+        assert (
+            "ERROR: [test_instrument] Safe stop triggered: Some reason." in captured.out
+        )
+        assert "Safe stop setpoint for temperature applied: 0" in captured.out
+        assert "WARNING: Could not publish safe stop: not connected" in captured.out
+
+    def test_safe_stop_continues_if_a_setpoint_fails(self, is_mocks, capsys):
+        istate = state.InstrumentState(is_mocks["config"])
+        istate.instrument.config["SAFE_STOP_SETPOINTS"] = {
+            "temperature": 0,
+            "pressure": 1,
+        }
+        is_mocks["instrument"].set_and_go_to_setpoint.side_effect = [
+            RuntimeError("instrument unreachable"),
+            None,
+        ]
+
+        istate.safe_stop("Some reason.")
+
+        assert is_mocks["instrument"].set_and_go_to_setpoint.call_count == 2
+        assert istate.status == "safe_stop"
+        captured = capsys.readouterr()
+        assert (
+            "ERROR: Failed to set the safe stop setpoint for temperature: instrument unreachable"
+        ) in captured.out
+        assert ("Safe stop setpoint for pressure applied: 1") in captured.out
+
+    def test_safe_stop_cb_ignores_messages(self, is_mocks, capsys):
+        istate = state.InstrumentState(is_mocks["config"])
+        istate.status = "safe_stop"
+        msg = MockMessage(
+            topic="instruments/test_instrument/temperature/setpoint",
+            payload=json.dumps({"value": 40}),
+        )
+
+        istate.safe_stop_cb(istate.client, msg)
+
+        is_mocks["instrument"].set_and_go_to_setpoint.assert_not_called()
+        assert istate.status == "safe_stop"
+        captured = capsys.readouterr()
+        assert (
+            f"WARNING: Received {msg.topic} during safe stop. Ignoring..."
+            in captured.out
+        )
