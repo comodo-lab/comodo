@@ -30,7 +30,7 @@ link to the branch on your fork where you are working.
    - Make sure all the stack's tests pass after your changes.
 See the [Testing](README.md#testing) section of the README for more information on how to run the tests.
 5. Also, ensure you lint your contribution using black, so that it is consistent with the rest of the codebase.
-6. When the contribution is ready, submit it via a Pull Request.
+6. When the contribution is ready, submit it via a Pull Request **to the _dev_ branch**.
 7. The original authors will review your submission and may request that you make changes.
 
 ## Docs
