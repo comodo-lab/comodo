@@ -31,11 +31,15 @@ async def measurement_tick(istate, variable_name, interval, ready_event):
                     istate.status = "awaiting_experiment"
                 else:
                     istate.status = "running"
-        istate.client.publish(
-            f"instruments/{istate.instrument.config['INSTRUMENT_NAME']}/"
-            f"{variable_name}/measurement",
-            json.dumps({"value": value}),
-        )
+        try:
+            mqtt.MQTTPublisher.get_instance().publish(
+                f"instruments/{istate.instrument.config['INSTRUMENT_NAME']}/"
+                f"{variable_name}/measurement",
+                json.dumps({"value": value}),
+            )
+        except mqtt.MQTTMessageError as e:
+            # Not raised, so the instrument keeps running, and can safe stop
+            print(f"WARNING: Could not publish {variable_name} measurement: {e}")
         if first_measurement:
             ready_event.set()
             first_measurement = False

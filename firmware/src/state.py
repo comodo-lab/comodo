@@ -103,11 +103,14 @@ class InstrumentState:
                 "config": self.instrument.print_config(),
             }
         )
-        if self.client is not None:
-            self.client.publish(
+        try:
+            mqtt.MQTTPublisher.get_instance().publish(
                 f"instruments/{self.instrument.config['INSTRUMENT_NAME']}/heartbeat",
                 heartbeat,
             )
+        except mqtt.MQTTMessageError as e:
+            # Not raised, so the instrument keeps running, and can safe stop
+            print(f"WARNING: Could not publish heartbeat: {e}")
 
     def initialising_cb(self, _client, msg, _obj=None):
         """
