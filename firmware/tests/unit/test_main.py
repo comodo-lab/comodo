@@ -2,6 +2,8 @@ import asyncio
 import inspect
 
 import pytest
+
+from utils.mqtt_clients import MQTTMessageError
 from unittest.mock import ANY, call, patch, MagicMock
 
 from tests.conftest import (
@@ -15,7 +17,7 @@ import main
 @pytest.mark.asyncio
 class TestTimerFunctions:
     @pytest.fixture
-    def timer_mocks(self, mock_state):
+    def timer_mocks(self, mock_state, mqtt_mocks):
         with patch("main.asyncio.sleep") as mock_sleep:
             # asyncio.sleep raises CancelledError, to exit the infinite loops
             mock_sleep.side_effect = asyncio.CancelledError
@@ -23,6 +25,7 @@ class TestTimerFunctions:
             yield {
                 "state": mock_state,
                 "sleep": mock_sleep,
+                "publisher": mqtt_mocks["publisher_instance"],
             }
 
     async def test_heartbeat_tick(self, timer_mocks):
@@ -69,7 +72,7 @@ class TestTimerFunctions:
 
         mock_istate.instrument.measure_or_simulate.assert_called_once_with(var_name)
         assert mock_istate.status == "initialising"
-        mock_istate.client.publish.assert_called_once()
+        timer_mocks["publisher"].publish.assert_called_once()
         timer_mocks["sleep"].assert_called_once_with(m_interval)
         assert ready_event.is_set()
 
@@ -92,7 +95,7 @@ class TestTimerFunctions:
         mock_istate.instrument.measure_or_simulate.assert_called_once_with(var_name)
         assert mock_istate._can_measure == True
         assert mock_istate.status == "awaiting_experiment"
-        mock_istate.client.publish.assert_called_once()
+        timer_mocks["publisher"].publish.assert_called_once()
         timer_mocks["sleep"].assert_called_once_with(m_interval)
         assert ready_event.is_set()
 
@@ -116,7 +119,7 @@ class TestTimerFunctions:
         mock_istate.instrument.measure_or_simulate.assert_called_once_with(var_name)
         assert mock_istate._can_measure == True
         assert mock_istate.status == "running"
-        mock_istate.client.publish.assert_called_once()
+        timer_mocks["publisher"].publish.assert_called_once()
         timer_mocks["sleep"].assert_called_once_with(m_interval)
         assert ready_event.is_set()
 
@@ -141,7 +144,7 @@ class TestTimerFunctions:
         mock_istate.instrument.measure_or_simulate.assert_called_once_with(var_name)
         assert mock_istate._can_measure == True
         assert mock_istate.status == "error"
-        mock_istate.client.publish.assert_called_once()
+        timer_mocks["publisher"].publish.assert_called_once()
         timer_mocks["sleep"].assert_called_once_with(m_interval)
         assert ready_event.is_set()
 
@@ -161,9 +164,29 @@ class TestTimerFunctions:
 
         mock_istate.instrument.measure_or_simulate.assert_called_once_with(var_name)
         assert mock_istate.status == "error"
-        mock_istate.client.publish.assert_called_once()
+        timer_mocks["publisher"].publish.assert_called_once()
         timer_mocks["sleep"].assert_called_once_with(m_interval)
         assert ready_event.is_set()
+
+    async def test_measurement_tick_continues_if_publishing_fails(
+        self, timer_mocks, capsys
+    ):
+        mock_istate = timer_mocks["state"]
+        mock_istate.instrument.measure_or_simulate.return_value = 1.3
+        timer_mocks["publisher"].publish.side_effect = MQTTMessageError("not connected")
+        timer_mocks["sleep"].side_effect = [None, asyncio.CancelledError]
+        capsys.readouterr()  # Creating the exception prints it: only check what is printed after
+
+        m_task = asyncio.create_task(
+            main.measurement_tick(mock_istate, "temperature", 1.0, asyncio.Event())
+        )
+        with pytest.raises(asyncio.CancelledError):
+            await m_task
+
+        assert mock_istate.instrument.measure_or_simulate.call_count == 2
+        assert capsys.readouterr().out == (
+            "WARNING: Could not publish temperature measurement: not connected\n" * 2
+        )
 
     async def test_measurement_tick_ready_on_first_measurement_only(self, timer_mocks):
         mock_istate = timer_mocks["state"]
@@ -184,7 +207,7 @@ class TestTimerFunctions:
             [call(var_name), call(var_name)]
         )
         assert mock_istate.instrument.measure_or_simulate.call_count == 2
-        assert mock_istate.client.publish.call_count == 2
+        assert timer_mocks["publisher"].publish.call_count == 2
         timer_mocks["sleep"].assert_has_calls([call(m_interval), call(m_interval)])
         set_ready.assert_called_once_with()
         assert ready_event.is_set()
