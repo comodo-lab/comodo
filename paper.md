@@ -65,10 +65,85 @@ There is a need for a generalised framework for running laboratory
 experiments, using modern technologies and architectures, easily
 extended to the hardware used in each unique experiment.
 
+
+# Software design
+
+`comodo` is designed to be able to conform to any network / deployment topology
+that may be required by the specifics of a deployment scenario. 
+
+## Event driven
+ 
+yes, it is
+
+## Decentralisation
+
+`comodo` is designed as a decentralised stack of smaller software components 
+which each perform a specific task. Communication between these elements is via 
+MQTT messages, small text messages relayed by a central broker. The messages may 
+contain command and control messages (e.g. instruments/furnace/temperature/setpoint 
+350) and telemetry data (e.g. instruments/furnace/temperature/measurement 274).
+
+This decentralised design has several advantages. 
+- Each component may be deployed where it makes the most sense to do so, e.g. 
+experiment control on a centralised machine, instrument control on dedicated edge
+hardware where the instrument sits.
+- Each component may be made robust to failures of other components. 
+- Messages can be centrally monitored for correctness and stored for later recal
+- Storage and presentation of data can be handled by off the the shelf components
+
+## Stage machines
+
+To achieve the decentralisation, and further benificial charcteristics, each 
+software module in `comodo` is concieved as a state machine, keeping it's own
+internal acount of it's state and what actions it can and cannot understake.
+
+Each module's state is streamed out and other components may react to it.
+
+## Control loops
+
+round and round we go
+
+## Flexibility / Extensibility
+
+`comodo` is designed to be a generic solution for running laboratory experiments.
+The stack is configured with a central configuration file which sets up the full
+runtime environement. This experiment file is controlled by a schema which prevents
+invalid configurations.
+
+The central config file controls which instruments are expected and deployed,
+with firmware being created ad-hoc by taking a standard firmware core and adding
+an instrument specific plug-in, written to a standard template.
+
+To allow the broadest possible range of experiments to be run, the broadest 
+possible definition of an experiment has been pursued. An experiment in `comodo`
+is defined as 'a list of time steps, with the value of each input given at each
+step'. This can be visualised as a table, with specified instruments as the 
+columns and time steps as the rows, and this input is exposed to users via the
+experiment config UI.
+
+## Transparency
+
+`comodo` is a tool for working openly on scientific experiments, all telemetry is 
+stored and made visiable to members of the research group involved. Further, the 
+later application of machine learning may allow additional insights to be derived.
+
+## Robustness
+
+Rather than employing a bespoke experiment control system per laboratory experiment,
+`comodo` allows users to apply specialisations of battle tested components. Further
+each component tries to be able to stand alone and function sensibly when others
+are not available. The whole stack is monitored for errors and drift, with various
+components empowered to take action if a problem is detected.
+
+
+# Research Impact
+
+`comodo` has been deployed successfully in this work @author:mcfe
+and is soon to be deployed on a second experiment.
+
 # Acknowledgements
 
-We acknowledge contributions from Brigitta Sipocz, Syrtis Major, and
-Semyeong Oh, and support from Kathryn Johnston during the genesis of
-this project.
+We acknowledge contributions from William Smith who worked hard to deploy this 
+software in the GDPS laboratory.
 
 # References
