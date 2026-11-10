@@ -8,6 +8,7 @@ An instrument is understood as a device with a unique address, which may monitor
   - [Configuration](#configuration)
     - [Generating the compose.firmware.yaml](#generating-the-composefirmwareyaml)
   - [Structure and life cycle](#structure-and-life-cycle)
+    - [Safe stop](#safe-stop)
     - [MQTT Topics](#mqtt-topics)
   - [Instrument modules](#instrument-modules)
 
@@ -26,10 +27,12 @@ The expected environment variables are:
 - `DEFAULT_SETPOINTS`: A dictionary of the default setpoints for each variable in the form `{variable: setpoint}`.
 - `EXTERNAL_ACTUATORS`: A dictionary of the variables driven by another instrument's actuator (through a setpoint controller), in the form `{variable: "instrument/variable"}`.
   In simulation mode, the instrument listens to the external actuator's measurements to simulate the variable.
-- `SAFE_STOP_SETPOINTS`: A dictionary of the safe stop setpoints for each variable in the form `{variable: setpoint}`. Currently not used by the firmware.
+- `SAFE_STOP_SETPOINTS`: A dictionary of the safe stop setpoints for each variable in the form `{variable: setpoint}`. Used when the instrument [safe stops](#safe-stop).
 - `MEASUREMENT_INTERVALS`: A dictionary of the measurement intervals, in seconds, for each variable in the form `{variable: interval}`.
   A measurement tick is started for each variable in this dictionary.
 - `HEARTBEAT_INTERVAL`: The interval, in seconds, at which the firmware publishes its heartbeat.
+- `MAX_MISSED_HEARTBEATS`: The number of controller heartbeats that can be missed before the instrument [safe stops](#safe-stop). Defaults to 3.
+  Set from `global.experiment_monitoring.max_missed_heartbeats` in `comodo.yaml`.
 
 
 ### Generating the compose.firmware.yaml
@@ -72,6 +75,9 @@ flowchart TB
 ```
 
 The initialisation of the firmware is done by first loading the configuration, which is passed to the `InstrumentState` object, which in turn uses it to create the `Instrument` object. The `status` is set to `initialising`.
+The `FirmwareWatchdog` (see [safe stop](#safe-stop)) is started straight away, but is only armed when it hears from the controller.
+This allows the firmware to run without a controller. 
+Once a controller heartbeat is received, the watchdog is armed, and will safe stop the instrument if it doesn't hear from the controller in time.
 Then measurement ticks are launched asynchronously, one per variable in `MEASUREMENT_INTERVALS`.
 Each tick publishes a measurement on `instruments/<instrument_name>/<variable>/measurement`.
 Once the first tick of each variable is received, the instrument goes to the default setpoints, and the status is set to `awaiting_experiment`.
@@ -88,8 +94,9 @@ clears the experiment id, and the status is set back to `awaiting_experiment`.
 
 At any point, if the instrument cannot take a measurement (the measurement is `None`) or set a setpoint (`go_to_setpoint` raises an exception), the status is set to `error`. The instrument will nonetheless continue to try to take measurements and set setpoints, and if it succeeds, the status will be set back to `awaiting_experiment` or `running`, depending on whether an experiment is running or not.
 
-The measurement and heartbeat ticks will continue to run indefinitely, unless an unexpected error occurs.
-In such case, the firmware publishes the error on `error/instrument` and exits. Docker compose then restarts the firmware container, and the initialisation process is repeated.
+The measurement and heartbeat ticks, and the watchdog, will continue to run indefinitely, unless an unexpected error occurs.
+Failing to publish a message (e.g. if the broker can't be reached) is not one: it is only logged, so the instrument keeps running, and can safe stop, while offline.
+In such case, the firmware publishes the error on `error/instrument` (if it can) and exits with it. Docker compose then restarts the firmware container, and the initialisation process is repeated.
 
 The initialisation process of the firmware can be summarised as follows:
 ```mermaid
@@ -99,6 +106,7 @@ stateDiagram-v2
     state "Load config" as load
     state "Create InstrumentState" as create_state
     state "Create Instrument" as create_instrument
+    state "Start FirmwareWatchdog" as watchdog
     state "status = 'initialising'" as status_init
     state "Launch measurement ticks" as measure
     state "Wait for first tick of each variable" as first_tick
@@ -115,7 +123,9 @@ stateDiagram-v2
     load --> create_state
     create_state --> create_instrument
     create_instrument --> status_init
-    status_init --> measure
+    status_init --> watchdog
+    watchdog --> continue
+    watchdog --> measure
     measure --> continue
     measure --> first_tick
     first_tick --> setpoints_init
@@ -128,7 +138,7 @@ stateDiagram-v2
     classDef async fill:#ccffcc55,stroke:#888,stroke-dasharray:5 3
     classDef failure fill:#ffcccc55,stroke:#c55
     class load, create_state, create_instrument, first_tick, setpoints_init, success item
-    class measure, heartbeat async
+    class measure, heartbeat, watchdog async
     class crash failure
 ```
 
@@ -137,6 +147,7 @@ The status of an instrument can only be one of the following:
 - `awaiting_experiment`: The instrument is taking measurements and ready to set setpoints, but is waiting for an experiment to be started.
 - `running`: The instrument is taking measurements and setting setpoints as expected.
 - `error`: The instrument is unable to take measurements and/or set setpoints.
+- `safe_stop`: The controller hasn't been heard from in time, so the instrument went to its safe stop setpoints (see [safe stop](#safe-stop)).
 
 So its status transitions are as follows:
 ```mermaid
@@ -147,6 +158,7 @@ stateDiagram-v2
     state "awaiting_experiment" as waiting
     state "running" as running
     state "error" as error
+    state "safe_stop" as safe_stop
 
     [*] --> initialising
     initialising --> continue
@@ -157,7 +169,28 @@ stateDiagram-v2
     running --> error: cannot measure or set setpoint
     error --> running: recovered, has experiment
     error --> waiting: recovered, no experiment
+
+    safe_stop --> continue: reset
 ```
+A reset (`controller/command/reset`) also moves the instrument from any other status to `awaiting_experiment`, with its default setpoints.
+
+### Safe stop
+If the network or the controller fails, the controller can no longer stop the instruments, so the firmware does it itself, acting as a dead-coms-switch.
+
+This is done by the `FirmwareWatchdog` ([`src/watchdog.py`](src/watchdog.py)), which has its own MQTT client, and checks in its own thread,
+so it works even if the instrument's client or measurements are busy, or blocked.
+
+The watchdog starts disarmed, and only arms itself when it hears from the controller for the first time. This allows the firmware can run and stream its measurements without a controller (e.g. while commissioning, or sending commands manually).
+
+Once armed, it listens to the controller's heartbeat (`controller/heartbeat`), and if it doesn't get a valid one for `MAX_MISSED_HEARTBEATS` x `HEARTBEAT_INTERVAL` seconds, the instrument safe stops:
+- Every actuator goes to its `SAFE_STOP_SETPOINTS`, through the instrument, which needs no network.
+- The experiment id is cleared, and the status is set to `safe_stop`.
+- The error is printed, and published on `error/instrument` (with `code` `safe_stop`) if the broker can be reached.
+
+If the instrument is not running an experiment, any heartbeat is valid. If it is running an experiment, the watchdog only counts a heartbeat from the controller as valid if it is for the same experiment. This way, if the controller restarts and loses the experiment, or if the experiment's end or stop was missed, the instrument will safe stop, instead of continuing to run an experiment that the controller doesn't know about.
+
+While in `safe_stop`, the instrument ignores everything (including setpoints, e.g. from a setpoint controller, and experiment starts or stops) except a reset (`controller/command/reset`).
+A reset works like a restart: it returns the instrument to its default setpoints, and sets the instrument state to awaiting_experiment. It also disarms the watchdog until the next heartbeat, as if the firmware had just started, so a reset can also be sent manually, without a controller.
 
 ### MQTT Topics
 The firmware subscribes to the following MQTT topics:
@@ -175,7 +208,12 @@ And publishes to:
   - `setpoints`: The current setpoints.
   - `config`: The instrument's configuration (without MQTT credentials), including the live configuration and experiment id under `experiment`.
     The controller compares this with the live configuration it sent, and stops the experiment if they don't match.
-- `error/instrument`: If the firmware crashes.
+- `error/instrument`: If the instrument safe stops (`code` `safe_stop`), or the firmware crashes (`code` `exception`).
+
+
+The `FirmwareWatchdog` subscribes, with its own client, to:
+- `controller/heartbeat`: To check the controller is alive, and running the same experiment (see [safe stop](#safe-stop)).
+- `controller/command/reset`: To go back to the default setpoints and `awaiting_experiment` status, from any status, including `safe_stop`.
 
 
 ## Instrument modules
