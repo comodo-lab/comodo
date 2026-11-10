@@ -162,6 +162,35 @@ class TestOnUIMessage:
         messages = ouim_mocks["messages"]()
         assert len(messages) == 0
 
+    def test_valid_ui_reset(self, ouim_mocks, capsys):
+        assert ouim_mocks["state"].status == "idle"
+
+        msg = MockMessage(topic="ui/reset", payload=json.dumps({}))
+        on_ui_message(ouim_mocks["ui_client"], msg, ouim_mocks["state"])
+
+        ouim_mocks["validate_message"].assert_called_once_with(
+            "ui/reset", json.dumps({}).encode("utf-8")
+        )
+        captured = capsys.readouterr()
+        assert "Resetting the instruments and setpoint controllers..." in captured.out
+        messages = ouim_mocks["messages"]()
+        assert len(messages) == 1
+        assert messages[0].topic == "controller/command/reset"
+        assert json.loads(messages[0].payload) == {"source": "ui"}
+
+    def test_ui_not_idle_does_not_reset(self, ouim_mocks):
+        ouim_mocks["state"].status = "running"
+        ouim_mocks["state"].experiment_id = "123"
+
+        msg = MockMessage(topic="ui/reset", payload=json.dumps({}))
+        on_ui_message(ouim_mocks["ui_client"], msg, ouim_mocks["state"])
+
+        ouim_mocks["pub_err"].incompatible_controller_status.assert_called_once_with(
+            ouim_mocks["state"], msg
+        )
+        messages = ouim_mocks["messages"]()
+        assert len(messages) == 0
+
     def test_incompatible_topic(self, ouim_mocks):
         msg = MockMessage(topic="ui/unknown", payload=json.dumps({"temp_id": "123"}))
         on_ui_message(ouim_mocks["ui_client"], msg, ouim_mocks["state"])
