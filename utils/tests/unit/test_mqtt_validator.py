@@ -56,6 +56,15 @@ class TestLoadSpec:
         assert tmu["name"] == "errorUnexpected"
         assert tmu["schema"]["required"] == ["topic", "error"]
 
+    def test_load_spec_is_cached(self):
+        load_spec.cache_clear()
+        with patch("utils.mqtt_validator.yaml.safe_load", wraps=yaml.safe_load) as load:
+            first = load_spec("/utils/tests/file_fixtures/sample_asyncapi.yaml")
+            second = load_spec("/utils/tests/file_fixtures/sample_asyncapi.yaml")
+
+        load.assert_called_once()
+        assert second is first
+
 
 class TestValidateMessage:
     @pytest.fixture

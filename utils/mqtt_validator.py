@@ -1,3 +1,4 @@
+import functools
 import json, yaml
 from jsonschema import validate, ValidationError
 from utils import mqtt_clients
@@ -21,6 +22,9 @@ def match_topic(topic, topic_map):
     return None
 
 
+# Cached to make validation more efficient.
+# The returned topic map is shared, so it must not be modified.
+@functools.cache
 def load_spec(schema_name="asyncapi"):
     # --------------------------------------------------------------------------
     # Load the schema
