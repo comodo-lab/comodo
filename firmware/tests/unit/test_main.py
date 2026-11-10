@@ -301,6 +301,7 @@ class TestStartInstrument:
             patch("main.state") as mock_state_module,
             patch.object(main, "start_sensors_measurements") as mock_start_sensors,
             patch.object(main, "heartbeat_tick") as mock_heartbeat_tick,
+            patch("main.watchdog.FirmwareWatchdog") as mock_watchdog_class,
         ):
             mock_config_module.load_config.return_value = mock_state.instrument.config
             mock_state_module.InstrumentState.return_value = mock_state
@@ -317,6 +318,8 @@ class TestStartInstrument:
                 "state_module": mock_state_module,
                 "start_sensors": mock_start_sensors,
                 "heartbeat_tick": mock_heartbeat_tick,
+                "watchdog_class": mock_watchdog_class,
+                "watchdog": mock_watchdog_class.return_value,
             }
 
     async def test_main_all_ok(self, si_mocks, capsys):
@@ -335,7 +338,34 @@ class TestStartInstrument:
             "generic_instrument" in captured.out
         )
         si_mocks["heartbeat_tick"].assert_called_once_with(mock_istate)
+        si_mocks["watchdog_class"].assert_called_once_with(mock_istate)
+        si_mocks["watchdog"].start.assert_called_once_with()
+        si_mocks["watchdog"].stop.assert_called_once_with()
         assert result == 0
+
+    async def test_main_does_not_reset_if_already_safe_stopped(self, si_mocks):
+        mock_istate = si_mocks["state"]
+        mock_istate.status = "safe_stop"
+
+        result = await main.start_instrument()
+
+        mock_istate.reset.assert_not_called()
+        assert result == 0
+
+    async def test_main_starts_watchdog_before_sensors_and_stops_it_on_failure(
+        self, si_mocks
+    ):
+        async def failed_start(*_args, **_kwargs):
+            raise RuntimeError("Sensors failed to initialise in time")
+
+        si_mocks["start_sensors"].side_effect = failed_start
+
+        with pytest.raises(RuntimeError):
+            await main.start_instrument()
+
+        si_mocks["watchdog_class"].assert_called_once_with(si_mocks["state"])
+        si_mocks["watchdog"].start.assert_called_once_with()
+        si_mocks["watchdog"].stop.assert_called_once_with()
 
     async def test_main_propagates_sensor_initialisation_timeout(self, si_mocks):
         async def failed_start(*_args, **_kwargs):
