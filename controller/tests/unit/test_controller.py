@@ -37,7 +37,9 @@ class TestMain:
             "controller.on_timer_message"
         ) as mock_on_timer_message, patch(
             "controller.on_heartbeat_message"
-        ) as mock_on_heartbeat_message:
+        ) as mock_on_heartbeat_message, patch(
+            "controller.recover_lost_experiment"
+        ) as mock_recover_lost_experiment:
             env_values = {}
             mock_environ.keys.return_value = env_values.keys()
             mock_getenv.side_effect = lambda var, default=None: env_values.get(
@@ -61,6 +63,7 @@ class TestMain:
                 "loaded_config": mock_loaded_config,
                 "cstate": mock_cstate,
                 "sleep": mock_sleep,
+                "recover_lost_experiment": mock_recover_lost_experiment,
                 "callbacks": {
                     "on_watchdog_message": mock_on_watchdog_message,
                     "on_wd_timer_message": mock_on_wd_timer_message,
@@ -230,6 +233,7 @@ class TestMain:
         main()
 
         mocks["sleep"].assert_called_once_with(1)  # Only initial sleep before wd starts
+        mocks["recover_lost_experiment"].assert_not_called()
         messages = message_bus.get_messages(decoded=True)
         # Doesn't reset the instruments and setpoint controllers if it didn't start
         assert len(messages) == 1
@@ -268,6 +272,7 @@ class TestMain:
         assert len(messages) == 5
         assert messages[0].topic == "watchdog/timer/command/start"
         assert json.loads(messages[0].payload) == {}
+        mocks["recover_lost_experiment"].assert_called_once_with()
         assert messages[1].topic == "controller/command/reset"
         assert json.loads(messages[1].payload) == {"source": "controller"}
         assert messages[2].topic == "controller/heartbeat"
