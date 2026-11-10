@@ -297,6 +297,7 @@ class Test_SetpointController_init:
                 "controller/command/start",
                 "controller/event/end",
                 "controller/command/stop",
+                "controller/command/reset",
             ],
             broker_address="test_host",
             user="test_user",
@@ -931,6 +932,69 @@ class Test_on_controller_end_message:
         captured = capsys.readouterr()
         assert "Received end/stop for experiment exp-123" in captured.out
         assert "but current experiment is exp-456. Ignoring..." in captured.out
+
+
+class Test_on_controller_reset_message:
+
+    @pytest.fixture
+    def ocrm_mocks(self, mock_spc, mqtt_mocks, mqtt_validator_mocks):
+        return {
+            "client": Mock(),
+            "spc": mock_spc,
+            "publisher": mqtt_mocks["publisher_instance"],
+            "reset_msg": MockMessage(
+                "controller/command/reset", json.dumps({"source": "controller"})
+            ),
+        }
+
+    def test_ends_experiment_and_moves_to_default_setpoint(self, ocrm_mocks, capsys):
+        mock_spc = ocrm_mocks["spc"]
+        mock_spc.state.experiment_id = "exp-123"
+        mock_spc.state.sensor_setpoint = 42.0
+
+        SetpointController.on_message(
+            ocrm_mocks["client"], ocrm_mocks["reset_msg"], mock_spc
+        )
+
+        ocrm_mocks["publisher"].publish.assert_not_called()
+        assert mock_spc.state.experiment_id is None
+        assert mock_spc.state.sensor_setpoint == mock_spc.default_setpoint
+        captured = capsys.readouterr()
+        assert "WARNING: Experiment exp-123 ended by a reset." in captured.out
+        assert (
+            f"Reset. Moving to default setpoint: {mock_spc.default_setpoint}"
+            in captured.out
+        )
+
+    def test_moves_to_default_setpoint_without_experiment(self, ocrm_mocks, capsys):
+        mock_spc = ocrm_mocks["spc"]
+        mock_spc.state.experiment_id = None
+        mock_spc.state.sensor_setpoint = 42.0
+
+        SetpointController.on_message(
+            ocrm_mocks["client"], ocrm_mocks["reset_msg"], mock_spc
+        )
+
+        assert mock_spc.state.experiment_id is None
+        assert mock_spc.state.sensor_setpoint == mock_spc.default_setpoint
+        captured = capsys.readouterr()
+        assert "ended by a reset" not in captured.out
+        assert "Reset. Moving to default setpoint" in captured.out
+
+    def test_clears_experiment_id_when_disabled(self, ocrm_mocks, capsys):
+        mock_spc = ocrm_mocks["spc"]
+        mock_spc.state.enabled = False
+        mock_spc.state.experiment_id = "exp-123"
+
+        SetpointController.on_message(
+            ocrm_mocks["client"], ocrm_mocks["reset_msg"], mock_spc
+        )
+
+        assert mock_spc.state.experiment_id is None
+        assert mock_spc.state.sensor_setpoint is None
+        captured = capsys.readouterr()
+        assert "WARNING: Experiment exp-123 ended by a reset." in captured.out
+        assert "Moving to default setpoint" not in captured.out
 
 
 class TestPublishHeartbeat:
