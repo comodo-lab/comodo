@@ -96,6 +96,12 @@ class TestLogBook:
                 "controller",
                 "Stopping experiment D26-001.",
             ),
+            (
+                "controller/command/reset",
+                {"source": "ui"},
+                "controller",
+                "Instruments and setpoint controllers reset by the ui.",
+            ),
         ],
     )
     def test_lifecycle_events(self, monkeypatch, topic, payload, source, message):
@@ -128,6 +134,7 @@ class TestLogBook:
             "ui/start",
             "controller/command/start",
             "controller/command/stop",
+            "controller/command/reset",
         ]
         assert created["callback"] == lb.on_message
 
