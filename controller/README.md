@@ -124,6 +124,7 @@ There are a few helper clients to the controller, each listening to its own topi
   - When it receives a `ui/start` message, and the controller is idle, it saves the experiment to a temporary file
     and sends a `controller/command/validate` message, to trigger the controller.
   - When it receives a `ui/stop` message with the current experiment id, it sends a `controller/command/stop` message.
+  - When it receives a `ui/reset` message, and the controller is idle, it sends a `controller/command/reset` message (with `"source": "ui"`).
 - The **timer** client listens to `controller/timer/#`. It offloads waiting from the controller, so that it can still respond to messages.
   It is used to wait for the instruments to be ready, and for each setpoint's duration.
 - The **heartbeat** client listens to `instruments/+/heartbeat` and `setpoint_controllers/+/heartbeat`.
@@ -136,7 +137,7 @@ The controller itself publishes its state on `controller/heartbeat` every `globa
 Before its first heartbeat, when it starts, it publishes a `controller/command/reset` message (with `"source": "controller"`),
 as it doesn't know the state of the instruments and setpoint controllers (e.g. after a restart mid-experiment).
 They go back to their defaults, which also clears an instrument's safe stop (see the [firmware's safe stop](../firmware/README.md#safe-stop)).
-The controller itself ignores the reset while idle.
+The controller itself ignores the reset while idle. The UI can also ask for a reset (see the [ui client](#helper-clients)), e.g. to clear a safe stop.
 
 ## Experiment message
 An experiment is started with a `ui/start` message, normally sent by the UI. For example:

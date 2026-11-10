@@ -189,7 +189,7 @@ Once armed, it listens to the controller's heartbeat (`controller/heartbeat`), a
 
 If the instrument is not running an experiment, any heartbeat is valid. If it is running an experiment, the watchdog only counts a heartbeat from the controller as valid if it is for the same experiment. This way, if the controller restarts and loses the experiment, or if the experiment's end or stop was missed, the instrument will safe stop, instead of continuing to run an experiment that the controller doesn't know about.
 
-While in `safe_stop`, the instrument ignores everything (including setpoints, e.g. from a setpoint controller, and experiment starts or stops) except a reset (`controller/command/reset`).
+While in `safe_stop`, the instrument ignores everything (including setpoints, e.g. from a setpoint controller, and experiment starts or stops) except a reset (`controller/command/reset`), which the controller sends when it starts, or when asked from the UI.
 A reset works like a restart: it returns the instrument to its default setpoints, and sets the instrument state to awaiting_experiment. It also disarms the watchdog until the next heartbeat, as if the firmware had just started, so a reset can also be sent manually, without a controller.
 
 ### MQTT Topics

@@ -379,9 +379,9 @@ There is a fifth compose file, `compose.debug.yaml`, which can be used to deploy
 All components communicate through MQTT messages. Every message must match the [message schema](schemas/mqtt_schema.yaml), which the monitor checks.
 Telegraf subscribes to all topics and stores the messages in InfluxDB, which is where Grafana reads them from.
 The main topics are:
-- `ui/start`, `ui/stop`: The UI asks the controller to start or stop an experiment.
+- `ui/start`, `ui/stop`, `ui/reset`: The UI asks the controller to start or stop an experiment, or to reset the instruments and setpoint controllers.
 - `controller/command/...`, `controller/event/...`: The experiment life cycle, published by the controller (e.g. `controller/command/start`, `controller/event/end`).
-  Instruments and setpoint controllers listen to these to start and stop, and to `controller/command/reset`, which the controller publishes when it starts, to go back to their defaults.
+  Instruments and setpoint controllers listen to these to start and stop, and to `controller/command/reset`, which the controller publishes when it starts (or when asked by the UI), to go back to their defaults.
 - `controller/heartbeat`: The controller's health and state, watched by the controller and firmware's watchdogs (to safely stop the system if the controller goes quiet), and shown in the UI.
 - `controller/timer/...`, `controller/validator/...`, `watchdog/...`: Internal to the controller.
 - `instruments/<instrument>/heartbeat`: Each instrument's health and state.
