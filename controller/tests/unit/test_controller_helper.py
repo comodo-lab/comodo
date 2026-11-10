@@ -1,3 +1,4 @@
+import json
 import os
 from datetime import datetime
 import time as t
@@ -15,6 +16,10 @@ from src.controller_helper import (
     get_env_or_secret,
     assign_serial_id,
     dump_database_for_experiment,
+    running_experiment_path,
+    save_running_experiment,
+    clear_running_experiment,
+    recover_lost_experiment,
 )
 
 
@@ -349,3 +354,80 @@ class TestDatabaseDump:
             mock_print.assert_called_once_with(
                 f"  Influx database for experiment {state.experiment_id} saved at {data_path}/tmp/123.test_temp_exp."
             )
+
+
+class TestRunningExperiment:
+
+    @pytest.fixture(autouse=True)
+    def tmp_data_path(self, tmp_path):
+        with patch("src.controller_helper.data_path", new=str(tmp_path)):
+            yield tmp_path
+
+    @pytest.fixture
+    def rec_mocks(self):
+        with (
+            patch("src.controller_helper.pub_err") as mock_publish_error,
+            patch("src.controller_helper.dump_database_for_experiment") as mock_dump,
+        ):
+            yield {"pub_err": mock_publish_error, "dump": mock_dump}
+
+    @pytest.fixture
+    def state(self, mock_state):
+        state = mock_state("idle")
+        state.experiment_id = "D26-001"
+        state.exp_file = "data/D26-001.json"
+        state.experiment_start_time = datetime(2026, 1, 2, 3, 4, 5)
+        return state
+
+    def test_save_and_clear(self, state, tmp_data_path):
+        save_running_experiment(state)
+
+        assert running_experiment_path() == str(
+            tmp_data_path / "running_experiment.json"
+        )
+        with open(running_experiment_path()) as f:
+            assert json.load(f) == {
+                "experiment_id": "D26-001",
+                "exp_file": "data/D26-001.json",
+                "start_time": "2026-01-02T03:04:05",
+            }
+
+        clear_running_experiment()
+
+        assert not os.path.exists(running_experiment_path())
+
+    def test_clear_without_record(self):
+        clear_running_experiment()  # Doesn't raise
+
+        assert not os.path.exists(running_experiment_path())
+
+    def test_recover_without_record(self, rec_mocks):
+        recover_lost_experiment()
+
+        rec_mocks["pub_err"].lost_experiment.assert_not_called()
+        rec_mocks["dump"].assert_not_called()
+
+    def test_recover_lost_experiment(self, state, rec_mocks):
+        save_running_experiment(state)
+
+        recover_lost_experiment()
+
+        rec_mocks["pub_err"].lost_experiment.assert_called_once_with("D26-001")
+        # Dumps the experiment's data, as stopping it would have
+        rec_mocks["dump"].assert_called_once()
+        lost = rec_mocks["dump"].call_args.args[0]
+        assert lost.experiment_id == "D26-001"
+        assert lost.exp_file == "data/D26-001.json"
+        assert lost.experiment_start_time == datetime(2026, 1, 2, 3, 4, 5)
+        assert not os.path.exists(running_experiment_path())
+
+    def test_recover_unreadable_record(self, rec_mocks):
+        with open(running_experiment_path(), "w") as f:
+            f.write("not json")
+
+        recover_lost_experiment()
+
+        rec_mocks["pub_err"].lost_experiment.assert_called_once()
+        assert "unknown" in rec_mocks["pub_err"].lost_experiment.call_args.args[0]
+        rec_mocks["dump"].assert_not_called()
+        assert not os.path.exists(running_experiment_path())
