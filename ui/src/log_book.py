@@ -21,6 +21,9 @@ EVENT_TOPICS = {
     "controller/command/stop": lambda p: (
         f"Stopping experiment {p.get('experiment_id')}."
     ),
+    "controller/command/reset": lambda p: (
+        f"Instruments and setpoint controllers reset by the {p.get('source', 'unknown')}."
+    ),
 }
 MAX_ENTRIES = 500  # Oldest entries are dropped once the log is full
 
