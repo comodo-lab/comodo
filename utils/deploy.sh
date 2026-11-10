@@ -13,7 +13,8 @@ with ones matching '.env', and regenerates 'compose.firmware.yaml'. In order, st
 
 Usage: ./utils/deploy.sh [--force|-f] [--test|-t] [--local|-l] [--down] [--help|-h]
 Options:
-  --force, -f       Replace (or, with --down, bring down) running stacks without asking.
+  --force, -f       Replace (or, with --down, bring down) running stacks without asking,
+                      and recreate every container (e.g. after editing 'comodo.yaml').
   --test,  -t       Run the integration tests with --remote before deploying, and only deploy if they pass.
                       Note: The tests replace any running stacks.
   --local, -l       Deploy all the stacks on this machine, ignoring the *_HOST variables (see 'utils/contexts.sh --local').
@@ -160,7 +161,10 @@ for stack in "${stacks[@]}"; do
   # The other stacks need the broker, so wait until it is healthy
   wait=""
   [[ "$stack" == mqtt ]] && wait="--wait"
-  if ! stack_compose "$stack" up --build --detach --remove-orphans $wait; then
+  # If not forced, only the containers whose compose configuration changed are recreated
+  recreate=""
+  [[ "$force" == true ]] && recreate="--force-recreate"
+  if ! stack_compose "$stack" up --build --detach --remove-orphans $wait $recreate; then
     echo "Could not deploy the $stack stack. The stacks before it are still running."
     exit 1
   fi

@@ -244,7 +244,7 @@ This:
 
 Useful options (run `./utils/deploy.sh --help` for all of them):
 - `-t`: Run the [integration tests](integration_tests/README.md) on the same hosts, with simulated instruments, and only deploy if they pass.
-- `-f`: Replace running stacks without asking.
+- `-f`: Replace running stacks without asking, recreating every container (always use if `comodo.yaml` changed).
 - `-l`: Deploy all the stacks on this machine, ignoring the `*_HOST` variables.
 - `--down`: Bring the stacks down.
 
