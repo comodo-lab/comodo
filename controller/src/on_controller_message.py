@@ -7,7 +7,12 @@ from utils import mqtt_clients as mqtt
 from utils.interpolation import split_setpoints
 from utils import mqtt_validator as mqtt_val
 
-from src.controller_helper import assign_serial_id, dump_database_for_experiment
+from src.controller_helper import (
+    assign_serial_id,
+    clear_running_experiment,
+    dump_database_for_experiment,
+    save_running_experiment,
+)
 import src.publish_error as pub_err
 import src.validation as val
 
@@ -45,6 +50,7 @@ def recover_on_exception(state_callback):
                 )
             else:
                 obj.reset()
+                clear_running_experiment()
                 client.callback = c_idle
             raise
 
@@ -96,6 +102,7 @@ def c_idle(client, msg, obj):
         )
         # Assign a serial experiment id
         assign_serial_id(obj)
+        save_running_experiment(obj)
         m = {
             "temp_id": temp_id,
             "experiment_id": obj.experiment_id,
@@ -303,6 +310,7 @@ def c_stopping(client, msg, obj):
         ### Safe stop placeholder
         t.sleep(1)
         dump_database_for_experiment(obj)
+        clear_running_experiment()
         ###
         uid = obj.experiment_id
         obj.reset()

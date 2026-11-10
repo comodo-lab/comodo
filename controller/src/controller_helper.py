@@ -4,6 +4,7 @@ import influxdb_client
 import os
 import csv
 from datetime import datetime
+from types import SimpleNamespace
 
 import src.publish_error as pub_err
 
@@ -93,3 +94,57 @@ def dump_database_for_experiment(obj):
         )
     except Exception as e:
         pub_err.database_error(f"Could not dump influx database: {e}")
+
+
+def running_experiment_path():
+    return os.path.join(data_path, "running_experiment.json")
+
+
+def save_running_experiment(obj):
+    """
+    Records the experiment that is starting, until it ends or is stopped (see clear_running_experiment),
+    so that if the controller stops mid-experiment (e.g. it crashes, or is restarted), it knows it lost it when it starts.
+    """
+    with open(running_experiment_path(), "w") as f:
+        json.dump(
+            {
+                "experiment_id": obj.experiment_id,
+                "exp_file": obj.exp_file,
+                "start_time": obj.experiment_start_time.isoformat(),
+            },
+            f,
+        )
+
+
+def clear_running_experiment():
+    """
+    Removes the record of the running experiment, once it has ended or been stopped.
+    """
+    try:
+        os.remove(running_experiment_path())
+    except FileNotFoundError:
+        pass
+
+
+def recover_lost_experiment():
+    """
+    Called when the controller starts. If a previous controller stopped mid-experiment (e.g. it crashed, or was restarted),
+    publishes an error, and dumps the experiment's database, as stopping it would have.
+    """
+    path = running_experiment_path()
+    if not os.path.exists(path):
+        return
+    try:
+        with open(path) as f:
+            record = json.load(f)
+        lost = SimpleNamespace(
+            experiment_id=record["experiment_id"],
+            exp_file=record["exp_file"],
+            experiment_start_time=datetime.fromisoformat(record["start_time"]),
+        )
+    except (OSError, ValueError, KeyError, TypeError) as e:
+        pub_err.lost_experiment(f"unknown (could not read {path}: {e})")
+    else:
+        pub_err.lost_experiment(lost.experiment_id)
+        dump_database_for_experiment(lost)
+    clear_running_experiment()

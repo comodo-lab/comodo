@@ -139,6 +139,14 @@ as it doesn't know the state of the instruments and setpoint controllers (e.g. a
 They go back to their defaults, which also clears an instrument's safe stop (see the [firmware's safe stop](../firmware/README.md#safe-stop)).
 The controller itself ignores the reset while idle. The UI can also ask for a reset (see the [ui client](#helper-clients)), e.g. to clear a safe stop.
 
+While an experiment runs, the controller records it in `data/running_experiment.json`, until it ends or is stopped.
+If the controller stops mid-experiment (e.g. it crashes, or is restarted), the record is still there when it starts again, so before the reset it:
+- Publishes an error on `error/controller` (`code` `experiment_lost`).
+- Dumps the experiment's database, as stopping it would have (see [experiment data](#experiment-data)).
+- Removes the record.
+
+The reset then ends the experiment in the instruments and setpoint controllers, which also publish an error each (`code` `experiment_reset`).
+
 ## Experiment message
 An experiment is started with a `ui/start` message, normally sent by the UI. For example:
 ```json

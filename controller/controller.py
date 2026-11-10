@@ -9,7 +9,7 @@ import yaml
 from utils import mqtt_clients as mqtt
 from utils import comodo_config
 
-from src.controller_helper import get_env_or_secret
+from src.controller_helper import get_env_or_secret, recover_lost_experiment
 from src.controller_state import cstate
 from src.on_watchdog_message import on_watchdog_message
 from src.on_watchdog_timer_message import on_wd_timer_message
@@ -141,6 +141,7 @@ def main():
     t.sleep(1)
     if wdog_state["healthy"]:
         print(f"Controller started successfully.")
+        recover_lost_experiment()
         publisher.client.publish(
             "controller/command/reset", json.dumps({"source": "controller"})
         )
