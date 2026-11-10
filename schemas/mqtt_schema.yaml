@@ -207,6 +207,17 @@ channels:
             experiment_id:
               type: string
 
+  controllerCommandReset:
+    address: controller/command/reset
+    messages:
+      resetCommand:
+        payload:
+          type: object
+          additionalProperties: false
+          properties:
+            source:
+              type: string
+
   controllerEventReady:
     address: controller/event/ready
     messages:

@@ -3,7 +3,7 @@ import asyncio
 import json
 import os
 
-from src import config, state
+from src import config, state, watchdog
 
 from utils import mqtt_clients as mqtt
 
@@ -88,35 +88,42 @@ async def start_sensors_measurements(istate, instrument_ready_event, timeout=Non
 async def start_instrument():
     istate = state.InstrumentState(config.load_config())
 
-    # Synchronously launch the measurement ticks for each variable
-    instrument_ready_event = asyncio.Event()
-    measurement_task = asyncio.create_task(
-        start_sensors_measurements(istate, instrument_ready_event, timeout=10)
-    )
-    # Wait until every sensor has produced its first measurement
-    ready_task = asyncio.create_task(instrument_ready_event.wait())
-    done, _ = await asyncio.wait(
-        {measurement_task, ready_task},
-        return_when=asyncio.FIRST_COMPLETED,
-    )
-    # Propagate exceptions if any of the tasks failed
-    if measurement_task in done:
-        measurement_task.result()
+    # Watchdog is disarmed until the first heartbeat from the controller is received
+    firmware_watchdog = watchdog.FirmwareWatchdog(istate)
+    firmware_watchdog.start()
+    try:
+        # Synchronously launch the measurement ticks for each variable
+        instrument_ready_event = asyncio.Event()
+        measurement_task = asyncio.create_task(
+            start_sensors_measurements(istate, instrument_ready_event, timeout=10)
+        )
+        # Wait until every sensor has produced its first measurement
+        ready_task = asyncio.create_task(instrument_ready_event.wait())
+        done, _ = await asyncio.wait(
+            {measurement_task, ready_task},
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+        # Propagate exceptions if any of the tasks failed
+        if measurement_task in done:
+            measurement_task.result()
 
-    # Start instrument with default setpoints and reset live config
-    istate.reset()
+        # Start instrument with default setpoints and reset live config, unless it already safe stopped
+        if istate.status != "safe_stop":
+            istate.reset()
 
-    # Print the instrument creation success message
-    print(
-        f"Instrument {istate.instrument.config['INSTRUMENT_NAME']} created successfully "
-        f"using firmware {istate.instrument.config['FIRMWARE']}"
-    )
+        # Print the instrument creation success message
+        print(
+            f"Instrument {istate.instrument.config['INSTRUMENT_NAME']} created successfully "
+            f"using firmware {istate.instrument.config['FIRMWARE']}"
+        )
 
-    # Start the heartbeat ticks
-    heartbeat_task = asyncio.create_task(heartbeat_tick(istate))
+        # Start the heartbeat ticks
+        heartbeat_task = asyncio.create_task(heartbeat_tick(istate))
 
-    # Keep running forever
-    await asyncio.gather(measurement_task, heartbeat_task)
+        # Keep running forever
+        await asyncio.gather(measurement_task, heartbeat_task)
+    finally:
+        firmware_watchdog.stop()
 
     return 0
 
