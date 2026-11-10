@@ -381,8 +381,8 @@ Telegraf subscribes to all topics and stores the messages in InfluxDB, which is 
 The main topics are:
 - `ui/start`, `ui/stop`: The UI asks the controller to start or stop an experiment.
 - `controller/command/...`, `controller/event/...`: The experiment life cycle, published by the controller (e.g. `controller/command/start`, `controller/event/end`).
-  Instruments and setpoint controllers listen to these to start and stop.
-- `controller/heartbeat`: The controller's health and state, watched by the watchdog and shown in the UI.
+  Instruments and setpoint controllers listen to these to start and stop, and to `controller/command/reset`, which the controller publishes when it starts, to go back to their defaults.
+- `controller/heartbeat`: The controller's health and state, watched by the controller and firmware's watchdogs (to safely stop the system if the controller goes quiet), and shown in the UI.
 - `controller/timer/...`, `controller/validator/...`, `watchdog/...`: Internal to the controller.
 - `instruments/<instrument>/heartbeat`: Each instrument's health and state.
 - `instruments/<instrument>/configure`: Live configuration of an instrument, before an experiment starts.
