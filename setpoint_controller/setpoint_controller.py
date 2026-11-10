@@ -336,12 +336,22 @@ class SetpointController:
             return
 
         if msg.topic == "controller/command/reset":
-            # Sent by the controller when it starts: end any experiment, even if disabled,
-            # and go back to the default setpoints if enabled.
+            # Sent by the controller when it starts, or requested (e.g. from the UI): end any experiment,
+            # even if disabled, and go back to the default setpoints if enabled.
             if spc.state.experiment_id is not None:
-                print(
-                    f"WARNING: Experiment {spc.state.experiment_id} ended by a reset."
+                source = message.get("source", "unknown source")
+                error = (
+                    f"[{spc.spc_id}] Experiment {spc.state.experiment_id} "
+                    f"ended by reset from {source}."
                 )
+                if source == "ui":
+                    print(f"WARNING: {error}")
+                else:
+                    print(f"ERROR: {error}")
+                    mqtt.MQTTPublisher.get_instance().publish(
+                        "error/setpoint_controller",
+                        json.dumps({"code": "experiment_reset", "message": error}),
+                    )
             spc.state.experiment_id = None
             if spc.state.enabled is True:
                 spc.state.sensor_setpoint = spc.default_setpoint

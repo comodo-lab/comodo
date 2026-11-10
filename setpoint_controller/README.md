@@ -73,7 +73,7 @@ And publishes to:
   - `setpoints`: The current `sensor_setpoint`.
   - `config`: The `sensor`, `actuator`, and current `pid` parameters.
     The experiment controller compares these with the experiment's live configuration, and stops the experiment if they don't match.
-- `error/setpoint_controller`: If a message is invalid, or a configuration is rejected.
+- `error/setpoint_controller`: If a message is invalid, a configuration is rejected, or a reset ends its experiment (`code` `experiment_reset`), unless requested from the UI (e.g. the controller restarted mid-experiment).
 
 ## Behaviour
 - On start up, the sensor's setpoint is set to `DEFAULT_SETPOINT`, and the status is `idle`.
