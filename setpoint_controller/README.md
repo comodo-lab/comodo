@@ -63,7 +63,7 @@ The controller subscribes to the following MQTT topics:
   If any key is not configurable, the whole configuration is rejected and an error is published.
 - `controller/command/start`: To store the id of the experiment that is starting.
 - `controller/event/end` and `controller/command/stop`: To end the current experiment.
-- `controller/command/reset`: Sent by the controller when it starts. Ends any experiment (with a warning, as the controller lost it),
+- `controller/command/reset`: Sent by the controller when it starts, or when asked by the UI. Ends any experiment (with a warning, as the controller lost it),
   even if disabled, and goes back to the default setpoint (if enabled).
 
 And publishes to:
