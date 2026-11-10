@@ -94,15 +94,13 @@ class TestPublishError:
             message=exp_err,
         )
 
-    def test_missing_keys(self, pe_mocks):
-        exp_err = f"Cannot decode {pe_mocks['msg'].topic} message, missing: \n   'experiment_id'"
-
-        pub_err.missing_keys(pe_mocks["msg"], KeyError("experiment_id"))
+    def test_lost_experiment(self, pe_mocks):
+        pub_err.lost_experiment("D26-001")
 
         pe_mocks["print_and_publish"].assert_called_once_with(
             topic="error/controller",
-            code="missing_key",
-            message=exp_err,
+            code="experiment_lost",
+            message="The controller restarted during experiment D26-001, which was aborted.",
         )
 
     def test_incompatible_controller_status(self, pe_mocks):
