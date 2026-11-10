@@ -133,6 +133,10 @@ There are a few helper clients to the controller, each listening to its own topi
   and Docker restarts it.
 
 The controller itself publishes its state on `controller/heartbeat` every `global.heartbeat.interval` seconds.
+Before its first heartbeat, when it starts, it publishes a `controller/command/reset` message (with `"source": "controller"`),
+as it doesn't know the state of the instruments and setpoint controllers (e.g. after a restart mid-experiment).
+They go back to their defaults, which also clears an instrument's safe stop (see the [firmware's safe stop](../firmware/README.md#safe-stop)).
+The controller itself ignores the reset while idle.
 
 ## Experiment message
 An experiment is started with a `ui/start` message, normally sent by the UI. For example:

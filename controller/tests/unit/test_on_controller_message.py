@@ -206,6 +206,20 @@ class TestIdle:
         idle_mocks["validate_experiment"].assert_not_called()
         idle_mocks["serial_id"].assert_not_called()
 
+    def test_ignores_reset_command(self, idle_mocks):
+        assert idle_mocks["state"].experiment_id == None
+        assert idle_mocks["state"].status == "idle"
+        msg = MockMessage(topic="controller/command/reset", payload="not important")
+
+        c_idle(idle_mocks["controller_client"], msg, idle_mocks["state"])
+
+        assert idle_mocks["state"].experiment_id == None
+        assert idle_mocks["state"].status == "idle"
+        assert idle_mocks["controller_client"].callback == c_idle
+        idle_mocks["pub_err"].incompatible_controller_status.assert_not_called()
+        idle_mocks["validate_experiment"].assert_not_called()
+        idle_mocks["serial_id"].assert_not_called()
+
     def test_invalid_message(self, idle_mocks):
         err = MQTTValidationException("Invalid JSON")
         idle_mocks["validate_message"].side_effect = err

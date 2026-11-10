@@ -64,7 +64,7 @@ def c_idle(client, msg, obj):
     Otherwise, it resets to the idle state and publishes an error.
     """
     if msg.topic != "controller/command/validate":
-        if msg.topic == "controller/command/stop":
+        if msg.topic in ["controller/command/stop", "controller/command/reset"]:
             return
         if msg.topic.startswith("controller/command/"):
             pub_err.incompatible_controller_status(obj, msg)

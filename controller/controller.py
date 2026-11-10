@@ -141,6 +141,9 @@ def main():
     t.sleep(1)
     if wdog_state["healthy"]:
         print(f"Controller started successfully.")
+        publisher.client.publish(
+            "controller/command/reset", json.dumps({"source": "controller"})
+        )
     else:
         print(f"Controller failed to start. watchdog unhealthy.")
     while wdog_state["healthy"]:
