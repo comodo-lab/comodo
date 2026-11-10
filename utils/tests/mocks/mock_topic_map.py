@@ -1,9 +1,11 @@
 import pytest
 
+from utils.mqtt_validator import topic_entry
+
 
 @pytest.fixture
 def mock_topic_map():
-    return {
+    topic_map = {
         "test/topic": {
             "name": "test",
             "schema": {
@@ -92,4 +94,8 @@ def mock_topic_map():
                 },
             },
         },
+    }
+    return {
+        address: topic_entry(entry["name"], entry["schema"])
+        for address, entry in topic_map.items()
     }

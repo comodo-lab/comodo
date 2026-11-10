@@ -1,6 +1,8 @@
 import functools
 import json, yaml
-from jsonschema import validate, ValidationError
+from jsonschema import ValidationError
+from jsonschema.exceptions import best_match
+from jsonschema.validators import validator_for
 from utils import mqtt_clients
 from paho.mqtt.client import topic_matches_sub
 
@@ -22,8 +24,21 @@ def match_topic(topic, topic_map):
     return None
 
 
-# Cached to make validation more efficient.
-# The returned topic map is shared, so it must not be modified.
+def topic_entry(name, schema):
+    """
+    Builds the topic map entry for a channel, with a validator for its schema.
+    The validator is built once, as building it (and checking the schema) takes most of the validation time.
+
+    Raises:
+        SchemaError: If the schema itself is invalid
+    """
+    validator_class = validator_for(schema)
+    validator_class.check_schema(schema)
+    return {"name": name, "schema": schema, "validator": validator_class(schema)}
+
+
+# Cached to make validation more efficient, so the schema is loaded, and its validators built, once.
+# The returned topic map is shared (also between threads), so it must not be modified.
 @functools.cache
 def load_spec(schema_name="asyncapi"):
     # --------------------------------------------------------------------------
@@ -50,7 +65,7 @@ def load_spec(schema_name="asyncapi"):
         if not messages:
             continue
         first_msg = next(iter(messages.values()))
-        topic_map[address] = {"name": ch_name, "schema": first_msg.get("payload", {})}
+        topic_map[address] = topic_entry(ch_name, first_msg.get("payload", {}))
     return topic_map
 
 
@@ -149,7 +164,10 @@ def check_message_valid(entry, loaded_payload):
     Raises:
         ValidationError: If the message does not conform to the schema
     """
-    validate(loaded_payload, entry["schema"])
+    # As jsonschema.validate does, but with the validator built once in load_spec
+    error = best_match(entry["validator"].iter_errors(loaded_payload))
+    if error is not None:
+        raise error
 
 
 def print_and_publish_error(topic, error):
