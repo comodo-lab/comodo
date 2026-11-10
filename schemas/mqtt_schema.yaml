@@ -89,6 +89,14 @@ channels:
             experiment_id:
               type: string
 
+  uiReset:
+    address: ui/reset
+    messages:
+      resetRequest:
+        payload:
+          type: object
+          additionalProperties: false
+
   controllerTimerCommandStart:
     address: controller/timer/command/start
     messages:
