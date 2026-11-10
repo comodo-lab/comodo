@@ -314,7 +314,9 @@ async def test_safe_stop_when_controller_dies_and_reset(
         await wait_for_message(
             message_bus,
             f"instruments/{name}/heartbeat",
-            heartbeat_matches("safe_stop", safe_setpoints, expected_config(fast_firmware_env)),
+            heartbeat_matches(
+                "safe_stop", safe_setpoints, expected_config(fast_firmware_env)
+            ),
             timeout=2,
         )
         await wait_for_message(
@@ -322,7 +324,9 @@ async def test_safe_stop_when_controller_dies_and_reset(
             f"instruments/{name}/temperature/measurement",
             measurement_matches(safe_setpoints["temperature"]),
         )
-        errors = [json.loads(m.payload) for m in message_bus.get_messages("error/instrument")]
+        errors = [
+            json.loads(m.payload) for m in message_bus.get_messages("error/instrument")
+        ]
         assert [e["code"] for e in errors] == ["safe_stop"]
 
         # Setpoints are ignored during a safe stop (e.g. from a setpoint controller)
@@ -333,7 +337,9 @@ async def test_safe_stop_when_controller_dies_and_reset(
         await wait_for_message(
             message_bus,
             f"instruments/{name}/heartbeat",
-            heartbeat_matches("safe_stop", safe_setpoints, expected_config(fast_firmware_env)),
+            heartbeat_matches(
+                "safe_stop", safe_setpoints, expected_config(fast_firmware_env)
+            ),
             timeout=2,
         )
 
@@ -347,7 +353,9 @@ async def test_safe_stop_when_controller_dies_and_reset(
             message_bus,
             f"instruments/{name}/heartbeat",
             heartbeat_matches(
-                "awaiting_experiment", default_setpoints, expected_config(fast_firmware_env)
+                "awaiting_experiment",
+                default_setpoints,
+                expected_config(fast_firmware_env),
             ),
         )
         await wait_for_message(
@@ -388,9 +396,59 @@ async def test_safe_stop_when_controller_loses_the_experiment(
         await wait_for_message(
             message_bus,
             f"instruments/{name}/heartbeat",
-            heartbeat_matches("safe_stop", safe_setpoints, expected_config(fast_firmware_env)),
+            heartbeat_matches(
+                "safe_stop", safe_setpoints, expected_config(fast_firmware_env)
+            ),
             timeout=2,
         )
+    finally:
+        firmware_task.cancel()
+        controller_task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await firmware_task
+
+
+@pytest.mark.asyncio
+async def test_controller_restart_ends_experiment_with_error(
+    message_bus, watchdogs, fast_firmware_env
+):
+    """
+    The controller restarts quickly, before the instrument safe stops, and resets it when it starts:
+    the instrument ends the experiment, going to its default setpoints, and publishes an error, as the controller lost it.
+    """
+    name = fast_firmware_env["INSTRUMENT_NAME"]
+    default_setpoints = json.loads(fast_firmware_env["DEFAULT_SETPOINTS"])
+    controller = {"experiment_id": None}
+    controller_task = asyncio.create_task(fake_controller(message_bus, controller, 0.1))
+    firmware_task = asyncio.create_task(main.start_instrument())
+    try:
+        await start_experiment(
+            message_bus, controller, watchdogs, fast_firmware_env, "e-123"
+        )
+
+        # The restarted controller resets the instruments, and has no experiment
+        controller["experiment_id"] = None
+        message_bus.publish(
+            "controller/command/reset", json.dumps({"source": "controller"})
+        )
+        await wait_for_message(
+            message_bus,
+            f"instruments/{name}/heartbeat",
+            heartbeat_matches(
+                "awaiting_experiment",
+                default_setpoints,
+                expected_config(fast_firmware_env),
+            ),
+        )
+        errors = [
+            json.loads(m.payload) for m in message_bus.get_messages("error/instrument")
+        ]
+        assert errors == [
+            {
+                "code": "experiment_reset",
+                "message": f"[{name}] Experiment e-123 ended by reset from controller.",
+            }
+        ]
     finally:
         firmware_task.cancel()
         controller_task.cancel()

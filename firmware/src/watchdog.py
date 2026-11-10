@@ -1,3 +1,4 @@
+import json
 import threading
 import time
 
@@ -98,7 +99,7 @@ class FirmwareWatchdog:
         if msg.topic == "controller/heartbeat":
             self.on_heartbeat(message)
         elif msg.topic == "controller/command/reset":
-            self.on_reset()
+            self.on_reset(message)
 
     def on_heartbeat(self, heartbeat):
         """
@@ -114,15 +115,31 @@ class FirmwareWatchdog:
         if inst_exp_id is None or hb_exp_id == inst_exp_id:
             self.last_contact = time.monotonic()
 
-    def on_reset(self):
+    def on_reset(self, msg):
         """
         Resets the instrument: goes to its default setpoints, sets status to awaiting an experiment,
         and disarms the watchdog until a controller heartbeat is received.
+
+        If it ends an experiment, it is published as an error, so it doesn't go unnoticed
+        (e.g. the controller restarted mid-experiment), unless it was requested from the UI.
         """
         self.last_contact = None
         inst_exp_id = self.istate.instrument.config["experiment"].get("experiment_id")
+        source = msg.get("source", "unknown source")
+        name = self.istate.instrument.config["INSTRUMENT_NAME"]
         if inst_exp_id is not None:
-            print(f"WARNING: Experiment {inst_exp_id} ended by a reset.")
+            message = f"[{name}] Experiment {inst_exp_id} ended by reset from {source}."
+            if source == "ui":
+                print(f"WARNING: {message}")
+            else:
+                print(f"ERROR: {message}")
+                try:
+                    mqtt.MQTTPublisher.get_instance().publish(
+                        "error/instrument",
+                        json.dumps({"code": "experiment_reset", "message": message}),
+                    )
+                except mqtt.MQTTMessageError as e:
+                    print(f"WARNING: Could not publish the experiment reset: {e}")
         elif self.istate.status == "safe_stop":
-            print("Safe stop cleared by a reset.")
+            print(f"[{name}] Safe stop cleared by a reset from {source}.")
         self.istate.reset()

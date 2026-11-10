@@ -6,6 +6,7 @@ import pytest
 from tests.conftest import MockMessage, mock_state, mock_instrument, firmware_env
 
 from utils.mqtt_validator import MQTTValidationException
+from utils.mqtt_clients import MQTTMessageError
 import src.watchdog as watchdog
 
 
@@ -21,6 +22,7 @@ class TestFirmwareWatchdog:
             yield {
                 "state": mock_state,
                 "client_class": mqtt_mocks["client_class"],
+                "publisher": mqtt_mocks["publisher_instance"],
                 "mqtt_val": mock_mqtt_val,
             }
 
@@ -137,7 +139,7 @@ class TestFirmwareWatchdog:
                 "state": {"status": "idle"},
             }
         )
-        on_reset.assert_called_once_with()
+        on_reset.assert_called_once_with({})
 
     def test_on_message_ignores_invalid_message(self, wd_mocks, capsys):
         wd = self.create_watchdog(wd_mocks)
@@ -210,34 +212,79 @@ class TestFirmwareWatchdog:
 
         assert wd.last_contact == 10.0
 
-    def test_reset_clears_safe_stop_and_disarms(self, wd_mocks, capsys):
+    @pytest.mark.parametrize(
+        "reset, source", [({"source": "ui"}, "ui"), ({}, "unknown source")]
+    )
+    def test_reset_clears_safe_stop_and_disarms(self, wd_mocks, capsys, reset, source):
         wd = self.create_watchdog(wd_mocks)
         wd_mocks["state"].status = "safe_stop"
 
-        wd.on_reset()
+        wd.on_reset(reset)
 
         wd_mocks["state"].reset.assert_called_once_with()
         assert wd.last_contact is None
+        wd_mocks["publisher"].publish.assert_not_called()
         captured = capsys.readouterr()
-        assert "Safe stop cleared by a reset." in captured.out
+        assert (
+            f"[test_instrument] Safe stop cleared by a reset from {source}."
+            in captured.out
+        )
 
-    def test_reset_ends_running_experiment(self, wd_mocks, capsys):
+    def test_ui_reset_ends_running_experiment_without_error(self, wd_mocks, capsys):
         wd = self.create_watchdog(wd_mocks)
         wd_mocks["state"].status = "running"
         wd_mocks["state"].instrument.config["experiment"]["experiment_id"] = "e-123"
 
-        wd.on_reset()
+        wd.on_reset({"source": "ui"})
 
         wd_mocks["state"].reset.assert_called_once_with()
         assert wd.last_contact is None
+        wd_mocks["publisher"].publish.assert_not_called()
         captured = capsys.readouterr()
-        assert "WARNING: Experiment e-123 ended by a reset." in captured.out
+        assert (
+            "WARNING: [test_instrument] Experiment e-123 ended by reset from ui."
+            in captured.out
+        )
 
-    def test_reset_while_awaiting_experiment(self, wd_mocks, capsys):
+    def test_other_reset_ending_experiment_publishes_error(self, wd_mocks, capsys):
         wd = self.create_watchdog(wd_mocks)
+        wd_mocks["state"].status = "running"
+        wd_mocks["state"].instrument.config["experiment"]["experiment_id"] = "e-123"
 
-        wd.on_reset()
+        wd.on_reset({"source": "controller"})
 
         wd_mocks["state"].reset.assert_called_once_with()
+        assert wd.last_contact is None
+        message = "[test_instrument] Experiment e-123 ended by reset from controller."
+        wd_mocks["publisher"].publish.assert_called_once_with(
+            "error/instrument",
+            json.dumps({"code": "experiment_reset", "message": message}),
+        )
+        captured = capsys.readouterr()
+        assert f"ERROR: {message}" in captured.out
+
+    def test_reset_ending_experiment_resets_even_if_publishing_fails(
+        self, wd_mocks, capsys
+    ):
+        wd = self.create_watchdog(wd_mocks)
+        wd_mocks["state"].instrument.config["experiment"]["experiment_id"] = "e-123"
+        wd_mocks["publisher"].publish.side_effect = MQTTMessageError("not connected")
+
+        wd.on_reset({"source": "controller"})
+
+        wd_mocks["state"].reset.assert_called_once_with()
+        captured = capsys.readouterr()
+        assert (
+            "WARNING: Could not publish the experiment reset: not connected"
+            in captured.out
+        )
+
+    def test_reset_from_controller_without_experiment(self, wd_mocks, capsys):
+        wd = self.create_watchdog(wd_mocks)
+
+        wd.on_reset({"source": "controller"})
+
+        wd_mocks["state"].reset.assert_called_once_with()
+        wd_mocks["publisher"].publish.assert_not_called()
         captured = capsys.readouterr()
         assert captured.out == ""

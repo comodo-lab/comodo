@@ -190,6 +190,7 @@ Once armed, it listens to the controller's heartbeat (`controller/heartbeat`), a
 If the instrument is not running an experiment, any heartbeat is valid. If it is running an experiment, the watchdog only counts a heartbeat from the controller as valid if it is for the same experiment. This way, if the controller restarts and loses the experiment, or if the experiment's end or stop was missed, the instrument will safe stop, instead of continuing to run an experiment that the controller doesn't know about.
 
 While in `safe_stop`, the instrument ignores everything (including setpoints, e.g. from a setpoint controller, and experiment starts or stops) except a reset (`controller/command/reset`), which the controller sends when it starts, or when asked from the UI.
+If a reset ends an experiment, it is published as an error on `error/instrument` (`code` `experiment_reset`), so it doesn't go unnoticed, unless it was requested from the UI (`"source": "ui"`), in which case it just prints a warning.
 A reset works like a restart: it returns the instrument to its default setpoints, and sets the instrument state to awaiting_experiment. It also disarms the watchdog until the next heartbeat, as if the firmware had just started, so a reset can also be sent manually, without a controller.
 
 ### MQTT Topics
@@ -208,7 +209,7 @@ And publishes to:
   - `setpoints`: The current setpoints.
   - `config`: The instrument's configuration (without MQTT credentials), including the live configuration and experiment id under `experiment`.
     The controller compares this with the live configuration it sent, and stops the experiment if they don't match.
-- `error/instrument`: If the instrument safe stops (`code` `safe_stop`), or the firmware crashes (`code` `exception`).
+- `error/instrument`: If the instrument safe stops (`code` `safe_stop`), if a reset from the controller restarting ends its experiment (`code` `experiment_reset`), or if the firmware crashes (`code` `exception`).
 
 
 The `FirmwareWatchdog` subscribes, with its own client, to:
