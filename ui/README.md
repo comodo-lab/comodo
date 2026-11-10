@@ -67,13 +67,20 @@ The button follows the controller's heartbeat: it shows start when the controlle
 and is disabled while the controller is busy validating or stopping.
 Pressing stop publishes the experiment id on `ui/stop`.
 
+## Resetting the instruments
+The reset button, below the manual control toggle, publishes `ui/reset` (after asking for confirmation),
+and the controller then resets every instrument and setpoint controller to its default setpoints.
+This clears a safe stop (see the [firmware's safe stop](../firmware/README.md#safe-stop)), so make sure whatever caused it has been fixed first.
+It is only enabled while the controller is idle, as a running experiment has to be stopped first.
+
 ## MQTT topics
 The UI subscribes to:
-- `controller/heartbeat`, `instruments/<name>/heartbeat` and `setpoint_controllers/<id>/heartbeat`: For the header, the start/stop button, and the manual control readouts.
-- `error/#`, `ui/start`, `controller/command/start` and `controller/command/stop`: For the event log.
+- `controller/heartbeat`, `instruments/<name>/heartbeat` and `setpoint_controllers/<id>/heartbeat`: For the header, the start/stop and reset buttons, and the manual control readouts.
+- `error/#`, `ui/start`, `controller/command/start`, `controller/command/stop` and `controller/command/reset`: For the event log.
 
 And publishes to:
 - `ui/start` and `ui/stop`: To start and stop experiments.
+- `ui/reset`: To reset the instruments and setpoint controllers.
 - `error/ui`: If the experiment settings are invalid when starting an experiment.
 
 ## Configuration
