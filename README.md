@@ -173,7 +173,7 @@ Not all variables are being directly controlled, so an actuator is optional for 
 When an actuator should be driven by *another* variable's sensor, add a [`setpoint_controller`](#setpoint-controllers) to the actuator's variable.
 
 Each actuator can have the following properties:
-- `safe_stop_setpoint`: [required] The setpoint to which the actuator should be set when the instrument is stopped by an emergency.
+- `safe_stop_setpoint`: [required] The setpoint to which the actuator is set if the instrument [safe stop](firmware/README.md#safe-stop) is triggered.
 - `type`: [optional] The data type accepted by the actuator (e.g., float, int, string). Currently informational only.
 
 ##### Setpoint Controllers
