@@ -83,6 +83,11 @@ class TestGetStatusDisplay:
         display = tm.get_status_display(data, topic, tm.INSTRUMENT_STATUS_LIST)
         assert display == ("Running", "success")
 
+    def test_safe_stop_status(self):
+        topic, data = self.data({"state": {"status": "safe_stop"}})
+        display = tm.get_status_display(data, topic, tm.INSTRUMENT_STATUS_LIST)
+        assert display == ("Safe stop", "danger")
+
     def test_no_heartbeat(self):
         display = tm.get_status_display(
             {"heartbeats": {}, "stale": []}, "x", tm.INSTRUMENT_STATUS_LIST

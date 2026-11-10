@@ -23,6 +23,7 @@ INSTRUMENT_STATUS_LIST = {
     "awaiting_experiment": ("Awaiting Experiment", "info"),
     "running": ("Running", "success"),
     "error": ("Error", "danger"),
+    "safe_stop": ("Safe stop", "danger"),
 }
 SPC_STATUS_LIST = {
     "idle": ("Idle", "secondary"),
