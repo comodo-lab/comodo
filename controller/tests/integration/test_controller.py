@@ -57,6 +57,13 @@ def mock_validate(mock_experiment_dict):
         yield mock_validate
 
 
+@pytest.fixture(autouse=True)
+def data_path(tmp_path):
+    """A temporary data folder, where the controller records the running experiment."""
+    with patch("src.controller_helper.data_path", new=str(tmp_path)):
+        yield tmp_path
+
+
 @pytest.fixture
 def mock_dump():
     with patch("src.on_controller_message.dump_database_for_experiment") as mock_dump:
@@ -133,7 +140,14 @@ def test_control_loop(
     spc_id = "pressure-pressure--mass_flow-mass_flow"
     assert messages[5].topic == f"setpoint_controllers/{spc_id}/configure"
     assert json.loads(messages[5].payload) == {
-        "pid": {"k_p": 10.0, "k_i": 1.0, "k_d": 0.1, "k_aw": 0.05, "k_df": 0.01, "max_rate": None}
+        "pid": {
+            "k_p": 10.0,
+            "k_i": 1.0,
+            "k_d": 0.1,
+            "k_aw": 0.05,
+            "k_df": 0.01,
+            "max_rate": None,
+        }
     }
     assert messages[6].topic == "controller/command/start"
     assert messages[7].topic == "controller/timer/command/start"
@@ -192,7 +206,9 @@ def test_control_loop(
         assert topic_parts[2] == "heartbeat"
     assert sorted(heartbeat_instruments) == instrument_names
     n_heartbeats = len(instrument_names) + 1
-    assert messages[n_heartbeats - 1].topic == f"setpoint_controllers/{spc_id}/heartbeat"
+    assert (
+        messages[n_heartbeats - 1].topic == f"setpoint_controllers/{spc_id}/heartbeat"
+    )
     assert messages[n_heartbeats].topic == "controller/event/ready"
     assert messages[n_heartbeats + 1].topic == "controller/command/run"
     assert json.loads(messages[n_heartbeats + 1].payload) == {
