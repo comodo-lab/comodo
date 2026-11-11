@@ -1,10 +1,14 @@
+import csv
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 import time as t
 from pyexpat.errors import messages
 import pytest
 from unittest.mock import MagicMock, patch, call
+
+from influxdb_client.client.flux_table import FluxRecord
 
 from tests.conftest import (
     message_bus,
@@ -16,6 +20,12 @@ from src.controller_helper import (
     get_env_or_secret,
     assign_serial_id,
     dump_database_for_experiment,
+    dump_and_clear,
+    move_experiment_file,
+    dump_database,
+    INFLUX_WRITE_WAIT,
+    write_history,
+    write_data,
     running_experiment_path,
     save_running_experiment,
     clear_running_experiment,
@@ -155,6 +165,24 @@ class TestAssignSerialID:
         assert state.experiment_id == expected_uid
         assert state.exp_file == f"{data_path}/{expected_uid}.json"
 
+    def test_counts_dumped_experiments(self, state, data_path):
+        # Once dumped, an experiment's file is moved to its directory
+        current_year = str(datetime.now().year)[-2:]
+
+        with patch("os.rename"), patch("os.listdir") as mock_listdir:
+            mock_listdir.return_value = [
+                f"D{current_year}-041",
+                f"D{current_year}-042.json",
+                f"D{current_year}-043",
+                "tmp",
+                "running_experiment.json",
+            ]
+            assign_serial_id(state)
+
+        expected_uid = f"D{current_year}-044"
+        assert state.experiment_id == expected_uid
+        assert state.exp_file == f"{data_path}/{expected_uid}.json"
+
     def test_moves_file_correctly(self, state, data_path):
         assert state.experiment_id == None
 
@@ -195,12 +223,130 @@ class TestAssignSerialID:
                     os.remove(state.exp_file)
 
 
-class TestDatabaseDump:
+def record(time, topic, field, value):
+    """A record from an InfluxDB query, time in seconds since 2024-01-02T03:45:06Z."""
+    return FluxRecord(
+        table=0,
+        values={
+            "_time": T0 + timedelta(seconds=time),
+            "topic": topic,
+            "_field": field,
+            "_value": value,
+        },
+    )
+
+
+T0 = datetime(2024, 1, 2, 3, 45, 6, tzinfo=timezone.utc)
+FURNACE = "instruments/furnace/temperature"
+
+
+def read_csv(path):
+    with open(path, newline="") as f:
+        return list(csv.reader(f))
+
+
+class TestDumpInBackground:
 
     @pytest.fixture
     def state(self, mock_state):
         state = mock_state("running")
+        state.experiment_id = "D123-456"
+        state.exp_file = "data/D123-456.json"
+        state.experiment_start_time = T0.replace(tzinfo=None)
         return state
+
+    def test_starts_a_thread(self, state):
+        tf = datetime(2024, 1, 2, 3, 46, 0)
+        with (
+            patch("src.controller_helper.threading.Thread") as mock_thread,
+            patch("src.controller_helper.datetime") as mock_datetime,
+        ):
+            mock_datetime.now.return_value = tf
+            dump_database_for_experiment(state)
+
+        mock_thread.assert_called_once()
+        kwargs = mock_thread.call_args.kwargs
+        assert kwargs["target"] == dump_and_clear
+        assert kwargs["daemon"] is True
+        experiment, end, on_done = kwargs["args"]
+        # A copy, as the state is reset while the dump runs
+        assert experiment is not state
+        assert experiment.experiment_id == "D123-456"
+        assert experiment.exp_file == "data/D123-456.json"
+        assert experiment.experiment_start_time == state.experiment_start_time
+        assert end == tf
+        assert on_done is None
+        mock_thread.return_value.start.assert_called_once_with()
+
+    def test_waits_dumps_moves_and_clears(self):
+        experiment = SimpleNamespace(experiment_id="D123-456")
+        calls = MagicMock()
+        with (
+            patch("src.controller_helper.time.sleep", calls.sleep),
+            patch("src.controller_helper.dump_database", calls.dump),
+            patch("src.controller_helper.move_experiment_file", calls.move),
+            patch("src.controller_helper.clear_running_experiment", calls.clear),
+        ):
+            dump_and_clear(experiment, "tf", calls.on_done)
+
+        # Waits for Telegraf to write everything, before querying the database
+        assert calls.mock_calls == [
+            call.sleep(INFLUX_WRITE_WAIT),
+            call.dump(experiment, "tf"),
+            call.move(experiment),
+            call.clear("D123-456"),
+            call.on_done(),
+        ]
+
+    def test_without_on_done(self):
+        experiment = SimpleNamespace(experiment_id="D123-456")
+        with (
+            patch("src.controller_helper.time.sleep"),
+            patch("src.controller_helper.dump_database"),
+            patch("src.controller_helper.move_experiment_file"),
+            patch("src.controller_helper.clear_running_experiment") as mock_clear,
+        ):
+            dump_and_clear(experiment, "tf")
+
+        mock_clear.assert_called_once_with("D123-456")
+
+    def test_clears_and_calls_on_done_even_if_the_dump_fails(self):
+        experiment = SimpleNamespace(experiment_id="D123-456")
+        on_done = MagicMock()
+        with (
+            patch("src.controller_helper.time.sleep"),
+            patch(
+                "src.controller_helper.dump_database",
+                side_effect=RuntimeError("boom"),
+            ),
+            patch("src.controller_helper.move_experiment_file") as mock_move,
+            patch("src.controller_helper.clear_running_experiment") as mock_clear,
+        ):
+            with pytest.raises(RuntimeError):
+                dump_and_clear(experiment, "tf", on_done)
+
+        mock_move.assert_not_called()
+        mock_clear.assert_called_once_with("D123-456")
+        on_done.assert_called_once_with()
+
+    def test_moves_experiment_file_to_its_directory(self, tmp_path):
+        exp_file = tmp_path / "D123-456.json"
+        exp_file.write_text("{}")
+        move_experiment_file(SimpleNamespace(exp_file=str(exp_file)))
+
+        assert not exp_file.exists()
+        assert (tmp_path / "D123-456" / "D123-456.json").read_text() == "{}"
+
+
+class TestDatabaseDump:
+
+    @pytest.fixture
+    def experiment(self, tmp_path):
+        return SimpleNamespace(
+            experiment_id="D123-456",
+            exp_file=f"{tmp_path}/D123-456.json",
+            experiment_start_time=T0.replace(tzinfo=None),
+        )
 
     @pytest.fixture(autouse=True)
     def dump_mocks(self):
@@ -210,47 +356,50 @@ class TestDatabaseDump:
                 "src.controller_helper.get_env_or_secret", return_value=None
             ) as mock_get_secret,
             patch("src.controller_helper.influxdb_client") as mock_influx,
-            patch("os.path.exists") as mock_path_exists,
-            patch("os.makedirs") as mock_makedirs,
             patch("src.controller_helper.pub_err") as mock_publish_error,
         ):
             env_values = {
-                "INFLUX_BUCKET": "bucket1,bucket2,bucket3",
+                "INFLUX_BUCKET": "bucket1,bucket2",
                 "INFLUX_HOST": "localhost",
                 "INFLUX_ORG": "my_org",
             }
             mock_getenv.side_effect = lambda var, default=None: env_values.get(
                 var, default
             )
-            mock_influx_client = MagicMock()
-            mock_influx_client.query_api.return_value = MagicMock()
-            mock_csv_data = MagicMock()
-            mock_bucket_data = [
-                ["#some", "data", "here"],
-                ["maybe", "some", "info"],
-                ["and", "finally", "values"],
-                ["0.123", "2024-03-05T14:26:43.715914833Z", "measurement"],
+            mock_query = (
+                mock_influx.InfluxDBClient.return_value.query_api.return_value.query
+            )
+            # One table per bucket
+            mock_query.side_effect = [
+                [
+                    SimpleNamespace(
+                        records=[
+                            record(0.5, f"{FURNACE}/measurement", "value", 25.0),
+                            record(0.2, f"{FURNACE}/setpoint", "value", 30.0),
+                        ]
+                    )
+                ],
+                [
+                    SimpleNamespace(
+                        records=[
+                            record(
+                                0.1, "controller/heartbeat", "state_status", "running"
+                            )
+                        ]
+                    )
+                ],
             ]
-            mock_csv_data.to_values.return_value = mock_bucket_data
-            mock_query_csv = mock_influx_client.query_api.return_value.query_csv
-            mock_query_csv.return_value = mock_csv_data
-            mock_influx.InfluxDBClient.return_value = mock_influx_client
             yield {
                 "pub_err": mock_publish_error,
-                "env_values": env_values,
                 "getenv": mock_getenv,
                 "get_secret": mock_get_secret,
                 "mock_influx": mock_influx,
-                "influx_client": mock_influx_client,
-                "mock_query_csv": mock_query_csv,
-                "mock_bucket_data": mock_bucket_data,
-                "path_exists": mock_path_exists,
-                "makedirs": mock_makedirs,
+                "mock_query": mock_query,
             }
 
-    def test_warns_on_missing_token(self, state, dump_mocks):
+    def test_warns_on_missing_token(self, experiment, dump_mocks):
         assert dump_mocks["getenv"]("INFLUX_TOKEN") is None  # Adds a call to getenv
-        dump_database_for_experiment(state)
+        dump_database(experiment, datetime.now())
 
         assert dump_mocks["getenv"].call_args_list == [
             call("INFLUX_TOKEN"),  # Call added by first line of this test
@@ -264,96 +413,192 @@ class TestDatabaseDump:
         dump_mocks["pub_err"].database_error.assert_called_once_with(
             "Cannot dump influx database. INFLUX_TOKEN not set."
         )
+        dump_mocks["mock_query"].assert_not_called()
 
-    def test_database_dump_error(self, state, dump_mocks):
+    def test_database_dump_error(self, experiment, dump_mocks):
         dump_mocks["get_secret"].return_value = "dummy_token"
-        tmp_path = f"{data_path}/tmp/123.test_temp_exp.json"
-        state.exp_file = tmp_path
-        dump_mocks["path_exists"].return_value = False
-        assert not os.path.exists(tmp_path)
-        dump_mocks["mock_query_csv"].side_effect = Exception("Database error")
-        dump_database_for_experiment(state)
+        dump_mocks["mock_query"].side_effect = Exception("Database error")
+        dump_database(experiment, datetime.now())
 
-        dump_mocks["get_secret"].assert_called_once_with(
-            "INFLUX_TOKEN", "INFLUX_TOKEN_FILE", None
-        )
         dump_mocks["pub_err"].database_error.assert_called_once_with(
             "Could not dump influx database: Database error"
         )
 
-    def test_database_dump(self, state, dump_mocks, data_path):
+    def test_database_dump(self, experiment, dump_mocks, tmp_path, capsys):
         dump_mocks["get_secret"].return_value = "dummy_token"
-        t0 = datetime(2024, 1, 2, 3, 45, 6)
-        t0_s = t0.isoformat()
-        tf = datetime(2025, 2, 3, 4, 56, 7)
-        tf_s = tf.isoformat()
-        state.experiment_start_time = t0
-        tmp_path = f"{data_path}/tmp/123.test_temp_exp.json"
-        state.exp_file = tmp_path
-        dump_mocks["path_exists"].return_value = False
-        assert not os.path.exists(tmp_path)
-        with (
-            patch("src.controller_helper.datetime") as mock_datetime,
-            patch("builtins.open", create=True) as mock_open,
-            patch("src.controller_helper.csv.writer") as mock_csv_writer,
-            patch("builtins.print") as mock_print,
-        ):
-            mock_datetime.now.return_value = tf
-            cw_instance = MagicMock()
-            mock_csv_writer.return_value = cw_instance
-            dump_database_for_experiment(state)
+        tf = (T0 + timedelta(seconds=2)).replace(tzinfo=None)
+        dump_database(experiment, tf)
 
-            mock_datetime.now.assert_called_once_with()
-            dump_mocks["mock_influx"].InfluxDBClient.assert_called_once_with(
-                url="http://localhost:8086",
-                token="dummy_token",
+        dump_mocks["mock_influx"].InfluxDBClient.assert_called_once_with(
+            url="http://localhost:8086",
+            token="dummy_token",
+            org="my_org",
+        )
+        t0_s = experiment.experiment_start_time.isoformat()
+        assert dump_mocks["mock_query"].call_args_list == [
+            call(
+                f'from(bucket: "{bucket}") |> range(start: {t0_s}Z, stop: {tf.isoformat()}Z)',
                 org="my_org",
             )
-            dump_mocks["influx_client"].query_api.assert_called_once_with()
-            dump_mocks["makedirs"].assert_called_once_with(
-                f"{data_path}/tmp/123.test_temp_exp"
-            )
-            assert dump_mocks["mock_query_csv"].call_args_list == [
-                call(
-                    org="my_org",
-                    query=f'from(bucket: "bucket1") |> range(start: {t0_s}Z, stop: {tf_s}Z)',
+            for bucket in ["bucket1", "bucket2"]
+        ]
+        # The records of every bucket, in time order
+        exp_dir = tmp_path / "D123-456"
+        assert read_csv(exp_dir / "history.csv") == [
+            ["time", "topic", "field", "value"],
+            [
+                (T0 + timedelta(seconds=0.1)).isoformat(),
+                "controller/heartbeat",
+                "state_status",
+                "running",
+            ],
+            [
+                (T0 + timedelta(seconds=0.2)).isoformat(),
+                f"{FURNACE}/setpoint",
+                "value",
+                "30.0",
+            ],
+            [
+                (T0 + timedelta(seconds=0.5)).isoformat(),
+                f"{FURNACE}/measurement",
+                "value",
+                "25.0",
+            ],
+        ]
+        assert read_csv(exp_dir / "data.csv") == [
+            [
+                "time",
+                "elapsed_s",
+                "furnace/temperature",
+                "furnace/temperature_setpoint",
+            ],
+            [iso(0.2), "0.2", "", "30.0"],
+            [iso(0.5), "0.5", "25.0", ""],
+        ]
+        dump_mocks["pub_err"].database_error.assert_not_called()
+        captured = capsys.readouterr()
+        assert (
+            f"Influx database for experiment D123-456 saved at {exp_dir}."
+            in captured.out
+        )
+
+
+def iso(seconds):
+    """The time, seconds after T0, as written in the CSV files."""
+    return (T0 + timedelta(seconds=seconds)).isoformat()
+
+
+class TestWriteHistory:
+
+    def test_rows_in_time_order(self, tmp_path):
+        write_history(
+            [
+                record(2, "b", "value", 1.5),
+                record(1, "c", "state_status", "idle"),
+                record(1, "a", "config_simulate", "true"),
+            ],
+            tmp_path / "history.csv",
+        )
+        assert read_csv(tmp_path / "history.csv") == [
+            ["time", "topic", "field", "value"],
+            [(T0 + timedelta(seconds=1)).isoformat(), "a", "config_simulate", "true"],
+            [(T0 + timedelta(seconds=1)).isoformat(), "c", "state_status", "idle"],
+            [(T0 + timedelta(seconds=2)).isoformat(), "b", "value", "1.5"],
+        ]
+
+    def test_same_time_topic_and_field_with_numbers_and_strings(self, tmp_path):
+        # Sorting doesn't compare the values, which could be of different types
+        write_history(
+            [record(1, "a", "x", 1.0), record(1, "a", "x", "text")],
+            tmp_path / "history.csv",
+        )
+        assert len(read_csv(tmp_path / "history.csv")) == 3
+
+    def test_no_records(self, tmp_path):
+        write_history([], tmp_path / "history.csv")
+        assert read_csv(tmp_path / "history.csv") == [
+            ["time", "topic", "field", "value"]
+        ]
+
+
+class TestWriteData:
+
+    def write(self, tmp_path, records):
+        write_data(records, T0, tmp_path / "data.csv")
+        return read_csv(tmp_path / "data.csv")
+
+    def test_values_at_their_own_times(self, tmp_path):
+        rows = self.write(
+            tmp_path,
+            [
+                record(1.5, f"{FURNACE}/measurement", "value", 26.0),
+                record(0.5, f"{FURNACE}/measurement", "value", 25.0),
+                record(0.1, f"{FURNACE}/setpoint", "value", 30.0),
+                record(0.8, "instruments/pressure/pressure/measurement", "value", 1.0),
+            ],
+        )
+        # Nothing filled in, or resampled
+        assert rows == [
+            [
+                "time",
+                "elapsed_s",
+                "furnace/temperature",
+                "furnace/temperature_setpoint",
+                "pressure/pressure",
+            ],
+            [iso(0.1), "0.1", "", "30.0", ""],
+            [iso(0.5), "0.5", "25.0", "", ""],
+            [iso(0.8), "0.8", "", "", "1.0"],
+            [iso(1.5), "1.5", "26.0", "", ""],
+        ]
+
+    def test_values_at_the_same_time_share_a_row(self, tmp_path):
+        rows = self.write(
+            tmp_path,
+            [
+                record(1.2311, f"{FURNACE}/measurement", "value", 25.0),
+                record(
+                    1.2311, "instruments/pressure/pressure/measurement", "value", 1.0
                 ),
-                call(
-                    org="my_org",
-                    query=f'from(bucket: "bucket2") |> range(start: {t0_s}Z, stop: {tf_s}Z)',
-                ),
-                call(
-                    org="my_org",
-                    query=f'from(bucket: "bucket3") |> range(start: {t0_s}Z, stop: {tf_s}Z)',
-                ),
-            ]
-            assert mock_open.call_args_list == [
-                call(
-                    f"{data_path}/tmp/123.test_temp_exp/bucket1.csv",
-                    "w",
-                    newline="",
-                ),
-                call(
-                    f"{data_path}/tmp/123.test_temp_exp/bucket2.csv",
-                    "w",
-                    newline="",
-                ),
-                call(
-                    f"{data_path}/tmp/123.test_temp_exp/bucket3.csv",
-                    "w",
-                    newline="",
-                ),
-            ]
-            cw_instance.writerows.assert_has_calls(
-                [
-                    call(dump_mocks["mock_bucket_data"]),
-                    call(dump_mocks["mock_bucket_data"]),
-                    call(dump_mocks["mock_bucket_data"]),
-                ]
-            )
-            mock_print.assert_called_once_with(
-                f"  Influx database for experiment {state.experiment_id} saved at {data_path}/tmp/123.test_temp_exp."
-            )
+                record(1.2312, f"{FURNACE}/setpoint", "value", 30.0),
+            ],
+        )
+        # Not rounded
+        assert rows[1:] == [
+            [iso(1.2311), "1.2311", "25.0", "", "1.0"],
+            [iso(1.2312), "1.2312", "", "30.0", ""],
+        ]
+
+    def test_values_of_the_same_column_keep_their_own_rows(self, tmp_path):
+        rows = self.write(
+            tmp_path,
+            [
+                record(1.23, f"{FURNACE}/measurement", "value", 25.0),
+                record(1.23, f"{FURNACE}/measurement", "value", 26.0),
+            ],
+        )
+        assert rows[1:] == [
+            [iso(1.23), "1.23", "25.0"],
+            [iso(1.23), "1.23", "26.0"],
+        ]
+
+    def test_only_variable_values(self, tmp_path):
+        rows = self.write(
+            tmp_path,
+            [
+                record(0.5, f"{FURNACE}/measurement", "value", 25.0),
+                record(0.5, f"{FURNACE}/measurement", "other", 1.0),
+                record(0.5, "instruments/furnace/heartbeat", "value", 1.0),
+                record(0.5, "controller/command/run", "experiment_id", "D1"),
+            ],
+        )
+        assert rows == [
+            ["time", "elapsed_s", "furnace/temperature"],
+            [iso(0.5), "0.5", "25.0"],
+        ]
+
+    def test_no_data(self, tmp_path):
+        assert self.write(tmp_path, []) == [["time", "elapsed_s"]]
 
 
 class TestRunningExperiment:
@@ -396,6 +641,21 @@ class TestRunningExperiment:
 
         assert not os.path.exists(running_experiment_path())
 
+    def test_clear_only_the_given_experiment(self, state):
+        save_running_experiment(state)
+
+        # Another experiment started while this one was being dumped
+        clear_running_experiment("D26-000")
+        assert os.path.exists(running_experiment_path())
+
+        clear_running_experiment("D26-001")
+        assert not os.path.exists(running_experiment_path())
+
+    def test_clear_given_experiment_without_record(self):
+        clear_running_experiment("D26-001")  # Doesn't raise
+
+        assert not os.path.exists(running_experiment_path())
+
     def test_clear_without_record(self):
         clear_running_experiment()  # Doesn't raise
 
@@ -419,7 +679,8 @@ class TestRunningExperiment:
         assert lost.experiment_id == "D26-001"
         assert lost.exp_file == "data/D26-001.json"
         assert lost.experiment_start_time == datetime(2026, 1, 2, 3, 4, 5)
-        assert not os.path.exists(running_experiment_path())
+        # The dump clears the record once done
+        assert os.path.exists(running_experiment_path())
 
     def test_recover_unreadable_record(self, rec_mocks):
         with open(running_experiment_path(), "w") as f:
