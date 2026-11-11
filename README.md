@@ -6,6 +6,10 @@ This repo contains everything you need to get started using Comodo for automatin
 
 - [Comodo](#comodo)
   - [What is Comodo?](#what-is-comodo)
+  - [Where to start?](#where-to-start)
+    - [Deploy the example stack](#deploy-the-example-stack)
+    - [Run an experiment](#run-an-experiment)
+    - [Edit the instrument settings](#edit-the-instrument-settings)
   - [Central Configuration File](#central-configuration-file)
     - [Global Settings](#global-settings)
     - [Instruments](#instruments)
@@ -45,6 +49,77 @@ The stack consists of:
 The different components are glued together using four compose files, which define and configure all the services required to run Comodo.
 Each of these compose files can be run independently, allowing for flexible deployment options.
 
+## Where to start?
+
+If you are new to **comodo**, we recommend you start by deploying our example stack.
+This will allow you to explore the UI and Grafana dashboard, and start from a fully featured central configuration file.
+The example stack consists of a couple of simulated instruments, which allow you to explore the full functionality of **comodo** without needing any physical instruments.
+
+### Deploy the example stack
+
+To deploy the example stack, start by copying the the configuration file:
+```bash
+cp ./utils/tests/mocks/comodo.yaml ./
+```
+You will also need to create a `.env` file with the required environment variables.
+Details can be found in the [manual deployment](#manual-deployment) section, but for this example you can use:
+```.env
+QTT_USER=comodo_mqtt_user
+MQTT_PASS=comodo_mqtt_password
+INFLUX_TOKEN=comodo_influx_token
+INFLUX_BUCKET=comodo
+INFLUX_ORG=comodo
+```
+Then, run the automatic deployment script.
+For your first deployment, lets run everything on your local machine:
+```bash
+./utils/deploy.sh --local
+```
+The deployment script will generate and start the required compose files, and should finish by printing something like:
+```output
+Comodo is deployed. The UI is available at http://localhost:8501
+```
+Your comodo stack is now running!
+Use your preferred browser to access the UI using the url: `http://localhost:8501`.
+
+### Run an experiment
+1. If you have moved from the initial page, click on the "Timeline" tab in the UI's navigation bar.
+2. At the bottom of the page you'll find a button to add experiment rows.
+   Add as many rows as you want, and choose a value for each variable in the experiment.
+   You may also choose a different profile for each variable.
+   As you edit the values, you should see the plot update to show you what the experiment will look like.
+   Each of the dots in the timeline represents a _setpoint_ in the experiment, that is,
+   values that the controller will ask the actuators to reach at the given time.
+3. Once you have added all the rows you want, select the "Experiment Control" tab in the navigation bar.
+4. Click on the "Start Experiment" button to start the experiment.
+   You should see the top bar indicate the status change to "Running".
+5. Click on the "Data Monitor" tab in the navigation bar.
+   The grafana dashboard should show the data being collected by the instruments.
+   The _setpoints_ are plotted as dashed lines, while the actual measurements are plotted as solid lines.
+6. Notice the mass_flow values. It represents a _valve_, which directly influences the pressure.
+   You could not set setpoints for this variable, because a [setpoint controller](#setpoint-controllers) is driving it.
+   The _valve_ is being opened and closed to try and reach the desired pressure setpoints, which you set.
+7. After a while running the experiment, two likely things happened:
+   - The experiment finished successfully, and the status bar changed to "Idle".
+     You can now start a new experiment.
+   - The experiment failed, and the "Event Log" tab is indicating an error.
+     It is likely that the sensors could not keep up with your setpoints, and the experiment was stopped.
+
+### Edit the instrument settings
+1. Try editing the instrument configuration. Select the "Instruments" tab in the navigation bar.
+   Adjust the `tolerance` value for the different variables, and try running the experiment again.
+   The tolerance defines the margin around a setpoint within which the variable is considered to be at the setpoint.
+2. Try editing the PID gains. Select the "PID Controllers" tab in the navigation bar.
+   Adjust the setpoint controller parameters, and try running the experiment again.
+   The PID values define how the setpoint controller will adjust the valve based on the pressure readings.
+3. Try changing the simulation resolution. Select the "Global" tab in the navigation bar.
+   Adjust the `Simulation resolution` value to, say, 5.
+   Go back to the "Timeline" tab. You should see that the time step between setpoints is now larger.
+   The controller automatically subdivides your experiment definition into time steps given by the simulation resolution.
+   A larger value means fewer setpoints, which gives time to the actuators to reach the desired setpoints.
+   However, it also means the transition between setpoints is less _controlled_.
+
+Now that you have explored the example stack, you can start defining your own experiments by understanding and editing the `comodo.yaml` file.
 
 ## Central Configuration File
 The central configuration file, `comodo.yaml`, is the single source of truth for an experiment set-up.
