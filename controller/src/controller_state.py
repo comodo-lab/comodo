@@ -478,8 +478,12 @@ class cstate:
         Updates the bad instrument count based on the variable evaluation,
         and compares it to the bad instrument tolerance.
         If any instrument exceeds the tolerance, the controller status is set to "error".
+        Once the controller is in error, or stopping, the experiment is already being stopped,
+        so the instruments are no longer evaluated, to not repeat the error on every heartbeat.
         """
         if variable_evaluation.get("status", {}) == {}:
+            return
+        if self.status in ["error", "stopping"]:
             return
         for inst, iconfig in self.config.instruments.items():
             bad_state = False
