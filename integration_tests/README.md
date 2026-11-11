@@ -47,8 +47,9 @@ The test runner subscribes to all MQTT topics, and runs the following tests in o
 4. **Setpoint controllers configured while idle:** PID values sent on `setpoint_controllers/<id>/configure` are reported back in the setpoint controllers' heartbeats.
 5. **Experiment completes:** An experiment sent on `ui/start` runs to the end (`controller/event/end`) without any error,
    and the setpoint controllers report the PID values from the experiment, rather than the ones set while idle.
-6. **Database dump:** The controller dumps the database for the experiment to `controller/data/<experiment id>/<bucket>.csv`,
-   with the measurements of every sensor, only the setpoints of this experiment, and the controller's `running` status (used by Grafana's status graph).
+6. **Database dump:** The controller dumps the database for the experiment to `controller/data/<experiment id>/`, and moves the experiment file there:
+   its history (`history.csv`), in time order, with the measurements of every sensor, only the setpoints of this experiment, the controller's `running` status
+   (used by Grafana's status graph), and the experiment's end; and its data (`data.csv`), with every sensor's measurements and the experiment's setpoints, in time order.
 7. **No errors:** No message was received on any `error/...` topic during the tests above.
 
 Then, the fault tests, which cause errors on purpose, so they check their own errors instead:

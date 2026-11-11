@@ -185,8 +185,18 @@ The time between rows must be at least the `resolution`.
 
 ## Experiment data
 Experiments are saved in the `data/` folder (mounted from `controller/data/`):
-- `DYY-XXX.json`: The experiment message, where `YY` is the year and `XXX` a serial number.
-- `DYY-XXX/<bucket>.csv`: The InfluxDB data recorded during the experiment, saved when the experiment stops.
+- `DYY-XXX.json`: The experiment message, where `YY` is the year and `XXX` a serial number, while the experiment runs.
+- `DYY-XXX/`: Once the experiment has stopped, and its data has been saved (in the background, while the controller is `stopping`):
+  - `DYY-XXX.json`: The experiment message, moved here.
+  - The InfluxDB data recorded during the experiment (from every bucket in `INFLUX_BUCKET`):
+    - `history.csv`: Every value of every message, in time order, to explore what happened.
+      Columns: `time`, `topic`, `field` (nested keys joined by `_`, e.g. `state_status`) and `value`.
+    - `data.csv`: The measurements and setpoints of every variable, as recorded, to plot them.
+      Columns: `time`, `elapsed_s` (seconds since the start), and for each variable `<instrument>/<variable>` (its measurements)
+      and `<instrument>/<variable>_setpoint` (its setpoints, if it has any).
+      Values recorded at the same time share a row, and the other columns are left empty.
+      Nothing is resampled or filled in, so e.g. to plot a variable, drop its empty rows (`df[column].dropna()` in pandas),
+      or forward-fill the setpoints to get the setpoint in force at each measurement.
 
 ## Configuration
 The controller reads `comodo.yaml` from `/app/comodo.yaml`, and the following environment variables:
