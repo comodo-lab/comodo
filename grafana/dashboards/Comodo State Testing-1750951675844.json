@@ -104,6 +104,11 @@
                   "color": "red",
                   "index": 8,
                   "text": "Error"
+                },
+                "safe_stop": {
+                  "color": "red",
+                  "index": 12,
+                  "text": "Safe stop"
                 }
               },
               "type": "value"
