@@ -28,7 +28,7 @@ link to the branch on your fork where you are working.
    - Add unit test(s) that verify the correct behaviour of your changes in isolation.
    - Add integration test(s) that verify the correct behaviour of your changes at the component level.
    - Make sure all the stack's tests pass after your changes.
-See the [Testing](README.md#testing) section of the README for more information on how to run the tests.
+See the [Testing](README.md#testing) section of the README for more information on how to run the tests. If you would like advice on testing please ask on the [Discussions](https://github.com/comodo-lab/comodo/discussions) tab.
 5. Also, ensure you lint your contribution using black, so that it is consistent with the rest of the codebase.
 6. When the contribution is ready, submit it via a Pull Request **to the _dev_ branch**.
 7. The original authors will review your submission and may request that you make changes.
