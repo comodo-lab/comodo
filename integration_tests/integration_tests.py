@@ -123,41 +123,132 @@ def bus():
     c.loop_stop()
 
 
+# ----------------- Helpers ----------------- #
+
+
+def wait_until(bus, condition, timeout, description, interval=0.5, allow_errors=False):
+    """
+    Polls condition() until it is true, printing what it is waiting for every 3s.
+    The description can be a string, or a callable returning one, to report the current state.
+    Unless allow_errors is set to True, it fails as soon as any error is received.
+    Returns whether condition() became true before the timeout (a timeout of 0 checks it once).
+    """
+    deadline = time.time() + timeout
+    last_report = time.time()
+    while True:
+        if not allow_errors and bus["errors"]:
+            pytest.fail(f"Error received: {bus['errors']}")
+        if condition():
+            return True
+        if time.time() >= deadline:
+            return False
+        if time.time() - last_report >= 3:
+            text = description() if callable(description) else description
+            print(f"  Waiting for {text}...")
+            last_report = time.time()
+        time.sleep(interval)
+
+
+def pending_spc_pid(bus, spcs_config):
+    """
+    Returns the setpoint controllers that do not (yet) report the PID values in spcs_config
+    ({spc_id: {"pid": {...}}}) in their heartbeat.
+    """
+    pending = []
+    for spc_id, spc_config in spcs_config.items():
+        heartbeat = bus["spc_heartbeats"].get(
+            f"setpoint_controllers/{spc_id}/heartbeat"
+        )
+        pid = heartbeat["config"]["pid"] if heartbeat else {}
+        if not all(pid.get(k) == v for k, v in spc_config["pid"].items()):
+            pending.append(spc_id)
+    return sorted(pending)
+
+
+def with_pid(spcs_config, **gains):
+    """
+    Returns spcs_config with the given PID gains changed in every setpoint controller.
+    """
+    return {
+        spc_id: {"pid": {**spc_config["pid"], **gains}}
+        for spc_id, spc_config in spcs_config.items()
+    }
+
+
+def dump_files(experiment_id):
+    """
+    Returns the CSV files the controller dumps the database of an experiment to, one per bucket.
+    """
+    return [f"{CONTROLLER_DATA}/{experiment_id}/{b}.csv" for b in INFLUX_BUCKETS]
+
+
+def instrument_statuses(bus, instruments):
+    return {
+        name: bus["instrument_heartbeats"]
+        .get(f"instruments/{name}/heartbeat", {})
+        .get("state", {})
+        .get("status")
+        for name in instruments
+    }
+
+
+def all_instruments(bus, instruments, status):
+    return all(s == status for s in instrument_statuses(bus, instruments).values())
+
+
+def errors_since(bus, index):
+    """The errors received since bus["errors"] had index items, as (topic, payload) with the payload decoded."""
+    errors = []
+    for topic, payload in bus["errors"][index:]:
+        try:
+            errors.append((topic, json.loads(payload)))
+        except json.JSONDecodeError:
+            errors.append((topic, {"message": payload}))
+    return errors
+
+
+def reported(errors, topic, codes, text):
+    """Whether an error on topic, with one of the codes, mentions text."""
+    return any(
+        t == topic and e.get("code") in codes and text in e.get("message", "")
+        for t, e in errors
+    )
+
+
+# ----------------- Tests ----------------- #
+
+
 @pytest.mark.order(1)
 def test_services_ready(bus, expected_heartbeats):
     """
     Waits for all expected heartbeats to be received.
     Fails if any unexpected heartbeats are received or if it times out waiting for expected heartbeats.
     """
-    missing_heartbeats = expected_heartbeats.copy()
-    unexpected_heartbeats = []
-    deadline = time.time() + HEARTBEAT_TIMEOUT
-    last_report = 0.0
-    while time.time() < deadline:
-        received = set(bus["heartbeats"].keys())
-        for hb_topic in received:
-            if hb_topic in missing_heartbeats:
-                missing_heartbeats.remove(hb_topic)
-            elif hb_topic not in expected_heartbeats:
-                unexpected_heartbeats += [hb_topic]
-        if unexpected_heartbeats:
+    expected = set(expected_heartbeats)
+
+    def missing():
+        return sorted(expected - set(bus["heartbeats"]))
+
+    def all_received():
+        unexpected = set(bus["heartbeats"]) - expected
+        if unexpected:
             pytest.fail(
                 f"Unexpected heartbeats received."
-                f"\n  Expected: {sorted(expected_heartbeats)}"
-                f"\n  Missing: {sorted(missing_heartbeats)}"
-                f"\n  Unexpected: {sorted(unexpected_heartbeats)}"
+                f"\n  Expected: {sorted(expected)}"
+                f"\n  Missing: {missing()}"
+                f"\n  Unexpected: {sorted(unexpected)}"
             )
-        if not missing_heartbeats:
-            return
-        now = time.time()
-        if now - last_report >= 3:
-            print(f"  Waiting for heartbeats: {sorted(missing_heartbeats)}")
-            last_report = now
-        time.sleep(1)
-    pytest.fail(
+        return not missing()
+
+    assert wait_until(
+        bus=bus,
+        condition=all_received,
+        timeout=HEARTBEAT_TIMEOUT,
+        description=lambda: f"heartbeats: {missing()}",
+    ), (
         f"Missing heartbeats."
-        f"\n  Expected: {sorted(expected_heartbeats)}"
-        f"\n  Missing: {sorted(missing_heartbeats)}"
+        f"\n  Expected: {sorted(expected)}"
+        f"\n  Missing: {missing()}"
     )
 
 
@@ -167,46 +258,42 @@ def test_default_setpoints(bus, default_setpoints):
     Waits for all sensors to get to their default setpoints.
     Fails if any sensor reports a setpoint outside its tolerance after a timeout.
     """
-    correct_setpoints = {}
-    wrong_setpoints = {}
-    extra_setpoints = {}
-    deadline = time.time() + SETPOINT_TIMEOUT
-    last_report = 0.0
-    while time.time() < deadline:
-        for topic, measured in bus["measurement"].items():
+
+    def classify():
+        """Splits the latest measurements into correct, wrong, and without a default setpoint."""
+        correct, wrong, extra = {}, {}, {}
+        for topic, measured in list(bus["measurement"].items()):
             # Strip instrument/instrument_name and /measurement from topic to get sensor name
             sensor = "/".join(topic.split("/")[1:-1])
-            measured = json.loads(measured)
-            # If an expected setpoint:
-            if sensor in default_setpoints:
-                expected = default_setpoints[sensor]
-                if (
-                    abs(measured["value"] - expected["setpoint"])
-                    <= expected["tolerance"]
-                ):
-                    correct_setpoints[sensor] = measured["value"]
-                    wrong_setpoints.pop(sensor, None)
-                else:
-                    wrong_setpoints[sensor] = measured["value"]
-                    correct_setpoints.pop(sensor, None)
-            # If an unexpected setpoint:
-            extra_setpoints[sensor] = measured["value"]
-        if correct_setpoints.keys() == default_setpoints.keys() and not wrong_setpoints:
-            return
-        now = time.time()
-        if now - last_report >= 3:
-            print(f"  Correct setpoints: {sorted(correct_setpoints.keys())}")
-            print(f"  Wrong setpoints: {sorted(wrong_setpoints.keys())}")
-            print(f"  Extra setpoints: {sorted(extra_setpoints.keys())}")
-            last_report = now
-        time.sleep(1)
-    pytest.fail(
+            value = json.loads(measured)["value"]
+            if sensor not in default_setpoints:
+                extra[sensor] = value  # Unexpected sensor
+            elif (
+                abs(value - default_setpoints[sensor]["setpoint"])
+                <= default_setpoints[sensor]["tolerance"]
+            ):
+                correct[sensor] = value  # At default setpoint
+            else:
+                wrong[sensor] = value  # Not at default setpoint
+        return correct, wrong, extra
+
+    def summary():
+        correct, wrong, extra = classify()
+        return (
+            f"\n    OK: {sorted(correct)}"
+            f"\n    Wrong: {sorted(wrong)}"
+            f"\n    No default: {sorted(extra)}"
+        )
+
+    assert wait_until(
+        bus=bus,
+        condition=lambda: classify()[0].keys() == default_setpoints.keys(),
+        timeout=SETPOINT_TIMEOUT,
+        description=lambda: f"default setpoints:{summary()}",
+    ), (
         f"Not all sensors at their default setpoints."
         f"\n  Expected: {sorted(default_setpoints)}"
-        f"\n  Received: "
-        f"\n    OK: {sorted(correct_setpoints)}"
-        f"\n    Wrong: {sorted(wrong_setpoints)}"
-        f"\n    No default: {sorted(extra_setpoints)}"
+        f"\n  Received: {summary()}"
     )
 
 
@@ -225,9 +312,9 @@ def test_measurements_in_influx(bus, mock_comodo_config):
     query_api = client.query_api()
     found = set()
     last_error = None
-    deadline = time.time() + INFLUX_TIMEOUT
-    last_report = 0.0
-    while time.time() < deadline:
+
+    def all_stored():
+        nonlocal last_error
         for bucket in INFLUX_BUCKETS:
             query = (
                 f'from(bucket: "{bucket}") |> range(start: -5m)'
@@ -236,68 +323,29 @@ def test_measurements_in_influx(bus, mock_comodo_config):
             )
             try:
                 tables = query_api.query(query, org=INFLUX_ORG)
-                found |= {r.values.get("topic") for t in tables for r in t.records}
+                found.update(r.values.get("topic") for t in tables for r in t.records)
                 last_error = None
             except Exception as e:
                 # InfluxDB may still be starting up
                 last_error = e
-        if expected_topics <= found:
-            client.close()
-            return
-        now = time.time()
-        if now - last_report >= 3:
-            missing = sorted(expected_topics - found)
-            print(f"  Waiting for measurements in InfluxDB: {missing}")
-            if last_error is not None:
-                print(f"  Last InfluxDB error: {last_error}")
-            last_report = now
-        time.sleep(1)
-    client.close()
-    pytest.fail(
+        return expected_topics <= found
+
+    try:
+        stored = wait_until(
+            bus=bus,
+            condition=all_stored,
+            timeout=INFLUX_TIMEOUT,
+            description=lambda: f"measurements in InfluxDB: {sorted(expected_topics - found)}"
+            f" (last error: {last_error})",
+        )
+    finally:
+        client.close()
+    assert stored, (
         f"Measurements not stored in InfluxDB."
         f"\n  Expected: {sorted(expected_topics)}"
         f"\n  Missing: {sorted(expected_topics - found)}"
         f"\n  Last error: {last_error}"
     )
-
-
-def wait_for_spc_pid(bus, spcs_config, timeout):
-    """
-    Helper function for test_spc_configured_while_idle and test_experiment_completes.
-    Waits for every setpoint controller to report the PID values in spcs_config
-    ({spc_id: {"pid": {...}}}) in its heartbeat. Returns the ones that did not.
-    """
-    pending = dict(spcs_config)
-    deadline = time.time() + timeout
-    last_report = 0.0
-    while True:
-        for spc_id, spc_config in list(pending.items()):
-            heartbeat = bus["spc_heartbeats"].get(
-                f"setpoint_controllers/{spc_id}/heartbeat"
-            )
-            if heartbeat is None:
-                continue
-            reported = heartbeat["config"]["pid"]
-            if all(reported.get(k) == v for k, v in spc_config["pid"].items()):
-                pending.pop(spc_id)
-        now = time.time()
-        if not pending or now >= deadline:
-            return pending
-        if now - last_report >= 3:
-            print(f"  Waiting for PID values from: {sorted(pending)}")
-            last_report = now
-        time.sleep(0.5)
-
-
-def with_pid(spcs_config, **gains):
-    """
-    Helper function for test_spc_configured_while_idle and test_experiment_completes.
-    Returns spcs_config with the given PID gains changed in every setpoint controller.
-    """
-    return {
-        spc_id: {"pid": {**spc_config["pid"], **gains}}
-        for spc_id, spc_config in spcs_config.items()
-    }
 
 
 @pytest.mark.order(4)
@@ -316,9 +364,12 @@ def test_spc_configured_while_idle(bus, mock_experiment_dict):
         )
     print(f"  → setpoint_controllers/+/configure published")
 
-    pending = wait_for_spc_pid(bus, spcs_config, HEARTBEAT_TIMEOUT)
-    if pending:
-        pytest.fail(f"PID values not applied by: {sorted(pending)}")
+    assert wait_until(
+        bus=bus,
+        condition=lambda: not pending_spc_pid(bus, spcs_config),
+        timeout=HEARTBEAT_TIMEOUT,
+        description=lambda: f"PID values from: {pending_spc_pid(bus, spcs_config)}",
+    ), f"PID values not applied by: {pending_spc_pid(bus, spcs_config)}"
 
 
 @pytest.mark.order(5)
@@ -334,25 +385,18 @@ def test_experiment_completes(bus, mock_experiment_dict):
     bus["c"].publish("ui/start", json.dumps(experiment))
     print(f"  → ui/start published")
 
-    deadline = time.time() + EXPERIMENT_TIMEOUT
-    last_report = 0.0
-    while time.time() < deadline:
-        if bus["errors"]:
-            pytest.fail(f"Error received: {bus['errors']}")
-        if bus["end"] is not None:
-            print(f"  ← controller/event/end received")
-            # The experiment's PID values replaced the ones configured while idle
-            pending = wait_for_spc_pid(bus, experiment["config"]["spcs"], 0)
-            if pending:
-                pytest.fail(f"Experiment PID values not applied by: {sorted(pending)}")
-            return
-        now = time.time()
-        elapsed = int(now - (deadline - EXPERIMENT_TIMEOUT))
-        if now - last_report >= 3:
-            print(f"  waiting for controller/event/end... ({elapsed}s)")
-            last_report = now
-        time.sleep(0.5)
-    pytest.fail("Experiment did not complete (no controller/event/end)")
+    start = time.time()
+    assert wait_until(
+        bus=bus,
+        condition=lambda: bus["end"] is not None,
+        timeout=EXPERIMENT_TIMEOUT,
+        description=lambda: f"controller/event/end ({int(time.time() - start)}s)",
+    ), "Experiment did not complete (no controller/event/end)"
+    print(f"  ← controller/event/end received")
+
+    # The experiment's PID values replaced the ones configured while idle
+    pending = pending_spc_pid(bus, experiment["config"]["spcs"])
+    assert not pending, f"Experiment PID values not applied by: {pending}"
 
 
 @pytest.mark.order(6)
@@ -364,31 +408,21 @@ def test_database_dump(bus, mock_comodo_config):
     assert bus["end"] is not None, "The experiment did not complete"
     experiment_id = json.loads(bus["end"])["experiment_id"]
     exp_dir = f"{CONTROLLER_DATA}/{experiment_id}"
-    csv_files = [f"{exp_dir}/{bucket}.csv" for bucket in INFLUX_BUCKETS]
+    csv_files = dump_files(experiment_id)
 
     # The controller dumps the database while stopping, and returns to idle once done
-    deadline = time.time() + INFLUX_TIMEOUT
-    last_report = 0.0
-    while time.time() < deadline:
-        if bus["errors"]:
-            pytest.fail(f"Error received: {bus['errors']}")
-        dumped = all(os.path.exists(f) for f in csv_files)
-        if dumped and bus["controller_status"] == "idle":
-            break
-        now = time.time()
-        if now - last_report >= 3:
-            print(
-                f"  Waiting for the database dump in {exp_dir}..."
-                f" (controller: {bus['controller_status']})"
-            )
-            last_report = now
-        time.sleep(0.5)
-    else:
-        pytest.fail(
-            f"Database not dumped for {experiment_id}."
-            f"\n  Expected: {csv_files}"
-            f"\n  Found: {sorted(os.listdir(exp_dir)) if os.path.isdir(exp_dir) else []}"
-        )
+    assert wait_until(
+        bus=bus,
+        condition=lambda: all(os.path.exists(f) for f in csv_files)
+        and bus["controller_status"] == "idle",
+        timeout=INFLUX_TIMEOUT,
+        description=lambda: f"the database dump in {exp_dir} (controller: {bus['controller_status']})",
+    ), (
+        f"Database not dumped for {experiment_id}, or the controller not back to idle."
+        f"\n  Expected: {csv_files}"
+        f"\n  Found: {sorted(os.listdir(exp_dir)) if os.path.isdir(exp_dir) else []}"
+        f"\n  Controller: {bus['controller_status']}"
+    )
 
     assert os.path.exists(f"{CONTROLLER_DATA}/{experiment_id}.json")
 
@@ -436,55 +470,6 @@ def test_no_errors(bus):
 # These cause errors on purpose, so they run after test_no_errors, and check their own errors.
 
 
-def wait_until(condition, timeout, description):
-    """
-    Waits until condition() is true, or fails after timeout seconds.
-    """
-    deadline = time.time() + timeout
-    last_report = time.time()
-    while time.time() < deadline:
-        if condition():
-            return
-        if time.time() - last_report >= 3:
-            print(f"  Waiting for {description}...")
-            last_report = time.time()
-        time.sleep(0.5)
-    pytest.fail(f"Timed out waiting for {description}.")
-
-
-def instrument_statuses(bus, instruments):
-    return {
-        name: bus["instrument_heartbeats"]
-        .get(f"instruments/{name}/heartbeat", {})
-        .get("state", {})
-        .get("status")
-        for name in instruments
-    }
-
-
-def all_instruments(bus, instruments, status):
-    return all(s == status for s in instrument_statuses(bus, instruments).values())
-
-
-def errors_since(bus, index):
-    """The errors received since bus["errors"] had index items, as (topic, payload) with the payload decoded."""
-    errors = []
-    for topic, payload in bus["errors"][index:]:
-        try:
-            errors.append((topic, json.loads(payload)))
-        except json.JSONDecodeError:
-            errors.append((topic, {"message": payload}))
-    return errors
-
-
-def reported(errors, topic, codes, text):
-    """Whether an error on topic, with one of the codes, mentions text."""
-    return any(
-        t == topic and e.get("code") in codes and text in e.get("message", "")
-        for t, e in errors
-    )
-
-
 @pytest.mark.order(8)
 def test_ui_reset_clears_safe_stop(bus, mock_comodo_config):
     """
@@ -494,11 +479,14 @@ def test_ui_reset_clears_safe_stop(bus, mock_comodo_config):
     """
     # Make sure stack is ready to start
     instruments = sorted(mock_comodo_config.instruments)
-    wait_until(
-        lambda: bus["controller_status"] == "idle",
-        HEARTBEAT_TIMEOUT,
-        "the controller to be idle",
-    )
+    statuses = lambda: instrument_statuses(bus, instruments)
+    assert wait_until(
+        bus=bus,
+        condition=lambda: bus["controller_status"] == "idle",
+        timeout=HEARTBEAT_TIMEOUT,
+        description=lambda: f"the controller to be idle",
+        allow_errors=True,
+    ), f"The controller is not idle: {bus['controller_status']}"
     # Start experiment externally, controller doesn't know about it
     since = len(bus["errors"])
     bus["c"].publish(
@@ -506,11 +494,13 @@ def test_ui_reset_clears_safe_stop(bus, mock_comodo_config):
     )
     print("  → controller/command/start published, for an unknown experiment")
     # Instruments should safe stop, as the controller's heartbeats don't match the experiment
-    wait_until(
-        lambda: all_instruments(bus, instruments, "safe_stop"),
-        HEARTBEAT_TIMEOUT,
-        f"every instrument to safe stop ({instrument_statuses(bus, instruments)})",
-    )
+    assert wait_until(
+        bus=bus,
+        condition=lambda: all_instruments(bus, instruments, "safe_stop"),
+        timeout=HEARTBEAT_TIMEOUT,
+        description=lambda: f"every instrument to safe stop {statuses()}",
+        allow_errors=True,
+    ), f"Not every instrument safe stopped: {statuses()}"
     errors = errors_since(bus, since)
     for name in instruments:
         assert reported(
@@ -530,11 +520,13 @@ def test_ui_reset_clears_safe_stop(bus, mock_comodo_config):
     since = len(bus["errors"])
     bus["c"].publish("ui/reset", json.dumps({}))
     print("  → ui/reset published")
-    wait_until(
-        lambda: all_instruments(bus, instruments, "awaiting_experiment"),
-        HEARTBEAT_TIMEOUT,
-        f"every instrument to be reset ({instrument_statuses(bus, instruments)})",
-    )
+    assert wait_until(
+        bus=bus,
+        condition=lambda: all_instruments(bus, instruments, "awaiting_experiment"),
+        timeout=HEARTBEAT_TIMEOUT,
+        description=lambda: f"every instrument to be reset {statuses()}",
+        allow_errors=True,
+    ), f"Not every instrument was reset: {statuses()}"
     assert ("controller/command/reset", {"source": "ui"}) in bus["commands"]
     # A ui-requested reset should not publish an error from instruments or spcs
     assert not errors_since(bus, since)
@@ -551,21 +543,26 @@ def test_controller_restart_mid_experiment(
     """
     # Make sure stack is ready to start
     instruments = sorted(mock_comodo_config.instruments)
-    wait_until(
-        lambda: bus["controller_status"] == "idle",
-        HEARTBEAT_TIMEOUT,
-        "the controller to be idle",
-    )
+    statuses = lambda: instrument_statuses(bus, instruments)
+    assert wait_until(
+        bus=bus,
+        condition=lambda: bus["controller_status"] == "idle",
+        timeout=HEARTBEAT_TIMEOUT,
+        description=lambda: f"the controller to be idle",
+        allow_errors=True,
+    ), f"The controller is not idle: {bus['controller_status']}"
     # Start the experiment normally and wait for it to start running
     since = len(bus["errors"])
     commands = len(bus["commands"])
     bus["c"].publish("ui/start", json.dumps(mock_experiment_dict))
     print("  → ui/start published")
-    wait_until(
-        lambda: bus["controller_status"] == "running",
-        EXPERIMENT_TIMEOUT,
-        "the experiment to run",
-    )
+    assert wait_until(
+        bus=bus,
+        condition=lambda: bus["controller_status"] == "running",
+        timeout=EXPERIMENT_TIMEOUT,
+        description=lambda: f"the experiment to run (controller: {bus['controller_status']})",
+        allow_errors=True,
+    ), f"The experiment did not run: {errors_since(bus, since)}"
     starts = [
         p for t, p in bus["commands"][commands:] if t == "controller/command/start"
     ]
@@ -579,18 +576,22 @@ def test_controller_restart_mid_experiment(
         ),
     )
     print(f"  → error/exception published, during experiment {experiment_id}")
-    wait_until(
-        lambda: ("controller/command/reset", {"source": "controller"})
+    assert wait_until(
+        bus=bus,
+        condition=lambda: ("controller/command/reset", {"source": "controller"})
         in bus["commands"][commands:],
-        HEARTBEAT_TIMEOUT,
-        "the restarted controller to reset the instruments",
-    )
+        timeout=HEARTBEAT_TIMEOUT,
+        description=lambda: "the restarted controller to reset the instruments",
+        allow_errors=True,
+    ), "The restarted controller did not reset the instruments"
     # The instruments should have been reset by the controller restart
-    wait_until(
-        lambda: all_instruments(bus, instruments, "awaiting_experiment"),
-        HEARTBEAT_TIMEOUT,
-        f"every instrument to be reset ({instrument_statuses(bus, instruments)})",
-    )
+    assert wait_until(
+        bus=bus,
+        condition=lambda: all_instruments(bus, instruments, "awaiting_experiment"),
+        timeout=HEARTBEAT_TIMEOUT,
+        description=lambda: f"every instrument to be reset {statuses()}",
+        allow_errors=True,
+    ), f"Not every instrument was reset: {statuses()}"
     # Controller should report the lost experiment, and the instruments should report a reset or safe stop
     errors = errors_since(bus, since)
     assert reported(
@@ -601,14 +602,18 @@ def test_controller_restart_mid_experiment(
             errors, "error/instrument", ["experiment_reset", "safe_stop"], f"[{name}]"
         ), f"No experiment reset (or safe stop) reported by {name}: {errors}"
     # The data of the lost experiment is saved, as stopping it would have
-    csv_files = [f"{CONTROLLER_DATA}/{experiment_id}/{b}.csv" for b in INFLUX_BUCKETS]
-    wait_until(
-        lambda: all(os.path.exists(f) for f in csv_files),
-        INFLUX_TIMEOUT,
-        f"the database dump of {experiment_id}",
-    )
-    wait_until(
-        lambda: bus["controller_status"] == "idle",
-        HEARTBEAT_TIMEOUT,
-        "the restarted controller to be idle",
-    )
+    csv_files = dump_files(experiment_id)
+    assert wait_until(
+        bus=bus,
+        condition=lambda: all(os.path.exists(f) for f in csv_files),
+        timeout=INFLUX_TIMEOUT,
+        description=lambda: f"the database dump of {experiment_id}",
+        allow_errors=True,
+    ), f"Database not dumped for the lost experiment {experiment_id}: {csv_files}"
+    assert wait_until(
+        bus=bus,
+        condition=lambda: bus["controller_status"] == "idle",
+        timeout=HEARTBEAT_TIMEOUT,
+        description=lambda: "the restarted controller to be idle",
+        allow_errors=True,
+    ), f"The restarted controller is not idle: {bus['controller_status']}"
