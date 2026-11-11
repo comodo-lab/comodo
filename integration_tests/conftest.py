@@ -183,12 +183,10 @@ def with_pid(spcs_config, **gains):
 
 def dump_files(experiment_id):
     """
-    Returns the CSV files the controller dumps the database of an experiment to, one per bucket.
+    Returns the CSV files the controller dumps the database of an experiment to: its history, and its data.
     """
-    return [
-        f"{settings['CONTROLLER_DATA']}/{experiment_id}/{b}.csv"
-        for b in settings["INFLUX_BUCKETS"]
-    ]
+    exp_dir = f"{settings['CONTROLLER_DATA']}/{experiment_id}"
+    return [f"{exp_dir}/history.csv", f"{exp_dir}/data.csv"]
 
 
 def instrument_statuses(bus, instruments):

@@ -204,10 +204,11 @@ def test_experiment_completes(bus, mock_experiment_dict):
 
 
 @pytest.mark.order(6)
-def test_database_dump(bus, mock_comodo_config):
+def test_database_dump(bus, mock_comodo_config, mock_experiment_dict):
     """
-    Checks that the controller dumped the database to CSV files after the experiment completed.
-    Fails if the CSV files are not found or if they are missing measurements from any expected topic.
+    Checks that the controller dumped the database after the experiment completed, to its history (every value, in time order),
+    and its data (the measurements and setpoints, on a common time step).
+    Fails if the files are not found, or if they are missing data.
     """
     assert bus["end"] is not None, "The experiment did not complete"
     experiment_id = json.loads(bus["end"])["experiment_id"]
@@ -228,45 +229,58 @@ def test_database_dump(bus, mock_comodo_config):
         f"\n  Controller: {bus['controller_status']}"
     )
 
-    assert os.path.exists(f"{settings['CONTROLLER_DATA']}/{experiment_id}.json")
+    # The experiment's file is moved to its directory, once dumped
+    assert os.path.exists(f"{exp_dir}/{experiment_id}.json")
+    assert not os.path.exists(f"{settings['CONTROLLER_DATA']}/{experiment_id}.json")
 
+    history_file, data_file = csv_files
+    with open(history_file, newline="") as f:
+        history = list(csv.DictReader(f))
+    assert history, f"{history_file} has no data"
+    assert [r["time"] for r in history] == sorted(
+        r["time"] for r in history
+    ), f"{history_file} is not in time order"
     expected_topics = {
         f"instruments/{sensor}/measurement" for sensor in mock_comodo_config.sensors
     } | {"controller/command/run"}
-    for csv_file in csv_files:
-        # Annotated CSV: each table has its own annotations (#...) and header row
-        records = []
-        header = None
-        with open(csv_file, newline="") as f:
-            for row in csv.reader(f):
-                if not row or row[0].startswith("#"):
-                    continue
-                if row[1:3] == ["result", "table"]:
-                    header = row
-                elif header is not None:
-                    records.append(dict(zip(header, row)))
-        assert records, f"{csv_file} has no data"
-        found_topics = {r.get("topic") for r in records}
-        missing = expected_topics - found_topics
-        assert not missing, f"{csv_file} is missing data from: {sorted(missing)}"
-        run_ids = {
-            r["_value"]
-            for r in records
-            if r.get("topic") == "controller/command/run"
-            and r["_field"] == "experiment_id"
-        }
-        assert run_ids == {
-            experiment_id
-        }, f"{csv_file} has setpoints from other experiments: {sorted(run_ids)}"
-        # The controller's status while running is stored (Grafana's status graph uses it)
-        controller_statuses = {
-            r["_value"]
-            for r in records
-            if r.get("topic") == "controller/heartbeat" and r["_field"] == "state_status"
-        }
-        assert (
-            "running" in controller_statuses
-        ), f"{csv_file} has no running status from the controller: {sorted(controller_statuses)}"
+    missing = expected_topics - {r["topic"] for r in history}
+    assert not missing, f"{history_file} is missing data from: {sorted(missing)}"
+    # Up to the end of the experiment (Telegraf may not have written it yet)
+    assert any(
+        r["topic"] == "controller/event/end" and r["value"] == experiment_id
+        for r in history
+    ), f"{history_file} doesn't have the end of the experiment"
+    run_ids = {
+        r["value"]
+        for r in history
+        if r["topic"] == "controller/command/run" and r["field"] == "experiment_id"
+    }
+    assert run_ids == {
+        experiment_id
+    }, f"{history_file} has setpoints from other experiments: {sorted(run_ids)}"
+    # The controller's status while running is stored (Grafana's status graph uses it)
+    controller_statuses = {
+        r["value"]
+        for r in history
+        if r["topic"] == "controller/heartbeat" and r["field"] == "state_status"
+    }
+    assert (
+        "running" in controller_statuses
+    ), f"{history_file} has no running status from the controller: {sorted(controller_statuses)}"
+
+    # The data has the measurements of every sensor, and the setpoints of the experiment, as recorded, in time order
+    with open(data_file, newline="") as f:
+        data = list(csv.DictReader(f))
+    assert data, f"{data_file} has no data"
+    elapsed = [float(r["elapsed_s"]) for r in data]
+    assert elapsed == sorted(elapsed), f"{data_file} is not in time order"
+    for sensor in mock_comodo_config.sensors:
+        assert any(r.get(sensor) for r in data), f"{data_file} has no {sensor}"
+    for setpoint in mock_experiment_dict["experiment_definition"][0]:
+        if setpoint == "time":
+            continue
+        column = f"{setpoint}_setpoint"
+        assert any(r.get(column) for r in data), f"{data_file} has no {column}"
 
 
 @pytest.mark.order(7)
