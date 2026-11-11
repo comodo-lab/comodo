@@ -53,10 +53,12 @@ The test runner subscribes to all MQTT topics, and runs the following tests in o
 
 Then, the fault tests, which cause errors on purpose, so they check their own errors instead:
 
-8. **UI reset clears a safe stop:** The instruments are started (`controller/command/start`) on an experiment the controller doesn't know about,
+8. **Experiment stopped if a sensor cannot keep up:** An experiment is started with a furnace setpoint it cannot reach within its tolerance in time.
+   The controller reports the furnace not keeping up with the setpoints (`error/controller`), stops the experiment (`controller/command/stop`) long before its end, and dumps its database, and everything goes back to idle.
+9. **UI reset clears a safe stop:** The instruments are started (`controller/command/start`) on an experiment the controller doesn't know about,
    as if they had lost contact with it, so they safe stop while the controller stays idle, and each reports it on `error/instrument`.
    A reset from the UI (`ui/reset`) then returns them to `awaiting_experiment`, without any error.
-9. **Controller restart mid-experiment:** An experiment is started, and the controller is restarted mid-experiment
+10. **Controller restart mid-experiment:** An experiment is started, and the controller is restarted mid-experiment
    (an `error/exception` makes it exit, and Docker restarts it). The restarted controller reports the lost experiment (`experiment_lost`),
    dumps its database, and resets the instruments, which report the experiment ended by the reset (`experiment_reset`),
    or a safe stop if the restart took longer than their timeout.

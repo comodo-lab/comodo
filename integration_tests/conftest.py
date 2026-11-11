@@ -75,7 +75,7 @@ def bus():
         "measurement": {},
         "controller_status": None,
         "instrument_heartbeats": {},
-        "commands": [],  # controller/command/start and reset, as (topic, payload)
+        "commands": [],  # controller/command/start, stop and reset, as (topic, payload)
         "errors": [],
         "end": None,
         "connected": False,
@@ -102,7 +102,11 @@ def bus():
             collected["errors"].append((t, p))
         elif t == "controller/event/end":
             collected["end"] = p
-        elif t in ["controller/command/start", "controller/command/reset"]:
+        elif t in [
+            "controller/command/start",
+            "controller/command/stop",
+            "controller/command/reset",
+        ]:
             collected["commands"].append((t, json.loads(p)))
 
     c = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)

@@ -274,6 +274,76 @@ def test_no_errors(bus):
 
 
 @pytest.mark.order(8)
+def test_experiment_stopped_if_sensor_cannot_keep_up_with_setpoints(
+    bus, mock_experiment_dict, mock_comodo_config
+):
+    """
+    The furnace is given a setpoint it cannot reach in time (25 to 1000 takes about 30s).
+    The controller should report the furnace not keeping up with the setpoints,
+    stop the experiment long before its end, and dump its database.
+    """
+    instruments = sorted(mock_comodo_config.instruments)
+    statuses = lambda: instrument_statuses(bus, instruments)
+    experiment = mock_experiment_dict
+    experiment["config"]["instruments"]["furnace"]["temperature"]["tolerance"] = 1e-6
+    # A single step, much longer than the test waits for, so the experiment can only end by being stopped
+    experiment["experiment_definition"] = [
+        {"time": 0, "furnace/temperature": 1000, "pressure/pressure": 1},
+        {"time": 600, "furnace/temperature": 1000, "pressure/pressure": 1},
+    ]
+    # Make sure stack is ready to start
+    assert wait_until(
+        bus=bus,
+        condition=lambda: bus["controller_status"] == "idle",
+        timeout=settings["HEARTBEAT_TIMEOUT"],
+        description=lambda: f"the controller to be idle",
+        allow_errors=True,
+    ), f"The controller is not idle: {bus['controller_status']}"
+    since = len(bus["errors"])
+    commands = len(bus["commands"])
+    bus["c"].publish("ui/start", json.dumps(experiment))
+    print("  → ui/start published, with a setpoint the furnace cannot keep up with")
+    sent = lambda topic: [p for t, p in bus["commands"][commands:] if t == topic]
+    # The controller should stop the experiment (controller/command/stop), after reporting the furnace
+    assert wait_until(
+        bus=bus,
+        condition=lambda: sent("controller/command/stop"),
+        timeout=settings["EXPERIMENT_TIMEOUT"],
+        description=lambda: f"the experiment to be stopped (controller: {bus['controller_status']})",
+        allow_errors=True,
+    ), f"The experiment was not stopped: {errors_since(bus, since)}"
+    experiment_id = sent("controller/command/start")[-1]["experiment_id"]
+    assert sent("controller/command/stop")[0] == {"experiment_id": experiment_id}
+    errors = errors_since(bus, since)
+    assert reported(
+        errors,
+        "error/controller",
+        ["experiment"],
+        "Instrument furnace not keeping up with setpoints.",
+    ), f"The furnace not keeping up was not reported: {errors}"
+    # Reported once, and nothing else
+    assert len(errors) == 1, f"Unexpected errors: {errors}"
+    # The data of the stopped experiment is saved, and everything goes back to idle
+    csv_files = dump_files(experiment_id)
+    assert wait_until(
+        bus=bus,
+        condition=lambda: all(os.path.exists(f) for f in csv_files),
+        timeout=settings["INFLUX_TIMEOUT"],
+        description=lambda: f"the database dump of {experiment_id}",
+        allow_errors=True,
+    ), f"Database not dumped for the stopped experiment {experiment_id}: {csv_files}"
+    assert wait_until(
+        bus=bus,
+        condition=lambda: bus["controller_status"] == "idle"
+        and all_instruments(bus, instruments, "awaiting_experiment"),
+        timeout=settings["HEARTBEAT_TIMEOUT"],
+        description=lambda: f"the controller to be idle (controller: {bus['controller_status']}), "
+        f"and every instrument to be awaiting an experiment {statuses()}",
+        allow_errors=True,
+    ), f"Not back to idle: controller {bus['controller_status']}, instruments {statuses()}"
+
+
+@pytest.mark.order(9)
 def test_ui_reset_clears_safe_stop(bus, mock_comodo_config):
     """
     The instruments start an experiment the controller doesn't know about (as if they lost contact with it, or missed its end),
@@ -335,7 +405,7 @@ def test_ui_reset_clears_safe_stop(bus, mock_comodo_config):
     assert not errors_since(bus, since)
 
 
-@pytest.mark.order(9)
+@pytest.mark.order(10)
 def test_controller_restart_mid_experiment(
     bus, mock_experiment_dict, mock_comodo_config
 ):
