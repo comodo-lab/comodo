@@ -719,7 +719,7 @@ class TestCState:
             mock_pub_err.assert_called_once_with(
                 topic="error/controller",
                 code="experiment",
-                message="ERROR: Instrument inst_1 in bad state for too long.",
+                message="Instrument inst_1 in bad state for too long.",
             )
             assert state.status == "error"
 
@@ -751,6 +751,6 @@ class TestCState:
             mock_pub_err.assert_called_once_with(
                 topic="error/controller",
                 code="experiment",
-                message="ERROR: Instrument inst_1 not keeping up with setpoints.",
+                message="Instrument inst_1 not keeping up with setpoints.",
             )
             assert state.status == "error"

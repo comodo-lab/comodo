@@ -525,7 +525,7 @@ class cstate:
                     pub_err.print_and_publish(
                         topic="error/controller",
                         code="experiment",
-                        message=f"ERROR: Instrument {inst} in bad state for too long.",
+                        message=f"Instrument {inst} in bad state for too long.",
                     )
                     self.status = "error"
                 if (
@@ -535,6 +535,6 @@ class cstate:
                     pub_err.print_and_publish(
                         topic="error/controller",
                         code="experiment",
-                        message=f"ERROR: Instrument {inst} not keeping up with setpoints.",
+                        message=f"Instrument {inst} not keeping up with setpoints.",
                     )
                     self.status = "error"

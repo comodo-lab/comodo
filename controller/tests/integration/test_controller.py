@@ -432,8 +432,8 @@ def test_experiment_stops_if_instruments_stop_responding(
     }
     errors = message_bus.get_messages("error/controller", decoded=True)
     assert sorted(json.loads(m.payload)["message"] for m in errors) == [
-        "ERROR: Instrument furnace in bad state for too long.",
-        "ERROR: Instrument pressure in bad state for too long.",
+        "Instrument furnace in bad state for too long.",
+        "Instrument pressure in bad state for too long.",
     ]
 
 
@@ -476,7 +476,7 @@ def test_experiment_stops_if_instruments_cannot_keep_up_with_setpoints(
     }
     errors = message_bus.get_messages("error/controller", decoded=True)
     assert [json.loads(m.payload)["message"] for m in errors] == [
-        "ERROR: Instrument furnace not keeping up with setpoints."
+        "Instrument furnace not keeping up with setpoints."
     ]
 
 
