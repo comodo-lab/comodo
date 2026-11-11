@@ -18,7 +18,7 @@ so that the sensor reaches its setpoint.
 The setpoint controller is configured with an external sensor, PID parameters, a target actuator, and its defined limits.
 
 Configuration is done via environment variables.
-In a standard deployment, each setpoint controller runs as its own service in `compose.firmware.yaml`,
+In a standard deployment, each setpoint controller runs as its own service in `compose/firmware.yaml`,
 which is generated from the `setpoint_controller` entries in `comodo.yaml` (see the [main README](../README.md#setpoint-controllers)).
 
 In its simplest form, the following environment variables are required:

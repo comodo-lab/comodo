@@ -58,7 +58,7 @@ The mocks are copied into each component's image, like the modules.
 When changing `tests/mocks/comodo.yaml`, keep the other mocks consistent with it.
 
 ## Scripts
-- [`contexts.sh`](contexts.sh): Prepares a deployment: regenerates `compose.firmware.yaml`, creates the Docker contexts for remote hosts, and prints the commands to start each stack.
+- [`contexts.sh`](contexts.sh): Prepares a deployment: regenerates `compose/firmware.yaml`, creates the Docker contexts for remote hosts, and prints the commands to start each stack.
   If `MQTT_HOST` is blank, the commands for remote stacks give them this machine's IP address to reach the broker.
   With `--local`, all the stacks are deployed on this machine. The integration tests use its commands, so they also test it.
   See [automatic deployment](../README.md#automatic-deployment) in the main README. Run `./utils/contexts.sh --help` for its options.

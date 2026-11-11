@@ -4,7 +4,7 @@ set -e
 help_str="
 This script configures docker contexts to facilitate deployment of the comodo stacks to remote hosts via SSH.
 
-To generate the contexts, it reads the *_HOST and *_HOST_USER variables from the .env file.
+To generate the contexts, it reads the *_HOST and *_HOST_USER variables from the compose/.env file.
 Add/remove host usernames from your .env to switch between local and remote deployments.
 Make sure you have SSH access to the remote hosts without password prompts (e.g., using SSH keys / SSH multiplexing).
 
@@ -59,7 +59,7 @@ cd $(dirname "$0")
 project_root=$(cd .. && pwd)
 docker compose -f "$project_root/firmware/compose.gen.yaml" run --rm compose-gen
 unset DOCKER_HOST
-source "$project_root/.env"
+source "$project_root/compose/.env"
 
 # Prints the IP address this machine uses to reach the given host (an IP address or a name),
 # or nothing if the host can't be resolved or reached.
@@ -156,7 +156,7 @@ fi
 
 # The compose command for each stack, without the subcommand
 stacks=(mqtt data firmware core)
-declare -A files=([mqtt]=compose.mqtt.yaml [data]=compose.data.yaml [firmware]=compose.firmware.yaml [core]=compose.yaml)
+declare -A files=([mqtt]=compose/mqtt.yaml [data]=compose/data.yaml [firmware]=compose/firmware.yaml [core]=compose/core.yaml)
 declare -A commands
 for stack in "${stacks[@]}"; do
   local_var="${stack}_local"

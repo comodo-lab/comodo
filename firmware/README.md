@@ -6,7 +6,7 @@ An instrument is understood as a device with a unique address, which may monitor
 
 - [Firmware](#firmware)
   - [Configuration](#configuration)
-    - [Generating the compose.firmware.yaml](#generating-the-composefirmwareyaml)
+    - [Generating the compose/firmware.yaml](#generating-the-composefirmwareyaml)
   - [Structure and life cycle](#structure-and-life-cycle)
     - [Safe stop](#safe-stop)
     - [MQTT Topics](#mqtt-topics)
@@ -35,15 +35,15 @@ The expected environment variables are:
   Set from `global.experiment_monitoring.max_missed_heartbeats` in `comodo.yaml`.
 
 
-### Generating the compose.firmware.yaml
+### Generating the compose/firmware.yaml
 
-In a standard deployment, these are extracted from the `comodo.yaml` file and templated into the `compose.firmware.yaml` file using the `firmware/templates/compose.firmware.yaml.j2` jinja template. This can be accomplished by running:
+In a standard deployment, these are extracted from the `comodo.yaml` file and templated into the `compose/firmware.yaml` file using the `firmware/templates/compose.firmware.yaml.j2` jinja template. This can be accomplished by running:
 ```
 docker compose -f "./firmware/compose.gen.yaml" run --rm compose-gen
 ```
 from the comodo repository root (where the `comodo.yaml` file is located). `./utils/contexts.sh` (and so `./utils/deploy.sh`) also runs this step.
 
-The `compose.firmware.yaml` file then provides the stack of instrument firmware containers, each with its own configuration,
+The `compose/firmware.yaml` file then provides the stack of instrument firmware containers, each with its own configuration,
 as well as a container for each setpoint controller.
 
 ## Structure and life cycle

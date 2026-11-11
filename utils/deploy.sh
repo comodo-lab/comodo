@@ -2,10 +2,10 @@
 set -uo pipefail
 
 help_str="
-This script deploys the comodo stacks, as configured in the '.env' file and 'comodo.yaml'.
+This script deploys the comodo stacks, as configured in the 'compose/.env' file and 'comodo.yaml'.
 
 It runs the commands printed by 'utils/contexts.sh --clean', which also replaces the comodo docker contexts
-with ones matching '.env', and regenerates 'compose.firmware.yaml'. In order, stopping at the first failure, it:
+with ones matching '.env', and regenerates 'compose/firmware.yaml'. In order, stopping at the first failure, it:
   1. Validates 'comodo.yaml'.
   2. Asks before replacing any comodo stacks already running (unless --force).
   3. Optionally (-t), runs the integration tests on the same hosts, with the mock configuration (see 'integration_tests/').
@@ -60,8 +60,8 @@ done
 cd "$(dirname "$0")/.."
 project_root=$(pwd)
 
-if [[ ! -f .env ]]; then
-  echo "No .env file found in $project_root. See the README to create one."
+if [[ ! -f compose/.env ]]; then
+  echo "No .env file found in $project_root/compose. See the README to create one."
   exit 1
 fi
 if [[ "$test" == true && "$local_only" == true ]]; then
@@ -136,7 +136,7 @@ fi
 
 # Validate comodo.yaml first, so a bad configuration doesn't leave a half-deployed stack
 echo "Validating comodo.yaml..."
-if ! docker compose run --rm config; then
+if ! docker compose -f compose/core.yaml run --rm config; then
   echo "comodo.yaml is not valid. Nothing was deployed."
   exit 1
 fi

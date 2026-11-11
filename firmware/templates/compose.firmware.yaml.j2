@@ -12,7 +12,7 @@ x-templates:
     <<: *mqtt-env
   python-instrument-template: &python-instrument-template
     build:
-      context: .
+      context: ../
       dockerfile: firmware/Dockerfile
     init: true
     restart: unless-stopped
@@ -25,7 +25,7 @@ name: comodo-firmware
 services:
   mqtt-probe-firmware:
     build:
-      context: ./
+      context: ../
       dockerfile: mqtt_probe/Dockerfile
     init: true
     environment:
@@ -86,7 +86,7 @@ services:
 
   spc-{{ name }}-{{ v_name }}:
     build:
-      context: .
+      context: ../
       dockerfile: setpoint_controller/Dockerfile
     init: true
     restart: unless-stopped
