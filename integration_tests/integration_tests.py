@@ -99,14 +99,15 @@ def test_default_setpoints(bus, default_setpoints):
 
 
 @pytest.mark.order(3)
-def test_measurements_in_influx(bus, mock_comodo_config):
+def test_measurements_in_influx(bus, mock_comodo_config, expected_heartbeats):
     """
-    Checks that all expected measurements are being stored in InfluxDB.
+    Checks that all expected measurements, and every heartbeat's status (used by Grafana's status graph),
+    are being stored in InfluxDB.
     Fails if any are missing after a timeout.
     """
     expected_topics = {
         f"instruments/{sensor}/measurement" for sensor in mock_comodo_config.sensors
-    }
+    } | set(expected_heartbeats)
     client = influxdb_client.InfluxDBClient(
         url=settings["INFLUX_URL"],
         token=settings["INFLUX_TOKEN"],
@@ -120,8 +121,8 @@ def test_measurements_in_influx(bus, mock_comodo_config):
         nonlocal last_error
         for bucket in settings["INFLUX_BUCKETS"]:
             query = (
-                f'from(bucket: "{bucket}") |> range(start: -5m)'
-                f' |> filter(fn: (r) => r._field == "value")'
+                f'from(bucket: "{bucket}") |> range(start: {bus["started"]})'
+                f' |> filter(fn: (r) => r._field == "value" or r._field == "state_status")'
                 f' |> keep(columns: ["topic"]) |> distinct(column: "topic")'
             )
             try:
@@ -257,6 +258,15 @@ def test_database_dump(bus, mock_comodo_config):
         assert run_ids == {
             experiment_id
         }, f"{csv_file} has setpoints from other experiments: {sorted(run_ids)}"
+        # The controller's status while running is stored (Grafana's status graph uses it)
+        controller_statuses = {
+            r["_value"]
+            for r in records
+            if r.get("topic") == "controller/heartbeat" and r["_field"] == "state_status"
+        }
+        assert (
+            "running" in controller_statuses
+        ), f"{csv_file} has no running status from the controller: {sorted(controller_statuses)}"
 
 
 @pytest.mark.order(7)

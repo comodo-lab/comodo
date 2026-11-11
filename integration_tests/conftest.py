@@ -79,6 +79,7 @@ def bus():
         "errors": [],
         "end": None,
         "connected": False,
+        "started": int(time.time()),  # To only look at data stored during these tests
     }
 
     def on_connect(c, userdata, flags, reason_code, properties):

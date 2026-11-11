@@ -43,12 +43,12 @@ So the test data is added to InfluxDB, and each run adds an experiment to `contr
 The test runner subscribes to all MQTT topics, and runs the following tests in order, stopping at the first failure:
 1. **Services ready:** A heartbeat is received from the controller, every instrument, and every setpoint controller in the mock configuration, and from nothing else.
 2. **Default setpoints:** Every variable with a `default_setpoint` reports a measurement within its `tolerance` of it.
-3. **Measurements in InfluxDB:** Every sensor's measurements are stored in InfluxDB (through Telegraf).
+3. **Measurements in InfluxDB:** Every sensor's measurements, and every heartbeat's status (used by Grafana's status graph), are stored in InfluxDB (through Telegraf).
 4. **Setpoint controllers configured while idle:** PID values sent on `setpoint_controllers/<id>/configure` are reported back in the setpoint controllers' heartbeats.
 5. **Experiment completes:** An experiment sent on `ui/start` runs to the end (`controller/event/end`) without any error,
    and the setpoint controllers report the PID values from the experiment, rather than the ones set while idle.
 6. **Database dump:** The controller dumps the database for the experiment to `controller/data/<experiment id>/<bucket>.csv`,
-   with the measurements of every sensor, and only the setpoints of this experiment.
+   with the measurements of every sensor, only the setpoints of this experiment, and the controller's `running` status (used by Grafana's status graph).
 7. **No errors:** No message was received on any `error/...` topic during the tests above.
 
 Then, the fault tests, which cause errors on purpose, so they check their own errors instead:
