@@ -51,22 +51,22 @@
                   "text": "Idle"
                 },
                 "validating": {
-                  "color": "dark-orange",
+                  "color": "dark-yellow",
                   "index": 10,
                   "text": "Validating"
                 },
                 "awaiting_instruments": {
-                  "color": "dark-orange",
+                  "color": "dark-yellow",
                   "index": 5,
                   "text": "Awaiting Instruments"
                 },
                 "starting": {
-                  "color": "dark-orange",
+                  "color": "dark-yellow",
                   "index": 4,
                   "text": "Starting"
                 },
                 "ready": {
-                  "color": "dark-orange",
+                  "color": "dark-yellow",
                   "index": 2,
                   "text": "Ready"
                 },
@@ -76,17 +76,17 @@
                   "text": "Running"
                 },
                 "stopping": {
-                  "color": "dark-orange",
+                  "color": "dark-yellow",
                   "index": 11,
                   "text": "Stopping"
                 },
                 "end": {
-                  "color": "dark-orange",
+                  "color": "dark-yellow",
                   "index": 3,
                   "text": "End"
                 },
                 "initialising": {
-                  "color": "dark-orange",
+                  "color": "dark-yellow",
                   "index": 6,
                   "text": "Initialising"
                 },
@@ -127,7 +127,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 5,
         "w": 24,
         "x": 0,
         "y": 0
