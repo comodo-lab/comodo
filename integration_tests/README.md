@@ -19,6 +19,7 @@ The tests are run by [`integration_tests/run-integration-tests.sh`](run-integrat
 2. Deploys every stack with its own compose file, using the commands printed by [`utils/contexts.sh`](../utils/contexts.sh), so it is tested too:
    the MQTT broker (`compose.mqtt.yaml`), the data stack (`compose.data.yaml`), the firmware stack (`compose.firmware.yaml`), and the core stack (`compose.yaml`).
 3. Runs the tests in [`integration_tests.py`](integration_tests.py) with pytest, using [this compose file](compose.yaml).
+   Fixtures and helpers are in [`conftest.py`](conftest.py).
 4. Tears the stacks down, and restores `comodo.yaml` and `compose.firmware.yaml`, however the script exits.
 
 The test runner uses the same mocks (and the experiment in [`utils/tests/mocks/mock_experiment.py`](../utils/tests/mocks/mock_experiment.py)) to know what to expect.
