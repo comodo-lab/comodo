@@ -64,7 +64,7 @@ cp ./utils/tests/mocks/comodo.yaml ./
 You will also need to create a `.env` file with the required environment variables.
 Details can be found in the [manual deployment](#manual-deployment) section, but for this example you can use:
 ```.env
-QTT_USER=comodo_mqtt_user
+MQTT_USER=comodo_mqtt_user
 MQTT_PASS=comodo_mqtt_password
 INFLUX_TOKEN=comodo_influx_token
 INFLUX_BUCKET=comodo
