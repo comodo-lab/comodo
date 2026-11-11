@@ -76,7 +76,7 @@ It is only enabled while the controller is idle, as a running experiment has to 
 ## MQTT topics
 The UI subscribes to:
 - `controller/heartbeat`, `instruments/<name>/heartbeat` and `setpoint_controllers/<id>/heartbeat`: For the header, the start/stop and reset buttons, and the manual control readouts.
-- `error/#`, `ui/start`, `controller/command/start`, `controller/command/stop` and `controller/command/reset`: For the event log.
+- `error/#`, `ui/start`, `controller/command/start`, `controller/event/end`, `controller/command/stop` and `controller/command/reset`: For the event log.
 
 And publishes to:
 - `ui/start` and `ui/stop`: To start and stop experiments.
