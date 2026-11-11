@@ -1,5 +1,6 @@
 # Controller
-The controller is responsible for receiving, validating, orchestrating, monitoring and terminating experiments.
+The controller is the backbone of Comodo, and communicates with all other components through MQTT messages.
+It is responsible for receiving, validating, orchestrating, monitoring and terminating experiments.
 
 - [Controller](#controller)
   - [Standard flow](#standard-flow)
