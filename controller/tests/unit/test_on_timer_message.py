@@ -238,9 +238,10 @@ class TestOnTimerMessage:
             "D123-456", "setpoint", "running", "ready"
         )
 
-    def test_timer_setpoint_stopping(self, ouim_mocks):
+    @pytest.mark.parametrize("status", ["stopping", "error"])
+    def test_timer_setpoint_stopping(self, ouim_mocks, status):
         assert ouim_mocks["state"].experiment_id == "D123-456"
-        ouim_mocks["state"].status = "stopping"
+        ouim_mocks["state"].status = status
 
         msg = MockMessage(
             topic="controller/timer/command/start",
@@ -256,8 +257,11 @@ class TestOnTimerMessage:
         assert json.loads(messages[0].payload) == {
             "source": "setpoint",
             "experiment_id": "D123-456",
-            "controller_status": "stopping",
+            "controller_status": status,
         }
+        ouim_mocks[
+            "pub_err"
+        ].controller_state_incompatible_with_timer.assert_not_called()
 
     def test_timer_done_topic(self, ouim_mocks):
         assert ouim_mocks["state"].experiment_id == "D123-456"
