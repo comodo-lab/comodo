@@ -430,6 +430,8 @@ def test_experiment_stops_if_instruments_stop_responding(
         "furnace/temperature": "no_heartbeat",
         "pressure/pressure": "no_heartbeat",
     }
+    # Check that further heartbeats don't repeat the errors
+    message_bus.publish("controller/heartbeat", json.dumps(state.heartbeat()))
     errors = message_bus.get_messages("error/controller", decoded=True)
     assert sorted(json.loads(m.payload)["message"] for m in errors) == [
         "Instrument furnace in bad state for too long.",
@@ -474,6 +476,8 @@ def test_experiment_stops_if_instruments_cannot_keep_up_with_setpoints(
         "furnace/temperature": "adjusting",
         "pressure/pressure": "at_setpoint",
     }
+    # Check that further heartbeats don't repeat the error
+    message_bus.publish("controller/heartbeat", json.dumps(state.heartbeat()))
     errors = message_bus.get_messages("error/controller", decoded=True)
     assert [json.loads(m.payload)["message"] for m in errors] == [
         "Instrument furnace not keeping up with setpoints."
