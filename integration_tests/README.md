@@ -48,7 +48,17 @@ The test runner subscribes to all MQTT topics, and runs the following tests in o
    and the setpoint controllers report the PID values from the experiment, rather than the ones set while idle.
 6. **Database dump:** The controller dumps the database for the experiment to `controller/data/<experiment id>/<bucket>.csv`,
    with the measurements of every sensor, and only the setpoints of this experiment.
-7. **No errors:** No message was received on any `error/...` topic during the whole run.
+7. **No errors:** No message was received on any `error/...` topic during the tests above.
+
+Then, the fault tests, which cause errors on purpose, so they check their own errors instead:
+
+8. **UI reset clears a safe stop:** The instruments are started (`controller/command/start`) on an experiment the controller doesn't know about,
+   as if they had lost contact with it, so they safe stop while the controller stays idle, and each reports it on `error/instrument`.
+   A reset from the UI (`ui/reset`) then returns them to `awaiting_experiment`, without any error.
+9. **Controller restart mid-experiment:** An experiment is started, and the controller is restarted mid-experiment
+   (an `error/exception` makes it exit, and Docker restarts it). The restarted controller reports the lost experiment (`experiment_lost`),
+   dumps its database, and resets the instruments, which report the experiment ended by the reset (`experiment_reset`),
+   or a safe stop if the restart took longer than their timeout.
 
 ## Running the tests
 The tests need a `.env` file in the repository root, with at least `MQTT_USER`, `MQTT_PASS`, `INFLUX_TOKEN`, `INFLUX_BUCKET` and `INFLUX_ORG`

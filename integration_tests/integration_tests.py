@@ -73,6 +73,8 @@ def bus():
         "spc_heartbeats": {},
         "measurement": {},
         "controller_status": None,
+        "instrument_heartbeats": {},
+        "commands": [],  # controller/command/start and reset, as (topic, payload)
         "errors": [],
         "end": None,
         "connected": False,
@@ -91,12 +93,16 @@ def bus():
                 collected["spc_heartbeats"][t] = json.loads(p)
             elif t == "controller/heartbeat":
                 collected["controller_status"] = json.loads(p)["state"]["status"]
+            elif t.startswith("instruments/"):
+                collected["instrument_heartbeats"][t] = json.loads(p)
         elif t.endswith("/measurement"):
             collected["measurement"][t] = p
         elif t.startswith("error/"):
             collected["errors"].append((t, p))
         elif t == "controller/event/end":
             collected["end"] = p
+        elif t in ["controller/command/start", "controller/command/reset"]:
+            collected["commands"].append((t, json.loads(p)))
 
     c = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
     c.username_pw_set(MQTT_USER, MQTT_PASS)
@@ -424,3 +430,185 @@ def test_no_errors(bus):
     if bus["errors"]:
         lines = "\n".join(f"  [{t}] {p[:200]}" for t, p in bus["errors"])
         pytest.fail(f"{len(bus['errors'])} error(s):\n{lines}")
+
+
+# ----------------- Fault tests ----------------- #
+# These cause errors on purpose, so they run after test_no_errors, and check their own errors.
+
+
+def wait_until(condition, timeout, description):
+    """
+    Waits until condition() is true, or fails after timeout seconds.
+    """
+    deadline = time.time() + timeout
+    last_report = time.time()
+    while time.time() < deadline:
+        if condition():
+            return
+        if time.time() - last_report >= 3:
+            print(f"  Waiting for {description}...")
+            last_report = time.time()
+        time.sleep(0.5)
+    pytest.fail(f"Timed out waiting for {description}.")
+
+
+def instrument_statuses(bus, instruments):
+    return {
+        name: bus["instrument_heartbeats"]
+        .get(f"instruments/{name}/heartbeat", {})
+        .get("state", {})
+        .get("status")
+        for name in instruments
+    }
+
+
+def all_instruments(bus, instruments, status):
+    return all(s == status for s in instrument_statuses(bus, instruments).values())
+
+
+def errors_since(bus, index):
+    """The errors received since bus["errors"] had index items, as (topic, payload) with the payload decoded."""
+    errors = []
+    for topic, payload in bus["errors"][index:]:
+        try:
+            errors.append((topic, json.loads(payload)))
+        except json.JSONDecodeError:
+            errors.append((topic, {"message": payload}))
+    return errors
+
+
+def reported(errors, topic, codes, text):
+    """Whether an error on topic, with one of the codes, mentions text."""
+    return any(
+        t == topic and e.get("code") in codes and text in e.get("message", "")
+        for t, e in errors
+    )
+
+
+@pytest.mark.order(8)
+def test_ui_reset_clears_safe_stop(bus, mock_comodo_config):
+    """
+    The instruments start an experiment the controller doesn't know about (as if they lost contact with it, or missed its end),
+    so they safe stop, as the controller's heartbeats don't match it, while the controller stays idle.
+    A reset from the UI then returns them to their defaults.
+    """
+    # Make sure stack is ready to start
+    instruments = sorted(mock_comodo_config.instruments)
+    wait_until(
+        lambda: bus["controller_status"] == "idle",
+        HEARTBEAT_TIMEOUT,
+        "the controller to be idle",
+    )
+    # Start experiment externally, controller doesn't know about it
+    since = len(bus["errors"])
+    bus["c"].publish(
+        "controller/command/start", json.dumps({"experiment_id": "unknown"})
+    )
+    print("  → controller/command/start published, for an unknown experiment")
+    # Instruments should safe stop, as the controller's heartbeats don't match the experiment
+    wait_until(
+        lambda: all_instruments(bus, instruments, "safe_stop"),
+        HEARTBEAT_TIMEOUT,
+        f"every instrument to safe stop ({instrument_statuses(bus, instruments)})",
+    )
+    errors = errors_since(bus, since)
+    for name in instruments:
+        assert reported(
+            errors, "error/instrument", ["safe_stop"], f"[{name}]"
+        ), f"No safe stop reported by {name}: {errors}"
+    # The idle controller also rejects the start
+    unexpected = [
+        (t, e)
+        for t, e in errors
+        if not reported([(t, e)], "error/instrument", ["safe_stop"], "")
+        and not reported(
+            [(t, e)], "error/controller", ["incompatible_controller_status"], ""
+        )
+    ]
+    assert not unexpected, f"Unexpected errors: {unexpected}"
+    # Publish a reset from the UI
+    since = len(bus["errors"])
+    bus["c"].publish("ui/reset", json.dumps({}))
+    print("  → ui/reset published")
+    wait_until(
+        lambda: all_instruments(bus, instruments, "awaiting_experiment"),
+        HEARTBEAT_TIMEOUT,
+        f"every instrument to be reset ({instrument_statuses(bus, instruments)})",
+    )
+    assert ("controller/command/reset", {"source": "ui"}) in bus["commands"]
+    # A ui-requested reset should not publish an error from instruments or spcs
+    assert not errors_since(bus, since)
+
+
+@pytest.mark.order(9)
+def test_controller_restart_mid_experiment(
+    bus, mock_experiment_dict, mock_comodo_config
+):
+    """
+    The controller restarts mid-experiment: an error/exception makes it exit, and Docker restarts it.
+    The restarted controller reports the lost experiment, dumps its data, and resets the instruments.
+    The instruments should report an error, either as a safe stop or as a reset.
+    """
+    # Make sure stack is ready to start
+    instruments = sorted(mock_comodo_config.instruments)
+    wait_until(
+        lambda: bus["controller_status"] == "idle",
+        HEARTBEAT_TIMEOUT,
+        "the controller to be idle",
+    )
+    # Start the experiment normally and wait for it to start running
+    since = len(bus["errors"])
+    commands = len(bus["commands"])
+    bus["c"].publish("ui/start", json.dumps(mock_experiment_dict))
+    print("  → ui/start published")
+    wait_until(
+        lambda: bus["controller_status"] == "running",
+        EXPERIMENT_TIMEOUT,
+        "the experiment to run",
+    )
+    starts = [
+        p for t, p in bus["commands"][commands:] if t == "controller/command/start"
+    ]
+    experiment_id = starts[-1]["experiment_id"]
+    # Publish an error/exception to make the controller exit, and wait for it to restart
+    commands = len(bus["commands"])
+    bus["c"].publish(
+        "error/exception",
+        json.dumps(
+            {"code": "integration_test", "message": "Restarting the controller."}
+        ),
+    )
+    print(f"  → error/exception published, during experiment {experiment_id}")
+    wait_until(
+        lambda: ("controller/command/reset", {"source": "controller"})
+        in bus["commands"][commands:],
+        HEARTBEAT_TIMEOUT,
+        "the restarted controller to reset the instruments",
+    )
+    # The instruments should have been reset by the controller restart
+    wait_until(
+        lambda: all_instruments(bus, instruments, "awaiting_experiment"),
+        HEARTBEAT_TIMEOUT,
+        f"every instrument to be reset ({instrument_statuses(bus, instruments)})",
+    )
+    # Controller should report the lost experiment, and the instruments should report a reset or safe stop
+    errors = errors_since(bus, since)
+    assert reported(
+        errors, "error/controller", ["experiment_lost"], experiment_id
+    ), f"The lost experiment {experiment_id} was not reported: {errors}"
+    for name in instruments:
+        assert reported(
+            errors, "error/instrument", ["experiment_reset", "safe_stop"], f"[{name}]"
+        ), f"No experiment reset (or safe stop) reported by {name}: {errors}"
+    # The data of the lost experiment is saved, as stopping it would have
+    csv_files = [f"{CONTROLLER_DATA}/{experiment_id}/{b}.csv" for b in INFLUX_BUCKETS]
+    wait_until(
+        lambda: all(os.path.exists(f) for f in csv_files),
+        INFLUX_TIMEOUT,
+        f"the database dump of {experiment_id}",
+    )
+    wait_until(
+        lambda: bus["controller_status"] == "idle",
+        HEARTBEAT_TIMEOUT,
+        "the restarted controller to be idle",
+    )
