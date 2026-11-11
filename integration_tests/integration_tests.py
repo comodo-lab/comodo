@@ -401,7 +401,7 @@ def test_ui_reset_clears_safe_stop(bus, mock_comodo_config):
     assert not unexpected, f"Unexpected errors: {unexpected}"
     # Publish a reset from the UI
     since = len(bus["errors"])
-    bus["c"].publish("ui/reset", json.dumps({}))
+    bus["c"].publish("ui/reset", json.dumps({"source": "ui"}))
     print("  → ui/reset published")
     assert wait_until(
         bus=bus,

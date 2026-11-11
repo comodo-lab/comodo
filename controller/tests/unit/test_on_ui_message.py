@@ -165,11 +165,11 @@ class TestOnUIMessage:
     def test_valid_ui_reset(self, ouim_mocks, capsys):
         assert ouim_mocks["state"].status == "idle"
 
-        msg = MockMessage(topic="ui/reset", payload=json.dumps({}))
+        msg = MockMessage(topic="ui/reset", payload=json.dumps({"source": "ui"}))
         on_ui_message(ouim_mocks["ui_client"], msg, ouim_mocks["state"])
 
         ouim_mocks["validate_message"].assert_called_once_with(
-            "ui/reset", json.dumps({}).encode("utf-8")
+            "ui/reset", json.dumps({"source": "ui"}).encode("utf-8")
         )
         captured = capsys.readouterr()
         assert "Resetting the instruments and setpoint controllers..." in captured.out
@@ -182,7 +182,7 @@ class TestOnUIMessage:
         ouim_mocks["state"].status = "running"
         ouim_mocks["state"].experiment_id = "123"
 
-        msg = MockMessage(topic="ui/reset", payload=json.dumps({}))
+        msg = MockMessage(topic="ui/reset", payload=json.dumps({"source": "ui"}))
         on_ui_message(ouim_mocks["ui_client"], msg, ouim_mocks["state"])
 
         ouim_mocks["pub_err"].incompatible_controller_status.assert_called_once_with(

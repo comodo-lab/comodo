@@ -96,6 +96,11 @@ channels:
         payload:
           type: object
           additionalProperties: false
+          required:
+            - source
+          properties:
+            source:
+              type: string
 
   controllerTimerCommandStart:
     address: controller/timer/command/start
@@ -259,6 +264,11 @@ channels:
         payload:
           type: object
           additionalProperties: false
+          required:
+            - source
+          properties:
+            source:
+              type: string
 
   watchdogEventRestart:
     address: watchdog/timer/event/restart_triggered

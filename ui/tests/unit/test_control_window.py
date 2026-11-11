@@ -125,7 +125,9 @@ class TestReset:
 
         assert cw.reset(1) is True
 
-        publisher.publish.assert_called_once_with("ui/reset", json.dumps({}))
+        publisher.publish.assert_called_once_with(
+            "ui/reset", json.dumps({"source": "ui"})
+        )
 
     def test_reset_ignores_render(self, monkeypatch):
         publisher = MagicMock()

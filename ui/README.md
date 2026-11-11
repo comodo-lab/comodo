@@ -68,7 +68,7 @@ and is disabled while the controller is busy validating or stopping.
 Pressing stop publishes the experiment id on `ui/stop`.
 
 ## Resetting the instruments
-The reset button, below the manual control toggle, publishes `ui/reset` (after asking for confirmation),
+The reset button, below the manual control toggle, publishes `ui/reset` with `{"source": "ui"}` (after asking for confirmation),
 and the controller then resets every instrument and setpoint controller to its default setpoints.
 This clears a safe stop (see the [firmware's safe stop](../firmware/README.md#safe-stop)), so make sure whatever caused it has been fixed first.
 It is only enabled while the controller is idle, as a running experiment has to be stopped first.

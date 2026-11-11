@@ -137,7 +137,9 @@ def main():
     )
     # measurement = mqtt.MQTTClient("measurement", on_client_message, topics="measurement/#")
 
-    publisher.client.publish("watchdog/timer/command/start", json.dumps({}))
+    publisher.client.publish(
+        "watchdog/timer/command/start", json.dumps({"source": "controller"})
+    )
     t.sleep(1)
     if wdog_state["healthy"]:
         print(f"Controller started successfully.")

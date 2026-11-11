@@ -166,7 +166,7 @@ def reset(submit_n_clicks):
     """
     if not submit_n_clicks:
         raise PreventUpdate
-    MQTTPublisher.get_instance().publish("ui/reset", json.dumps({}))
+    MQTTPublisher.get_instance().publish("ui/reset", json.dumps({"source": "ui"}))
     return True
 
 

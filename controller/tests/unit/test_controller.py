@@ -219,7 +219,7 @@ class TestMain:
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 1
         assert messages[0].topic == "watchdog/timer/command/start"
-        assert json.loads(messages[0].payload) == {}
+        assert json.loads(messages[0].payload) == {"source": "controller"}
 
     def test_watchdog_loop_not_started_if_unhealthy(
         self, main_mocks, message_bus, capsys
@@ -238,7 +238,7 @@ class TestMain:
         # Doesn't reset the instruments and setpoint controllers if it didn't start
         assert len(messages) == 1
         assert messages[0].topic == "watchdog/timer/command/start"
-        assert json.loads(messages[0].payload) == {}
+        assert json.loads(messages[0].payload) == {"source": "controller"}
         captured = capsys.readouterr()
         assert "Creating clients..." in captured.out
         assert "Controller failed to start. watchdog unhealthy." in captured.out
@@ -271,7 +271,7 @@ class TestMain:
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 5
         assert messages[0].topic == "watchdog/timer/command/start"
-        assert json.loads(messages[0].payload) == {}
+        assert json.loads(messages[0].payload) == {"source": "controller"}
         mocks["recover_lost_experiment"].assert_called_once_with()
         assert messages[1].topic == "controller/command/reset"
         assert json.loads(messages[1].payload) == {"source": "controller"}
@@ -321,7 +321,7 @@ class TestMain:
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 6
         assert messages[0].topic == "watchdog/timer/command/start"
-        assert json.loads(messages[0].payload) == {}
+        assert json.loads(messages[0].payload) == {"source": "controller"}
         assert messages[1].topic == "controller/command/reset"
         assert messages[2].topic == "controller/heartbeat"
         assert messages[3].topic == "controller/heartbeat"
