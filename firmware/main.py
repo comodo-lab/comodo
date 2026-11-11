@@ -2,7 +2,6 @@
 import asyncio
 import json
 import os
-import traceback
 
 from src import config, state
 
@@ -129,7 +128,6 @@ def main():
     try:
         asyncio.run(start_instrument())
     except Exception as e:
-        traceback.print_exc()
         mqtt.MQTTPublisher.get_instance().publish(
             "error/instrument",
             json.dumps(
@@ -139,6 +137,7 @@ def main():
                 }
             ),
         )
+        raise
 
 
 if __name__ == "__main__":

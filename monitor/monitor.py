@@ -2,13 +2,22 @@
 import json
 import os
 
-import traceback
 import asyncio
 from jsonschema import ValidationError
 
 # Shared utils imports
 from utils import mqtt_clients as mqtt
 import utils.mqtt_validator as mqtt_val
+
+
+def print_and_publish_error(code, message, **details):
+    """Prints an error about an invalid message, and publishes it on error/message."""
+    topic = f" (topic: {details['topic']})" if "topic" in details else ""
+    print(f"ERROR: {message}{topic}")
+    mqtt.MQTTPublisher.get_instance().publish(
+        "error/message",
+        json.dumps({"code": code, "message": message, **details}),
+    )
 
 
 def on_message(client, msg, obj):
@@ -18,48 +27,31 @@ def on_message(client, msg, obj):
             payload=msg.payload,
             combine_exceptions=False,
         )
-    except mqtt_val.MQTTValidationException as e:
-        mqtt.MQTTPublisher.get_instance().publish(
-            "error/message",
-            json.dumps(
-                {
-                    "code": "unexpected_topic",
-                    "message": f"Unexpected topic: {msg.topic}",
-                }
-            ),
-        )
-    except json.JSONDecodeError as e:
-        mqtt.MQTTPublisher.get_instance().publish(
-            "error/message",
-            json.dumps(
-                {
-                    "code": "invalid_json",
-                    "message": str(e),
-                    "topic": msg.topic,
-                }
-            ),
-        )
+    except mqtt_val.MQTTValidationException:
+        print_and_publish_error("unexpected_topic", f"Unexpected topic: {msg.topic}")
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        print_and_publish_error("invalid_json", str(e), topic=msg.topic)
     except ValidationError as e:
         offending_key = (
             ".".join(str(p) for p in e.absolute_path) if e.absolute_path else "<root>"
         )
-        mqtt.MQTTPublisher.get_instance().publish(
-            "error/message",
-            json.dumps(
-                {
-                    "code": "validation_error",
-                    "message": e.message,
-                    "topic": msg.topic,
-                    "failed_check": e.validator,
-                    "offending_key": offending_key,
-                }
-            ),
+        print_and_publish_error(
+            "validation_error",
+            e.message,
+            topic=msg.topic,
+            failed_check=e.validator,
+            offending_key=offending_key,
         )
-    except Exception as error:
-        print(f"ERROR: Message invalid: {error}")
+    except Exception as e:
+        message = f"Could not validate message on {msg.topic}: {e}"
+        print(f"ERROR: {message}")
+        mqtt.MQTTPublisher.get_instance().publish(
+            "error/monitor", json.dumps({"code": "exception", "message": message})
+        )
+        # Not raised, as MQTTClient would publish it on error/exception, which restarts the controller.
 
 
-async def main():
+async def monitor():
     # Initialise the MQTTPublisher singleton
     mqtt.MQTTPublisher.get_instance(
         id="publisher-monitor",
@@ -86,14 +78,18 @@ async def main():
     return 0
 
 
-if __name__ == "__main__":
+def main():
     try:
-        asyncio.run(main())
+        asyncio.run(monitor())
     except Exception as e:
-        traceback.print_exc()
         try:
             mqtt.MQTTPublisher.get_instance().publish(
                 "error/monitor", json.dumps({"code": "exception", "message": str(e)})
             )
-        except:
+        except Exception:
             print(f"Error: {e}")
+        raise
+
+
+if __name__ == "__main__":
+    main()  # pragma: no cover
