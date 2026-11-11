@@ -66,8 +66,15 @@ def data_path(tmp_path):
 
 @pytest.fixture
 def mock_dump():
-    with patch("src.on_controller_message.dump_database_for_experiment") as mock_dump:
-        mock_dump.return_value = None
+    """Dumps nothing, and finishes straight away (calling on_done, as the background dump does once done)."""
+
+    def dump(obj, on_done=None):
+        if on_done is not None:
+            on_done()
+
+    with patch(
+        "src.on_controller_message.dump_database_for_experiment", side_effect=dump
+    ) as mock_dump:
         yield mock_dump
 
 
