@@ -93,6 +93,13 @@ if [[ "$test" == true && "$local_only" == true ]]; then
   exit 1
 fi
 
+# Coloured when printing to a terminal, so each stack's step stands out from the compose output
+if [[ -t 1 ]]; then
+  yellow=$'\e[33m' bold=$'\e[1m' unbold=$'\e[22m' reset=$'\e[0m'
+else
+  yellow="" bold="" unbold="" reset=""
+fi
+
 stacks=(mqtt data firmware core)
 # The compose command for each stack, as printed by contexts.sh
 declare -A commands
@@ -152,8 +159,9 @@ if [[ "$action" == --down ]]; then
   echo "Bringing down the stacks..."
   for ((i = ${#stacks[@]} - 1; i >= 0; i--)); do
     echo
-    echo "Bringing down the ${stacks[$i]} stack: ${commands[${stacks[$i]}]} down ..."
-    stack_compose "${stacks[$i]}" down --remove-orphans
+    args=(down --remove-orphans)
+    echo "${yellow}Bringing down the ${bold}${stacks[$i]}${unbold} stack:${reset} ${commands[${stacks[$i]}]} ${args[*]}"
+    stack_compose "${stacks[$i]}" "${args[@]}"
   done
   exit 0
 fi
@@ -181,14 +189,13 @@ fi
 echo "Deploying the stacks..."
 for stack in "${stacks[@]}"; do
   echo
-  echo "Deploying the $stack stack: ${commands[$stack]} up ..."
+  args=(up --build --detach --remove-orphans)
   # The other stacks need the broker, so wait until it is healthy
-  wait=""
-  [[ "$stack" == mqtt ]] && wait="--wait"
+  [[ "$stack" == mqtt ]] && args+=(--wait)
   # If not forced, only the containers whose compose configuration changed are recreated
-  recreate=""
-  [[ "$force" == true ]] && recreate="--force-recreate"
-  if ! stack_compose "$stack" up --build --detach --remove-orphans $wait $recreate; then
+  [[ "$force" == true ]] && args+=(--force-recreate)
+  echo "${yellow}Deploying the ${bold}${stack}${unbold} stack:${reset} ${commands[$stack]} ${args[*]}"
+  if ! stack_compose "$stack" "${args[@]}"; then
     echo "Could not deploy the $stack stack. The stacks before it are still running."
     exit 1
   fi
