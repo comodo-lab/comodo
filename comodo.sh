@@ -9,11 +9,14 @@ with ones matching '.env', and regenerates 'compose/firmware.yaml'. In order, st
   1. Validates 'comodo.yaml'.
   2. Asks before replacing any comodo stacks already running (unless --yes).
   3. Optionally (-t), runs the integration tests on the same hosts, with the mock configuration (see 'integration_tests/').
-  4. Deploys the MQTT broker, and then the data, firmware and core stacks.
+  4. Gets the images of every stack ready on its host, so nothing is deployed if any of them can't be.
+  5. Deploys the MQTT broker, and then the data, firmware and core stacks.
+
+By default, it tries to pull the published comodo images (comodolab/comodo-*). With -b, it builds them from the local code.
 With --down, it asks before bringing down any running stacks (unless --yes), and brings them down in reverse order.
 
 Usage:
-  ./comodo.sh --deploy [--yes|-y] [--local|-l] [--force|-f] [--test|-t]
+  ./comodo.sh --deploy [--yes|-y] [--local|-l] [--force|-f] [--test|-t] [--build|-b]
   ./comodo.sh --down [--yes|-y] [--local|-l]
   ./comodo.sh --help|-h
 
@@ -25,12 +28,15 @@ Options for --deploy only:
   --force, -f       Recreate every container, rather than only those whose compose configuration changed
                       (e.g. after editing 'comodo.yaml', which is mounted).
   --test,  -t       Run the integration tests with --remote before deploying, and only deploy if they pass.
-                      Note: The tests replace any running stacks.
+                      Note: The tests replace any running stacks, and always build the images from this repository.
+  --build, -b       Build the comodo images from the local code, rather than using the published ones.  Use --build only when developing.
+                      Built images are tagged 'local' (COMODO_TAG=local), so they are never mistaken for (or pushed as) published ones.
 "
 
 action=""
 yes=false
 force=false
+build=false
 test=false
 local_only=false
 
@@ -46,6 +52,10 @@ while [[ $# -gt 0 ]]; do
     ;;
   --force|-f)
     force=true
+    shift
+    ;;
+  --build|-b)
+    build=true
     shift
     ;;
   --test|-t)
@@ -84,8 +94,8 @@ if [[ ! -f compose/.env ]]; then
   echo "No .env file found in $project_root/compose. See the README to create one."
   exit 1
 fi
-if [[ "$action" == --down && ( "$test" == true || "$force" == true ) ]]; then
-  echo "--test and --force only apply to --deploy."
+if [[ "$action" == --down && ( "$build" == true || "$test" == true || "$force" == true ) ]]; then
+  echo "--build, --force and --test only apply to --deploy."
   exit 1
 fi
 if [[ "$test" == true && "$local_only" == true ]]; then
@@ -109,6 +119,14 @@ stack_compose() {
   local stack="$1"
   shift
   eval "${commands[$stack]} $(printf '%q ' "$@")"
+}
+
+# Prints, and then runs, a compose subcommand for the given stack
+run_stack_compose() {
+  local stack="$1"
+  shift
+  echo "  ${commands[$stack]} $*"
+  stack_compose "$stack" "$@"
 }
 
 # Asks before replacing (or bringing down) the stacks that are running, unless --yes
@@ -159,9 +177,8 @@ if [[ "$action" == --down ]]; then
   echo "Bringing down the stacks..."
   for ((i = ${#stacks[@]} - 1; i >= 0; i--)); do
     echo
-    args=(down --remove-orphans)
-    echo "${yellow}Bringing down the ${bold}${stacks[$i]}${unbold} stack:${reset} ${commands[${stacks[$i]}]} ${args[*]}"
-    stack_compose "${stacks[$i]}" "${args[@]}"
+    echo "${yellow}Bringing down the ${bold}${stacks[$i]}${unbold} stack:${reset}"
+    run_stack_compose "${stacks[$i]}" down --remove-orphans
   done
   exit 0
 fi
@@ -186,16 +203,85 @@ if [[ "$test" == true ]]; then
   fi
 fi
 
-echo "Deploying the stacks..."
+if [[ "$build" == true ]]; then
+  export COMODO_TAG=local
+  echo "${yellow}${bold}Building${unbold} comodo images from local code${reset} (tagging as: '$COMODO_TAG')..."
+else
+  # As in the compose files, unless set in the shell, or in compose/.env (which the compose commands read)
+  tag=$(grep -s -E '^COMODO_TAG=' compose/.env | tail -1 | cut -d= -f2-)
+  echo "${yellow}${bold}Pulling${unbold} comodo images from Dockerhub${reset} (looking for tag: '${COMODO_TAG:-${tag:-latest}}')..."
+fi
+
+# Get the images of every stack ready (on each stack's host), so nothing is deployed if any of them can't be.
+# Checks all the stacks, so all problems are reported on a single run.
+problems=()
+missing_images=false
 for stack in "${stacks[@]}"; do
   echo
-  args=(up --build --detach --remove-orphans)
+  echo "${yellow}Preparing the images of the ${bold}${stack}${unbold} stack:${reset}"
+  if [[ "$build" == true ]]; then
+    run_stack_compose "$stack" build || problems+=("Could not build the images of the $stack stack.")
+    continue
+  fi
+
+  # Classify services as part of comodo (with images comodolab/comodo-*) or 'other'.
+  comodo_services=()
+  comodo_images=()
+  other_services=()
+  while read -r service image; do
+    if [[ "$image" == comodolab/* ]]; then
+      comodo_services+=("$service")
+      comodo_images+=("$image")
+    else
+      other_services+=("$service")
+    fi
+  done < <(stack_compose "$stack" config | awk '
+    /^services:/ { in_services = 1; next }
+    /^[^ ]/ { in_services = 0 }
+    in_services && /^  [^ ]/ { service = $1; sub(/:$/, "", service); print service }
+    in_services && /^    image: / { print service, $2 }' |
+    # A line per service, with its image if it has one
+    awk '{ image[$1] = $2 } END { for (s in image) print s, image[s] }' | sort)
+
+  # Pull comodo images if it can, carrying on with the ones it already has if it can't (e.g. without internet access)
+  if [[ ${#comodo_services[@]} -gt 0 ]]; then
+    run_stack_compose "$stack" pull --ignore-pull-failures "${comodo_services[@]}"
+  fi
+  # Configure 'other' (non-comodo) images (rabbitmq, telegraf, grafana...)
+  if [[ ${#other_services[@]} -gt 0 ]] && ! run_stack_compose "$stack" build "${other_services[@]}"; then
+    problems+=("Could not build the images of the $stack stack.")
+  fi
+  # Make sure all the comodo images exist on the corresponding host
+  missing=()
+  for image in $(printf '%s\n' "${comodo_images[@]}" | sort -u); do
+    eval "${commands[$stack]%% compose *} image inspect $(printf '%q' "$image")" > /dev/null 2>&1 || missing+=("$image")
+  done
+  if [[ ${#missing[@]} -gt 0 ]]; then
+    problems+=("These comodo images are not on the $stack stack's host, and could not be pulled: ${missing[*]}")
+    missing_images=true
+  fi
+done
+# Report any problems, and exit without deploying anything if there are any.
+if [[ ${#problems[@]} -gt 0 ]]; then
+  echo
+  printf '%s\n' "${problems[@]}"
+  if [[ "$missing_images" == true ]]; then
+    echo "Check the hosts can pull the missing images (and that they are published with that tag), or use --build to build them from this repository."
+  fi
+  echo "Nothing was deployed."
+  exit 1
+fi
+
+# Deploy the stacks, with the images prepared above
+for stack in "${stacks[@]}"; do
+  echo
+  echo "${yellow}Deploying the ${bold}${stack}${unbold} stack:${reset}"
+  args=(up --detach --remove-orphans --no-build)
   # The other stacks need the broker, so wait until it is healthy
   [[ "$stack" == mqtt ]] && args+=(--wait)
   # If not forced, only the containers whose compose configuration changed are recreated
   [[ "$force" == true ]] && args+=(--force-recreate)
-  echo "${yellow}Deploying the ${bold}${stack}${unbold} stack:${reset} ${commands[$stack]} ${args[*]}"
-  if ! stack_compose "$stack" "${args[@]}"; then
+  if ! run_stack_compose "$stack" "${args[@]}"; then
     echo "Could not deploy the $stack stack. The stacks before it are still running."
     exit 1
   fi
