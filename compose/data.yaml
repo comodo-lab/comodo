@@ -23,7 +23,7 @@ services:
       MQTT_PROBE_ID: data
 
   influxdb:
-    image: influxdb:latest
+    image: influxdb:2.9.1
     container_name: comodo-influx
     restart: unless-stopped
     depends_on:
