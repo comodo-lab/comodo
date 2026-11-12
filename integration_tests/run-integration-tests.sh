@@ -25,6 +25,7 @@ e.g. to check a deployment topology works. With --build, the images are built fr
 Usage: ./integration_tests/run-integration-tests.sh [--build|-b] [--remote|-r] [--keep|-k] [--logs|-l SERVICES] [--help|-h]
 Options:
   -b, --build           Build the comodo images from the local code (tag as 'local') rather than using the published ones.
+                          Note: DEVELOPER=true (in the shell, or in 'compose/.env') automatically uses --build.
   -r, --remote          Deploy the stacks as configured in .env, rather than all on this machine.
   -k, --keep            Leave the stacks running after the tests, e.g. to inspect them.
                           Note: The original 'comodo.yaml' and 'compose/firmware.yaml' are still restored, so you might have to use the --remove-orphans flag on the next deployment.

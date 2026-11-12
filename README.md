@@ -324,7 +324,7 @@ Useful options (run `./comodo.sh --help` for all of them):
 - `-t`: Run the [integration tests](integration_tests/README.md) on the same hosts, with simulated instruments, and only deploy if they pass.
 - `-f`: Recreate every container (always use if `comodo.yaml` changed), rather than only those whose compose configuration changed.
 - `-l`: Deploy all the stacks on this machine, ignoring the `*_HOST` variables.
-- `-b`: Build the Comodo images from this repository, rather than using the published ones.
+- `-b`: Build the Comodo images from this repository, rather than using the published ones (always true if `DEVELOPER=true`).
 
 To deploy by hand instead, `./utils/contexts.sh` prints the commands to run, in order (see [manual deployment](#manual-deployment)).
 
@@ -378,6 +378,8 @@ and fill in the required environment variables:
   See [how to generate a url in this section](#publishing-a-grafana-dashboard).
 - `COMODO_TAG` is optional. The tag of the published Comodo images to deploy, `latest` if not set.
   It is not used when the images are built from the local code (`./comodo.sh --deploy -b`), which are tagged `local`.
+- `DEVELOPER` is optional. If set to `true`, deployment and integration tests always build the Comodo images from the local code,
+  as if the `--build|-b` flag was used, so developers don't need to add it on every run.
 
 **Note:** To "not set" an optional environment variable, you can either leave it empty (`VAR=`), comment it out `# VAR=...`,
 or make sure the `ENV_*` variable is not defined in your shell environment.

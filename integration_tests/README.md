@@ -80,6 +80,8 @@ If you want to test changes to the code, also use the `--build` flag, which buil
 ./integration_tests/run-integration-tests.sh --build
 ./integration_tests/run-integration-tests.sh --remote --build
 ```
+Note: Setting `DEVELOPER=true` in `compose/.env` (see [environment variables](../README.md#environment-variables)) automatically uses `--build`,
+so the images are always built from the local code, without having to pass the `--build` flag.
 Run `./integration_tests/run-integration-tests.sh --help` for all options.
 
 The tests are also run (with `--build`) by [`utils/run-all-tests.sh`](../utils/run-all-tests.sh),

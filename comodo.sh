@@ -31,6 +31,7 @@ Options for --deploy only:
                       Note: The tests replace any running stacks, make sure you are ok with that.
   --build, -b       Build the comodo images from the local code, rather than using the published ones.  Use --build only when developing.
                       Built images are tagged 'local' (COMODO_TAG=local), so they are never mistaken for (or pushed as) published ones.
+                      Note: DEVELOPER=true (in the shell, or in 'compose/.env') automatically uses --build.
 "
 
 action=""

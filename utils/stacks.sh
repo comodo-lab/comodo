@@ -3,6 +3,13 @@
 #   stacks:   The stacks, in the order they are deployed, e.g. (mqtt data firmware core).
 #   commands: The compose command for each stack, from utils/contexts.sh (once loaded).
 #   build:    true to build the comodo images from this repository, false to use the published ones.
+#               Note: DEVELOPER=true (in the shell, or in 'compose/.env') automatically uses --build.
+
+# Developers always build the images from the local code, as with --build
+developer=${DEVELOPER:-$(grep -s -E '^DEVELOPER=' compose/.env | tail -1 | cut -d= -f2- | awk '{print $1}' | tr -d "\"'")}
+if [[ "$developer" == true ]]; then
+  build=true
+fi
 
 # Coloured when printing to a terminal, so each stack's step stands out from the compose output
 if [[ -t 1 ]]; then
@@ -33,7 +40,7 @@ run_stack_compose() {
 prepare_images() {
   if [[ "$build" == true ]]; then
     export COMODO_TAG=local
-    echo "${yellow}${bold}Building${unbold} comodo images from local code${reset} (tagging as: '$COMODO_TAG')..."
+    echo "${yellow}${bold}Building${unbold} comodo images from local code${reset} (tagging as: '$COMODO_TAG')$([[ "$developer" == true ]] && echo " (DEVELOPER=true)")..."
   else
     # As in the compose files, unless set in the shell, or in compose/.env (which the compose commands read)
     local tag
