@@ -7,26 +7,29 @@ Deploys the comodo stacks (--deploy), as configured in the 'compose/.env' file a
 It runs the commands printed by 'utils/contexts.sh --clean', which also replaces the comodo docker contexts
 with ones matching '.env', and regenerates 'compose/firmware.yaml'. In order, stopping at the first failure, it:
   1. Validates 'comodo.yaml'.
-  2. Asks before replacing any comodo stacks already running (unless --force).
+  2. Asks before replacing any comodo stacks already running (unless --yes).
   3. Optionally (-t), runs the integration tests on the same hosts, with the mock configuration (see 'integration_tests/').
   4. Deploys the MQTT broker, and then the data, firmware and core stacks.
-With --down, it asks before bringing down any running stacks (unless --force), and brings them down in reverse order.
+With --down, it asks before bringing down any running stacks (unless --yes), and brings them down in reverse order.
 
-Usage: ./comodo.sh (--deploy|--down) [--force|-f] [--test|-t] [--local|-l]
-       ./comodo.sh --help|-h
-Actions:
-  --deploy          Deploy the stacks.
-  --down            Bring the stacks down, in reverse order.
-  --help,  -h       Show this help message and exit.
-Options:
-  --force, -f       Replace (or, with --down, bring down) running stacks without asking,
-                      and recreate every container (e.g. after editing 'comodo.yaml').
+Usage:
+  ./comodo.sh --deploy [--yes|-y] [--local|-l] [--force|-f] [--test|-t]
+  ./comodo.sh --down [--yes|-y] [--local|-l]
+  ./comodo.sh --help|-h
+
+Options for --deploy and --down:
+  --yes,   -y       Replace (or bring down) running stacks without asking.
+  --local, -l       Use this machine for all the stacks, ignoring the *_HOST variables (see 'utils/contexts.sh --local').
+                      To bring down stacks deployed with --local, use --local too.
+Options for --deploy only:
+  --force, -f       Recreate every container, rather than only those whose compose configuration changed
+                      (e.g. after editing 'comodo.yaml', which is mounted).
   --test,  -t       Run the integration tests with --remote before deploying, and only deploy if they pass.
                       Note: The tests replace any running stacks.
-  --local, -l       Deploy all the stacks on this machine, ignoring the *_HOST variables (see 'utils/contexts.sh --local').
 "
 
 action=""
+yes=false
 force=false
 test=false
 local_only=false
@@ -36,6 +39,10 @@ while [[ $# -gt 0 ]]; do
   --help|-h)
     echo "$help_str"
     exit 0
+    ;;
+  --yes|-y)
+    yes=true
+    shift
     ;;
   --force|-f)
     force=true
@@ -77,8 +84,8 @@ if [[ ! -f compose/.env ]]; then
   echo "No .env file found in $project_root/compose. See the README to create one."
   exit 1
 fi
-if [[ "$test" == true && "$action" == --down ]]; then
-  echo "--test only applies to --deploy."
+if [[ "$action" == --down && ( "$test" == true || "$force" == true ) ]]; then
+  echo "--test and --force only apply to --deploy."
   exit 1
 fi
 if [[ "$test" == true && "$local_only" == true ]]; then
@@ -97,7 +104,7 @@ stack_compose() {
   eval "${commands[$stack]} $(printf '%q ' "$@")"
 }
 
-# Asks before replacing (or bringing down) the stacks that are running, unless --force
+# Asks before replacing (or bringing down) the stacks that are running, unless --yes
 confirm_running_stacks() {
   local action="$1"
   local running=()
@@ -106,13 +113,13 @@ confirm_running_stacks() {
       running+=("$stack")
     fi
   done
-  if [[ ${#running[@]} -eq 0 || "$force" == true ]]; then
+  if [[ ${#running[@]} -eq 0 || "$yes" == true ]]; then
     return 0
   fi
   echo
   echo "These comodo stacks are running: ${running[*]}"
   if [[ ! -t 0 ]]; then
-    echo "Use --force to $action without asking."
+    echo "Use --yes to $action without asking."
     exit 1
   fi
   read -r -p "Do you want to $action? [y/N] " answer

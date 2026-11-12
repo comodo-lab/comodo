@@ -316,7 +316,8 @@ This:
 
 Useful options (run `./comodo.sh --help` for all of them):
 - `-t`: Run the [integration tests](integration_tests/README.md) on the same hosts, with simulated instruments, and only deploy if they pass.
-- `-f`: Replace running stacks without asking, recreating every container (always use if `comodo.yaml` changed).
+- `-y`: Replace running stacks without asking.
+- `-f`: Recreate every container (always use if `comodo.yaml` changed), rather than only those whose compose configuration changed.
 - `-l`: Deploy all the stacks on this machine, ignoring the `*_HOST` variables.
 
 To deploy by hand instead, `./utils/contexts.sh` prints the commands to run, in order (see [manual deployment](#manual-deployment)).
@@ -414,6 +415,7 @@ To set up Comodo, follow these steps:
 
 #### Bringing comodo down
 To bring the stacks down, run `./comodo.sh --down`, which brings down the core, firmware, data and MQTT stacks, in that order.
+Add `-l` if they were deployed with it, and `-y` to bring them down without being asked.
 By hand, run the `down` equivalent of the deployment commands from `./utils/contexts.sh`, in reverse order (with the same contexts for remote stacks).
 
 If you want to start from scratch, add `-v` to the `down` commands, which also removes the volumes:

@@ -90,7 +90,7 @@ To inspect the stacks after the tests, keep them running with `--keep`, and chec
 docker logs comodo-controller
 ```
 `comodo.yaml` and `compose/firmware.yaml` are still restored, so use `--remove-orphans` the next time you deploy the firmware stack
-(`./comodo.sh --deploy` does). To just bring the test stacks down, run `./comodo.sh --down`.
+(`./comodo.sh --deploy` does). To just bring the test stacks down, run `./comodo.sh --down -l` (without `-l` if they were run with `--remote`).
 
 With the stacks running with the mock configuration, the test runner can also be run on its own:
 ```shell
