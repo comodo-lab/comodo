@@ -14,7 +14,7 @@ name: comodo-data
 services:
   mqtt-probe-data:
     build:
-      context: ./
+      context: ../
       dockerfile: mqtt_probe/Dockerfile
     init: true
     environment:
@@ -43,7 +43,7 @@ services:
 
   telegraf:
     build:
-      context: .
+      context: ../
       dockerfile_inline: |
         FROM telegraf:latest
         COPY telegraf/telegraf.conf /etc/telegraf/telegraf.conf
@@ -56,7 +56,7 @@ services:
 
   grafana:
     build:
-      context: .
+      context: ../
       dockerfile_inline: |
         FROM grafana/grafana
         USER root

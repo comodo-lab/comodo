@@ -14,4 +14,4 @@ services:
       - firmware/templates/compose.firmware.yaml.j2
       - comodo.yaml
       - -o
-      - compose.firmware.yaml
+      - compose/firmware.yaml

@@ -61,7 +61,7 @@ To deploy the example stack, start by copying the the configuration file:
 ```bash
 cp ./utils/tests/mocks/comodo.yaml ./
 ```
-You will also need to create a `.env` file with the required environment variables.
+You will also need to create a `compose/.env` file with the required environment variables.
 Details can be found in the [manual deployment](#manual-deployment) section, but for this example you can use:
 ```.env
 MQTT_USER=comodo_mqtt_user
@@ -73,7 +73,7 @@ INFLUX_ORG=comodo
 Then, run the automatic deployment script.
 For your first deployment, lets run everything on your local machine:
 ```bash
-./utils/deploy.sh --local
+./comodo.sh --deploy --local
 ```
 The deployment script will generate and start the required compose files, and should finish by printing something like:
 ```output
@@ -131,10 +131,10 @@ It consists of a single YAML file that defines:
   <!-- - Desired monitoring visualizations. -->
 
 Because it is so important, the `comodo.yaml` file is checked and used in several ways:
-- It is validated against [the schema](schemas/comodo.yaml.schema) every time the core stack starts (the `config` service in `compose.yaml`).
+- It is validated against [the schema](schemas/comodo.yaml.schema) every time the core stack starts (the `config` service in `compose/core.yaml`).
   The controller and UI will not start if validation fails.
 - The controller and UI read it at start-up (through [utils/comodo_config.py](utils/comodo_config.py)), which applies some extra checks (see below).
-- The firmware stack, `compose.firmware.yaml`, is generated from it (see [setting up the firmware](#setting-up-the-firmware-for-the-sensors-and-actuators)).
+- The firmware stack, `compose/firmware.yaml`, is generated from it (see [setting up the firmware](#setting-up-the-firmware-for-the-sensors-and-actuators)).
 
 After changing `comodo.yaml`, regenerate the firmware stack and restart the stacks for the changes to take effect.
 An example can be found in [comodo.yaml](comodo.yaml).
@@ -304,21 +304,21 @@ Each visualization can have the following properties:
 Once the [requirements](#requirements), [environment variables](#environment-variables) and [`comodo.yaml`](#central-configuration-file) are set up,
 deploy Comodo from the base directory with:
 ```shell
-./utils/deploy.sh
+./comodo.sh --deploy
 ```
 This:
 - Validates `comodo.yaml`, so an invalid configuration doesn't leave a half-deployed stack.
-- Runs `./utils/contexts.sh --clean`, which regenerates `compose.firmware.yaml` from `comodo.yaml`,
-  replaces the Docker contexts for any stacks deployed to remote hosts with ones matching the `*_HOST` and `*_HOST_USER` variables in `.env`,
+- Runs `./utils/contexts.sh --clean`, which regenerates `compose/firmware.yaml` from `comodo.yaml`,
+  replaces the Docker contexts for any stacks deployed to remote hosts with ones matching the `*_HOST` and `*_HOST_USER` variables in `compose/.env`,
   and works out the `docker compose` command for each stack.
 - Asks before replacing any Comodo stacks already running.
 - Deploys the MQTT broker, and then the data, firmware and core stacks, stopping at the first failure.
 
-Useful options (run `./utils/deploy.sh --help` for all of them):
+Useful options (run `./comodo.sh --help` for all of them):
 - `-t`: Run the [integration tests](integration_tests/README.md) on the same hosts, with simulated instruments, and only deploy if they pass.
-- `-f`: Replace running stacks without asking, recreating every container (always use if `comodo.yaml` changed).
+- `-y`: Replace running stacks without asking.
+- `-f`: Recreate every container (always use if `comodo.yaml` changed), rather than only those whose compose configuration changed.
 - `-l`: Deploy all the stacks on this machine, ignoring the `*_HOST` variables.
-- `--down`: Bring the stacks down.
 
 To deploy by hand instead, `./utils/contexts.sh` prints the commands to run, in order (see [manual deployment](#manual-deployment)).
 
@@ -335,9 +335,10 @@ To deploy by hand instead, `./utils/contexts.sh` prints the commands to run, in 
 
 ### Environment variables
 
-To manually deploy Comodo you'll need to copy the `env.template` file to a file called `.env`:
+To manually deploy Comodo you'll need to copy the `compose/env.template` file to a file called `compose/.env`,
+where Docker Compose reads it from, as it is next to the compose files:
 ```bash
-cp env.template .env
+cp compose/env.template compose/.env
 ```
 and fill in the required environment variables:
 
@@ -374,11 +375,11 @@ and fill in the required environment variables:
 or make sure the `ENV_*` variable is not defined in your shell environment.
 
 ### Setting up Comodo
-The Comodo stack is divided into four main compose files:
-- `compose.mqtt.yaml`: Defines the MQTT broker (RabbitMQ).
-- `compose.data.yaml`: Defines the data storage and monitoring components (InfluxDB, Telegraf and Grafana).
-- `compose.yaml`: Defines the core components: the controller, UI and monitor, plus a `config` service that validates `comodo.yaml` before they start.
-- `compose.firmware.yaml`: Defines the firmware for the sensors and actuators, and the setpoint controllers. Generated from `comodo.yaml`.
+The Comodo stack is divided into four main compose files, in `compose/`:
+- `compose/mqtt.yaml`: Defines the MQTT broker (RabbitMQ).
+- `compose/data.yaml`: Defines the data storage and monitoring components (InfluxDB, Telegraf and Grafana).
+- `compose/core.yaml`: Defines the core components: the controller, UI and monitor, plus a `config` service that validates `comodo.yaml` before they start.
+- `compose/firmware.yaml`: Defines the firmware for the sensors and actuators, and the setpoint controllers. Generated from `comodo.yaml`.
 
 Each of these components can run independently, so you can choose to deploy them on separate hosts if desired.
 Equally, you can run all components on a single host, leaving the `*_HOST` environment variables empty.
@@ -391,10 +392,10 @@ To set up Comodo, follow these steps:
 - Set up the [environment variables](#environment-variables).
 - Run the contexts script: `./utils/contexts.sh`. This will set up the necessary Docker contexts for remote deployment, and provide the correct compose commands to deploy.
   They should be equivalent to the ones below, albeit using the correct contexts. The MQTT broker must be started first.
-  - `docker compose -f compose.mqtt.yaml up --build -d --wait`.
-  - `docker compose -f compose.data.yaml up --build -d`.
-  - `docker compose -f compose.firmware.yaml up --build -d`.
-  - `docker compose up --build -d`.
+  - `docker compose -f compose/mqtt.yaml up --build -d --wait`.
+  - `docker compose -f compose/data.yaml up --build -d`.
+  - `docker compose -f compose/firmware.yaml up --build -d`.
+  - `docker compose -f compose/core.yaml up --build -d`.
 - Visit `localhost:8501` on the core host to access the Comodo UI.
 
 <details id="publishing-a-grafana-dashboard">
@@ -403,7 +404,7 @@ To set up Comodo, follow these steps:
 - Visit the Grafana UI at `localhost:3000`.
 - Click "Sign in". Dashboards can be viewed anonymously, but sharing or editing them requires an account.
   On first login, use username `admin` and password `admin`; Grafana will then ask you to set a new password.
-  The new password is kept in the `grafana-storage` volume, so it persists until the volume is removed (e.g. with `docker compose -f compose.data.yaml down -v`).
+  The new password is kept in the `grafana-storage` volume, so it persists until the volume is removed (e.g. with `docker compose -f compose/data.yaml down -v`).
 - Select "Dashboards" on the navigation panel on the left.
 - Select the dashboard you want.
 - Click the "Share" icon at the top of the page, which will copy a shortened url.
@@ -413,39 +414,40 @@ To set up Comodo, follow these steps:
 
 
 #### Bringing comodo down
-To bring the stacks down, run `./utils/deploy.sh --down`, which brings down the core, firmware, data and MQTT stacks, in that order.
+To bring the stacks down, run `./comodo.sh --down`, which brings down the core, firmware, data and MQTT stacks, in that order.
+Add `-l` if they were deployed with it, and `-y` to bring them down without being asked.
 By hand, run the `down` equivalent of the deployment commands from `./utils/contexts.sh`, in reverse order (with the same contexts for remote stacks).
 
 If you want to start from scratch, add `-v` to the `down` commands, which also removes the volumes:
 **this deletes all the data in InfluxDB**, and the Grafana and RabbitMQ settings. For example, for a local deployment:
-- `docker compose down -v`
-- `docker compose -f compose.firmware.yaml down -v`
-- `docker compose -f compose.data.yaml down -v`
-- `docker compose -f compose.mqtt.yaml down -v`
+- `docker compose -f compose/core.yaml down -v`
+- `docker compose -f compose/firmware.yaml down -v`
+- `docker compose -f compose/data.yaml down -v`
+- `docker compose -f compose/mqtt.yaml down -v`
 
 ### Setting up the firmware for the sensors and actuators
 
-The firmware services are defined in `compose.firmware.yaml`, which is generated from `comodo.yaml`.
+The firmware services are defined in `compose/firmware.yaml`, which is generated from `comodo.yaml`.
 Do not edit it directly: edit `comodo.yaml` and regenerate it with:
 ```bash
 docker compose -f firmware/compose.gen.yaml run --rm compose-gen
 ```
-`./utils/contexts.sh` (and so `./utils/deploy.sh`) runs this step automatically.
+`./utils/contexts.sh` (and so `./comodo.sh --deploy`) runs this step automatically.
 
 ### Debugging
 
-There is a fifth compose file, `compose.debug.yaml`, which can be used to deploy debugging tools for the different components of Comodo.
+There is a fifth compose file, `compose/debug.yaml`, which can be used to deploy debugging tools for the different components of Comodo.
 
 - To run the mqttui tool, which allows you to monitor MQTT messages, run:
   ```bash
-  docker compose -f compose.debug.yaml up --build mqttui -d && docker exec -it comodo-mqttui mqttui
+  docker compose -f compose/debug.yaml up --build mqttui -d && docker exec -it comodo-mqttui mqttui
   ```
 - To follow the logs of a service, use its container name, or its stack's compose file, e.g.:
   ```bash
   docker logs -f comodo-controller
-  docker compose logs -f monitor
+  docker compose -f compose/core.yaml logs -f monitor
   ```
-  For a remote stack, add its context, e.g. `docker --context comodo_firmware_host compose -f compose.firmware.yaml logs -f`.
+  For a remote stack, add its context, e.g. `docker --context comodo_firmware_host compose -f compose/firmware.yaml logs -f`.
 
 ## MQTT topics
 All components communicate through MQTT messages. Every message must match the [message schema](schemas/mqtt_schema.yaml), which the monitor checks.
@@ -506,23 +508,24 @@ This also runs the [full stack test](#testing-the-full-stack) at the end. Use `-
 An end-to-end integration test is available in [`integration_tests/`](integration_tests/README.md).
 It deploys every stack (MQTT broker, data, firmware and core) with the mock configuration, where all instruments are simulated,
 runs a full experiment cycle, checks the data in InfluxDB and the database dump, and tears the stacks down.
-Your `comodo.yaml` and `compose.firmware.yaml` are restored when it finishes.
+Your `comodo.yaml` and `compose/firmware.yaml` are restored when it finishes.
 
 From the base directory, run:
 ```
 ./integration_tests/run-integration-tests.sh
 ```
-By default, all stacks run on this machine. With `--remote`, they are deployed to the hosts in your `.env`,
+By default, all stacks run on this machine. With `--remote`, they are deployed to the hosts in your `compose/.env`,
 which works as a commissioning test of a distributed deployment before deploying it with your real `comodo.yaml`.
 
 ### Repository structure
+- `comodo.sh`: Deploys the stacks, or brings them down (see [automatic deployment](#automatic-deployment)).
 - `comodo.yaml`: The [central configuration file](#central-configuration-file).
-- `compose*.yaml`: The compose files for each stack (see [setting up Comodo](#setting-up-comodo)).
-- `env.template`: Template for the `.env` file (see [environment variables](#environment-variables)).
+- `compose/`: The compose files for each stack (see [setting up Comodo](#setting-up-comodo)), and the `.env` file,
+  with its template `env.template` (see [environment variables](#environment-variables)).
 - Components, each with its own `Dockerfile`, tests, and a `compose.yaml` to [run its tests](#testing-a-component):
   - [`controller/`](controller/README.md): The controller.
   - [`ui/`](ui/README.md): The user interface.
-  - [`firmware/`](firmware/README.md): The firmware for the instruments, and the template used to generate `compose.firmware.yaml`.
+  - [`firmware/`](firmware/README.md): The firmware for the instruments, and the template used to generate `compose/firmware.yaml`.
   - [`setpoint_controller/`](setpoint_controller/README.md): The setpoint controllers.
   - [`monitor/`](monitor/README.md): The MQTT message monitor.
   - [`mqtt_probe/`](mqtt_probe/README.md): The MQTT connection check used by each stack.

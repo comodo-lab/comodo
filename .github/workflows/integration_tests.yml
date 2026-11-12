@@ -29,7 +29,7 @@ jobs:
 
       - name: Set up environment variables
         run: |
-          cat > .env <<'EOF'
+          cat > compose/.env <<'EOF'
           MQTT_USER=comodo_mqtt_user
           MQTT_PASS=comodo_mqtt_password
           INFLUX_TOKEN=comodo_influx_token

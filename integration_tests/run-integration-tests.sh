@@ -3,13 +3,13 @@ set -uo pipefail
 
 help_str="
 This script runs the integration tests using the mock configuration.
-First, it backs up the existing 'comodo.yaml' and 'compose.firmware.yaml' files.
-Then, it uses the mock configuration ('utils/tests/mocks/comodo.yaml', where all instruments are simulated) and generates a 'compose.firmware.yaml' to match it.
+First, it backs up the existing 'comodo.yaml' and 'compose/firmware.yaml' files.
+Then, it uses the mock configuration ('utils/tests/mocks/comodo.yaml', where all instruments are simulated) and generates a 'compose/firmware.yaml' to match it.
 It then deploys every comodo stack with the mock configuration, using the commands from 'utils/contexts.sh' (so it is tested too),
 and runs the test runner against it.
-Finally, it tears the stacks down and restores 'comodo.yaml' and 'compose.firmware.yaml'.
+Finally, it tears the stacks down and restores 'comodo.yaml' and 'compose/firmware.yaml'.
 
-By default all stacks run on this machine, ignoring the *_HOST variables in the '.env' file (with 'utils/contexts.sh --local').
+By default all stacks run on this machine, ignoring the *_HOST variables in the 'compose/.env' file (with 'utils/contexts.sh --local').
 With the --remote flag, the stacks are deployed exactly as configured in '.env'.
 That is, stacks with both *_HOST and *_HOST_USER set are deployed to that host using docker contexts (see 'utils/contexts.sh').
 This is useful to test the actual deployment topology.
@@ -23,7 +23,7 @@ Usage: ./integration_tests/run-integration-tests.sh [--remote|-r] [--keep|-k] [-
 Options:
   -r, --remote          Deploy the stacks as configured in .env, rather than all on this machine.
   -k, --keep            Leave the stacks running after the tests, e.g. to inspect them.
-                          Note: The original 'comodo.yaml' and 'compose.firmware.yaml' are still restored, so you might have to use the --remove-orphans flag on the next deployment.
+                          Note: The original 'comodo.yaml' and 'compose/firmware.yaml' are still restored, so you might have to use the --remove-orphans flag on the next deployment.
   -l, --logs SERVICES   Stream the logs of the given services (comma separated, e.g. 'controller,monitor')
                           into the output while the tests run, prefixed with the service name.
   -h, --help            Show this help message and exit.
@@ -63,11 +63,11 @@ done
 cd "$(dirname "$0")/.."
 project_root=$(pwd)
 
-if [[ ! -f .env ]]; then
-  echo "No .env file found in $project_root. See the README to create one."
+if [[ ! -f compose/.env ]]; then
+  echo "No .env file found in $project_root/compose. See the README to create one."
   exit 1
 fi
-source .env
+source compose/.env
 
 stacks=(mqtt data firmware core)
 # The compose command for each stack, as printed by contexts.sh, so the tests also test it
@@ -86,14 +86,14 @@ stack_compose() {
   eval "${commands[$stack]} $(printf '%q ' "$@")"
 }
 runner_compose() {
-  docker compose --env-file .env -f integration_tests/compose.yaml "$@"
+  docker compose --env-file compose/.env -f integration_tests/compose.yaml "$@"
 }
 
 # Back up the configuration
 backup_dir=$(mktemp -d)
 echo "Backing up current configuration to $backup_dir..."
-for f in comodo.yaml compose.firmware.yaml; do
-  [[ -f "$f" ]] && cp "$f" "$backup_dir/"
+for f in comodo.yaml compose/firmware.yaml; do
+  [[ -f "$f" ]] && cp "$f" "$backup_dir/$(basename "$f")"
 done
 
 # Kills a process and all its descendants (docker runs compose as a child process of its own)
@@ -124,9 +124,9 @@ cleanup() {
     done
   fi
   echo "Restoring configuration..."
-  for f in comodo.yaml compose.firmware.yaml; do
-    if [[ -f "$backup_dir/$f" ]]; then
-      cp "$backup_dir/$f" "$f"
+  for f in comodo.yaml compose/firmware.yaml; do
+    if [[ -f "$backup_dir/$(basename "$f")" ]]; then
+      cp "$backup_dir/$(basename "$f")" "$f"
     else
       rm -f "$f"
     fi
@@ -138,7 +138,7 @@ trap cleanup EXIT
 trap 'exit 130' INT TERM
 
 # Get the compose commands for each stack from contexts.sh, which also creates the contexts for --remote
-# (replacing existing ones, so they match .env) and regenerates compose.firmware.yaml
+# (replacing existing ones, so they match .env) and regenerates compose/firmware.yaml
 echo "Getting the deployment commands from contexts.sh..."
 contexts_args=(--commands-file "$backup_dir/commands")
 if [[ "$remote" == true ]]; then
@@ -151,7 +151,7 @@ while IFS=$'\t' read -r stack command; do
   commands[$stack]="$command"
 done < "$backup_dir/commands"
 
-# Set up the mock comodo.yaml and compose.firmware.yaml
+# Set up the mock comodo.yaml and compose/firmware.yaml
 echo "Setting up test configuration..."
 cp utils/tests/mocks/comodo.yaml comodo.yaml
 docker compose -f firmware/compose.gen.yaml run --rm compose-gen || exit 1

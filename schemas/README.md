@@ -9,12 +9,12 @@ A [LinkML](https://linkml.io/) schema for `comodo.yaml`.
 It defines the `global` settings, and the `instruments` with their variables, sensors, actuators and setpoint controllers,
 including which properties are required and their types.
 
-It is used by the `config` service in the main [`compose.yaml`](../compose.yaml),
+It is used by the `config` service in the core stack's [`compose/core.yaml`](../compose/core.yaml),
 which validates `comodo.yaml` every time the core stack starts. The controller and UI only start if the validation passes.
 
 To validate `comodo.yaml` without starting the stack, run from the repository root:
 ```shell
-docker compose run --rm config
+docker compose -f compose/core.yaml run --rm config
 ```
 
 Some rules cannot be expressed in the schema, so the controller and UI also check them when loading `comodo.yaml`

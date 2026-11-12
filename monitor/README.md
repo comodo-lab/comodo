@@ -40,8 +40,8 @@ When adding a new MQTT topic, or changing a message, update the [message schema]
 otherwise the monitor will report the new messages as errors.
 
 ## Configuration
-The monitor is part of the core stack (the main [`compose.yaml`](../compose.yaml)), and reads the following environment variables:
-- `MQTT_HOST`: The hostname of the MQTT broker. Defaults to `localhost`, but the compose file sets it from `.env`,
+The monitor is part of the core stack ([`compose/core.yaml`](../compose/core.yaml)), and reads the following environment variables:
+- `MQTT_HOST`: The hostname of the MQTT broker. Defaults to `localhost`, but the compose file sets it from `compose/.env`,
   or to `rabbitmq` (the broker's service name) if it is empty.
 - `MQTT_USER`: The username for the MQTT broker. Defaults to `guest`.
 - `MQTT_PASS`: The password for the MQTT broker. Defaults to `guest`.
