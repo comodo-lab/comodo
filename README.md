@@ -400,10 +400,13 @@ To set up Comodo, follow these steps:
 - Set up the [environment variables](#environment-variables).
 - Run the contexts script: `./utils/contexts.sh`. This will set up the necessary Docker contexts for remote deployment, and provide the correct compose commands to deploy.
   They should be equivalent to the ones below, albeit using the correct contexts. The MQTT broker must be started first.
-  - `docker compose -f compose/mqtt.yaml up --build -d --wait`.
-  - `docker compose -f compose/data.yaml up --build -d`.
-  - `docker compose -f compose/firmware.yaml up --build -d`.
-  - `docker compose -f compose/core.yaml up --build -d`.
+  - `docker compose -f compose/mqtt.yaml up -d --wait`.
+  - `docker compose -f compose/data.yaml up -d`.
+  - `docker compose -f compose/firmware.yaml up -d`.
+  - `docker compose -f compose/core.yaml up -d`.
+
+  These use the published Comodo images.
+  To build them from the local code instead, prefix each command with `COMODO_TAG=local` and add `--build` after `up`.
 - Visit `localhost:8501` on the core host to access the Comodo UI.
 
 <details id="publishing-a-grafana-dashboard">
