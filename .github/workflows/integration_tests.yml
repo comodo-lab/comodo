@@ -38,4 +38,4 @@ jobs:
           EOF
 
       - name: Run integration tests
-        run: ./integration_tests/run-integration-tests.sh
+        run: ./integration_tests/run-integration-tests.sh --build

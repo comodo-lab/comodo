@@ -60,7 +60,7 @@ done
 if [[ "$run_integration" == true ]]; then
     run_component \
         integration \
-        ./integration_tests/run-integration-tests.sh
+        ./integration_tests/run-integration-tests.sh --build
 else
     echo "Skipping integration tests."
 fi

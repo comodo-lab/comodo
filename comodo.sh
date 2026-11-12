@@ -28,7 +28,7 @@ Options for --deploy only:
   --force, -f       Recreate every container, rather than only those whose compose configuration changed
                       (e.g. after editing 'comodo.yaml', which is mounted).
   --test,  -t       Run the integration tests with --remote before deploying, and only deploy if they pass.
-                      Note: The tests replace any running stacks, and always build the images from this repository.
+                      Note: The tests replace any running stacks, make sure you are ok with that.
   --build, -b       Build the comodo images from the local code, rather than using the published ones.  Use --build only when developing.
                       Built images are tagged 'local' (COMODO_TAG=local), so they are never mistaken for (or pushed as) published ones.
 "
@@ -176,7 +176,9 @@ confirm_running_stacks "replace them"
 if [[ "$test" == true ]]; then
   echo
   echo "Running the integration tests on the deployment hosts..."
-  if ! ./integration_tests/run-integration-tests.sh --remote; then
+  test_args=(--remote)
+  [[ "$build" == true ]] && test_args+=(--build)
+  if ! ./integration_tests/run-integration-tests.sh "${test_args[@]}"; then
     echo "The integration tests failed. Nothing was deployed."
     exit 1
   fi
