@@ -17,6 +17,7 @@ on:
     paths:
       - "setpoint_controller/**"
       - "utils/**"
+      - "schemas/**"
   pull_request:
     branches: ["main", "dev"]
 

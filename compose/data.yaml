@@ -43,11 +43,10 @@ services:
       - influx_config:/etc/influxdb2
 
   telegraf:
+    image: comodolab/comodo-telegraf:${COMODO_TAG:-latest}
     build:
       context: ../
-      dockerfile_inline: |
-        FROM telegraf:latest
-        COPY telegraf/telegraf.conf /etc/telegraf/telegraf.conf
+      dockerfile: telegraf/Dockerfile
     container_name: comodo-telegraf
     restart: unless-stopped
     depends_on:
@@ -56,22 +55,10 @@ services:
       <<: [ *mqtt-env, *influx-env ]
 
   grafana:
+    image: comodolab/comodo-grafana:${COMODO_TAG:-latest}
     build:
       context: ../
-      dockerfile_inline: |
-        FROM grafana/grafana
-        USER root
-        RUN apk add envsubst
-        ARG INFLUX_ADDR=http://influxdb:8086
-        ARG INFLUX_TOKEN=${INFLUX_TOKEN}
-        ARG INFLUX_BUCKET=${INFLUX_BUCKET}
-        ARG INFLUX_ORG=${INFLUX_ORG}
-        COPY ./grafana/provisioning/ /etc/grafana/provisioning/
-        COPY ./grafana/dashboard.yaml /etc/grafana/provisioning/dashboards/main.yaml
-        COPY ./grafana/dashboards/ /etc/grafana/provisioning/dashboards/
-        RUN envsubst < /etc/grafana/provisioning/datasources/datasource.yml.template > /etc/grafana/provisioning/datasources/datasource.yml.temp
-        RUN cp /etc/grafana/provisioning/datasources/datasource.yml.temp /etc/grafana/provisioning/datasources/datasource.yml
-        USER grafana
+      dockerfile: grafana/Dockerfile
     container_name: comodo-grafana
     restart: unless-stopped
     environment:
@@ -79,6 +66,11 @@ services:
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
       - GF_SECURITY_ALLOW_EMBEDDING=true
       - GF_AUTH_ANONYMOUS_ORG_NAME=Main Org.
+      # Used by the datasource (grafana/provisioning/datasources/datasource.yml)
+      - INFLUX_ADDR=http://influxdb:8086
+      - INFLUX_TOKEN=${INFLUX_TOKEN}
+      - INFLUX_BUCKET=${INFLUX_BUCKET}
+      - INFLUX_ORG=${INFLUX_ORG}
     ports:
       - 3000:3000
     volumes:

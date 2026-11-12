@@ -12,6 +12,10 @@ on:
       - "mqtt_probe/**"
       - "setpoint_controller/**"
       - "ui/**"
+      - "schemas/**"
+      - "compose/**"
+      - "telegraf/**"
+      - "grafana/**"
   pull_request:
     branches: ["main", "dev"]
 

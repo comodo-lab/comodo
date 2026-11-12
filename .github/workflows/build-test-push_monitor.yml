@@ -17,6 +17,7 @@ on:
     paths:
       - "monitor/**"
       - "utils/**"
+      - "schemas/**"
   pull_request:
     branches: ["main", "dev"]
 

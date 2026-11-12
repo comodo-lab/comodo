@@ -17,6 +17,7 @@ on:
     paths:
       - "firmware/**"
       - "utils/**"
+      - "schemas/**"
   pull_request:
     branches: ["main", "dev"]
 
