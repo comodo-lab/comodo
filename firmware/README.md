@@ -175,7 +175,7 @@ stateDiagram-v2
 A reset (`controller/command/reset`) also moves the instrument from any other status to `awaiting_experiment`, with its default setpoints.
 
 ### Safe stop
-If the network or the controller fails, the controller can no longer stop the instruments, so the firmware does it itself, acting as a dead-coms-switch.
+If the network or the controller fails, the controller can no longer stop the instruments, so the firmware does it itself, acting as a dead-comms-switch.
 
 This is done by the `FirmwareWatchdog` ([`src/watchdog.py`](src/watchdog.py)), which has its own MQTT client, and checks in its own thread,
 so it works even if the instrument's client or measurements are busy, or blocked.
