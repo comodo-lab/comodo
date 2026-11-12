@@ -14,8 +14,9 @@ Usage: ./utils/contexts.sh [--clean|-c] [--local|-l] [--commands-file|-o FILE] [
 Options:
   --clean, -c             Removes existing contexts before creating new ones.
   --local, -l             Deploy all the stacks on this machine, ignoring the *_HOST and *_HOST_USER variables.
-  --commands-file, -o     Also write the compose command for each stack to FILE, as '<stack><TAB><command>' lines,
-                          without the compose subcommand (e.g. 'up'). Used by integration_tests/run-integration-tests.sh.
+  --commands-file, -o     Write the compose command for each stack to FILE, as '<stack><TAB><command>' lines,
+                          without the compose subcommand (e.g. 'up'), instead of printing the deployment commands.
+                          Used by comodo.sh and integration_tests/run-integration-tests.sh, which run them.
   --help,  -h             Show this help message and exit.
 "
 
@@ -173,20 +174,21 @@ for stack in "${stacks[@]}"; do
   commands[$stack]="${env_prefix}docker ${context}compose -f ${files[$stack]}"
 done
 
-echo ""
-echo ""
-# The broker has to be up first: the other stacks check they can reach it before starting
-echo "Deploy the stacks, in this order, with:"
-echo "  ${commands[mqtt]} up --build -d --wait"
-echo "  ${commands[data]} up --build -d"
-echo "  ${commands[firmware]} up --build -d"
-echo "  ${commands[core]} up --build -d"
-
 if [ ! -z "$commands_file" ]; then
+  # The caller runs the commands (and prints them as it does), so they aren't printed here
   : > "$commands_file"
   for stack in "${stacks[@]}"; do
     printf '%s\t%s\n' "$stack" "${commands[$stack]}" >> "$commands_file"
   done
+else
+  echo ""
+  echo ""
+  # The broker has to be up first: the other stacks check they can reach it before starting
+  echo "Deploy the stacks, in this order, with:"
+  echo "  ${commands[mqtt]} up --build -d --wait"
+  echo "  ${commands[data]} up --build -d"
+  echo "  ${commands[firmware]} up --build -d"
+  echo "  ${commands[core]} up --build -d"
 fi
 
 echo ""
