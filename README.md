@@ -314,11 +314,17 @@ This:
 - Asks before replacing any Comodo stacks already running.
 - Deploys the MQTT broker, and then the data, firmware and core stacks, stopping at the first failure.
 
+By default, it uses the published Comodo images (`comodolab/comodo-*` on Docker Hub) matching the `COMODO_TAG` (see [environment variables](#environment-variables)), which defaults to `latest`.
+It updates them first if it can, and otherwise uses the ones the host already has (e.g. without internet access).
+If you are developing Comodo, use `-b` to build them from your local code instead.
+Built images are tagged `local`, so they are not mistaken for the published ones.
+
 Useful options (run `./comodo.sh --help` for all of them):
-- `-t`: Run the [integration tests](integration_tests/README.md) on the same hosts, with simulated instruments, and only deploy if they pass.
 - `-y`: Replace running stacks without asking.
+- `-t`: Run the [integration tests](integration_tests/README.md) on the same hosts, with simulated instruments, and only deploy if they pass.
 - `-f`: Recreate every container (always use if `comodo.yaml` changed), rather than only those whose compose configuration changed.
 - `-l`: Deploy all the stacks on this machine, ignoring the `*_HOST` variables.
+- `-b`: Build the Comodo images from this repository, rather than using the published ones.
 
 To deploy by hand instead, `./utils/contexts.sh` prints the commands to run, in order (see [manual deployment](#manual-deployment)).
 
@@ -370,6 +376,8 @@ and fill in the required environment variables:
 - `GRAFANA_DASHBOARD_URL` is optional. If not set (empty or commented out), the default dashboard will be used.
   If set, it overrides the URL of the Grafana dashboard to be embedded in the Comodo UI.
   See [how to generate a url in this section](#publishing-a-grafana-dashboard).
+- `COMODO_TAG` is optional. The tag of the published Comodo images to deploy, `latest` if not set.
+  It is not used when the images are built from the local code (`./comodo.sh --deploy -b`), which are tagged `local`.
 
 **Note:** To "not set" an optional environment variable, you can either leave it empty (`VAR=`), comment it out `# VAR=...`,
 or make sure the `ENV_*` variable is not defined in your shell environment.
@@ -512,8 +520,11 @@ Your `comodo.yaml` and `compose/firmware.yaml` are restored when it finishes.
 
 From the base directory, run:
 ```
-./integration_tests/run-integration-tests.sh
+./integration_tests/run-integration-tests.sh --build
 ```
+The `--build` flag tells the test runner to build the images from your local code, to test changes to the code.
+If you only want to check that the topology and configuration are valid, run without `--build`, which uses the published Comodo images.
+
 By default, all stacks run on this machine. With `--remote`, they are deployed to the hosts in your `compose/.env`,
 which works as a commissioning test of a distributed deployment before deploying it with your real `comodo.yaml`.
 

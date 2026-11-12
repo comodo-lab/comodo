@@ -18,6 +18,8 @@ The tests are run by [`integration_tests/run-integration-tests.sh`](run-integrat
    The instruments in the mock configuration are all simulated.
 2. Deploys every stack with its own compose file, using the commands printed by [`utils/contexts.sh`](../utils/contexts.sh), so it is tested too:
    the MQTT broker (`compose/mqtt.yaml`), the data stack (`compose/data.yaml`), the firmware stack (`compose/firmware.yaml`), and the core stack (`compose/core.yaml`).
+   Like [`./comodo.sh --deploy`](../README.md#automatic-deployment), it uses the published comodo images by default,
+   or builds them from this repository with `--build` (tagged `local`).
 3. Runs the tests in [`integration_tests.py`](integration_tests.py) with pytest, using [this compose file](compose.yaml).
    Fixtures and helpers are in [`conftest.py`](conftest.py).
 4. Tears the stacks down, and restores `comodo.yaml` and `compose/firmware.yaml`, however the script exits.
@@ -73,10 +75,15 @@ From the repository root, run:
 ./integration_tests/run-integration-tests.sh            # All stacks on this machine
 ./integration_tests/run-integration-tests.sh --remote   # Stacks deployed as configured in .env
 ```
+If you want to test changes to the code, also use the `--build` flag, which builds the images from the local code (and tags them as `local`), instead of using the published ones:
+```shell
+./integration_tests/run-integration-tests.sh --build
+./integration_tests/run-integration-tests.sh --remote --build
+```
 Run `./integration_tests/run-integration-tests.sh --help` for all options.
 
-The tests are also run by [`utils/run-all-tests.sh`](../utils/run-all-tests.sh), and in CI on pushes that change any component, and on pull requests to `main` and `dev`
-(see [`.github/workflows/integration_tests.yml`](../.github/workflows/integration_tests.yml)).
+The tests are also run (with `--build`) by [`utils/run-all-tests.sh`](../utils/run-all-tests.sh),
+and in CI on pushes that change any component, and on pull requests to `main` and `dev` (see [`.github/workflows/integration_tests.yml`](../.github/workflows/integration_tests.yml)).
 
 ### Debugging
 The output only shows the test runner's prints. To also see the logs of some services while the tests run, list them with `--logs`, e.g.:
