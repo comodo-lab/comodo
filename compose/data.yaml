@@ -13,6 +13,7 @@ name: comodo-data
 
 services:
   mqtt-probe-data:
+    image: comodolab/comodo-mqtt_probe:${COMODO_TAG:-latest}
     build:
       context: ../
       dockerfile: mqtt_probe/Dockerfile
