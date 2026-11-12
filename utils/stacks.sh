@@ -35,7 +35,7 @@ run_stack_compose() {
 }
 
 # Gets the images of every stack ready (on each stack's host)
-# With build=true, it builds them; otherwise, it pulls comodo images and builds the others.
+# With build=true, it builds the comodo images; otherwise, it pulls them. The others are only pulled if they are missing.
 # Checks all the stacks, so all problems are reported on a single run, and returns 1 if there are any.
 prepare_images() {
   if [[ "$build" == true ]]; then
@@ -49,26 +49,21 @@ prepare_images() {
   fi
 
   local problems=() missing_images=false
-  local stack service image comodo_services comodo_images other_services missing
+  local stack service image comodo_services other_services images missing
   for stack in "${stacks[@]}"; do
     echo
     echo "${yellow}Preparing the images of the ${bold}${stack}${unbold} stack:${reset}"
-    if [[ "$build" == true ]]; then
-      run_stack_compose "$stack" build || problems+=("Could not build the images of the $stack stack.")
-      continue
-    fi
-
-    # Classify services as part of comodo (with images comodolab/comodo-*) or 'other'.
+    # Classify services as part of comodo (with images comodolab/comodo-*) or 'other' (rabbitmq, influxdb...).
     comodo_services=()
-    comodo_images=()
     other_services=()
+    images=()
     while read -r service image; do
       if [[ "$image" == comodolab/* ]]; then
         comodo_services+=("$service")
-        comodo_images+=("$image")
       else
         other_services+=("$service")
       fi
+      images+=("$image")
     done < <(stack_compose "$stack" config | awk '
       /^services:/ { in_services = 1; next }
       /^[^ ]/ { in_services = 0 }
@@ -77,21 +72,23 @@ prepare_images() {
       # A line per service, with its image if it has one
       awk '{ image[$1] = $2 } END { for (s in image) print s, image[s] }' | sort)
 
+    if [[ "$build" == true ]]; then
+      run_stack_compose "$stack" build || problems+=("Could not build the images of the $stack stack.")
     # Pull comodo images if it can, carrying on with the ones it already has if it can't (e.g. without internet access)
-    if [[ ${#comodo_services[@]} -gt 0 ]]; then
+    elif [[ ${#comodo_services[@]} -gt 0 ]]; then
       run_stack_compose "$stack" pull --ignore-pull-failures "${comodo_services[@]}"
     fi
-    # Configure 'other' (non-comodo) images (rabbitmq, telegraf, grafana...)
-    if [[ ${#other_services[@]} -gt 0 ]] && ! run_stack_compose "$stack" build "${other_services[@]}"; then
-      problems+=("Could not build the images of the $stack stack.")
+    # Pull 'other' images only if they are missing, so the ones already on the host are never updated
+    if [[ ${#other_services[@]} -gt 0 ]]; then
+      run_stack_compose "$stack" pull --policy missing --ignore-pull-failures "${other_services[@]}"
     fi
-    # Make sure all the comodo images exist on the corresponding host
+    # Make sure all the images exist on the corresponding host
     missing=()
-    for image in $(printf '%s\n' "${comodo_images[@]}" | sort -u); do
+    for image in $(printf '%s\n' "${images[@]}" | sort -u); do
       eval "${commands[$stack]%% compose *} image inspect $(printf '%q' "$image")" > /dev/null 2>&1 || missing+=("$image")
     done
     if [[ ${#missing[@]} -gt 0 ]]; then
-      problems+=("These comodo images are not on the $stack stack's host, and could not be pulled: ${missing[*]}")
+      problems+=("These images are not on the $stack stack's host, and could not be pulled: ${missing[*]}")
       missing_images=true
     fi
   done
@@ -99,8 +96,10 @@ prepare_images() {
   if [[ ${#problems[@]} -gt 0 ]]; then
     echo
     printf '%s\n' "${problems[@]}"
-    if [[ "$missing_images" == true ]]; then
-      echo "Check the hosts can pull the missing images (and that they are published with that tag), or use --build to build them from this repository."
+    if [[ "$missing_images" == true && "$build" == true ]]; then
+      echo "Check the hosts can pull the missing images."
+    elif [[ "$missing_images" == true ]]; then
+      echo "Check the hosts can pull the missing images (and that comodo images are published with that tag), or use --build to build comodo images from the local code."
     fi
     return 1
   fi
