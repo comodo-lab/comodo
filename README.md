@@ -73,7 +73,7 @@ INFLUX_ORG=comodo
 Then, run the automatic deployment script.
 For your first deployment, lets run everything on your local machine:
 ```bash
-./utils/deploy.sh --local
+./comodo.sh --deploy --local
 ```
 The deployment script will generate and start the required compose files, and should finish by printing something like:
 ```output
@@ -304,7 +304,7 @@ Each visualization can have the following properties:
 Once the [requirements](#requirements), [environment variables](#environment-variables) and [`comodo.yaml`](#central-configuration-file) are set up,
 deploy Comodo from the base directory with:
 ```shell
-./utils/deploy.sh
+./comodo.sh --deploy
 ```
 This:
 - Validates `comodo.yaml`, so an invalid configuration doesn't leave a half-deployed stack.
@@ -314,11 +314,10 @@ This:
 - Asks before replacing any Comodo stacks already running.
 - Deploys the MQTT broker, and then the data, firmware and core stacks, stopping at the first failure.
 
-Useful options (run `./utils/deploy.sh --help` for all of them):
+Useful options (run `./comodo.sh --help` for all of them):
 - `-t`: Run the [integration tests](integration_tests/README.md) on the same hosts, with simulated instruments, and only deploy if they pass.
 - `-f`: Replace running stacks without asking, recreating every container (always use if `comodo.yaml` changed).
 - `-l`: Deploy all the stacks on this machine, ignoring the `*_HOST` variables.
-- `--down`: Bring the stacks down.
 
 To deploy by hand instead, `./utils/contexts.sh` prints the commands to run, in order (see [manual deployment](#manual-deployment)).
 
@@ -414,7 +413,7 @@ To set up Comodo, follow these steps:
 
 
 #### Bringing comodo down
-To bring the stacks down, run `./utils/deploy.sh --down`, which brings down the core, firmware, data and MQTT stacks, in that order.
+To bring the stacks down, run `./comodo.sh --down`, which brings down the core, firmware, data and MQTT stacks, in that order.
 By hand, run the `down` equivalent of the deployment commands from `./utils/contexts.sh`, in reverse order (with the same contexts for remote stacks).
 
 If you want to start from scratch, add `-v` to the `down` commands, which also removes the volumes:
@@ -431,7 +430,7 @@ Do not edit it directly: edit `comodo.yaml` and regenerate it with:
 ```bash
 docker compose -f firmware/compose.gen.yaml run --rm compose-gen
 ```
-`./utils/contexts.sh` (and so `./utils/deploy.sh`) runs this step automatically.
+`./utils/contexts.sh` (and so `./comodo.sh --deploy`) runs this step automatically.
 
 ### Debugging
 
@@ -517,6 +516,7 @@ By default, all stacks run on this machine. With `--remote`, they are deployed t
 which works as a commissioning test of a distributed deployment before deploying it with your real `comodo.yaml`.
 
 ### Repository structure
+- `comodo.sh`: Deploys the stacks, or brings them down (see [automatic deployment](#automatic-deployment)).
 - `comodo.yaml`: The [central configuration file](#central-configuration-file).
 - `compose/`: The compose files for each stack (see [setting up Comodo](#setting-up-comodo)), and the `.env` file,
   with its template `env.template` (see [environment variables](#environment-variables)).

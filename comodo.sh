@@ -2,7 +2,7 @@
 set -uo pipefail
 
 help_str="
-This script deploys the comodo stacks, as configured in the 'compose/.env' file and 'comodo.yaml'.
+Deploys the comodo stacks (--deploy), as configured in the 'compose/.env' file and 'comodo.yaml', or brings them down (--down).
 
 It runs the commands printed by 'utils/contexts.sh --clean', which also replaces the comodo docker contexts
 with ones matching '.env', and regenerates 'compose/firmware.yaml'. In order, stopping at the first failure, it:
@@ -10,22 +10,26 @@ with ones matching '.env', and regenerates 'compose/firmware.yaml'. In order, st
   2. Asks before replacing any comodo stacks already running (unless --force).
   3. Optionally (-t), runs the integration tests on the same hosts, with the mock configuration (see 'integration_tests/').
   4. Deploys the MQTT broker, and then the data, firmware and core stacks.
+With --down, it asks before bringing down any running stacks (unless --force), and brings them down in reverse order.
 
-Usage: ./utils/deploy.sh [--force|-f] [--test|-t] [--local|-l] [--down] [--help|-h]
+Usage: ./comodo.sh (--deploy|--down) [--force|-f] [--test|-t] [--local|-l]
+       ./comodo.sh --help|-h
+Actions:
+  --deploy          Deploy the stacks.
+  --down            Bring the stacks down, in reverse order.
+  --help,  -h       Show this help message and exit.
 Options:
   --force, -f       Replace (or, with --down, bring down) running stacks without asking,
                       and recreate every container (e.g. after editing 'comodo.yaml').
   --test,  -t       Run the integration tests with --remote before deploying, and only deploy if they pass.
                       Note: The tests replace any running stacks.
   --local, -l       Deploy all the stacks on this machine, ignoring the *_HOST variables (see 'utils/contexts.sh --local').
-  --down            Bring the stacks down instead, in reverse order.
-  --help,  -h       Show this help message and exit.
 "
 
+action=""
 force=false
 test=false
 local_only=false
-down=false
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -45,8 +49,12 @@ while [[ $# -gt 0 ]]; do
     local_only=true
     shift
     ;;
-  --down)
-    down=true
+  --deploy|--down)
+    if [[ -n "$action" && "$action" != "$1" ]]; then
+      echo "Use either --deploy or --down, not both."
+      exit 1
+    fi
+    action="$1"
     shift
     ;;
   *)
@@ -57,11 +65,20 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-cd "$(dirname "$0")/.."
+if [[ -z "$action" ]]; then
+  echo "$help_str"
+  exit 1
+fi
+
+cd "$(dirname "$0")"
 project_root=$(pwd)
 
 if [[ ! -f compose/.env ]]; then
   echo "No .env file found in $project_root/compose. See the README to create one."
+  exit 1
+fi
+if [[ "$test" == true && "$action" == --down ]]; then
+  echo "--test only applies to --deploy."
   exit 1
 fi
 if [[ "$test" == true && "$local_only" == true ]]; then
@@ -122,7 +139,7 @@ load_commands() {
   rm -f "$commands_file"
 }
 
-if [[ "$down" == true ]]; then
+if [[ "$action" == --down ]]; then
   load_commands
   confirm_running_stacks "bring them down"
   echo "Bringing down the stacks..."
