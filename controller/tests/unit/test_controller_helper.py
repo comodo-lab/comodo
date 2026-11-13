@@ -277,8 +277,9 @@ class TestDumpInBackground:
         assert on_done is None
         mock_thread.return_value.start.assert_called_once_with()
 
-    def test_waits_dumps_moves_and_clears(self):
-        experiment = SimpleNamespace(experiment_id="D123-456")
+    @pytest.fixture
+    def dump_and_clear_mocks(self):
+        # A single mock, with each step as a child, to check the order they are called in
         calls = MagicMock()
         with (
             patch("src.controller_helper.INFLUX_WRITE_WAIT", 5),
@@ -287,7 +288,12 @@ class TestDumpInBackground:
             patch("src.controller_helper.move_experiment_file", calls.move),
             patch("src.controller_helper.clear_running_experiment", calls.clear),
         ):
-            dump_and_clear(experiment, "tf", calls.on_done)
+            yield calls
+
+    def test_waits_dumps_moves_and_clears(self, dump_and_clear_mocks):
+        calls = dump_and_clear_mocks
+        experiment = SimpleNamespace(experiment_id="D123-456")
+        dump_and_clear(experiment, "tf", calls.on_done)
 
         # Waits for Telegraf to write everything, before querying the database
         assert calls.mock_calls == [
@@ -298,36 +304,34 @@ class TestDumpInBackground:
             call.on_done(),
         ]
 
-    def test_without_on_done(self):
+    def test_without_on_done(self, dump_and_clear_mocks):
+        calls = dump_and_clear_mocks
         experiment = SimpleNamespace(experiment_id="D123-456")
-        with (
-            patch("src.controller_helper.time.sleep"),
-            patch("src.controller_helper.dump_database"),
-            patch("src.controller_helper.move_experiment_file"),
-            patch("src.controller_helper.clear_running_experiment") as mock_clear,
-        ):
-            dump_and_clear(experiment, "tf")
+        dump_and_clear(experiment, "tf")
 
-        mock_clear.assert_called_once_with("D123-456")
+        assert calls.mock_calls == [
+            call.sleep(5),
+            call.dump(experiment, "tf"),
+            call.move(experiment),
+            call.clear("D123-456"),
+        ]
 
-    def test_clears_and_calls_on_done_even_if_the_dump_fails(self):
+    def test_clears_and_calls_on_done_even_if_the_dump_fails(
+        self, dump_and_clear_mocks
+    ):
+        calls = dump_and_clear_mocks
+        calls.dump.side_effect = RuntimeError("boom")
         experiment = SimpleNamespace(experiment_id="D123-456")
-        on_done = MagicMock()
-        with (
-            patch("src.controller_helper.time.sleep"),
-            patch(
-                "src.controller_helper.dump_database",
-                side_effect=RuntimeError("boom"),
-            ),
-            patch("src.controller_helper.move_experiment_file") as mock_move,
-            patch("src.controller_helper.clear_running_experiment") as mock_clear,
-        ):
-            with pytest.raises(RuntimeError):
-                dump_and_clear(experiment, "tf", on_done)
+        with pytest.raises(RuntimeError):
+            dump_and_clear(experiment, "tf", calls.on_done)
 
-        mock_move.assert_not_called()
-        mock_clear.assert_called_once_with("D123-456")
-        on_done.assert_called_once_with()
+        # Without moving the experiment file
+        assert calls.mock_calls == [
+            call.sleep(5),
+            call.dump(experiment, "tf"),
+            call.clear("D123-456"),
+            call.on_done(),
+        ]
 
     def test_moves_experiment_file_to_its_directory(self, tmp_path):
         exp_file = tmp_path / "D123-456.json"
