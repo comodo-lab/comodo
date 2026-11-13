@@ -3,6 +3,7 @@ name: build-test utils
 on:
   workflow_dispatch:
   push:
+    branches: ["**"] # Does not run on tag pushes
     paths:
       - "utils/**"
   pull_request:
@@ -25,7 +26,7 @@ jobs:
       push_versioned: False
       push_latest: False
       push_vb: False
-      custom_tag: ''
+      custom_tag: ""
     secrets:
       docker_username: ${{ secrets.DOCKER_USERNAME }}
       docker_password: ${{ secrets.DOCKER_PASSWORD }}
