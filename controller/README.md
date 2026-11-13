@@ -199,6 +199,14 @@ Experiments are saved in the `data/` folder (mounted from `controller/data/`):
       Nothing is resampled or filled in, so e.g. to plot a variable, drop its empty rows (`df[column].dropna()` in pandas),
       or forward-fill the setpoints to get the setpoint in force at each measurement.
 
+If saving the data fails, the controller logs a warning and tries again after a `DUMP_RETRY_WAIT` seconds.
+Up to `DUMP_ATTEMPTS` retries are made.
+If all attempts fail, an error is published and a file called `dump.fail` is written to `DYY-XXX/`,
+with the experiment's start and end times (`t0` and `tf`, in UTC), as a reference for future export attempts from InfluxDB.
+Any files written by the last attempt before it failed are kept.
+
+Regardless of the data export outcome, the experiment message is moved to `DYY-XXX/`, and the controller goes back to `idle`.
+
 ## Configuration
 The controller reads `comodo.yaml` from `/app/comodo.yaml`, and the following environment variables:
 - `MQTT_HOST`, `MQTT_USER` and `MQTT_PASS` (or `MQTT_PASS_FILE`): The MQTT broker and its credentials.
