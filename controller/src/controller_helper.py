@@ -13,6 +13,10 @@ import src.publish_error as pub_err
 
 # Seconds to wait before querying the database for a dump, so Telegraf has time to write everything
 INFLUX_WRITE_WAIT = 2
+# Database dumping attempts
+DUMP_ATTEMPTS = 3
+DUMP_RETRY_WAIT = 10
+INFLUX_TIMEOUT_MS = 20_000
 # The measurements and setpoints of each variable, e.g. instruments/furnace/temperature/measurement
 DATA_TOPIC = re.compile(r"^instruments/([^/]+/[^/]+)/(measurement|setpoint)$")
 
@@ -129,42 +133,63 @@ def dump_database(experiment, tf):
     Dumps the influx databases from the start of the experiment to tf, to two files in the experiment's directory:
     - history.csv: every value stored during the experiment, in time order, to explore what happened.
     - data.csv: the measurements and setpoints of every variable, to plot them.
+    If an attempt fails (e.g. InfluxDB is down, or times out), it logs a warning and tries again,
+    up to DUMP_ATTEMPTS times, and only publishes an error if the last attempt fails.
+    If all attempts fail, it creates a 'dump.fail' file with the start and end times of the experiment.
     """
+    t0 = experiment.experiment_start_time
+    exp_dir_path = experiment.exp_file.replace(".json", "")
+
     influx_buckets = os.getenv("INFLUX_BUCKET", "comodo").split(",")
     influx_url = f"http://{os.getenv("INFLUX_HOST", "localhost")}:8086"
     influx_org = os.getenv("INFLUX_ORG", "comodo")
     influx_token = get_env_or_secret("INFLUX_TOKEN", "INFLUX_TOKEN_FILE", None)
+
     if influx_token is None:
-        pub_err.database_error(f"Cannot dump influx database. INFLUX_TOKEN not set.")
+        dump_fail_str = write_dump_failure(exp_dir_path, t0, tf)
+        pub_err.database_error(
+            f"Cannot dump influx database. INFLUX_TOKEN not set. {dump_fail_str}"
+        )
         return
 
-    t0 = experiment.experiment_start_time
-
-    try:
-        # get everything from influx database
-        client = influxdb_client.InfluxDBClient(
-            url=influx_url,
-            token=influx_token,
-            org=influx_org,
-        )
-        query_api = client.query_api()
-        exp_dir_path = experiment.exp_file.replace(".json", "")
-
-        if not os.path.exists(exp_dir_path):
-            os.makedirs(exp_dir_path)
-        records = []
-        for bucket in influx_buckets:
-            query = f'from(bucket: "{bucket}") |> range(start: {t0.isoformat()}Z, stop: {tf.isoformat()}Z)'
-            for table in query_api.query(query, org=influx_org):
-                records.extend(table.records)
-        write_history(records, f"{exp_dir_path}/history.csv")
-        # The times are in UTC, as in the query
-        write_data(records, t0.replace(tzinfo=timezone.utc), f"{exp_dir_path}/data.csv")
-        print(
-            f"  Influx database for experiment {experiment.experiment_id} saved at {exp_dir_path}."
-        )
-    except Exception as e:
-        pub_err.database_error(f"Could not dump influx database: {e}")
+    for attempt in range(1, DUMP_ATTEMPTS + 1):
+        try:
+            # get everything from influx database, with a new connection on each attempt
+            with influxdb_client.InfluxDBClient(
+                url=influx_url,
+                token=influx_token,
+                org=influx_org,
+                timeout=INFLUX_TIMEOUT_MS,
+            ) as client:
+                query_api = client.query_api()
+                os.makedirs(exp_dir_path, exist_ok=True)
+                records = []
+                for bucket in influx_buckets:
+                    query = f'from(bucket: "{bucket}") |> range(start: {t0.isoformat()}Z, stop: {tf.isoformat()}Z)'
+                    for table in query_api.query(query, org=influx_org):
+                        records.extend(table.records)
+            write_history(records, f"{exp_dir_path}/history.csv")
+            # The times are in UTC, as in the query
+            write_data(
+                records, t0.replace(tzinfo=timezone.utc), f"{exp_dir_path}/data.csv"
+            )
+            print(
+                f"  Influx database for experiment {experiment.experiment_id} saved at {exp_dir_path}."
+            )
+            return
+        except Exception as e:
+            if attempt == DUMP_ATTEMPTS:
+                dump_fail_str = write_dump_failure(exp_dir_path, t0, tf)
+                pub_err.database_error(
+                    f"Could not dump influx database after {DUMP_ATTEMPTS} attempts: {e}"
+                    f" {dump_fail_str}"
+                )
+                return
+            print(
+                f"  Warning: could not dump influx database for experiment {experiment.experiment_id}"
+                f" (attempt {attempt} of {DUMP_ATTEMPTS}): {e}. Retrying in {DUMP_RETRY_WAIT} s."
+            )
+            time.sleep(DUMP_RETRY_WAIT)
 
 
 def write_history(records, path):
