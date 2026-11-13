@@ -4,7 +4,6 @@ import os
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 import time as t
-from pyexpat.errors import messages
 import pytest
 from unittest.mock import MagicMock, patch, call
 
@@ -23,7 +22,7 @@ from src.controller_helper import (
     dump_and_clear,
     move_experiment_file,
     dump_database,
-    INFLUX_WRITE_WAIT,
+    write_dump_failure,
     write_history,
     write_data,
     running_experiment_path,
@@ -282,6 +281,7 @@ class TestDumpInBackground:
         experiment = SimpleNamespace(experiment_id="D123-456")
         calls = MagicMock()
         with (
+            patch("src.controller_helper.INFLUX_WRITE_WAIT", 5),
             patch("src.controller_helper.time.sleep", calls.sleep),
             patch("src.controller_helper.dump_database", calls.dump),
             patch("src.controller_helper.move_experiment_file", calls.move),
@@ -291,7 +291,7 @@ class TestDumpInBackground:
 
         # Waits for Telegraf to write everything, before querying the database
         assert calls.mock_calls == [
-            call.sleep(INFLUX_WRITE_WAIT),
+            call.sleep(5),
             call.dump(experiment, "tf"),
             call.move(experiment),
             call.clear("D123-456"),
@@ -357,6 +357,11 @@ class TestDatabaseDump:
             ) as mock_get_secret,
             patch("src.controller_helper.influxdb_client") as mock_influx,
             patch("src.controller_helper.pub_err") as mock_publish_error,
+            patch("src.controller_helper.time.sleep") as mock_sleep,
+            # Not the real values, to check they are not hard-coded
+            patch("src.controller_helper.DUMP_ATTEMPTS", 4),
+            patch("src.controller_helper.DUMP_RETRY_WAIT", 7),
+            patch("src.controller_helper.INFLUX_TIMEOUT_MS", 1234),
         ):
             env_values = {
                 "INFLUX_BUCKET": "bucket1,bucket2",
@@ -366,9 +371,9 @@ class TestDatabaseDump:
             mock_getenv.side_effect = lambda var, default=None: env_values.get(
                 var, default
             )
-            mock_query = (
-                mock_influx.InfluxDBClient.return_value.query_api.return_value.query
-            )
+            mock_client = mock_influx.InfluxDBClient.return_value
+            mock_client.__enter__.return_value = mock_client
+            mock_query = mock_client.query_api.return_value.query
             # One table per bucket
             mock_query.side_effect = [
                 [
@@ -394,12 +399,18 @@ class TestDatabaseDump:
                 "getenv": mock_getenv,
                 "get_secret": mock_get_secret,
                 "mock_influx": mock_influx,
+                "mock_client": mock_client,
                 "mock_query": mock_query,
+                "sleep": mock_sleep,
+                "attempts": 4,
+                "retry_wait": 7,
+                "timeout_ms": 1234,
             }
 
-    def test_warns_on_missing_token(self, experiment, dump_mocks):
+    def test_warns_on_missing_token(self, experiment, dump_mocks, tmp_path):
         assert dump_mocks["getenv"]("INFLUX_TOKEN") is None  # Adds a call to getenv
-        dump_database(experiment, datetime.now())
+        tf = (T0 + timedelta(seconds=2)).replace(tzinfo=None)
+        dump_database(experiment, tf)
 
         assert dump_mocks["getenv"].call_args_list == [
             call("INFLUX_TOKEN"),  # Call added by first line of this test
@@ -410,19 +421,88 @@ class TestDatabaseDump:
         dump_mocks["get_secret"].assert_called_once_with(
             "INFLUX_TOKEN", "INFLUX_TOKEN_FILE", None
         )
+        interval = {
+            "t0": f"{T0.replace(tzinfo=None).isoformat()}Z",
+            "tf": f"{tf.isoformat()}Z",
+        }
         dump_mocks["pub_err"].database_error.assert_called_once_with(
-            "Cannot dump influx database. INFLUX_TOKEN not set."
+            "Cannot dump influx database. INFLUX_TOKEN not set. "
+            f"Experiment time interval recorded in dump.fail: {json.dumps(interval)}"
         )
         dump_mocks["mock_query"].assert_not_called()
+        dump_mocks["sleep"].assert_not_called()
+        dump_fail = tmp_path / "D123-456" / "dump.fail"
+        assert json.loads(dump_fail.read_text()) == interval
 
-    def test_database_dump_error(self, experiment, dump_mocks):
+    def test_database_dump_error(self, experiment, dump_mocks, tmp_path, capsys):
         dump_mocks["get_secret"].return_value = "dummy_token"
         dump_mocks["mock_query"].side_effect = Exception("Database error")
-        dump_database(experiment, datetime.now())
+        tf = (T0 + timedelta(seconds=2)).replace(tzinfo=None)
+        dump_database(experiment, tf)
 
+        attempts, retry_wait = dump_mocks["attempts"], dump_mocks["retry_wait"]
+        # Tries DUMP_ATTEMPTS times, waiting between them, with a new connection each time
+        assert dump_mocks["mock_query"].call_count == attempts
+        assert dump_mocks["mock_influx"].InfluxDBClient.call_count == attempts
+        assert dump_mocks["sleep"].call_args_list == [call(retry_wait)] * (attempts - 1)
+        # Warns on the logs after each failed attempt but the last, which publishes the error
+        captured = capsys.readouterr()
+        for attempt in range(1, attempts):
+            assert (
+                f"Warning: could not dump influx database for experiment D123-456"
+                f" (attempt {attempt} of {attempts}): Database error. Retrying in {retry_wait} s."
+            ) in captured.out
+        assert f"attempt {attempts} of" not in captured.out
+        interval = {
+            "t0": f"{T0.replace(tzinfo=None).isoformat()}Z",
+            "tf": f"{tf.isoformat()}Z",
+        }
         dump_mocks["pub_err"].database_error.assert_called_once_with(
-            "Could not dump influx database: Database error"
+            f"Could not dump influx database after {attempts} attempts: Database error"
+            f" Experiment time interval recorded in dump.fail: {json.dumps(interval)}"
         )
+        dump_fail = tmp_path / "D123-456" / "dump.fail"
+        assert json.loads(dump_fail.read_text()) == interval
+
+    def test_retries_after_a_failed_attempt(
+        self, experiment, dump_mocks, tmp_path, capsys
+    ):
+        dump_mocks["get_secret"].return_value = "dummy_token"
+        bucket1 = [
+            SimpleNamespace(
+                records=[record(0.5, f"{FURNACE}/measurement", "value", 25.0)]
+            )
+        ]
+        bucket2 = [
+            SimpleNamespace(
+                records=[record(0.1, "controller/heartbeat", "state_status", "running")]
+            )
+        ]
+        # The first attempt fails on the second bucket, after getting the first
+        dump_mocks["mock_query"].side_effect = [
+            bucket1,
+            Exception("Timed out"),
+            bucket1,
+            bucket2,
+        ]
+        dump_database(experiment, (T0 + timedelta(seconds=2)).replace(tzinfo=None))
+
+        dump_mocks["sleep"].assert_called_once_with(dump_mocks["retry_wait"])
+        captured = capsys.readouterr()
+        assert (
+            f"(attempt 1 of {dump_mocks['attempts']}): Timed out. Retrying"
+            in captured.out
+        )
+        assert "saved at" in captured.out
+        dump_mocks["pub_err"].database_error.assert_not_called()
+        exp_dir = tmp_path / "D123-456"
+        assert not (exp_dir / "dump.fail").exists()
+        # Only the records of the successful attempt, without those of the failed one
+        assert read_csv(exp_dir / "history.csv") == [
+            ["time", "topic", "field", "value"],
+            [iso(0.1), "controller/heartbeat", "state_status", "running"],
+            [iso(0.5), f"{FURNACE}/measurement", "value", "25.0"],
+        ]
 
     def test_database_dump(self, experiment, dump_mocks, tmp_path, capsys):
         dump_mocks["get_secret"].return_value = "dummy_token"
@@ -433,7 +513,10 @@ class TestDatabaseDump:
             url="http://localhost:8086",
             token="dummy_token",
             org="my_org",
+            timeout=dump_mocks["timeout_ms"],
         )
+        # The connection is closed once done
+        dump_mocks["mock_client"].__exit__.assert_called_once()
         t0_s = experiment.experiment_start_time.isoformat()
         assert dump_mocks["mock_query"].call_args_list == [
             call(
@@ -476,6 +559,8 @@ class TestDatabaseDump:
             [iso(0.5), "0.5", "25.0", ""],
         ]
         dump_mocks["pub_err"].database_error.assert_not_called()
+        dump_mocks["sleep"].assert_not_called()
+        assert not (exp_dir / "dump.fail").exists()
         captured = capsys.readouterr()
         assert (
             f"Influx database for experiment D123-456 saved at {exp_dir}."
