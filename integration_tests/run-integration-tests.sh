@@ -17,10 +17,15 @@ The comodo docker contexts are replaced with ones matching '.env' (with 'utils/c
 so they can be used to deploy afterwards.
 The core comodo stack and the test runner, always run on the machine executing this script.
 
+By default, the stacks use the published comodo images (comodolab/comodo-*), as './comodo.sh --deploy' does,
+e.g. to check a deployment topology works. With --build, the images are built from the local code instead (e.g. when developing).
+
 *Note:* The test stacks replace any comodo stack already running on the same hosts.
 
-Usage: ./integration_tests/run-integration-tests.sh [--remote|-r] [--keep|-k] [--logs|-l SERVICES] [--help|-h]
+Usage: ./integration_tests/run-integration-tests.sh [--build|-b] [--remote|-r] [--keep|-k] [--logs|-l SERVICES] [--help|-h]
 Options:
+  -b, --build           Build the comodo images from the local code (tag as 'local') rather than using the published ones.
+                          Note: DEVELOPER=true (in the shell, or in 'compose/.env') automatically uses --build.
   -r, --remote          Deploy the stacks as configured in .env, rather than all on this machine.
   -k, --keep            Leave the stacks running after the tests, e.g. to inspect them.
                           Note: The original 'comodo.yaml' and 'compose/firmware.yaml' are still restored, so you might have to use the --remove-orphans flag on the next deployment.
@@ -29,6 +34,7 @@ Options:
   -h, --help            Show this help message and exit.
 "
 
+build=false
 remote=false
 keep=false
 log_services=()
@@ -39,6 +45,10 @@ while [[ $# -gt 0 ]]; do
   --help|-h)
     echo "$help_str"
     exit 0
+    ;;
+  --build|-b)
+    build=true
+    shift
     ;;
   --remote|-r)
     remote=true
@@ -72,19 +82,13 @@ source compose/.env
 stacks=(mqtt data firmware core)
 # The compose command for each stack, as printed by contexts.sh, so the tests also test it
 declare -A commands
+source utils/stacks.sh
 
 if [[ "$remote" == false ]]; then
   # Blank hosts make the test runner reach the stacks by service name, on the shared comodo network
   export MQTT_HOST="" DATA_HOST="" FIRMWARE_HOST=""
 fi
 
-# Runs a compose subcommand for the given stack, with the command from contexts.sh
-stack_compose() {
-  local stack="$1"
-  shift
-  [[ -z "${commands[$stack]:-}" ]] && return 1
-  eval "${commands[$stack]} $(printf '%q ' "$@")"
-}
 runner_compose() {
   docker compose --env-file compose/.env -f integration_tests/compose.yaml "$@"
 }
@@ -120,7 +124,10 @@ cleanup() {
     echo "Tearing down the stacks..."
     runner_compose down --remove-orphans >/dev/null 2>&1
     for ((i = ${#stacks[@]} - 1; i >= 0; i--)); do
-      stack_compose "${stacks[$i]}" down --remove-orphans 2>&1 | sed 's/^/  /'
+      # Only the stacks with a command (the script may have stopped before getting them)
+      [[ -z "${commands[${stacks[$i]}]:-}" ]] && continue
+      echo "${yellow}Tearing down the ${bold}${stacks[$i]}${unbold} stack:${reset}"
+      run_stack_compose "${stacks[$i]}" down --remove-orphans
     done
   fi
   echo "Restoring configuration..."
@@ -171,15 +178,19 @@ for service in "${log_services[@]}"; do
   fi
 done
 
-# Start the stacks
-echo "Starting the test stacks..."
+if ! prepare_images; then
+  echo "The tests were not run."
+  exit 1
+fi
+
+# Start the stacks, with the images prepared above
 for stack in "${stacks[@]}"; do
   echo
-  echo "Starting the $stack stack: ${commands[$stack]} up ..."
+  echo "${yellow}Starting the ${bold}${stack}${unbold} stack:${reset}"
+  args=(up --detach --force-recreate --remove-orphans --no-build)
   # The other stacks need the broker, so wait until it is healthy
-  wait=""
-  [[ "$stack" == mqtt ]] && wait="--wait"
-  if ! stack_compose "$stack" up --build --detach --force-recreate --remove-orphans $wait; then
+  [[ "$stack" == mqtt ]] && args+=(--wait)
+  if ! run_stack_compose "$stack" "${args[@]}"; then
     echo "Could not start the $stack stack."
     exit 1
   fi

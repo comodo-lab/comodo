@@ -11,6 +11,7 @@ x-templates:
   instrument-env: &instrument-env
     <<: *mqtt-env
   python-instrument-template: &python-instrument-template
+    image: comodolab/comodo-firmware:${COMODO_TAG:-latest}
     build:
       context: ../
       dockerfile: firmware/Dockerfile
@@ -24,6 +25,7 @@ name: comodo-firmware
 
 services:
   mqtt-probe-firmware:
+    image: comodolab/comodo-mqtt_probe:${COMODO_TAG:-latest}
     build:
       context: ../
       dockerfile: mqtt_probe/Dockerfile
@@ -89,6 +91,7 @@ services:
 
 
   spc-mass_flow-mass_flow:
+    image: comodolab/comodo-setpoint_controller:${COMODO_TAG:-latest}
     build:
       context: ../
       dockerfile: setpoint_controller/Dockerfile

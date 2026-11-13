@@ -17,6 +17,7 @@ on:
     paths:
       - "controller/**"
       - "utils/**"
+      - "schemas/**"
   pull_request:
     branches: ["main", "dev"]
 

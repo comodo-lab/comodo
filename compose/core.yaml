@@ -24,6 +24,7 @@ services:
       - ../schemas/comodo.yaml.schema:/work/schema.yaml
 
   mqtt-probe-core:
+    image: comodolab/comodo-mqtt_probe:${COMODO_TAG:-latest}
     build:
       context: ../
       dockerfile: mqtt_probe/Dockerfile
@@ -33,6 +34,7 @@ services:
       MQTT_PROBE_ID: core
 
   controller:
+    image: comodolab/comodo-controller:${COMODO_TAG:-latest}
     build:
       context: ../
       dockerfile: controller/Dockerfile
@@ -51,6 +53,7 @@ services:
       - ../comodo.yaml:/app/comodo.yaml:ro
 
   ui:
+    image: comodolab/comodo-ui:${COMODO_TAG:-latest}
     build:
       context: ../
       dockerfile: ui/Dockerfile
@@ -71,6 +74,7 @@ services:
       <<: [ *mqtt-env, *influx-env, *grafana-env ]
 
   monitor:
+    image: comodolab/comodo-monitor:${COMODO_TAG:-latest}
     build:
       context: ../
       dockerfile: monitor/Dockerfile

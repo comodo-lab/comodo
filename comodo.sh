@@ -9,11 +9,14 @@ with ones matching '.env', and regenerates 'compose/firmware.yaml'. In order, st
   1. Validates 'comodo.yaml'.
   2. Asks before replacing any comodo stacks already running (unless --yes).
   3. Optionally (-t), runs the integration tests on the same hosts, with the mock configuration (see 'integration_tests/').
-  4. Deploys the MQTT broker, and then the data, firmware and core stacks.
+  4. Gets the images of every stack ready on its host, so nothing is deployed if any of them can't be.
+  5. Deploys the MQTT broker, and then the data, firmware and core stacks.
+
+By default, it tries to pull the published comodo images (comodolab/comodo-*). With -b, it builds them from the local code.
 With --down, it asks before bringing down any running stacks (unless --yes), and brings them down in reverse order.
 
 Usage:
-  ./comodo.sh --deploy [--yes|-y] [--local|-l] [--force|-f] [--test|-t]
+  ./comodo.sh --deploy [--yes|-y] [--local|-l] [--force|-f] [--test|-t] [--build|-b]
   ./comodo.sh --down [--yes|-y] [--local|-l]
   ./comodo.sh --help|-h
 
@@ -25,12 +28,16 @@ Options for --deploy only:
   --force, -f       Recreate every container, rather than only those whose compose configuration changed
                       (e.g. after editing 'comodo.yaml', which is mounted).
   --test,  -t       Run the integration tests with --remote before deploying, and only deploy if they pass.
-                      Note: The tests replace any running stacks.
+                      Note: The tests replace any running stacks, make sure you are ok with that.
+  --build, -b       Build the comodo images from the local code, rather than using the published ones.  Use --build only when developing.
+                      Built images are tagged 'local' (COMODO_TAG=local), so they are never mistaken for (or pushed as) published ones.
+                      Note: DEVELOPER=true (in the shell, or in 'compose/.env') automatically uses --build.
 "
 
 action=""
 yes=false
 force=false
+build=false
 test=false
 local_only=false
 
@@ -46,6 +53,10 @@ while [[ $# -gt 0 ]]; do
     ;;
   --force|-f)
     force=true
+    shift
+    ;;
+  --build|-b)
+    build=true
     shift
     ;;
   --test|-t)
@@ -84,8 +95,8 @@ if [[ ! -f compose/.env ]]; then
   echo "No .env file found in $project_root/compose. See the README to create one."
   exit 1
 fi
-if [[ "$action" == --down && ( "$test" == true || "$force" == true ) ]]; then
-  echo "--test and --force only apply to --deploy."
+if [[ "$action" == --down && ( "$build" == true || "$test" == true || "$force" == true ) ]]; then
+  echo "--build, --force and --test only apply to --deploy."
   exit 1
 fi
 if [[ "$test" == true && "$local_only" == true ]]; then
@@ -93,23 +104,10 @@ if [[ "$test" == true && "$local_only" == true ]]; then
   exit 1
 fi
 
-# Coloured when printing to a terminal, so each stack's step stands out from the compose output
-if [[ -t 1 ]]; then
-  yellow=$'\e[33m' bold=$'\e[1m' unbold=$'\e[22m' reset=$'\e[0m'
-else
-  yellow="" bold="" unbold="" reset=""
-fi
-
 stacks=(mqtt data firmware core)
 # The compose command for each stack, as printed by contexts.sh
 declare -A commands
-
-# Runs a compose subcommand for the given stack, with the command from contexts.sh
-stack_compose() {
-  local stack="$1"
-  shift
-  eval "${commands[$stack]} $(printf '%q ' "$@")"
-}
+source utils/stacks.sh
 
 # Asks before replacing (or bringing down) the stacks that are running, unless --yes
 confirm_running_stacks() {
@@ -159,9 +157,8 @@ if [[ "$action" == --down ]]; then
   echo "Bringing down the stacks..."
   for ((i = ${#stacks[@]} - 1; i >= 0; i--)); do
     echo
-    args=(down --remove-orphans)
-    echo "${yellow}Bringing down the ${bold}${stacks[$i]}${unbold} stack:${reset} ${commands[${stacks[$i]}]} ${args[*]}"
-    stack_compose "${stacks[$i]}" "${args[@]}"
+    echo "${yellow}Bringing down the ${bold}${stacks[$i]}${unbold} stack:${reset}"
+    run_stack_compose "${stacks[$i]}" down --remove-orphans
   done
   exit 0
 fi
@@ -180,22 +177,30 @@ confirm_running_stacks "replace them"
 if [[ "$test" == true ]]; then
   echo
   echo "Running the integration tests on the deployment hosts..."
-  if ! ./integration_tests/run-integration-tests.sh --remote; then
+  test_args=(--remote)
+  [[ "$build" == true ]] && test_args+=(--build)
+  if ! ./integration_tests/run-integration-tests.sh "${test_args[@]}"; then
     echo "The integration tests failed. Nothing was deployed."
     exit 1
   fi
 fi
 
-echo "Deploying the stacks..."
+# Prepares (pull/build) the images of every stack (on each stack's host), so nothing is deployed if any of them can't be.
+if ! prepare_images; then
+  echo "Nothing was deployed."
+  exit 1
+fi
+
+# Deploy the stacks, with the images prepared above
 for stack in "${stacks[@]}"; do
   echo
-  args=(up --build --detach --remove-orphans)
+  echo "${yellow}Deploying the ${bold}${stack}${unbold} stack:${reset}"
+  args=(up --detach --remove-orphans --no-build)
   # The other stacks need the broker, so wait until it is healthy
   [[ "$stack" == mqtt ]] && args+=(--wait)
   # If not forced, only the containers whose compose configuration changed are recreated
   [[ "$force" == true ]] && args+=(--force-recreate)
-  echo "${yellow}Deploying the ${bold}${stack}${unbold} stack:${reset} ${commands[$stack]} ${args[*]}"
-  if ! stack_compose "$stack" "${args[@]}"; then
+  if ! run_stack_compose "$stack" "${args[@]}"; then
     echo "Could not deploy the $stack stack. The stacks before it are still running."
     exit 1
   fi

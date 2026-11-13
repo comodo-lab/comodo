@@ -185,10 +185,16 @@ else
   echo ""
   # The broker has to be up first: the other stacks check they can reach it before starting
   echo "Deploy the stacks, in this order, with:"
-  echo "  ${commands[mqtt]} up --build -d --wait"
-  echo "  ${commands[data]} up --build -d"
-  echo "  ${commands[firmware]} up --build -d"
-  echo "  ${commands[core]} up --build -d"
+  echo "  ${commands[mqtt]} up -d --wait"
+  echo "  ${commands[data]} up -d"
+  echo "  ${commands[firmware]} up -d"
+  echo "  ${commands[core]} up -d"
+  echo ""
+  echo "Or if you want to build the images from the local code (tagged 'local'):"
+  echo "  COMODO_TAG=local ${commands[mqtt]} up --build -d --wait"
+  echo "  COMODO_TAG=local ${commands[data]} up --build -d"
+  echo "  COMODO_TAG=local ${commands[firmware]} up --build -d"
+  echo "  COMODO_TAG=local ${commands[core]} up --build -d"
 fi
 
 echo ""
