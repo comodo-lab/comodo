@@ -108,6 +108,22 @@ def move_experiment_file(experiment):
     )
 
 
+def write_dump_failure(exp_dir_path, t0, tf):
+    """
+    Writes a dump.fail file in the experiment's directory, with the start and end times of the experiment.
+    """
+    try:
+        os.makedirs(exp_dir_path, exist_ok=True)
+        with open(os.path.join(exp_dir_path, "dump.fail"), "w") as f:
+            time_interval = {"t0": f"{t0.isoformat()}Z", "tf": f"{tf.isoformat()}Z"}
+            json.dump(time_interval, f)
+        return f"Experiment time interval recorded in dump.fail: {json.dumps(time_interval)}"
+    except Exception as e:
+        error = f"Failed to write dump.fail file: {e}"
+        print(f"ERROR: {error}")
+        return error
+
+
 def dump_database(experiment, tf):
     """
     Dumps the influx databases from the start of the experiment to tf, to two files in the experiment's directory:
