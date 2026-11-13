@@ -266,6 +266,7 @@ class ComodoConfig:
             "safe_stop_setpoints": inst["safe_stop_setpoints"],
             "measurement_intervals": inst["measurement_intervals"],
             "heartbeat_interval": self.globals["heartbeat_interval"],
+            "max_missed_heartbeats": self.globals["max_missed_heartbeats"],
             "experiment": {},  # This is reserved for the live experiment config, which is arbitrary
         }
 

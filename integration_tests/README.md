@@ -14,18 +14,21 @@ Unlike each component's own tests, these start the real services together, and c
 
 ## What is started
 The tests are run by [`integration_tests/run-integration-tests.sh`](run-integration-tests.sh), which:
-1. Backs up `comodo.yaml` and `compose.firmware.yaml`, copies the mock configuration ([`utils/tests/mocks/comodo.yaml`](../utils/tests/mocks/comodo.yaml)) in their place, and regenerates `compose.firmware.yaml`.
+1. Backs up `comodo.yaml` and `compose/firmware.yaml`, copies the mock configuration ([`utils/tests/mocks/comodo.yaml`](../utils/tests/mocks/comodo.yaml)) in their place, and regenerates `compose/firmware.yaml`.
    The instruments in the mock configuration are all simulated.
 2. Deploys every stack with its own compose file, using the commands printed by [`utils/contexts.sh`](../utils/contexts.sh), so it is tested too:
-   the MQTT broker (`compose.mqtt.yaml`), the data stack (`compose.data.yaml`), the firmware stack (`compose.firmware.yaml`), and the core stack (`compose.yaml`).
+   the MQTT broker (`compose/mqtt.yaml`), the data stack (`compose/data.yaml`), the firmware stack (`compose/firmware.yaml`), and the core stack (`compose/core.yaml`).
+   Like [`./comodo.sh --deploy`](../README.md#automatic-deployment), it uses the published comodo images by default,
+   or builds them from this repository with `--build` (tagged `local`).
 3. Runs the tests in [`integration_tests.py`](integration_tests.py) with pytest, using [this compose file](compose.yaml).
-4. Tears the stacks down, and restores `comodo.yaml` and `compose.firmware.yaml`, however the script exits.
+   Fixtures and helpers are in [`conftest.py`](conftest.py).
+4. Tears the stacks down, and restores `comodo.yaml` and `compose/firmware.yaml`, however the script exits.
 
 The test runner uses the same mocks (and the experiment in [`utils/tests/mocks/mock_experiment.py`](../utils/tests/mocks/mock_experiment.py)) to know what to expect.
 It reads `controller/data/` (read only) to check the database dump, so it has to run on the same machine as the core stack.
 
 ### Local and remote (commissioning) tests
-By default, every stack runs on this machine, whatever the `*_HOST` variables in `.env` are (with `utils/contexts.sh --local`).
+By default, every stack runs on this machine, whatever the `*_HOST` variables in `compose/.env` are (with `utils/contexts.sh --local`).
 This is how the tests run in CI.
 
 With `--remote`, the stacks are deployed exactly as configured in `.env`:
@@ -33,7 +36,7 @@ stacks with both `*_HOST` and `*_HOST_USER` set are deployed to that host with d
 and the rest on this machine. The core stack, and the test runner, always run on this machine.
 The existing comodo docker contexts are replaced with ones matching `.env` (with `utils/contexts.sh --clean`), so they can be used to deploy afterwards.
 This works as a commissioning test of an actual deployment (networking, hosts and credentials), with simulated instruments,
-before deploying it with the real `comodo.yaml`. [`utils/deploy.sh -t`](../README.md#automatic-deployment) does both: it runs these tests with `--remote`, and deploys only if they pass.
+before deploying it with the real `comodo.yaml`. [`./comodo.sh --deploy -t`](../README.md#automatic-deployment) does both: it runs these tests with `--remote`, and deploys only if they pass.
 
 Note that, in both cases, the stacks replace any comodo stack already running on the same hosts, and use the same volumes and `controller/data/` folder.
 So the test data is added to InfluxDB, and each run adds an experiment to `controller/data/`.
@@ -42,16 +45,29 @@ So the test data is added to InfluxDB, and each run adds an experiment to `contr
 The test runner subscribes to all MQTT topics, and runs the following tests in order, stopping at the first failure:
 1. **Services ready:** A heartbeat is received from the controller, every instrument, and every setpoint controller in the mock configuration, and from nothing else.
 2. **Default setpoints:** Every variable with a `default_setpoint` reports a measurement within its `tolerance` of it.
-3. **Measurements in InfluxDB:** Every sensor's measurements are stored in InfluxDB (through Telegraf).
+3. **Measurements in InfluxDB:** Every sensor's measurements, and every heartbeat's status (used by Grafana's status graph), are stored in InfluxDB (through Telegraf).
 4. **Setpoint controllers configured while idle:** PID values sent on `setpoint_controllers/<id>/configure` are reported back in the setpoint controllers' heartbeats.
 5. **Experiment completes:** An experiment sent on `ui/start` runs to the end (`controller/event/end`) without any error,
    and the setpoint controllers report the PID values from the experiment, rather than the ones set while idle.
-6. **Database dump:** The controller dumps the database for the experiment to `controller/data/<experiment id>/<bucket>.csv`,
-   with the measurements of every sensor, and only the setpoints of this experiment.
-7. **No errors:** No message was received on any `error/...` topic during the whole run.
+6. **Database dump:** The controller dumps the database for the experiment to `controller/data/<experiment id>/`, and moves the experiment file there:
+   its history (`history.csv`), in time order, with the measurements of every sensor, only the setpoints of this experiment, the controller's `running` status
+   (used by Grafana's status graph), and the experiment's end; and its data (`data.csv`), with every sensor's measurements and the experiment's setpoints, in time order.
+7. **No errors:** No message was received on any `error/...` topic during the tests above.
+
+Then, the fault tests, which cause errors on purpose, so they check their own errors instead:
+
+8. **Experiment stopped if a sensor cannot keep up:** An experiment is started with a furnace setpoint it cannot reach within its tolerance in time.
+   The controller reports the furnace not keeping up with the setpoints (`error/controller`), stops the experiment (`controller/command/stop`) long before its end, and dumps its database, and everything goes back to idle.
+9. **UI reset clears a safe stop:** The instruments are started (`controller/command/start`) on an experiment the controller doesn't know about,
+   as if they had lost contact with it, so they safe stop while the controller stays idle, and each reports it on `error/instrument`.
+   A reset from the UI (`ui/reset`) then returns them to `awaiting_experiment`, without any error.
+10. **Controller restart mid-experiment:** An experiment is started, and the controller is restarted mid-experiment
+   (an `error/exception` makes it exit, and Docker restarts it). The restarted controller reports the lost experiment (`experiment_lost`),
+   dumps its database, and resets the instruments, which report the experiment ended by the reset (`experiment_reset`),
+   or a safe stop if the restart took longer than their timeout.
 
 ## Running the tests
-The tests need a `.env` file in the repository root, with at least `MQTT_USER`, `MQTT_PASS`, `INFLUX_TOKEN`, `INFLUX_BUCKET` and `INFLUX_ORG`
+The tests need a `compose/.env` file, with at least `MQTT_USER`, `MQTT_PASS`, `INFLUX_TOKEN`, `INFLUX_BUCKET` and `INFLUX_ORG`
 (see [environment variables](../README.md#environment-variables)). For `--remote`, it also needs the hosts and users of the remote stacks.
 
 From the repository root, run:
@@ -59,10 +75,17 @@ From the repository root, run:
 ./integration_tests/run-integration-tests.sh            # All stacks on this machine
 ./integration_tests/run-integration-tests.sh --remote   # Stacks deployed as configured in .env
 ```
+If you want to test changes to the code, also use the `--build` flag, which builds the images from the local code (and tags them as `local`), instead of using the published ones:
+```shell
+./integration_tests/run-integration-tests.sh --build
+./integration_tests/run-integration-tests.sh --remote --build
+```
+Note: Setting `DEVELOPER=true` in `compose/.env` (see [environment variables](../README.md#environment-variables)) automatically uses `--build`,
+so the images are always built from the local code, without having to pass the `--build` flag.
 Run `./integration_tests/run-integration-tests.sh --help` for all options.
 
-The tests are also run by [`utils/run-all-tests.sh`](../utils/run-all-tests.sh), and in CI on pushes that change any component, and on pull requests to `main` and `dev`
-(see [`.github/workflows/integration_tests.yml`](../.github/workflows/integration_tests.yml)).
+The tests are also run (with `--build`) by [`utils/run-all-tests.sh`](../utils/run-all-tests.sh),
+and in CI on pushes that change any component, and on pull requests to `main` and `dev` (see [`.github/workflows/integration_tests.yml`](../.github/workflows/integration_tests.yml)).
 
 ### Debugging
 The output only shows the test runner's prints. To also see the logs of some services while the tests run, list them with `--logs`, e.g.:
@@ -75,12 +98,12 @@ To inspect the stacks after the tests, keep them running with `--keep`, and chec
 ```shell
 docker logs comodo-controller
 ```
-`comodo.yaml` and `compose.firmware.yaml` are still restored, so use `--remove-orphans` the next time you deploy the firmware stack
-(`utils/deploy.sh` does). To just bring the test stacks down, run `./utils/deploy.sh --down`.
+`comodo.yaml` and `compose/firmware.yaml` are still restored, so use `--remove-orphans` the next time you deploy the firmware stack
+(`./comodo.sh --deploy` does). To just bring the test stacks down, run `./comodo.sh --down -l` (without `-l` if they were run with `--remote`).
 
 With the stacks running with the mock configuration, the test runner can also be run on its own:
 ```shell
-docker compose --env-file .env -f integration_tests/compose.yaml run --rm --build integration-test
+docker compose --env-file compose/.env -f integration_tests/compose.yaml run --rm --build integration-test
 ```
 
 To watch the MQTT messages while the tests run, use [mqttui](../README.md#debugging).

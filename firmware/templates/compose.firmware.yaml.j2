@@ -11,8 +11,9 @@ x-templates:
   instrument-env: &instrument-env
     <<: *mqtt-env
   python-instrument-template: &python-instrument-template
+    image: comodolab/comodo-firmware:${COMODO_TAG:-latest}
     build:
-      context: .
+      context: ../
       dockerfile: firmware/Dockerfile
     init: true
     restart: unless-stopped
@@ -24,8 +25,9 @@ name: comodo-firmware
 
 services:
   mqtt-probe-firmware:
+    image: comodolab/comodo-mqtt_probe:${COMODO_TAG:-latest}
     build:
-      context: ./
+      context: ../
       dockerfile: mqtt_probe/Dockerfile
     init: true
     environment:
@@ -74,6 +76,7 @@ services:
       SAFE_STOP_SETPOINTS: '{{ instrument_safe_stop_setpoints.get(name) | tojson }}'
       MEASUREMENT_INTERVALS: '{{ instrument_measurement_intervals.get(name) | tojson }}'
       HEARTBEAT_INTERVAL: {{ (global.heartbeat.interval) | float }}
+      MAX_MISSED_HEARTBEATS: {{ global.experiment_monitoring.max_missed_heartbeats }}
 {%- if instr.address.startswith('/dev/') %}
     devices:
       - "{{ instr.address }}:{{ instr.address }}"
@@ -84,8 +87,9 @@ services:
 {%- if v_cfg.setpoint_controller %}
 
   spc-{{ name }}-{{ v_name }}:
+    image: comodolab/comodo-setpoint_controller:${COMODO_TAG:-latest}
     build:
-      context: .
+      context: ../
       dockerfile: setpoint_controller/Dockerfile
     init: true
     restart: unless-stopped

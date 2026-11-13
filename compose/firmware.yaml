@@ -11,8 +11,9 @@ x-templates:
   instrument-env: &instrument-env
     <<: *mqtt-env
   python-instrument-template: &python-instrument-template
+    image: comodolab/comodo-firmware:${COMODO_TAG:-latest}
     build:
-      context: .
+      context: ../
       dockerfile: firmware/Dockerfile
     init: true
     restart: unless-stopped
@@ -24,8 +25,9 @@ name: comodo-firmware
 
 services:
   mqtt-probe-firmware:
+    image: comodolab/comodo-mqtt_probe:${COMODO_TAG:-latest}
     build:
-      context: ./
+      context: ../
       dockerfile: mqtt_probe/Dockerfile
     init: true
     environment:
@@ -47,6 +49,7 @@ services:
       SAFE_STOP_SETPOINTS: '{"temperature": 0}'
       MEASUREMENT_INTERVALS: '{"temperature": 1}'
       HEARTBEAT_INTERVAL: 1.0
+      MAX_MISSED_HEARTBEATS: 3
 
   pressure:
     <<: *python-instrument-template
@@ -62,6 +65,7 @@ services:
       SAFE_STOP_SETPOINTS: 'null'
       MEASUREMENT_INTERVALS: '{"pressure": 1}'
       HEARTBEAT_INTERVAL: 1.0
+      MAX_MISSED_HEARTBEATS: 3
     devices:
       - "/dev/ttyUSB0:/dev/ttyUSB0"
     privileged: true
@@ -80,14 +84,16 @@ services:
       SAFE_STOP_SETPOINTS: '{"mass_flow": 0}'
       MEASUREMENT_INTERVALS: '{"mass_flow": 1}'
       HEARTBEAT_INTERVAL: 1.0
+      MAX_MISSED_HEARTBEATS: 3
     devices:
       - "/dev/ttyUSB2:/dev/ttyUSB2"
     privileged: true
 
 
   spc-mass_flow-mass_flow:
+    image: comodolab/comodo-setpoint_controller:${COMODO_TAG:-latest}
     build:
-      context: .
+      context: ../
       dockerfile: setpoint_controller/Dockerfile
     init: true
     restart: unless-stopped

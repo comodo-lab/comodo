@@ -719,7 +719,7 @@ class TestCState:
             mock_pub_err.assert_called_once_with(
                 topic="error/controller",
                 code="experiment",
-                message="ERROR: Instrument inst_1 in bad state for too long.",
+                message="Instrument inst_1 in bad state for too long.",
             )
             assert state.status == "error"
 
@@ -751,6 +751,32 @@ class TestCState:
             mock_pub_err.assert_called_once_with(
                 topic="error/controller",
                 code="experiment",
-                message="ERROR: Instrument inst_1 not keeping up with setpoints.",
+                message="Instrument inst_1 not keeping up with setpoints.",
             )
             assert state.status == "error"
+
+    @pytest.mark.parametrize("status", ["error", "stopping"])
+    def test_update_bad_instrument_counts_ignored_while_stopping(
+        self, mock_comodo_config, status
+    ):
+        state = cstate()
+        state.status = status
+        state._config = mock_comodo_config
+        state._adjusting_tolerance = 0
+        state.config.instruments = {
+            "inst_1": {"variables": {"var_1": {}}},
+        }
+        state._instrument_states = {
+            "inst_1": {"bad_count": {"bad_state": 0, "adjusting": 5}}
+        }
+        var_eval = {"status": {"inst_1/var_1": "adjusting"}}
+        with patch("src.controller_state.pub_err.print_and_publish") as mock_pub_err:
+            state.update_bad_instrument_counts(var_eval)
+
+            # The error is not repeated, and the counts are left as they were
+            mock_pub_err.assert_not_called()
+            assert state._instrument_states["inst_1"]["bad_count"] == {
+                "bad_state": 0,
+                "adjusting": 5,
+            }
+            assert state.status == status

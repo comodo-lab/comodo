@@ -3,7 +3,7 @@ name: comodo-debug
 services:
   mqttui:
     # Run this with:
-    #   docker compose -f compose.debug.yaml up --build mqttui -d
+    #   docker compose -f compose/debug.yaml up --build mqttui -d
     # Then run `mqttui` in the container
     #   docker exec -it comodo-mqttui mqttui
     build:

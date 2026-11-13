@@ -60,7 +60,7 @@ done
 if [[ "$run_integration" == true ]]; then
     run_component \
         integration \
-        ./integration_tests/run-integration-tests.sh
+        ./integration_tests/run-integration-tests.sh --build
 else
     echo "Skipping integration tests."
 fi
@@ -85,14 +85,7 @@ for name in "${components[@]}" $( [[ "$run_integration" == true ]] && echo integ
         tail -1 || true)
     if [[ -n "$summary" ]]; then
         result=$(printf '%s\n' "$summary" |
-        awk -F'|' '
-            {
-                result = $2
-                sub(/^[[:space:]]*=+[[:space:]]*/, "", result)
-                sub(/[[:space:]]*=+[[:space:]]*$/, "", result)
-                gsub(/^[[:space:]]+|[[:space:]]+$/, "", result)
-                print result
-            }')
+            sed -E 's/^.*={3,} (.* in [0-9.]+s) ={3,}.*$/\1/')
     else
         result="ERROR (exit code $exit_code)"
     fi

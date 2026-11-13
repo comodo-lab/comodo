@@ -20,12 +20,13 @@ services:
     command: linkml-validate -s schema.yaml config.yaml
     working_dir: /work
     volumes:
-      - ./comodo.yaml:/work/config.yaml
-      - ./schemas/comodo.yaml.schema:/work/schema.yaml
+      - ../comodo.yaml:/work/config.yaml
+      - ../schemas/comodo.yaml.schema:/work/schema.yaml
 
   mqtt-probe-core:
+    image: comodolab/comodo-mqtt_probe:${COMODO_TAG:-latest}
     build:
-      context: ./
+      context: ../
       dockerfile: mqtt_probe/Dockerfile
     init: true
     environment:
@@ -33,8 +34,9 @@ services:
       MQTT_PROBE_ID: core
 
   controller:
+    image: comodolab/comodo-controller:${COMODO_TAG:-latest}
     build:
-      context: ./
+      context: ../
       dockerfile: controller/Dockerfile
     init: true
     environment:
@@ -47,12 +49,13 @@ services:
       config:
         condition: service_completed_successfully
     volumes:
-      - ./controller/data:/controller/data:rw
-      - ./comodo.yaml:/app/comodo.yaml:ro
+      - ../controller/data:/controller/data:rw
+      - ../comodo.yaml:/app/comodo.yaml:ro
 
   ui:
+    image: comodolab/comodo-ui:${COMODO_TAG:-latest}
     build:
-      context: ./
+      context: ../
       dockerfile: ui/Dockerfile
     init: true
     container_name: comodo-ui
@@ -65,14 +68,15 @@ services:
     ports:
       - '8501:8050'
     volumes:
-      - ./comodo.yaml:/app/comodo.yaml:ro
-      - ./ui/data:/ui_data:rw
+      - ../comodo.yaml:/app/comodo.yaml:ro
+      - ../ui/data:/ui_data:rw
     environment:
       <<: [ *mqtt-env, *influx-env, *grafana-env ]
 
   monitor:
+    image: comodolab/comodo-monitor:${COMODO_TAG:-latest}
     build:
-      context: ./
+      context: ../
       dockerfile: monitor/Dockerfile
     init: true
     depends_on:

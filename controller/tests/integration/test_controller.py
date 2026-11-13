@@ -57,10 +57,24 @@ def mock_validate(mock_experiment_dict):
         yield mock_validate
 
 
+@pytest.fixture(autouse=True)
+def data_path(tmp_path):
+    """A temporary data folder, where the controller records the running experiment."""
+    with patch("src.controller_helper.data_path", new=str(tmp_path)):
+        yield tmp_path
+
+
 @pytest.fixture
 def mock_dump():
-    with patch("src.on_controller_message.dump_database_for_experiment") as mock_dump:
-        mock_dump.return_value = None
+    """Dumps nothing, and finishes straight away (calling on_done, as the background dump does once done)."""
+
+    def dump(obj, on_done=None):
+        if on_done is not None:
+            on_done()
+
+    with patch(
+        "src.on_controller_message.dump_database_for_experiment", side_effect=dump
+    ) as mock_dump:
         yield mock_dump
 
 
@@ -133,7 +147,14 @@ def test_control_loop(
     spc_id = "pressure-pressure--mass_flow-mass_flow"
     assert messages[5].topic == f"setpoint_controllers/{spc_id}/configure"
     assert json.loads(messages[5].payload) == {
-        "pid": {"k_p": 10.0, "k_i": 1.0, "k_d": 0.1, "k_aw": 0.05, "k_df": 0.01, "max_rate": None}
+        "pid": {
+            "k_p": 10.0,
+            "k_i": 1.0,
+            "k_d": 0.1,
+            "k_aw": 0.05,
+            "k_df": 0.01,
+            "max_rate": None,
+        }
     }
     assert messages[6].topic == "controller/command/start"
     assert messages[7].topic == "controller/timer/command/start"
@@ -192,7 +213,9 @@ def test_control_loop(
         assert topic_parts[2] == "heartbeat"
     assert sorted(heartbeat_instruments) == instrument_names
     n_heartbeats = len(instrument_names) + 1
-    assert messages[n_heartbeats - 1].topic == f"setpoint_controllers/{spc_id}/heartbeat"
+    assert (
+        messages[n_heartbeats - 1].topic == f"setpoint_controllers/{spc_id}/heartbeat"
+    )
     assert messages[n_heartbeats].topic == "controller/event/ready"
     assert messages[n_heartbeats + 1].topic == "controller/command/run"
     assert json.loads(messages[n_heartbeats + 1].payload) == {
@@ -414,10 +437,12 @@ def test_experiment_stops_if_instruments_stop_responding(
         "furnace/temperature": "no_heartbeat",
         "pressure/pressure": "no_heartbeat",
     }
+    # Check that further heartbeats don't repeat the errors
+    message_bus.publish("controller/heartbeat", json.dumps(state.heartbeat()))
     errors = message_bus.get_messages("error/controller", decoded=True)
     assert sorted(json.loads(m.payload)["message"] for m in errors) == [
-        "ERROR: Instrument furnace in bad state for too long.",
-        "ERROR: Instrument pressure in bad state for too long.",
+        "Instrument furnace in bad state for too long.",
+        "Instrument pressure in bad state for too long.",
     ]
 
 
@@ -458,9 +483,11 @@ def test_experiment_stops_if_instruments_cannot_keep_up_with_setpoints(
         "furnace/temperature": "adjusting",
         "pressure/pressure": "at_setpoint",
     }
+    # Check that further heartbeats don't repeat the error
+    message_bus.publish("controller/heartbeat", json.dumps(state.heartbeat()))
     errors = message_bus.get_messages("error/controller", decoded=True)
     assert [json.loads(m.payload)["message"] for m in errors] == [
-        "ERROR: Instrument furnace not keeping up with setpoints."
+        "Instrument furnace not keeping up with setpoints."
     ]
 
 

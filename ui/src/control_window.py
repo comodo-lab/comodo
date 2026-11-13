@@ -35,6 +35,11 @@ import src.spc_setup as spc
 # Seconds to wait for the controller state to change after a click, before giving up
 CLICK_TIMEOUT = 5
 
+RESET_MESSAGE = (
+    "Reset all instruments and setpoint controllers to their default setpoints?\n\n"
+    "This also clears any safe stops, so make sure whatever caused them has been fixed."
+)
+
 
 def get_control_panel(params=[]):
     toggle_label, toggle_color = manual_toggle(False)
@@ -52,23 +57,37 @@ def get_control_panel(params=[]):
                         className="d-grid",
                     ),
                     dbc.Col(
-                        dbc.Button(
-                            # Disabled until instruments support manual control
-                            toggle_label
-                            + [
-                                html.Small(
-                                    "(coming soon...)",
-                                    className="text-muted",
-                                    style={"textTransform": "none"},
-                                )
-                            ],
-                            color=toggle_color,
-                            id="manual-control-toggle",
-                            n_clicks=0,
-                            disabled=True,
-                        ),
+                        [
+                            dbc.Button(
+                                # Disabled until instruments support manual control
+                                toggle_label
+                                + [
+                                    html.Small(
+                                        "(coming soon...)",
+                                        className="text-muted",
+                                        style={"textTransform": "none"},
+                                    )
+                                ],
+                                color=toggle_color,
+                                id="manual-control-toggle",
+                                n_clicks=0,
+                                disabled=True,
+                            ),
+                            # Enabled by update_reset_button while the controller is idle
+                            dbc.Button(
+                                content(
+                                    "Reset", "arrow-counterclockwise", SMALL_ICON_SIZE
+                                ),
+                                color="warning",
+                                id="reset-button",
+                                disabled=True,
+                            ),
+                            dcc.ConfirmDialog(
+                                id="reset-confirm", message=RESET_MESSAGE
+                            ),
+                        ],
                         width=3,
-                        className="d-grid",
+                        className="d-grid gap-2",
                     ),
                 ],
                 className="g-2",
@@ -107,6 +126,48 @@ def toggle_manual_control(n_clicks, is_open):
     if not n_clicks:
         raise PreventUpdate
     return not is_open, *manual_toggle(not is_open)
+
+
+@callback(
+    Output("reset-button", "disabled"),
+    Input("heartbeat-store", "data"),
+)
+def update_reset_button(data):
+    """
+    Enables the reset button only while the controller is idle,
+    as it doesn't reset a running experiment (it has to be stopped first).
+    """
+    current = hb.controller_state(data)
+    return current is None or current[0] != "idle"
+
+
+@callback(
+    Output("reset-confirm", "displayed"),
+    Input("reset-button", "n_clicks"),
+    prevent_initial_call=True,
+)
+def confirm_reset(n_clicks):
+    """Asks for confirmation before resetting, as it moves the actuators and clears safe stops."""
+    # Fires when the tab is rendered (see toggle_manual_control)
+    if not n_clicks:
+        raise PreventUpdate
+    return True
+
+
+@callback(
+    Output("reset-button", "disabled", allow_duplicate=True),
+    Input("reset-confirm", "submit_n_clicks"),
+    prevent_initial_call=True,
+)
+def reset(submit_n_clicks):
+    """
+    Asks the controller to reset the instruments and setpoint controllers.
+    The button is disabled until the next heartbeat update, to prevent double clicks.
+    """
+    if not submit_n_clicks:
+        raise PreventUpdate
+    MQTTPublisher.get_instance().publish("ui/reset", json.dumps({"source": "ui"}))
+    return True
 
 
 # Disables the button in the browser as soon as it is clicked, to prevent double clicks.

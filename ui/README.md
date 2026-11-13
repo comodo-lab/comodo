@@ -67,20 +67,27 @@ The button follows the controller's heartbeat: it shows start when the controlle
 and is disabled while the controller is busy validating or stopping.
 Pressing stop publishes the experiment id on `ui/stop`.
 
+## Resetting the instruments
+The reset button, below the manual control toggle, publishes `ui/reset` with `{"source": "ui"}` (after asking for confirmation),
+and the controller then resets every instrument and setpoint controller to its default setpoints.
+This clears a safe stop (see the [firmware's safe stop](../firmware/README.md#safe-stop)), so make sure whatever caused it has been fixed first.
+It is only enabled while the controller is idle, as a running experiment has to be stopped first.
+
 ## MQTT topics
 The UI subscribes to:
-- `controller/heartbeat`, `instruments/<name>/heartbeat` and `setpoint_controllers/<id>/heartbeat`: For the header, the start/stop button, and the manual control readouts.
-- `error/#`, `ui/start`, `controller/command/start` and `controller/command/stop`: For the event log.
+- `controller/heartbeat`, `instruments/<name>/heartbeat` and `setpoint_controllers/<id>/heartbeat`: For the header, the start/stop and reset buttons, and the manual control readouts.
+- `error/#`, `ui/start`, `controller/command/start`, `controller/event/end`, `controller/command/stop` and `controller/command/reset`: For the event log.
 
 And publishes to:
 - `ui/start` and `ui/stop`: To start and stop experiments.
+- `ui/reset`: To reset the instruments and setpoint controllers.
 - `error/ui`: If the experiment settings are invalid when starting an experiment.
 
 ## Configuration
 The UI reads `comodo.yaml` from `/app/comodo.yaml`, and the following environment variables:
 - `MQTT_HOST`, `MQTT_USER` and `MQTT_PASS`: The MQTT broker and its credentials.
 - `GRAFANA_HOST`: The host of Grafana, as seen from the browser, used to embed the default dashboard.
-  Set from `DATA_HOST` (or `localhost` if empty) in the main [`compose.yaml`](../compose.yaml).
+  Set from `DATA_HOST` (or `localhost` if empty) in the core stack's [`compose/core.yaml`](../compose/core.yaml).
 - `GRAFANA_DASHBOARD_URL`: [optional] Overrides the URL of the embedded dashboard.
 - `UI_DATA_DIR`: [optional] Where saved settings are stored. Defaults to `/ui_data`.
 

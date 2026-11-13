@@ -1,4 +1,4 @@
-   # Configuration file version
+# Configuration file version
 apiVersion: 1
 
 # Mark provisioned data sources for deletion if they are no longer in a provisioning file.
@@ -32,4 +32,4 @@ datasources:
       token: ${INFLUX_TOKEN}
     version: 1
     readOnly: false
-    apiVersion: 
+    apiVersion:

@@ -1,13 +1,17 @@
 import functools
 import json
-import time as t
 from datetime import datetime
 
 from utils import mqtt_clients as mqtt
 from utils.interpolation import split_setpoints
 from utils import mqtt_validator as mqtt_val
 
-from src.controller_helper import assign_serial_id, dump_database_for_experiment
+from src.controller_helper import (
+    assign_serial_id,
+    clear_running_experiment,
+    dump_database_for_experiment,
+    save_running_experiment,
+)
 import src.publish_error as pub_err
 import src.validation as val
 
@@ -45,6 +49,7 @@ def recover_on_exception(state_callback):
                 )
             else:
                 obj.reset()
+                clear_running_experiment()
                 client.callback = c_idle
             raise
 
@@ -64,7 +69,7 @@ def c_idle(client, msg, obj):
     Otherwise, it resets to the idle state and publishes an error.
     """
     if msg.topic != "controller/command/validate":
-        if msg.topic == "controller/command/stop":
+        if msg.topic in ["controller/command/stop", "controller/command/reset"]:
             return
         if msg.topic.startswith("controller/command/"):
             pub_err.incompatible_controller_status(obj, msg)
@@ -96,6 +101,7 @@ def c_idle(client, msg, obj):
         )
         # Assign a serial experiment id
         assign_serial_id(obj)
+        save_running_experiment(obj)
         m = {
             "temp_id": temp_id,
             "experiment_id": obj.experiment_id,
@@ -281,7 +287,8 @@ def c_stopping(client, msg, obj):
 
     This method is also called directly by any other callback whenever a controller/stop message is received.
 
-    The safe stopping method needs to be implemented. Currently, it pauses for 2 seconds and then resets the cstate object.
+    It dumps the experiment's database in the background, and stays stopping until it is done,
+    when it resets the cstate object, and goes back to idle.
 
     Currently controller/stop and controller/end only differ in the final print.
     """
@@ -289,7 +296,10 @@ def c_stopping(client, msg, obj):
         "controller/command/stop",
         "controller/event/end",
     ]:
-        if msg.topic.startswith("controller/command/"):
+        # A setpoint may end (controller/command/run) as the experiment is stopped
+        if msg.topic.startswith("controller/command/") and (
+            msg.topic != "controller/command/run"
+        ):
             pub_err.incompatible_controller_status(obj, msg)
         return
     try:
@@ -298,18 +308,25 @@ def c_stopping(client, msg, obj):
         pub_err.message_validation(e)
         return
     if message.get("experiment_id") == obj.experiment_id:
+        if obj.status == "stopping":
+            # Already stopping (e.g. stopped after it finished), until its database is dumped
+            return
         obj.status = "stopping"
         client.callback = c_stopping
-        ### Safe stop placeholder
-        t.sleep(1)
-        dump_database_for_experiment(obj)
-        ###
         uid = obj.experiment_id
-        obj.reset()
-        client.callback = c_idle
         stop_reason = (
             "was stopped" if msg.topic == "controller/command/stop" else "finished"
         )
-        print(f"Experiment {uid} {stop_reason} and the controller has been reset.")
+
+        def reset_once_dumped():
+            # Unless the controller was already reset (e.g. by an exception) and moved on
+            if obj.experiment_id != uid:
+                return
+            obj.reset()
+            client.callback = c_idle
+            print(f"Experiment {uid} {stop_reason} and the controller has been reset.")
+
+        # In the background, so the controller keeps sending its heartbeats meanwhile
+        dump_database_for_experiment(obj, on_done=reset_once_dumped)
     else:
         pub_err.incompatible_uid(obj, msg, message.get("experiment_id"), "controller")

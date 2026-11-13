@@ -99,6 +99,46 @@ class TestAfterClick:
         assert out[1:] == ("success", None, False)
 
 
+class TestReset:
+    @pytest.mark.parametrize(
+        "data, disabled",
+        [
+            (heartbeats("idle"), False),
+            (heartbeats("running", "exp-7"), True),
+            (heartbeats("idle", stale=True), True),
+            ({"heartbeats": {}, "stale": []}, True),
+        ],
+    )
+    def test_enabled_only_while_idle(self, data, disabled):
+        assert cw.update_reset_button(data) is disabled
+
+    def test_confirm_ignores_render(self):
+        with pytest.raises(PreventUpdate):
+            cw.confirm_reset(None)
+
+    def test_asks_for_confirmation(self):
+        assert cw.confirm_reset(1) is True
+
+    def test_publishes_reset_once_confirmed(self, monkeypatch):
+        publisher = MagicMock()
+        monkeypatch.setattr(cw.MQTTPublisher, "get_instance", lambda: publisher)
+
+        assert cw.reset(1) is True
+
+        publisher.publish.assert_called_once_with(
+            "ui/reset", json.dumps({"source": "ui"})
+        )
+
+    def test_reset_ignores_render(self, monkeypatch):
+        publisher = MagicMock()
+        monkeypatch.setattr(cw.MQTTPublisher, "get_instance", lambda: publisher)
+
+        with pytest.raises(PreventUpdate):
+            cw.reset(None)
+
+        publisher.publish.assert_not_called()
+
+
 class TestStartExperiment:
     SPC_ID = "s-v--a-o"
     GAINS = {"k_p": 10.0, "k_i": 1.0, "k_d": 0.1, "k_aw": 0.05, "k_df": 0.01}
@@ -168,7 +208,9 @@ class TestToggleManualControl:
 class TestManualValues:
     def store(self, stale=(), **heartbeats):
         return {
-            "heartbeats": {t: {"payload": p, "received": 0} for t, p in heartbeats.items()},
+            "heartbeats": {
+                t: {"payload": p, "received": 0} for t, p in heartbeats.items()
+            },
             "stale": list(stale),
         }
 
@@ -194,7 +236,10 @@ class TestManualValues:
             **{
                 self.PRESSURE: self.instrument("pressure", 1.1, {}),
                 self.SPC: {
-                    "config": {"sensor": "pressure/pressure", "actuator": "mass_flow/mass_flow"},
+                    "config": {
+                        "sensor": "pressure/pressure",
+                        "actuator": "mass_flow/mass_flow",
+                    },
                     "setpoints": {"sensor_setpoint": 1.5},
                 },
             }

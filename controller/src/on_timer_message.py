@@ -99,7 +99,8 @@ def on_timer_message(client, msg, obj):
                     json.dumps({"experiment_id": message["experiment_id"]}),
                 )
                 return
-        if obj.status != "stopping":
+        # In error, the controller is about to stop the experiment
+        if obj.status not in ["stopping", "error"]:
             pub_err.controller_state_incompatible_with_timer(
                 message["experiment_id"], "setpoint", "running", obj.status
             )

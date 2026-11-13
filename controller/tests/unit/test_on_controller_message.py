@@ -1,6 +1,6 @@
 import pytest
 import json
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, ANY
 
 from tests.conftest import (
     MockMessage,
@@ -27,19 +27,23 @@ from src.validation import ExperimentValidationError
 class TestRecoverOnException:
     @pytest.fixture
     def recover_mocks(self, message_bus, mock_state, mqtt_mocks):
-        state = mock_state("idle")
-        client = MagicMock()
-        client.callback = "current_callback"
+        with patch(
+            "src.on_controller_message.clear_running_experiment"
+        ) as mock_clear_running:
+            state = mock_state("idle")
+            client = MagicMock()
+            client.callback = "current_callback"
 
-        def get_decoded_bus_messages(topic=None):
-            return message_bus.get_messages(topic=topic, decoded=True)
+            def get_decoded_bus_messages(topic=None):
+                return message_bus.get_messages(topic=topic, decoded=True)
 
-        yield {
-            "state": state,
-            "client": client,
-            "msg": MockMessage(topic="controller/command/run", payload="{}"),
-            "messages": get_decoded_bus_messages,
-        }
+            yield {
+                "state": state,
+                "client": client,
+                "msg": MockMessage(topic="controller/command/run", payload="{}"),
+                "messages": get_decoded_bus_messages,
+                "clear_running": mock_clear_running,
+            }
 
     def set_state(self, state, status, experiment_id):
         state.status = status
@@ -78,6 +82,7 @@ class TestRecoverOnException:
 
         assert m["state"]._status_history == ["error", "idle"]
         m["state"].reset.assert_called_once()
+        m["clear_running"].assert_called_once_with()
         assert m["client"].callback == c_idle
         assert m["messages"]("controller/command/stop") == []
 
@@ -94,6 +99,7 @@ class TestRecoverOnException:
         # Stop is left to the normal stop path, so no reset here
         assert m["state"]._status_history == ["error"]
         m["state"].reset.assert_not_called()
+        m["clear_running"].assert_not_called()
         assert m["client"].callback == "current_callback"
         messages = m["messages"]("controller/command/stop")
         assert len(messages) == 1
@@ -136,6 +142,7 @@ class TestIdle:
             patch("src.on_controller_message.val.validate_experiment") as mock_validate,
             patch("src.on_controller_message.split_setpoints") as mock_split_setpoints,
             patch("src.on_controller_message.c_starting") as mock_c_starting,
+            patch("src.on_controller_message.save_running_experiment") as mock_sr,
         ):
             state = mock_state("idle")
             state.set_hb_experiment_config = MagicMock()
@@ -169,6 +176,7 @@ class TestIdle:
                 "split_setpoints": mock_split_setpoints,
                 "serial_id": mock_serial_id,
                 "c_starting": mock_c_starting,
+                "save_running": mock_sr,
                 "state": state,
                 "controller_client": mqtt_mocks["client_instance"],
                 "messages": get_decoded_bus_messages,
@@ -196,6 +204,20 @@ class TestIdle:
         assert idle_mocks["state"].experiment_id == None
         assert idle_mocks["state"].status == "idle"
         msg = MockMessage(topic="controller/command/stop", payload="not important")
+
+        c_idle(idle_mocks["controller_client"], msg, idle_mocks["state"])
+
+        assert idle_mocks["state"].experiment_id == None
+        assert idle_mocks["state"].status == "idle"
+        assert idle_mocks["controller_client"].callback == c_idle
+        idle_mocks["pub_err"].incompatible_controller_status.assert_not_called()
+        idle_mocks["validate_experiment"].assert_not_called()
+        idle_mocks["serial_id"].assert_not_called()
+
+    def test_ignores_reset_command(self, idle_mocks):
+        assert idle_mocks["state"].experiment_id == None
+        assert idle_mocks["state"].status == "idle"
+        msg = MockMessage(topic="controller/command/reset", payload="not important")
 
         c_idle(idle_mocks["controller_client"], msg, idle_mocks["state"])
 
@@ -316,6 +338,7 @@ class TestIdle:
         # Split setpoints called
         idle_mocks["split_setpoints"].assert_called_once_with(["some data"], 42)
         idle_mocks["serial_id"].assert_called_once_with(idle_mocks["state"])
+        idle_mocks["save_running"].assert_called_once_with(idle_mocks["state"])
         assert idle_mocks["state"].experiment_start_time != None
         assert idle_mocks["state"].experiment_id == "D123-456"
         assert idle_mocks["state"].status == "validating"
@@ -819,9 +842,8 @@ class TestStopping:
         with (
             patch("src.on_controller_message.pub_err") as mock_publish_error,
             patch("src.on_controller_message.c_idle") as mock_c_idle,
-            patch(
-                "src.on_controller_message.dump_database_for_experiment"
-            ) as mock_dump,
+            patch("src.on_controller_message.dump_database_for_experiment") as mck_d,
+            patch("src.on_controller_message.clear_running_experiment") as mock_cr,
         ):
             state = mock_state("end")
             mqtt_mocks["client_class"](
@@ -832,7 +854,7 @@ class TestStopping:
             )
             mock_c_idle.return_value = None
             mock_c_idle.__name__ = "mock_c_idle"
-            mock_dump.return_value = None
+            mck_d.return_value = None
 
             def get_decoded_bus_messages(topic=None):
                 return message_bus.get_messages(topic=topic, decoded=True)
@@ -844,7 +866,8 @@ class TestStopping:
                 "controller_client": mqtt_mocks["client_instance"],
                 "validate_message": mqtt_validator_mocks["validate_message"],
                 "messages": get_decoded_bus_messages,
-                "dump": mock_dump,
+                "dump": mck_d,
+                "clear_running": mock_cr,
             }
 
     # ========================================
@@ -883,6 +906,18 @@ class TestStopping:
         messages = stop_mocks["messages"]()
         assert len(messages) == 0
 
+    def test_ignores_run_command(self, stop_mocks):
+        # A setpoint ended as the experiment was stopped
+        msg = MockMessage(
+            topic="controller/command/run",
+            payload=json.dumps({"experiment_id": "D123-456"}),
+        )
+        c_stopping(stop_mocks["controller_client"], msg, stop_mocks["state"])
+
+        stop_mocks["pub_err"].incompatible_controller_status.assert_not_called()
+        stop_mocks["dump"].assert_not_called()
+        assert len(stop_mocks["messages"]()) == 0
+
     def test_checks_uid(self, stop_mocks):
         assert stop_mocks["state"].experiment_id == "D123-456"
         assert stop_mocks["state"].status == "running"
@@ -912,9 +947,17 @@ class TestStopping:
         )
         c_stopping(stop_mocks["controller_client"], msg, stop_mocks["state"])
 
+        # Stopping, until the database is dumped (in the background)
+        assert stop_mocks["state"]._status_history == ["stopping"]
+        assert stop_mocks["controller_client"].callback == c_stopping
+        stop_mocks["dump"].assert_called_once_with(stop_mocks["state"], on_done=ANY)
+        stop_mocks["state"].reset.assert_not_called()
+        # The dump clears the running experiment, once done
+        stop_mocks["clear_running"].assert_not_called()
+
+        stop_mocks["dump"].call_args.kwargs["on_done"]()
+
         assert stop_mocks["state"]._status_history == ["stopping", "idle"]
-        assert stop_mocks["state"].status == "idle"
-        stop_mocks["dump"].assert_called_once()
         stop_mocks["state"].reset.assert_called_once()
         assert stop_mocks["controller_client"].callback == stop_mocks["c_idle"]
         messages = stop_mocks["messages"]()
@@ -923,6 +966,38 @@ class TestStopping:
             f"Experiment D123-456 finished and the controller has been reset."
         )
         assert stop_message in capsys.readouterr().out
+
+    def test_ignores_stop_while_stopping(self, stop_mocks):
+        msg = MockMessage(
+            topic="controller/event/end",
+            payload=json.dumps({"experiment_id": "D123-456"}),
+        )
+        c_stopping(stop_mocks["controller_client"], msg, stop_mocks["state"])
+        stop_msg = MockMessage(
+            topic="controller/command/stop",
+            payload=json.dumps({"experiment_id": "D123-456"}),
+        )
+        c_stopping(stop_mocks["controller_client"], stop_msg, stop_mocks["state"])
+
+        # Dumped once
+        stop_mocks["dump"].assert_called_once()
+        assert stop_mocks["state"]._status_history == ["stopping"]
+        stop_mocks["pub_err"].incompatible_uid.assert_not_called()
+
+    def test_does_not_reset_if_already_moved_on(self, stop_mocks, capsys):
+        msg = MockMessage(
+            topic="controller/event/end",
+            payload=json.dumps({"experiment_id": "D123-456"}),
+        )
+        c_stopping(stop_mocks["controller_client"], msg, stop_mocks["state"])
+        # e.g. reset by an exception, and started another experiment, before the dump was done
+        stop_mocks["state"].experiment_id = "D123-457"
+
+        stop_mocks["dump"].call_args.kwargs["on_done"]()
+
+        stop_mocks["state"].reset.assert_not_called()
+        assert stop_mocks["state"].experiment_id == "D123-457"
+        assert "has been reset" not in capsys.readouterr().out
 
     def test_valid_stop_from_any_callback(self, stop_mocks, capsys):
         assert stop_mocks["state"].experiment_id == "D123-456"
@@ -935,9 +1010,13 @@ class TestStopping:
         )
         c_stopping(stop_mocks["controller_client"], msg, stop_mocks["state"])
 
+        assert stop_mocks["state"]._status_history == ["stopping"]
+        assert stop_mocks["controller_client"].callback == c_stopping
+        stop_mocks["dump"].assert_called_once_with(stop_mocks["state"], on_done=ANY)
+
+        stop_mocks["dump"].call_args.kwargs["on_done"]()
+
         assert stop_mocks["state"]._status_history == ["stopping", "idle"]
-        assert stop_mocks["state"].status == "idle"
-        stop_mocks["dump"].assert_called_once()
         stop_mocks["state"].reset.assert_called_once()
         messages = stop_mocks["messages"]()
         assert len(messages) == 0

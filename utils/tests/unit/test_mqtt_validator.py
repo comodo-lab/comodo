@@ -1,12 +1,13 @@
 import json
 import pytest
-from jsonschema import ValidationError
+from jsonschema import ValidationError, SchemaError
 from unittest.mock import patch
 import yaml
 
 from utils.mqtt_validator import (
     match_topic,
     load_spec,
+    topic_entry,
     validate_message,
     check_payload_json_validity,
     check_topic_expected,
@@ -55,6 +56,30 @@ class TestLoadSpec:
         tmu = topic_map["error/message/unexpected"]
         assert tmu["name"] == "errorUnexpected"
         assert tmu["schema"]["required"] == ["topic", "error"]
+
+    def test_load_spec_is_cached(self):
+        load_spec.cache_clear()
+        with patch("utils.mqtt_validator.yaml.safe_load", wraps=yaml.safe_load) as load:
+            first = load_spec("/utils/tests/file_fixtures/sample_asyncapi.yaml")
+            second = load_spec("/utils/tests/file_fixtures/sample_asyncapi.yaml")
+
+        load.assert_called_once()
+        assert second is first
+
+    def test_topic_entry_builds_validator(self):
+        schema = {"type": "object", "required": ["value"]}
+
+        entry = topic_entry("test", schema)
+
+        assert entry["name"] == "test"
+        assert entry["schema"] is schema
+        assert entry["validator"].is_valid({"value": 1})
+        assert not entry["validator"].is_valid({})
+
+    def test_topic_entry_rejects_invalid_schema(self):
+        # Checked once when loading, rather than on every message
+        with pytest.raises(SchemaError):
+            topic_entry("test", {"type": "not_a_type"})
 
 
 class TestValidateMessage:

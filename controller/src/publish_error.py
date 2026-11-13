@@ -33,6 +33,17 @@ def missing_keys(msg, e):
     )
 
 
+def lost_experiment(experiment_id):
+    """
+    Publishes an error message when the controller starts, and finds it stopped mid-experiment (e.g. it crashed, or was restarted).
+    """
+    print_and_publish(
+        topic="error/controller",
+        code="experiment_lost",
+        message=f"The controller restarted during experiment {experiment_id}, which was aborted.",
+    )
+
+
 def incompatible_controller_status(obj, msg):
     """
     Publishes an error message when the mqtt request is incompatible with the current controller status.

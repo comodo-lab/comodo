@@ -262,6 +262,7 @@ class SetpointController:
                 "controller/command/start",
                 "controller/event/end",
                 "controller/command/stop",
+                "controller/command/reset",
             ],
             broker_address=mqtt_host,
             user=mqtt_user,
@@ -332,6 +333,29 @@ class SetpointController:
                 for k, v in pid_config.items():
                     setattr(spc.pid, k, v)
             spc.publish_heartbeat()
+            return
+
+        if msg.topic == "controller/command/reset":
+            # Sent by the controller when it starts, or requested (e.g. from the UI): end any experiment,
+            # even if disabled, and go back to the default setpoints if enabled.
+            if spc.state.experiment_id is not None:
+                source = message.get("source", "unknown source")
+                error = (
+                    f"[{spc.spc_id}] Experiment {spc.state.experiment_id} "
+                    f"ended by reset from {source}."
+                )
+                if source == "ui":
+                    print(f"WARNING: {error}")
+                else:
+                    print(f"ERROR: {error}")
+                    mqtt.MQTTPublisher.get_instance().publish(
+                        "error/setpoint_controller",
+                        json.dumps({"code": "experiment_reset", "message": error}),
+                    )
+            spc.state.experiment_id = None
+            if spc.state.enabled is True:
+                spc.state.sensor_setpoint = spc.default_setpoint
+                print(f"Reset. Moving to default setpoint: {spc.default_setpoint}")
             return
 
         if spc.state.enabled is True:

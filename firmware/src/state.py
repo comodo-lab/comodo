@@ -14,6 +14,7 @@ class InstrumentState:
         "awaiting_experiment",
         "running",
         "error",
+        "safe_stop",
     ]
 
     __slots__: tuple[str, ...] = (
@@ -73,6 +74,7 @@ class InstrumentState:
     @status.setter
     def status(self, new_status):
         """Set the status of the instrument if valid, and update the MQTT client callback accordingly.
+        The status cannot be changed during a safe stop: only reset() clears it, bypassing this setter.
 
         Args:
             new_status: str: The new status to set
@@ -82,6 +84,9 @@ class InstrumentState:
         """
         if new_status not in self.allowed_status:
             raise ValueError(f"Invalid status: {new_status}")
+        if getattr(self, "_status", None) == "safe_stop":
+            print(f"WARNING: Cannot update status from 'safe_stop' to '{new_status}'.")
+            return
 
         self._status = new_status
         self.client.callback = getattr(self, f"{new_status}_cb")
@@ -103,11 +108,40 @@ class InstrumentState:
                 "config": self.instrument.print_config(),
             }
         )
-        if self.client is not None:
-            self.client.publish(
+        try:
+            mqtt.MQTTPublisher.get_instance().publish(
                 f"instruments/{self.instrument.config['INSTRUMENT_NAME']}/heartbeat",
                 heartbeat,
             )
+        except mqtt.MQTTMessageError as e:
+            # Not raised, so the instrument keeps running, and can safe stop
+            print(f"WARNING: Could not publish heartbeat: {e}")
+
+    def safe_stop(self, reason):
+        """
+        Sends every actuator to its safe stop setpoint, and ignores any further commands and setpoints until reset.
+        The error is printed, and published if possible, as the broker may not be reachable.
+        """
+        self.status = "safe_stop"
+        self.instrument.config["experiment"]["experiment_id"] = None
+        message = f"[{self.instrument.config['INSTRUMENT_NAME']}] Safe stop triggered: {reason}"
+        print(f"ERROR: {message}")
+        for variable, setpoint in self.instrument.config["SAFE_STOP_SETPOINTS"].items():
+            try:
+                self.instrument.set_and_go_to_setpoint(variable, setpoint)
+                print(f"Safe stop setpoint for {variable} applied: {setpoint}")
+            except Exception as e:
+                print(
+                    f"ERROR: Failed to set the safe stop setpoint for {variable}: {e}"
+                )
+        try:
+            mqtt.MQTTPublisher.get_instance().publish(
+                "error/instrument",
+                json.dumps({"code": "safe_stop", "message": message}),
+            )
+        except mqtt.MQTTMessageError as e:
+            # Not raised, so the instrument keeps running
+            print(f"WARNING: Could not publish safe stop: {e}")
 
     def initialising_cb(self, _client, msg, _obj=None):
         """
@@ -170,7 +204,9 @@ class InstrumentState:
             if not isinstance(setpoint, (int, float)) or setpoint == None:
                 print(f"WARNING: Invalid setpoint received: {setpoint}")
                 return
-            # Trigger go to setpoint
+            if self.status == "safe_stop":
+                print(f"WARNING: Ignoring setpoint for {variable} during safe stop.")
+                return
             try:
                 self.instrument.set_and_go_to_setpoint(variable, setpoint)
                 self._can_set_setpoint = True
@@ -197,7 +233,9 @@ class InstrumentState:
             self.instrument.set_and_go_to_setpoint(variable, setpoint)
         # Reset experiment id and move to awaiting_experiment
         self.instrument.config["experiment"]["experiment_id"] = None
-        self.status = "awaiting_experiment"
+        # Bypass status setter to allow status change from safe_stop to awaiting_experiment
+        self._status = "awaiting_experiment"
+        self.client.callback = self.awaiting_experiment_cb
         print(
             f"Instrument {self.instrument.config['INSTRUMENT_NAME']} awaiting experiment."
         )
@@ -211,3 +249,12 @@ class InstrumentState:
             self.awaiting_experiment_cb(_client, msg, _obj)
         else:
             self.running_cb(_client, msg, _obj)
+
+    def safe_stop_cb(self, _client, msg, _obj=None):
+        """
+        Callback function for the mqtt client when the instrument is in a safe stop.
+        Ignores everything. Only a reset clears it.
+
+        Next status: awaiting_experiment (through a reset)
+        """
+        print(f"WARNING: Received {msg.topic} during safe stop. Ignoring...")

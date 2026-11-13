@@ -89,6 +89,19 @@ channels:
             experiment_id:
               type: string
 
+  uiReset:
+    address: ui/reset
+    messages:
+      resetRequest:
+        payload:
+          type: object
+          additionalProperties: false
+          required:
+            - source
+          properties:
+            source:
+              type: string
+
   controllerTimerCommandStart:
     address: controller/timer/command/start
     messages:
@@ -207,6 +220,17 @@ channels:
             experiment_id:
               type: string
 
+  controllerCommandReset:
+    address: controller/command/reset
+    messages:
+      resetCommand:
+        payload:
+          type: object
+          additionalProperties: false
+          properties:
+            source:
+              type: string
+
   controllerEventReady:
     address: controller/event/ready
     messages:
@@ -240,6 +264,11 @@ channels:
         payload:
           type: object
           additionalProperties: false
+          required:
+            - source
+          properties:
+            source:
+              type: string
 
   watchdogEventRestart:
     address: watchdog/timer/event/restart_triggered
@@ -513,6 +542,8 @@ channels:
                     type: number
                 heartbeat_interval:
                   type: number
+                max_missed_heartbeats:
+                  type: number
                 experiment:
                   type: object
                   additionalProperties: true
@@ -536,6 +567,7 @@ channels:
                     - awaiting_experiment
                     - running
                     - error
+                    - safe_stop
                 measurements:
                   type: object
                   # null until the variable is first measured

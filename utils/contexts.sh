@@ -4,7 +4,7 @@ set -e
 help_str="
 This script configures docker contexts to facilitate deployment of the comodo stacks to remote hosts via SSH.
 
-To generate the contexts, it reads the *_HOST and *_HOST_USER variables from the .env file.
+To generate the contexts, it reads the *_HOST and *_HOST_USER variables from the compose/.env file.
 Add/remove host usernames from your .env to switch between local and remote deployments.
 Make sure you have SSH access to the remote hosts without password prompts (e.g., using SSH keys / SSH multiplexing).
 
@@ -14,8 +14,9 @@ Usage: ./utils/contexts.sh [--clean|-c] [--local|-l] [--commands-file|-o FILE] [
 Options:
   --clean, -c             Removes existing contexts before creating new ones.
   --local, -l             Deploy all the stacks on this machine, ignoring the *_HOST and *_HOST_USER variables.
-  --commands-file, -o     Also write the compose command for each stack to FILE, as '<stack><TAB><command>' lines,
-                          without the compose subcommand (e.g. 'up'). Used by integration_tests/run-integration-tests.sh.
+  --commands-file, -o     Write the compose command for each stack to FILE, as '<stack><TAB><command>' lines,
+                          without the compose subcommand (e.g. 'up'), instead of printing the deployment commands.
+                          Used by comodo.sh and integration_tests/run-integration-tests.sh, which run them.
   --help,  -h             Show this help message and exit.
 "
 
@@ -59,7 +60,7 @@ cd $(dirname "$0")
 project_root=$(cd .. && pwd)
 docker compose -f "$project_root/firmware/compose.gen.yaml" run --rm compose-gen
 unset DOCKER_HOST
-source "$project_root/.env"
+source "$project_root/compose/.env"
 
 # Prints the IP address this machine uses to reach the given host (an IP address or a name),
 # or nothing if the host can't be resolved or reached.
@@ -156,7 +157,7 @@ fi
 
 # The compose command for each stack, without the subcommand
 stacks=(mqtt data firmware core)
-declare -A files=([mqtt]=compose.mqtt.yaml [data]=compose.data.yaml [firmware]=compose.firmware.yaml [core]=compose.yaml)
+declare -A files=([mqtt]=compose/mqtt.yaml [data]=compose/data.yaml [firmware]=compose/firmware.yaml [core]=compose/core.yaml)
 declare -A commands
 for stack in "${stacks[@]}"; do
   local_var="${stack}_local"
@@ -173,20 +174,27 @@ for stack in "${stacks[@]}"; do
   commands[$stack]="${env_prefix}docker ${context}compose -f ${files[$stack]}"
 done
 
-echo ""
-echo ""
-# The broker has to be up first: the other stacks check they can reach it before starting
-echo "Deploy the stacks, in this order, with:"
-echo "  ${commands[mqtt]} up --build -d --wait"
-echo "  ${commands[data]} up --build -d"
-echo "  ${commands[firmware]} up --build -d"
-echo "  ${commands[core]} up --build -d"
-
 if [ ! -z "$commands_file" ]; then
+  # The caller runs the commands (and prints them as it does), so they aren't printed here
   : > "$commands_file"
   for stack in "${stacks[@]}"; do
     printf '%s\t%s\n' "$stack" "${commands[$stack]}" >> "$commands_file"
   done
+else
+  echo ""
+  echo ""
+  # The broker has to be up first: the other stacks check they can reach it before starting
+  echo "Deploy the stacks, in this order, with:"
+  echo "  ${commands[mqtt]} up -d --wait"
+  echo "  ${commands[data]} up -d"
+  echo "  ${commands[firmware]} up -d"
+  echo "  ${commands[core]} up -d"
+  echo ""
+  echo "Or if you want to build the images from the local code (tagged 'local'):"
+  echo "  COMODO_TAG=local ${commands[mqtt]} up --build -d --wait"
+  echo "  COMODO_TAG=local ${commands[data]} up --build -d"
+  echo "  COMODO_TAG=local ${commands[firmware]} up --build -d"
+  echo "  COMODO_TAG=local ${commands[core]} up --build -d"
 fi
 
 echo ""

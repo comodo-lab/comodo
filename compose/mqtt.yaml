@@ -3,16 +3,13 @@ name: mqtt_broker
 services:
 
   rabbitmq:
-    build:
-      context: .
-      dockerfile_inline: |
-        FROM rabbitmq:4.1.3
-        RUN rabbitmq-plugins enable rabbitmq_mqtt
+    image: rabbitmq:4.1.3
     container_name: comodo-rabbitmq
     restart: unless-stopped
     environment:
       RABBITMQ_DEFAULT_USER: ${MQTT_USER}
       RABBITMQ_DEFAULT_PASS: ${MQTT_PASS}
+      RABBITMQ_ENABLED_PLUGINS: rabbitmq_mqtt
     ports:
       - '1883:1883'
     healthcheck:

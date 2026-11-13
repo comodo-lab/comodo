@@ -635,6 +635,7 @@ class TestGetExpectedHeartbeat:
             "safe_stop_setpoints": {},
             "measurement_intervals": {"pressure": 1},
             "heartbeat_interval": 1,
+            "max_missed_heartbeats": 3,
             "experiment": {},
         }
 
@@ -654,6 +655,7 @@ class TestGetExpectedHeartbeat:
             "safe_stop_setpoints": {"temperature": 0},
             "measurement_intervals": {"temperature": 1},
             "heartbeat_interval": 1.0,
+            "max_missed_heartbeats": 3,
             "experiment": {},
         }
 

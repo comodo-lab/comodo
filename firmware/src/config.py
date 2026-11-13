@@ -16,6 +16,7 @@ DEFAULT_CONFIG = {
     "SAFE_STOP_SETPOINTS": {},
     "MEASUREMENT_INTERVALS": {},
     "HEARTBEAT_INTERVAL": 1.0,
+    "MAX_MISSED_HEARTBEATS": 3,
     "experiment": {"experiment_id": None},
 }
 

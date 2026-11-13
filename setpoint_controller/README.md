@@ -18,7 +18,7 @@ so that the sensor reaches its setpoint.
 The setpoint controller is configured with an external sensor, PID parameters, a target actuator, and its defined limits.
 
 Configuration is done via environment variables.
-In a standard deployment, each setpoint controller runs as its own service in `compose.firmware.yaml`,
+In a standard deployment, each setpoint controller runs as its own service in `compose/firmware.yaml`,
 which is generated from the `setpoint_controller` entries in `comodo.yaml` (see the [main README](../README.md#setpoint-controllers)).
 
 In its simplest form, the following environment variables are required:
@@ -63,6 +63,8 @@ The controller subscribes to the following MQTT topics:
   If any key is not configurable, the whole configuration is rejected and an error is published.
 - `controller/command/start`: To store the id of the experiment that is starting.
 - `controller/event/end` and `controller/command/stop`: To end the current experiment.
+- `controller/command/reset`: Sent by the controller when it starts, or when asked by the UI. Ends any experiment (with a warning, as the controller lost it),
+  even if disabled, and goes back to the default setpoint (if enabled).
 
 And publishes to:
 - `instruments/ACTUATOR/setpoint`: The computed control signal (the saturated output) for the target actuator.
@@ -71,7 +73,7 @@ And publishes to:
   - `setpoints`: The current `sensor_setpoint`.
   - `config`: The `sensor`, `actuator`, and current `pid` parameters.
     The experiment controller compares these with the experiment's live configuration, and stops the experiment if they don't match.
-- `error/setpoint_controller`: If a message is invalid, or a configuration is rejected.
+- `error/setpoint_controller`: If a message is invalid, a configuration is rejected, or a reset ends its experiment (`code` `experiment_reset`), unless requested from the UI (e.g. the controller restarted mid-experiment).
 
 ## Behaviour
 - On start up, the sensor's setpoint is set to `DEFAULT_SETPOINT`, and the status is `idle`.

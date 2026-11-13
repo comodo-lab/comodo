@@ -125,6 +125,7 @@ There are a few helper clients to the controller, each listening to its own topi
   - When it receives a `ui/start` message, and the controller is idle, it saves the experiment to a temporary file
     and sends a `controller/command/validate` message, to trigger the controller.
   - When it receives a `ui/stop` message with the current experiment id, it sends a `controller/command/stop` message.
+  - When it receives a `ui/reset` message, and the controller is idle, it sends a `controller/command/reset` message (with `"source": "ui"`).
 - The **timer** client listens to `controller/timer/#`. It offloads waiting from the controller, so that it can still respond to messages.
   It is used to wait for the instruments to be ready, and for each setpoint's duration.
 - The **heartbeat** client listens to `instruments/+/heartbeat` and `setpoint_controllers/+/heartbeat`.
@@ -134,6 +135,18 @@ There are a few helper clients to the controller, each listening to its own topi
   and Docker restarts it.
 
 The controller itself publishes its state on `controller/heartbeat` every `global.heartbeat.interval` seconds.
+Before its first heartbeat, when it starts, it publishes a `controller/command/reset` message (with `"source": "controller"`),
+as it doesn't know the state of the instruments and setpoint controllers (e.g. after a restart mid-experiment).
+They go back to their defaults, which also clears an instrument's safe stop (see the [firmware's safe stop](../firmware/README.md#safe-stop)).
+The controller itself ignores the reset while idle. The UI can also ask for a reset (see the [ui client](#helper-clients)), e.g. to clear a safe stop.
+
+While an experiment runs, the controller records it in `data/running_experiment.json`, until it ends or is stopped.
+If the controller stops mid-experiment (e.g. it crashes, or is restarted), the record is still there when it starts again, so before the reset it:
+- Publishes an error on `error/controller` (`code` `experiment_lost`).
+- Dumps the experiment's database, as stopping it would have (see [experiment data](#experiment-data)).
+- Removes the record.
+
+The reset then ends the experiment in the instruments and setpoint controllers, which also publish an error each (`code` `experiment_reset`).
 
 ## Experiment message
 An experiment is started with a `ui/start` message, normally sent by the UI. For example:
@@ -173,8 +186,26 @@ The time between rows must be at least the `resolution`.
 
 ## Experiment data
 Experiments are saved in the `data/` folder (mounted from `controller/data/`):
-- `DYY-XXX.json`: The experiment message, where `YY` is the year and `XXX` a serial number.
-- `DYY-XXX/<bucket>.csv`: The InfluxDB data recorded during the experiment, saved when the experiment stops.
+- `DYY-XXX.json`: The experiment message, where `YY` is the year and `XXX` a serial number, while the experiment runs.
+- `DYY-XXX/`: Once the experiment has stopped, and its data has been saved (in the background, while the controller is `stopping`):
+  - `DYY-XXX.json`: The experiment message, moved here.
+  - The InfluxDB data recorded during the experiment (from every bucket in `INFLUX_BUCKET`):
+    - `history.csv`: Every value of every message, in time order, to explore what happened.
+      Columns: `time`, `topic`, `field` (nested keys joined by `_`, e.g. `state_status`) and `value`.
+    - `data.csv`: The measurements and setpoints of every variable, as recorded, to plot them.
+      Columns: `time`, `elapsed_s` (seconds since the start), and for each variable `<instrument>/<variable>` (its measurements)
+      and `<instrument>/<variable>_setpoint` (its setpoints, if it has any).
+      Values recorded at the same time share a row, and the other columns are left empty.
+      Nothing is resampled or filled in, so e.g. to plot a variable, drop its empty rows (`df[column].dropna()` in pandas),
+      or forward-fill the setpoints to get the setpoint in force at each measurement.
+
+If saving the data fails, the controller logs a warning and tries again after a `DUMP_RETRY_WAIT` seconds.
+Up to `DUMP_ATTEMPTS` retries are made.
+If all attempts fail, an error is published and a file called `dump.fail` is written to `DYY-XXX/`,
+with the experiment's start and end times (`t0` and `tf`, in UTC), as a reference for future export attempts from InfluxDB.
+Any files written by the last attempt before it failed are kept.
+
+Regardless of the data export outcome, the experiment message is moved to `DYY-XXX/`, and the controller goes back to `idle`.
 
 ## Configuration
 The controller reads `comodo.yaml` from `/app/comodo.yaml`, and the following environment variables:
@@ -182,7 +213,7 @@ The controller reads `comodo.yaml` from `/app/comodo.yaml`, and the following en
 - `MQTT_CONNECTION_TIMEOUT`: [optional] Time in seconds to wait for the broker. Defaults to 10.
 - `INFLUX_HOST`, `INFLUX_ORG`, `INFLUX_BUCKET` and `INFLUX_TOKEN` (or `INFLUX_TOKEN_FILE`): The InfluxDB instance, used to save the experiment data.
 
-These are set by the main [`compose.yaml`](../compose.yaml) from the `.env` file.
+These are set by the core stack's [`compose/core.yaml`](../compose/core.yaml) from the `compose/.env` file.
 `INFLUX_HOST` is set from `DATA_HOST`, or to `influxdb` (the data stack's service name) if it is empty.
 
 ## Running tests

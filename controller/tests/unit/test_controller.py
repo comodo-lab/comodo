@@ -37,7 +37,9 @@ class TestMain:
             "controller.on_timer_message"
         ) as mock_on_timer_message, patch(
             "controller.on_heartbeat_message"
-        ) as mock_on_heartbeat_message:
+        ) as mock_on_heartbeat_message, patch(
+            "controller.recover_lost_experiment"
+        ) as mock_recover_lost_experiment:
             env_values = {}
             mock_environ.keys.return_value = env_values.keys()
             mock_getenv.side_effect = lambda var, default=None: env_values.get(
@@ -61,6 +63,7 @@ class TestMain:
                 "loaded_config": mock_loaded_config,
                 "cstate": mock_cstate,
                 "sleep": mock_sleep,
+                "recover_lost_experiment": mock_recover_lost_experiment,
                 "callbacks": {
                     "on_watchdog_message": mock_on_watchdog_message,
                     "on_wd_timer_message": mock_on_wd_timer_message,
@@ -216,7 +219,7 @@ class TestMain:
         messages = message_bus.get_messages(decoded=True)
         assert len(messages) == 1
         assert messages[0].topic == "watchdog/timer/command/start"
-        assert json.loads(messages[0].payload) == {}
+        assert json.loads(messages[0].payload) == {"source": "controller"}
 
     def test_watchdog_loop_not_started_if_unhealthy(
         self, main_mocks, message_bus, capsys
@@ -230,9 +233,12 @@ class TestMain:
         main()
 
         mocks["sleep"].assert_called_once_with(1)  # Only initial sleep before wd starts
+        mocks["recover_lost_experiment"].assert_not_called()
         messages = message_bus.get_messages(decoded=True)
+        # Doesn't reset the instruments and setpoint controllers if it didn't start
+        assert len(messages) == 1
         assert messages[0].topic == "watchdog/timer/command/start"
-        assert json.loads(messages[0].payload) == {}
+        assert json.loads(messages[0].payload) == {"source": "controller"}
         captured = capsys.readouterr()
         assert "Creating clients..." in captured.out
         assert "Controller failed to start. watchdog unhealthy." in captured.out
@@ -263,12 +269,15 @@ class TestMain:
             # SystemExit called here
         ]
         messages = message_bus.get_messages(decoded=True)
-        assert len(messages) == 4
+        assert len(messages) == 5
         assert messages[0].topic == "watchdog/timer/command/start"
-        assert json.loads(messages[0].payload) == {}
-        assert messages[1].topic == "controller/heartbeat"
+        assert json.loads(messages[0].payload) == {"source": "controller"}
+        mocks["recover_lost_experiment"].assert_called_once_with()
+        assert messages[1].topic == "controller/command/reset"
+        assert json.loads(messages[1].payload) == {"source": "controller"}
         assert messages[2].topic == "controller/heartbeat"
         assert messages[3].topic == "controller/heartbeat"
+        assert messages[4].topic == "controller/heartbeat"
         captured = capsys.readouterr()
         assert "Creating clients..." in captured.out
         assert "Controller started successfully." in captured.out
@@ -310,13 +319,14 @@ class TestMain:
             # SystemExit called here
         ]
         messages = message_bus.get_messages(decoded=True)
-        assert len(messages) == 5
+        assert len(messages) == 6
         assert messages[0].topic == "watchdog/timer/command/start"
-        assert json.loads(messages[0].payload) == {}
-        assert messages[1].topic == "controller/heartbeat"
+        assert json.loads(messages[0].payload) == {"source": "controller"}
+        assert messages[1].topic == "controller/command/reset"
         assert messages[2].topic == "controller/heartbeat"
-        assert messages[3].topic == "controller/command/stop"
-        assert messages[4].topic == "controller/heartbeat"
+        assert messages[3].topic == "controller/heartbeat"
+        assert messages[4].topic == "controller/command/stop"
+        assert messages[5].topic == "controller/heartbeat"
         captured = capsys.readouterr()
         assert "Creating clients..." in captured.out
         assert "Controller started successfully." in captured.out
@@ -354,12 +364,13 @@ class TestMain:
             # Should exit loop here
         ]
         messages = message_bus.get_messages(decoded=True)
-        assert len(messages) >= 4  # >= Setting healthy to false takes some time
-        assert len(messages) <= 6  # <= But it shouldn't take that much time
+        assert len(messages) >= 5  # >= Setting healthy to false takes some time
+        assert len(messages) <= 7  # <= But it shouldn't take that much time
         assert messages[0].topic == "watchdog/timer/command/start"
-        assert messages[1].topic == "controller/heartbeat"
+        assert messages[1].topic == "controller/command/reset"
         assert messages[2].topic == "controller/heartbeat"
         assert messages[3].topic == "controller/heartbeat"
+        assert messages[4].topic == "controller/heartbeat"
         captured = capsys.readouterr()
         assert "Creating clients..." in captured.out
         assert "Controller started successfully." in captured.out

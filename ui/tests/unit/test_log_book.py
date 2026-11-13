@@ -91,10 +91,22 @@ class TestLogBook:
                 "Experiment D26-001 starting.",
             ),
             (
+                "controller/event/end",
+                {"experiment_id": "D26-001"},
+                "controller",
+                "Experiment D26-001 completed successfully.",
+            ),
+            (
                 "controller/command/stop",
                 {"experiment_id": "D26-001"},
                 "controller",
                 "Stopping experiment D26-001.",
+            ),
+            (
+                "controller/command/reset",
+                {"source": "ui"},
+                "controller",
+                "Instruments and setpoint controllers reset by the ui.",
             ),
         ],
     )
@@ -127,7 +139,9 @@ class TestLogBook:
             "error/#",
             "ui/start",
             "controller/command/start",
+            "controller/event/end",
             "controller/command/stop",
+            "controller/command/reset",
         ]
         assert created["callback"] == lb.on_message
 

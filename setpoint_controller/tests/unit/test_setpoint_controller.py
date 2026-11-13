@@ -297,6 +297,7 @@ class Test_SetpointController_init:
                 "controller/command/start",
                 "controller/event/end",
                 "controller/command/stop",
+                "controller/command/reset",
             ],
             broker_address="test_host",
             user="test_user",
@@ -931,6 +932,101 @@ class Test_on_controller_end_message:
         captured = capsys.readouterr()
         assert "Received end/stop for experiment exp-123" in captured.out
         assert "but current experiment is exp-456. Ignoring..." in captured.out
+
+
+class Test_on_controller_reset_message:
+
+    @pytest.fixture
+    def ocrm_mocks(self, mock_spc, mqtt_mocks, mqtt_validator_mocks):
+        return {
+            "client": Mock(),
+            "spc": mock_spc,
+            "publisher": mqtt_mocks["publisher_instance"],
+        }
+
+    def reset_msg(self, source):
+        payload = {"source": source} if source else {}
+        return MockMessage("controller/command/reset", json.dumps(payload))
+
+    def test_ui_reset_ends_experiment(self, ocrm_mocks, capsys):
+        # Requested, so only a warning
+        mock_spc = ocrm_mocks["spc"]
+        mock_spc.state.experiment_id = "exp-123"
+        mock_spc.state.sensor_setpoint = 42.0
+
+        SetpointController.on_message(
+            ocrm_mocks["client"], self.reset_msg("ui"), mock_spc
+        )
+
+        ocrm_mocks["publisher"].publish.assert_not_called()
+        assert mock_spc.state.experiment_id is None
+        assert mock_spc.state.sensor_setpoint == mock_spc.default_setpoint
+        captured = capsys.readouterr()
+        assert (
+            "WARNING: [I1-A--I2-B] Experiment exp-123 ended by reset from ui."
+            in captured.out
+        )
+        assert (
+            f"Reset. Moving to default setpoint: {mock_spc.default_setpoint}"
+            in captured.out
+        )
+
+    @pytest.mark.parametrize(
+        "source, shown", [("controller", "controller"), (None, "unknown source")]
+    )
+    def test_other_reset_ending_experiment_publishes_error(
+        self, ocrm_mocks, capsys, source, shown
+    ):
+        mock_spc = ocrm_mocks["spc"]
+        mock_spc.state.experiment_id = "exp-123"
+
+        SetpointController.on_message(
+            ocrm_mocks["client"], self.reset_msg(source), mock_spc
+        )
+
+        error = f"[I1-A--I2-B] Experiment exp-123 ended by reset from {shown}."
+        ocrm_mocks["publisher"].publish.assert_called_once_with(
+            "error/setpoint_controller",
+            json.dumps({"code": "experiment_reset", "message": error}),
+        )
+        assert mock_spc.state.experiment_id is None
+        assert mock_spc.state.sensor_setpoint == mock_spc.default_setpoint
+        captured = capsys.readouterr()
+        assert f"ERROR: {error}" in captured.out
+
+    def test_moves_to_default_setpoint_without_experiment(self, ocrm_mocks, capsys):
+        mock_spc = ocrm_mocks["spc"]
+        mock_spc.state.experiment_id = None
+        mock_spc.state.sensor_setpoint = 42.0
+
+        SetpointController.on_message(
+            ocrm_mocks["client"], self.reset_msg("controller"), mock_spc
+        )
+
+        ocrm_mocks["publisher"].publish.assert_not_called()
+        assert mock_spc.state.experiment_id is None
+        assert mock_spc.state.sensor_setpoint == mock_spc.default_setpoint
+        captured = capsys.readouterr()
+        assert "ended by" not in captured.out
+        assert "Reset. Moving to default setpoint" in captured.out
+
+    def test_clears_experiment_id_when_disabled(self, ocrm_mocks, capsys):
+        mock_spc = ocrm_mocks["spc"]
+        mock_spc.state.enabled = False
+        mock_spc.state.experiment_id = "exp-123"
+
+        SetpointController.on_message(
+            ocrm_mocks["client"], self.reset_msg("ui"), mock_spc
+        )
+
+        assert mock_spc.state.experiment_id is None
+        assert mock_spc.state.sensor_setpoint is None
+        captured = capsys.readouterr()
+        assert (
+            "WARNING: [I1-A--I2-B] Experiment exp-123 ended by reset from ui."
+            in captured.out
+        )
+        assert "Moving to default setpoint" not in captured.out
 
 
 class TestPublishHeartbeat:

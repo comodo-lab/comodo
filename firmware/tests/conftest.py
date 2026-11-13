@@ -35,6 +35,7 @@ def firmware_env():
         "SAFE_STOP_SETPOINTS": '{"temperature": 0}',
         "MEASUREMENT_INTERVALS": '{"temperature": 1, "pressure": 1}',
         "HEARTBEAT_INTERVAL": 1.0,
+        "MAX_MISSED_HEARTBEATS": 3,
     }
 
 
@@ -57,6 +58,7 @@ def mock_load_config(firmware_env):
         "MEASUREMENT_INTERVALS": json.loads(firmware_env["MEASUREMENT_INTERVALS"])
         or {},
         "HEARTBEAT_INTERVAL": float(firmware_env["HEARTBEAT_INTERVAL"]),
+        "MAX_MISSED_HEARTBEATS": int(firmware_env["MAX_MISSED_HEARTBEATS"]),
         "experiment": {"experiment_id": None},
     }
     return config
@@ -108,6 +110,7 @@ def expected_config(firmware_env, experiment=None):
         "safe_stop_setpoints": config["SAFE_STOP_SETPOINTS"],
         "measurement_intervals": config["MEASUREMENT_INTERVALS"],
         "heartbeat_interval": config["HEARTBEAT_INTERVAL"],
+        "max_missed_heartbeats": config["MAX_MISSED_HEARTBEATS"],
         "experiment": experiment,
     }
     return printable_config

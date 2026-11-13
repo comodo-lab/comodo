@@ -182,7 +182,6 @@ class TestOnHeartbeatMessage:
             state, msg_payload, "furnace"
         )
 
-
     def test_unconfigured_spc(self, on_heartbeat_message_mocks):
         state = on_heartbeat_message_mocks["state"]
         heartbeat_client = on_heartbeat_message_mocks["heartbeat_client"]
@@ -406,7 +405,6 @@ class TestHandleInstrumentHeartbeat:
         assert len(messages) == 1
         assert messages[0].topic == "controller/event/ready"
         assert json.loads(messages[0].payload)["experiment_id"] == "D123-456"
-
 
     def test_valid_heartbeat_awaiting_spc_not_ready(self, handle_i_hb_mocks):
         state = handle_i_hb_mocks["state"]

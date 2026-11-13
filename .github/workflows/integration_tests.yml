@@ -12,6 +12,10 @@ on:
       - "mqtt_probe/**"
       - "setpoint_controller/**"
       - "ui/**"
+      - "schemas/**"
+      - "compose/**"
+      - "telegraf/**"
+      - "grafana/**"
   pull_request:
     branches: ["main", "dev"]
 
@@ -29,7 +33,7 @@ jobs:
 
       - name: Set up environment variables
         run: |
-          cat > .env <<'EOF'
+          cat > compose/.env <<'EOF'
           MQTT_USER=comodo_mqtt_user
           MQTT_PASS=comodo_mqtt_password
           INFLUX_TOKEN=comodo_influx_token
@@ -38,4 +42,4 @@ jobs:
           EOF
 
       - name: Run integration tests
-        run: ./integration_tests/run-integration-tests.sh
+        run: ./integration_tests/run-integration-tests.sh --build
