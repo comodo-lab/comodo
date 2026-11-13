@@ -483,6 +483,34 @@ class TestDatabaseDump:
         )
 
 
+class TestWriteDumpFailure:
+
+    def test_writes_the_experiment_interval(self, tmp_path):
+        exp_dir = tmp_path / "D123-456"
+        t0 = T0.replace(tzinfo=None)
+        tf = t0 + timedelta(hours=2)
+
+        message = write_dump_failure(str(exp_dir), t0, tf)
+
+        interval = {"t0": f"{t0.isoformat()}Z", "tf": f"{tf.isoformat()}Z"}
+        assert json.loads((exp_dir / "dump.fail").read_text()) == interval
+        assert (
+            message
+            == f"Experiment time interval recorded in dump.fail: {json.dumps(interval)}"
+        )
+
+    def test_returns_the_error_if_it_cannot_write(self, tmp_path, capsys):
+        # Create a file where the directory should be to make it fail
+        exp_dir = tmp_path / "D123-456"
+        exp_dir.write_text("")
+        t0 = T0.replace(tzinfo=None)
+        message = write_dump_failure(str(exp_dir), t0, t0)
+
+        assert message.startswith("Failed to write dump.fail file: ")
+        captured = capsys.readouterr()
+        assert f"ERROR: {message}" in captured.out
+
+
 def iso(seconds):
     """The time, seconds after T0, as written in the CSV files."""
     return (T0 + timedelta(seconds=seconds)).isoformat()
