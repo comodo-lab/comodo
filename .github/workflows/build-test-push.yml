@@ -85,7 +85,6 @@ jobs:
         id: version
         uses: paulhatch/semantic-version@v6
         with:
-          namespace: ${{ env.CONTAINER_NAME }}
           tag_prefix: "v"
           version_format: v${major}.${minor}.${patch}
           bump_each_commit: true
