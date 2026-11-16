@@ -76,7 +76,7 @@ jobs:
           load: true
           tags: ${{ env.CONTAINER_NAME }}:testing
           cache-from: type=gha,scope=${{ env.CONTAINER_NAME }}
-          cache-to: type=gha,scope=${{ env.CONTAINER_NAME }},mode=max
+          cache-to: type=gha,scope=${{ env.CONTAINER_NAME }},mode=max,ignore-error=true
 
       - name: Test
         run: ${{ inputs.test_script }}
@@ -85,7 +85,6 @@ jobs:
         id: version
         uses: paulhatch/semantic-version@v6
         with:
-          namespace: ${{ env.CONTAINER_NAME }}
           tag_prefix: "v"
           version_format: v${major}.${minor}.${patch}
           bump_each_commit: true

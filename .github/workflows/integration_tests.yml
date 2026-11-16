@@ -3,6 +3,7 @@ name: integration tests
 on:
   workflow_dispatch:
   push:
+    branches: ["**"] # Does not run on tag pushes
     paths:
       - "integration_tests/**"
       - "utils/**"
