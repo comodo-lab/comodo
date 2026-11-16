@@ -1,19 +1,83 @@
 """
-ESI HP1410B Pressure Transmitter
+ESI HP1410B Pressure Transmitter interface.
 
-Custom ASCII protocol over RS-485 serial.
-Reads pressure and temperature values.
-
-Protocol:
-  - Master sends: #<serial>:<command>[:<arg1>]\r\n
-  - Slave responds: $<serial>:<command>[:<field>:<value>]\r\n
-  - Use #0:ID to discover an unknown single device on the bus
+Custom ASCII protocol over RS-485 serial, reading pressure and temperature:
+  - Master sends: #<serial>:<command>[:<arg1>]\\r\\n
+  - Slave responds: $<serial>:<command>[:<field>:<value>]\\r\\n
+  - #0:ID discovers the serial number of a single (unknown) device on the bus
 """
 
-from src.instrument import BaseInstrument
+# System imports
+from typing import ClassVar
 
+# Instrument specific imports
 import serial
 
+# Local imports
+from src.instrument import BaseInstrument
+
+
+# ======================================================================================
+# Instrument Class
+# --------------------------------------------------------------------------------------
+class Instrument(BaseInstrument):
+    available_variables: ClassVar[dict[str, dict]] = {
+        "pressure": {
+            "sensor": "RP",
+            "unit": "Bar",
+        },
+        "temperature": {
+            "sensor": "RT",
+            "unit": "C",
+        },
+    }
+
+    def initialise(self):
+        self.serial_no = None
+        if self.config["SIMULATE"]:
+            self.ser = None
+        else:
+            self.ser = serial.Serial(
+                port=self.config["ADDRESS"],
+                baudrate=BAUDRATE,
+                bytesize=BYTESIZE,
+                parity=PARITY,
+                stopbits=STOPBITS,
+                timeout=TIMEOUT,
+            )
+
+    def simulate(self, variable):
+        return self.default_sim(variable)
+
+    def get_measurement(self, variable):
+        try:
+            # Discovers the device's serial number on the first measurement (or until it is found)
+            if self.serial_no is None:
+                self.serial_no = read_id(self.ser)
+                if self.serial_no is None:
+                    print(f"No ESI HP1410B found on {self.config['ADDRESS']}")
+                    return None
+                print(
+                    f"Connected to ESI HP1410B (serial: {self.serial_no}) on {self.config['ADDRESS']}"
+                )
+            sensor = self.available_variables[variable]
+            return read_value(
+                self.ser, self.serial_no, sensor["sensor"], sensor["unit"]
+            )
+        except (serial.SerialException, ValueError) as e:
+            print(f"Error reading {variable}: {e}")
+            return None
+
+    def go_to_setpoint(self, variable, setpoint):
+        # No actuators available
+        pass
+
+
+# ======================================================================================
+
+# ======================================================================================
+# HP1410B configuration and helper functions
+# --------------------------------------------------------------------------------------
 BAUDRATE = 57600
 BYTESIZE = serial.EIGHTBITS
 PARITY = serial.PARITY_NONE
@@ -26,10 +90,9 @@ DIVIDER = ":"
 END = "\r\n"
 
 
-# ------------------------------------------------------------------------------
-# Protocol helpers
-
-
+# --------------------------------------------------------------------------------------
+# Helper functions
+# --------------------------------------------------------------------------------------
 def send(ser, serial_no, command, parameters=None):
     serial_str = f"{serial_no}{DIVIDER}" if serial_no is not None else ""
     arguments = f"{DIVIDER}{DIVIDER.join(parameters)}" if parameters else ""
@@ -83,55 +146,4 @@ def read_value(ser, serial_no, command, unit):
     return value
 
 
-# ------------------------------------------------------------------------------
-# Instrument Class
-
-
-class Instrument(BaseInstrument):
-    available_variables = {
-        "pressure": {"sensor": "RP", "unit": "Bar"},
-        "temperature": {"sensor": "RT", "unit": "C"},
-    }
-
-    def __init__(self):
-        self.ser = None
-        self.serial_no = None
-        self._simulated = {}
-
-    def initialise(self, state):
-        if state.config.get("SIMULATE"):
-            self._simulated = {v: 0 for v in self.available_variables}
-            return
-
-        port = state.config["DEVICE_ADDRESS"]
-
-        self.ser = serial.Serial(
-            port=port,
-            baudrate=BAUDRATE,
-            bytesize=BYTESIZE,
-            parity=PARITY,
-            stopbits=STOPBITS,
-            timeout=TIMEOUT,
-        )
-
-        # Auto-discover device serial number
-        self.serial_no = read_id(self.ser)
-        if not self.serial_no:
-            raise ConnectionError(f"No ESI HP1410B found on {port}")
-
-        print(f"Connected to ESI HP1410B (serial: {self.serial_no}) on {port}")
-
-    def get_measurement(self, state, variable):
-        if state.config.get("SIMULATE"):
-            return self._default_sim(state, variable)
-
-        var = self.available_variables[variable]
-        value = read_value(self.ser, self.serial_no, var["sensor"], var["unit"])
-
-        if value is None:
-            raise RuntimeError(f"Failed to read {variable}")
-
-        return value
-
-    def set_config(self, config):
-        pass
+# ======================================================================================
