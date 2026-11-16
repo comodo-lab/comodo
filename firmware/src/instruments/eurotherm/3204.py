@@ -1,15 +1,73 @@
 """
-Eurotherm 3204 Temperature Controller
+Eurotherm 3204 Temperature Controller interface.
+
+Modbus RTU over serial.
 """
 
-# Import the BaseInstrument class
+# System imports
+from typing import ClassVar
+
+# Instrument specific imports
+import serial
+from pymodbus.client import ModbusRtuClient
+
+# Local imports
 from src.instrument import BaseInstrument
 
-from pymodbus.client import ModbusRtuClient
-import serial
 
+# ======================================================================================
+# Instrument Class
+# --------------------------------------------------------------------------------------
+class Instrument(BaseInstrument):
+    available_variables: ClassVar[dict[str, dict]] = {
+        "temperature": {
+            "sensor": 0,
+            "actuator": 1,
+        },
+    }
+
+    def initialise(self):
+        if self.config["SIMULATE"]:
+            self.client = None
+        else:
+            self.client = ModbusRtuClient(
+                port=self.config["ADDRESS"],
+                baudrate=BAUDRATE,
+                bytesize=BYTESIZE,
+                parity=PARITY,
+                stopbits=STOPBITS,
+                timeout=TIMEOUT,
+            )
+            # If it can't connect now, the client tries again on each read or write
+            if self.client.connect():
+                print(
+                    f"Connected to Eurotherm 3204 on {self.config['ADDRESS']} (slave {SLAVE_ADDRESS})"
+                )
+            else:
+                print(
+                    f"Could not connect to Eurotherm 3204 on {self.config['ADDRESS']}"
+                )
+
+    def simulate(self, variable):
+        return self.default_sim(variable)
+
+    def get_measurement(self, variable):
+        return read_register(self.client, self.available_variables[variable]["sensor"])
+
+    def go_to_setpoint(self, variable, setpoint):
+        write_register(
+            self.client,
+            self.available_variables[variable]["actuator"],
+            setpoint,
+        )
+
+
+# ======================================================================================
+
+# ======================================================================================
+# 3204 configuration and helper functions
+# --------------------------------------------------------------------------------------
 SLAVE_ADDRESS = 1
-
 MODBUS_REGISTER_COUNT = 1
 BAUDRATE = 9600
 BYTESIZE = serial.EIGHTBITS
@@ -18,88 +76,34 @@ STOPBITS = serial.STOPBITS_ONE
 TIMEOUT = 1  # seconds
 
 
-# ------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------
 # Helper functions
-
-
-def read_register(client, slave, register):
+# --------------------------------------------------------------------------------------
+def read_register(client, register):
+    """
+    Returns the register's value, or None if it can't be read.
+    """
     try:
         result = client.read_holding_registers(
-            address=register, count=MODBUS_REGISTER_COUNT, slave=slave
+            address=register, count=MODBUS_REGISTER_COUNT, slave=SLAVE_ADDRESS
         )
         if result.isError():
-            raise ValueError(f"Error reading register: {result}")
+            raise ValueError(result)
         return float(result.registers[0])
     except Exception as e:
         print(f"Error reading register {register}: {e}")
         return None
 
 
-def write_register(client, slave, register, value):
-    try:
-        result = client.write_register(
-            address=register, value=int(value), slave=slave
-        )
-        if result.isError():
-            raise ValueError(f"Error writing register: {result}")
-    except Exception as e:
-        print(f"Error writing register {register}: {e}")
+def write_register(client, register, value):
+    """
+    Writes the value to the register, raising an exception if it can't be written.
+    """
+    result = client.write_register(
+        address=register, value=int(value), slave=SLAVE_ADDRESS
+    )
+    if result.isError():
+        raise ValueError(f"Error writing register {register}: {result}")
 
 
-# ------------------------------------------------------------------------------
-# Instrument Class
-
-
-class Instrument(BaseInstrument):
-    available_variables = {
-        "temperature": {"sensor": 0, "actuator": 1},
-    }
-
-    def __init__(self):
-        self.client = None
-        self.slave = None
-        self._simulated = {}
-
-    def initialise(self, state):
-        if state.config.get("SIMULATE"):
-            self._simulated = {"temperature": 0}
-            return
-
-        port = state.config["DEVICE_ADDRESS"]
-        self.slave = SLAVE_ADDRESS
-
-        self.client = ModbusRtuClient(
-            port=port,
-            baudrate=BAUDRATE,
-            bytesize=BYTESIZE,
-            parity=PARITY,
-            stopbits=STOPBITS,
-            timeout=TIMEOUT,
-        )
-
-        if not self.client.connect():
-            raise ConnectionError(f"Failed to connect to Modbus RTU on {port}")
-
-        print(f"Connected to Eurotherm 3204 on {port} (slave {self.slave})")
-
-    def go_to_setpoint(self, state, variable):
-        target = state.status["setpoints"][variable]
-        if state.config.get("SIMULATE"):
-            self._simulated[variable] = target
-            return
-
-        register = self.available_variables[variable]["actuator"]
-        write_register(self.client, self.slave, register, target)
-
-    def get_measurement(self, state, variable):
-        if state.config.get("SIMULATE"):
-            return self._default_sim(state, variable)
-
-        register = self.available_variables[variable]["sensor"]
-        value = read_register(self.client, self.slave, register)
-        if value is None:
-            raise RuntimeError(f"Failed to read {variable} from register {register}")
-        return value
-
-    def set_config(self, config):
-        pass
+# ======================================================================================
