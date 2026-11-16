@@ -1,0 +1,147 @@
+name: release
+
+# Releases every comodo image with the same version, when a version tag (vX.Y.0, e.g. v1.3.0) is pushed on main.
+# Only the major or minor version should be bumped on releases (vX.Y.0). This prevents conflicts with the automatic
+# patch increase for images built between releases.
+#
+# WARNING: Don't create the release in GitHub's UI: that creates the tag too, and this workflow then fails to create the release.
+#
+# To release:
+#   1. Merge dev into main, and check the workflows on main pass.
+#   2. Tag the merge commit, and push the tag:
+#     ```
+#     git fetch origin
+#     git tag v1.3.0 origin/main
+#     git push origin v1.3.0
+#     ```
+#   3. This workflow then:
+#      - Checks the tag is vX.Y.0, and on main (otherwise it stops, and nothing is pushed).
+#      - Builds, tests and pushes every image to Docker Hub with the tag (with its own workflow, in parallel).
+#      - Creates the GitHub release, with generated notes, only once all of them have been pushed.
+#   4. Edit the release notes.
+#
+# If the release fails, there is no GitHub release, but the tag is still on git.
+# Also, the images that did not fail are already on Docker Hub with that tag.
+# **If the tag check failed**: delete the tag both from github and your local repo:
+#     ```
+#     git push origin :refs/tags/v1.3.0
+#     git tag -d v1.3.0
+#     ```
+#     Then tag the correct commit and push the tag (step 2 above).
+# **If an image build failed**: use "Re-run failed jobs" on this workflow's run.
+#     The tag is kept, and the release is created once every image has been pushed.
+#     If it keeps failing, you might have a code issue.
+#     Delete the tags as above, fix the code, and start the release process again.
+#     The release then rebuilds every image, overwriting the ones already pushed with the tag.
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: read
+  packages: write
+
+# --------------------------------------------------------------------------------- #
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # Releases only bump the major or minor version, as builds between releases bump the patch
+      # (e.g. v1.3.1, v1.3.2... after v1.3.0), so a release can't overwrite their images
+      - name: Check the tag is vX.Y.0
+        run: |
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.0$ ]]; then
+            echo "::error::$GITHUB_REF_NAME is not a release tag. Release tags are vX.Y.0 (e.g. v1.3.0)."
+            exit 1
+          fi
+
+      - name: Check the tag is on main
+        run: |
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::$GITHUB_REF_NAME is not on main. Releases are only made from main."
+            exit 1
+          fi
+
+  controller:
+    needs: check
+    uses: ./.github/workflows/build-test-push_controller.yml
+    with:
+      release_tag: ${{ github.ref_name }}
+    secrets: inherit
+
+  firmware:
+    needs: check
+    uses: ./.github/workflows/build-test-push_firmware.yml
+    with:
+      release_tag: ${{ github.ref_name }}
+    secrets: inherit
+
+  grafana:
+    needs: check
+    uses: ./.github/workflows/build-test-push_grafana.yml
+    with:
+      release_tag: ${{ github.ref_name }}
+    secrets: inherit
+
+  monitor:
+    needs: check
+    uses: ./.github/workflows/build-test-push_monitor.yml
+    with:
+      release_tag: ${{ github.ref_name }}
+    secrets: inherit
+
+  mqtt_probe:
+    needs: check
+    uses: ./.github/workflows/build-test-push_mqtt_probe.yml
+    with:
+      release_tag: ${{ github.ref_name }}
+    secrets: inherit
+
+  setpoint_controller:
+    needs: check
+    uses: ./.github/workflows/build-test-push_setpoint_controller.yml
+    with:
+      release_tag: ${{ github.ref_name }}
+    secrets: inherit
+
+  telegraf:
+    needs: check
+    uses: ./.github/workflows/build-test-push_telegraf.yml
+    with:
+      release_tag: ${{ github.ref_name }}
+    secrets: inherit
+
+  ui:
+    needs: check
+    uses: ./.github/workflows/build-test-push_ui.yml
+    with:
+      release_tag: ${{ github.ref_name }}
+    secrets: inherit
+
+  release:
+    needs:
+      [
+        controller,
+        firmware,
+        grafana,
+        monitor,
+        mqtt_probe,
+        setpoint_controller,
+        telegraf,
+        ui,
+      ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes

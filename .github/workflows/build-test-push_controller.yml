@@ -1,6 +1,11 @@
 name: build-test-push controller
 
 on:
+  workflow_call:
+    inputs:
+      release_tag:
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       push_vb:
@@ -39,7 +44,7 @@ jobs:
       push_versioned: ${{ github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'dev') }}
       push_latest: ${{ github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'dev') }}
       push_vb: ${{ github.event.inputs.push_vb == 'true' }}
-      custom_tag: ${{ github.event.inputs.custom_tag || '' }}
+      custom_tag: ${{ inputs.release_tag || github.event.inputs.custom_tag || '' }}
     secrets:
       docker_username: ${{ secrets.DOCKER_USERNAME }}
       docker_password: ${{ secrets.DOCKER_PASSWORD }}
