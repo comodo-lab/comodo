@@ -98,18 +98,13 @@ def send(ser, serial_no, command, parameters=None):
     arguments = f"{DIVIDER}{DIVIDER.join(parameters)}" if parameters else ""
     msg = f"{START_MASTER}{serial_str}{command}{arguments}{END}"
     ser.write(msg.encode())
-    print(f"> {msg.strip()}")
 
 
 def receive(ser):
     line = ser.readline()
     if not line:
-        print("Empty response received")
         return None
-
-    response = line.decode().strip()
-    print(f"< {response}")
-    return response
+    return line.decode().strip()
 
 
 def read_id(ser):
