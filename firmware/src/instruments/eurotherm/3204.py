@@ -9,7 +9,7 @@ from typing import ClassVar
 
 # Instrument specific imports
 import serial
-from pymodbus.client import ModbusRtuClient
+from pymodbus.client import ModbusSerialClient
 
 # Local imports
 from src.instrument import BaseInstrument
@@ -30,7 +30,7 @@ class Instrument(BaseInstrument):
         if self.config["SIMULATE"]:
             self.client = None
         else:
-            self.client = ModbusRtuClient(
+            self.client = ModbusSerialClient(
                 port=self.config["ADDRESS"],
                 baudrate=BAUDRATE,
                 bytesize=BYTESIZE,
@@ -41,7 +41,7 @@ class Instrument(BaseInstrument):
             # If it can't connect now, the client tries again on each read or write
             if self.client.connect():
                 print(
-                    f"Connected to Eurotherm 3204 on {self.config['ADDRESS']} (slave {SLAVE_ADDRESS})"
+                    f"Connected to Eurotherm 3204 on {self.config['ADDRESS']} (device {DEVICE_ID})"
                 )
             else:
                 print(
@@ -67,7 +67,7 @@ class Instrument(BaseInstrument):
 # ======================================================================================
 # 3204 configuration and helper functions
 # --------------------------------------------------------------------------------------
-SLAVE_ADDRESS = 1
+DEVICE_ID = 1  # Modbus address of the controller
 MODBUS_REGISTER_COUNT = 1
 BAUDRATE = 9600
 BYTESIZE = serial.EIGHTBITS
@@ -85,7 +85,7 @@ def read_register(client, register):
     """
     try:
         result = client.read_holding_registers(
-            address=register, count=MODBUS_REGISTER_COUNT, slave=SLAVE_ADDRESS
+            address=register, count=MODBUS_REGISTER_COUNT, device_id=DEVICE_ID
         )
         if result.isError():
             raise ValueError(result)
@@ -100,7 +100,7 @@ def write_register(client, register, value):
     Writes the value to the register, raising an exception if it can't be written.
     """
     result = client.write_register(
-        address=register, value=int(value), slave=SLAVE_ADDRESS
+        address=register, value=int(value), device_id=DEVICE_ID
     )
     if result.isError():
         raise ValueError(f"Error writing register {register}: {result}")
