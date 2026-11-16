@@ -1,0 +1,125 @@
+# Generated from comodo.yaml, using the template in 'firmware/templates/compose.firmware.yaml.j2'.
+# DO NOT EDIT DIRECTLY: Update comodo.yaml and regenerate it from the repository root with:
+#   docker compose -f firmware/compose.gen.yaml run --rm compose-gen
+# Alternatively, use the './utils/contexts.sh' script, which also regenerates it before printing the deployment commands.
+
+x-templates:
+  mqtt-env: &mqtt-env
+    MQTT_HOST: ${MQTT_HOST:-rabbitmq}
+    MQTT_USER: ${MQTT_USER}
+    MQTT_PASS: ${MQTT_PASS}
+  instrument-env: &instrument-env
+    <<: *mqtt-env
+  python-instrument-template: &python-instrument-template
+    image: comodolab/comodo-firmware:${COMODO_TAG:-latest}
+    build:
+      context: ../
+      dockerfile: firmware/Dockerfile
+    init: true
+    restart: unless-stopped
+    depends_on:
+      mqtt-probe-firmware:
+        condition: service_healthy
+
+name: comodo-firmware
+
+services:
+  mqtt-probe-firmware:
+    image: comodolab/comodo-mqtt_probe:${COMODO_TAG:-latest}
+    build:
+      context: ../
+      dockerfile: mqtt_probe/Dockerfile
+    init: true
+    environment:
+      <<: *mqtt-env
+      MQTT_PROBE_ID: firmware
+
+{% set instrument_default_setpoints = {} %}
+{%- set external_actuators = {} -%}
+{%- set instrument_safe_stop_setpoints = {} -%}
+{%- set instrument_measurement_intervals = {} -%}
+{%- set all_default_setpoints = {} -%}
+{%- for name, instr in instruments.items() -%}
+{%- for v_name, v_cfg in instr.variables.items() -%}
+{%- if v_cfg.default_setpoint is defined -%}
+{%- set _ = instrument_default_setpoints.update({name: {v_name: v_cfg.default_setpoint}}) -%}
+{%- set _ = all_default_setpoints.update({name + '/' + v_name: v_cfg.default_setpoint}) -%}
+{%- endif -%}
+{%- if v_cfg.setpoint_controller and v_cfg.setpoint_controller.external_sensor is defined -%}
+{%- set ext_ins, ext_var = v_cfg.setpoint_controller.external_sensor.split('/') -%}
+{%- if ext_ins not in external_actuators -%}
+{%- set _ = external_actuators.update({ext_ins: {}}) -%}
+{%- endif -%}
+{%- set _ = external_actuators[ext_ins].update({ext_var: name ~ '/' ~ v_name}) -%}
+{%- endif -%}
+{%- if v_cfg.actuator and v_cfg.actuator.safe_stop_setpoint is defined -%}
+{%- set _ = instrument_safe_stop_setpoints.update({name: {v_name: v_cfg.actuator.safe_stop_setpoint}}) -%}
+{%- endif -%}
+{%- if v_cfg.sensor and v_cfg.sensor.interval is defined -%}
+{%- set _ = instrument_measurement_intervals.update({name: {v_name: v_cfg.sensor.interval}}) -%}
+{%- endif -%}
+{%- endfor -%}
+{%- endfor -%}
+
+{% for name, instr in instruments.items() %}
+  {{ name }}:
+    <<: *python-instrument-template
+    environment:
+      <<: *instrument-env
+      INSTRUMENT_NAME: "{{ name }}"
+      FIRMWARE: {{ instr.firmware }}
+      ADDRESS: "{{ instr.address }}"
+      SIMULATE: "{{ instr.simulate | default(false) | lower }}"
+      ACTIVE_VARIABLES: '{{ instr.variables.keys() | list | tojson }}'
+      DEFAULT_SETPOINTS: '{{ instrument_default_setpoints.get(name) | tojson }}'
+      EXTERNAL_ACTUATORS: '{{ external_actuators.get(name) | tojson }}'
+      SAFE_STOP_SETPOINTS: '{{ instrument_safe_stop_setpoints.get(name) | tojson }}'
+      MEASUREMENT_INTERVALS: '{{ instrument_measurement_intervals.get(name) | tojson }}'
+      HEARTBEAT_INTERVAL: {{ (global.heartbeat.interval) | float }}
+      MAX_MISSED_HEARTBEATS: {{ global.experiment_monitoring.max_missed_heartbeats }}
+{%- if instr.address.startswith('/dev/') %}
+    devices:
+      - "{{ instr.address }}:{{ instr.address }}"
+    privileged: true
+{%- endif %}
+{% endfor %}{% for name, instr in instruments.items() %}
+{%- for v_name, v_cfg in instr.variables.items() %}
+{%- if v_cfg.setpoint_controller %}
+
+  spc-{{ name }}-{{ v_name }}:
+    image: comodolab/comodo-setpoint_controller:${COMODO_TAG:-latest}
+    build:
+      context: ../
+      dockerfile: setpoint_controller/Dockerfile
+    init: true
+    restart: unless-stopped
+    depends_on:
+      mqtt-probe-firmware:
+        condition: service_healthy
+    environment:
+      <<: *mqtt-env
+      HEARTBEAT_INTERVAL: {{ (global.heartbeat.interval) | float }}
+      SENSOR: "{{ v_cfg.setpoint_controller.external_sensor }}"
+      DEFAULT_SETPOINT: {{ all_default_setpoints.get(v_cfg.setpoint_controller.external_sensor) }}
+      ACTUATOR: "{{ name }}/{{ v_name }}"{% if v_cfg.setpoint_controller.K_P is defined %}
+      K_P: {{ v_cfg.setpoint_controller.K_P }}{% endif %}{% if v_cfg.setpoint_controller.K_I is defined %}
+      K_I: {{ v_cfg.setpoint_controller.K_I }}{% endif %}{% if v_cfg.setpoint_controller.K_D is defined %}
+      K_D: {{ v_cfg.setpoint_controller.K_D }}{% endif %}{% if v_cfg.setpoint_controller.K_AW is defined %}
+      K_AW: {{ v_cfg.setpoint_controller.K_AW }}{% endif %}{% if v_cfg.setpoint_controller.K_DF is defined %}
+      K_DF: {{ v_cfg.setpoint_controller.K_DF }}{% endif %}{% if v_cfg.setpoint_controller.MAX_RATE is defined %}
+      MAX_RATE: {{ v_cfg.setpoint_controller.MAX_RATE }}{% endif %}
+      OUT_MIN: {{ v_cfg.actuator.min | default(v_cfg.min ) }}
+      OUT_MAX: {{ v_cfg.actuator.max | default(v_cfg.max ) }}
+{%- endif %}
+{%- endfor -%}
+{% endfor %}
+
+{% if 'mass_flow' in instruments %}
+volumes:
+  massflow_read:
+{% endif %}
+# Shared by all the stacks on the same host. The first stack to start creates it,
+# so the others warn that it "was not created for project ...", which is expected.
+networks:
+  default:
+    name: comodo

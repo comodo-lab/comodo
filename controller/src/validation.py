@@ -1,131 +1,126 @@
-from typing import Dict, Any, Optional, Tuple
 import json
 import jsonschema
-import textwrap
+
+import utils.mqtt_validator as mqtt_val
 
 
-class ValidationException(Exception):
-    """
-    Custom exception class for validation errors.
-    """
+class ExperimentValidationError(Exception):
+    """Custom exception for experiment validation errors."""
+
+    def __init__(self, message):
+        print(f"Experiment validation error: {message}")
+        super().__init__(message)
 
 
-def validate_file(file_path: str, schema_path: str) -> Dict[str, Any]:
-    """
-    Validates a JSON file against a schema, and raises a ValidationException if there are any errors.
+def generate_row_schema(config):
+    # --------------------------------------------------------------------------
+    # Empty schema
+    json_schema = {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["time"],
+        "properties": {
+            "time": {
+                "type": "number",
+                "minimum": 0,
+            }
+        },
+    }
 
-    Args:
-        file_path: The path to the JSON file.
-        schema_path: The path to the schema JSON file.
-
-    Returns:
-        The validated data from the loaded json.
-    """
-    # Get schema
+    # --------------------------------------------------------------------------
+    # Populate schema with actuator
     try:
-        with open(schema_path, "r") as f:
-            schema = json.load(f)
+        for driving_sensor in [a["driving_sensor"] for a in config.actuators.values()]:
+            json_schema["required"].append(driving_sensor)
+            json_schema["properties"][driving_sensor] = {
+                "type": "number",
+                "minimum": config.sensors[driving_sensor]["min"],
+                "maximum": config.sensors[driving_sensor]["max"],
+            }
+            json_schema["properties"][f"{driving_sensor}_profile"] = {
+                "type": "string",
+                "enum": ["linear", "exponential", "logarithmic", "step"],
+            }
+    except KeyError as e:
+        raise ExperimentValidationError(f"Wrong comodo yaml config: {e}")
+
+    return json_schema
+
+
+def validate_experiment(file_path, config):
+    # --------------------------------------------------------------------------
+    # Read experiment file
+
+    try:
+        with open(file_path) as f:
+            experiment_json = f.read()
     except FileNotFoundError:
-        raise ValidationException(f"Error: File not found - {schema_path}")
-    except json.JSONDecodeError as e:
-        raise ValidationException(
-            f"Error decoding JSON: {schema_path}\n{textwrap.indent(str(e), '   ')}"
-        )
-    # Get data
+        raise ExperimentValidationError(f"Experiment file not found - {file_path}")
+
+    # --------------------------------------------------------------------------
+    # Perform structural validation (is message the right shape)
+
     try:
-        with open(file_path, "r") as f:
-            data = json.load(f)
-    except FileNotFoundError:
-        raise ValidationException(f"Error: File not found - {file_path}")
-    except json.JSONDecodeError as e:
-        raise ValidationException(
-            f"Error decoding JSON: {file_path}\n{textwrap.indent(str(e), '   ')}"
-        )
-    # Validate json data against schema
+        mqtt_val.validate_message("ui/start", experiment_json)
+    except mqtt_val.MQTTValidationException as e:
+        raise ExperimentValidationError(f"Experiment validation failed: {e}")
+
+    # --------------------------------------------------------------------------
+    # Perform specific validation (compare instruments with comodo.yaml)
+
+    json_schema = generate_row_schema(config)
+
     try:
-        jsonschema.validate(instance=data, schema=schema)
-        return data
+        experiment_dict = json.loads(experiment_json)
+        for row in experiment_dict["experiment_definition"]:
+            jsonschema.validate(row, json_schema)
+    except KeyError as e:
+        raise ExperimentValidationError(f"Missing experiment definition: {e}")
     except jsonschema.ValidationError as e:
-        validator = jsonschema.Draft7Validator(schema)
-        errors = list(validator.iter_errors(data))
-        raise ValidationException(
-            f"Validation errors:\n"
-            + "\n".join([f"\t{error.json_path} -> {error.message}" for error in errors])
+        raise ExperimentValidationError(f"Experiment row validation failed: {e}")
+
+    # --------------------------------------------------------------------------
+    # Check the live config is for instruments in comodo.yaml
+
+    instruments_config = experiment_dict["config"].get("instruments", {})
+    for instrument_name in instruments_config:
+        if instrument_name not in config.instruments:
+            raise ExperimentValidationError(
+                f"Live config for unknown instrument '{instrument_name}'."
+            )
+
+    # --------------------------------------------------------------------------
+    # Make sure all driving variables in the experiment have a tolerance defined in the live config
+
+    for driving_sensor in [a["driving_sensor"] for a in config.actuators.values()]:
+        instrument_name, variable = driving_sensor.split("/")
+        tolerance = (
+            instruments_config.get(instrument_name, {})
+            .get(variable, {})
+            .get("tolerance")
+        )
+        if not isinstance(tolerance, (int, float)):
+            raise ExperimentValidationError(
+                f"Missing tolerance for '{driving_sensor}' in the live config."
+            )
+
+    # --------------------------------------------------------------------------
+    # Check the live config has PID values for exactly the SPCs in comodo.yaml
+
+    spcs_config = experiment_dict["config"].get("spcs", {})
+    for spc_id in spcs_config:
+        if spc_id not in config.spcs:
+            raise ExperimentValidationError(
+                f"Live config for unknown setpoint controller '{spc_id}'."
+            )
+    missing = [spc_id for spc_id in config.spcs if spc_id not in spcs_config]
+    if missing:
+        raise ExperimentValidationError(
+            f"Missing PID config for setpoint controller(s) {', '.join(missing)} "
+            "in the live config."
         )
 
+    # --------------------------------------------------------------------------
+    # Return validated dict
 
-def validate_file_print_errors(file_path: str, schema_path: str) -> Dict[str, Any]:
-    """
-    Uses validate_file to validate a JSON file against a schema.
-    Instead of raising an exception, it prints a more human friendly message to the console and exits the program.
-
-    Args:
-        file_path: The path to the JSON file.
-        schema_path: The path to the schema JSON file.
-
-    Returns:
-        The validated data from the loaded json.
-    """
-    try:
-        data = validate_file(file_path, schema_path)
-        return data
-    except ValidationException as e:
-        print(e.args[0])
-        exit(1)
-
-
-def validate_file_soft(
-    file_path: str, schema_path: str
-) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
-    """
-    Uses validate_file to validate a JSON file against a schema.
-    Instead of raising an exception, it returns any validation error messages in a tuple.
-
-    Args:
-        file_path: The path to the JSON file.
-        schema_path: The path to the schema JSON file.
-
-    Returns:
-        A tuple containing the validated data from the loaded json and any validation error message.
-        If the validation is successful, the tuple will be: data,None
-        If there is a validation error, the tuple will be: None,errors
-    """
-    try:
-        data = validate_file(file_path, schema_path)
-        return data, None
-    except ValidationException as e:
-        return None, str(e.args[0])
-
-
-def validate_dict(dict_to_validate: Dict[str, Any], schema_path: str) -> Dict[str, Any]:
-    """
-    Validates a pre-loaded dict against a schema, and raises a ValidationException if there are any errors.
-
-    Args:
-        dict_to_validate: The dict object to validate.
-        schema_path: The path to the schema JSON file.
-
-    Returns:
-        The validated dict.
-    """
-    # Get schema
-    try:
-        with open(schema_path, "r") as f:
-            schema = json.load(f)
-    except FileNotFoundError:
-        raise ValidationException(f"Error: File not found - {schema_path}")
-    except json.JSONDecodeError as e:
-        raise ValidationException(
-            f"Error decoding JSON: {schema_path}\n{textwrap.indent(str(e), '   ')}"
-        )
-    # Validate dict against schema
-    try:
-        jsonschema.validate(instance=dict_to_validate, schema=schema)
-        return dict_to_validate
-    except jsonschema.ValidationError as e:
-        validator = jsonschema.Draft7Validator(schema)
-        errors = list(validator.iter_errors(dict_to_validate))
-        raise ValidationException(
-            f"Validation errors:\n"
-            + "\n".join([f"\t{error.json_path} -> {error.message}" for error in errors])
-        )
+    return experiment_dict

@@ -1,0 +1,7 @@
+paho-mqtt
+influxdb-client
+pyyaml
+
+pytest
+pytest-timeout
+pytest-order

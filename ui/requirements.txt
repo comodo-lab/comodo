@@ -1,14 +1,14 @@
-matplotlib
 paho-mqtt
-
 dash
 pandas
 dash-bootstrap-components
-# pyyaml
+pyyaml
 dash-ag-grid
 dash-daq
-
 numpy
 influxdb-client
-
 pytz
+
+pytest
+pytest-rerunfailures
+coverage

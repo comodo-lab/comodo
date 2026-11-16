@@ -1,0 +1,246 @@
+id: https://example.org/experiment-schema
+name: ExperimentSchema
+prefixes:
+  linkml: https://w3id.org/linkml/
+  ex: https://example.org/
+imports:
+  - linkml:types
+default_prefix: ex
+
+classes:
+  Experiment:
+    tree_root: true
+    slots:
+      - global
+      - instruments
+    slot_usage:
+      global:
+        required: true
+      instruments:
+        required: true
+
+  GlobalSettings:
+    slots:
+      - heartbeat
+      - instrument_setup
+      - experiment_monitoring
+      - watchdog
+    slot_usage:
+      heartbeat:
+        required: true
+      instrument_setup:
+        required: true
+      experiment_monitoring:
+        required: true
+      watchdog:
+        required: true
+
+  HeartbeatConfig:
+    slots:
+      - interval
+    slot_usage:
+      interval:
+        required: true
+
+  InstrumentSetupConfig:
+    slots:
+      - wait
+    slot_usage:
+      wait:
+        required: true
+
+  ExperimentMonitoringConfig:
+    slots:
+      - max_missed_heartbeats
+      - bad_state_tolerance
+      - missed_setpoint_tolerance
+    slot_usage:
+      max_missed_heartbeats:
+        required: true
+      bad_state_tolerance:
+        required: true
+      missed_setpoint_tolerance:
+        required: true
+
+  WatchdogConfig:
+    slots:
+      - timeout
+      - interval
+    slot_usage:
+      timeout:
+        required: true
+      interval:
+        required: true
+
+  Instrument:
+    slots:
+      - id
+      - firmware
+      - address
+      - variables
+      - simulate
+    slot_usage:
+      id:
+        required: true
+      firmware:
+        required: true
+      address:
+        required: true
+      variables:
+        required: true
+
+  Variable:
+    slots:
+      - id
+      - min
+      - max
+      - unit
+      - default_setpoint
+      - tolerance
+      - sensor
+      - actuator
+      - setpoint_controller
+    slot_usage:
+      id:
+        required: true
+      min:
+        required: true
+      max:
+        required: true
+
+  SensorConfig:
+    slots:
+      - interval
+      - type
+    slot_usage:
+      interval:
+        required: true
+
+  ActuatorConfig:
+    slots:
+      - safe_stop_setpoint
+      - type
+    slot_usage:
+      safe_stop_setpoint:
+        required: true
+
+  SetpointControllerConfig:
+    slots:
+      - external_sensor
+      - K_P
+      - K_I
+      - K_D
+      - K_DF
+      - K_AW
+      - MAX_RATE
+    slot_usage:
+      external_sensor:
+        required: true
+
+
+slots:
+  id:
+    range: string
+    identifier: true
+
+  global:
+    range: GlobalSettings
+
+  instruments:
+    range: Instrument
+    multivalued: true
+    inlined: true
+    inlined_as_list: false
+
+  variables:
+    range: Variable
+    multivalued: true
+    inlined: true
+    inlined_as_list: false
+
+  sensor:
+    range: SensorConfig
+    inlined: true
+
+  actuator:
+    range: ActuatorConfig
+    inlined: true
+
+  setpoint_controller:
+    range: SetpointControllerConfig
+    inlined: true
+
+  heartbeat:
+    range: HeartbeatConfig
+    inlined: true
+
+  instrument_setup:
+    range: InstrumentSetupConfig
+    inlined: true
+
+  experiment_monitoring:
+    range: ExperimentMonitoringConfig
+    inlined: true
+    inlined_as_list: false
+
+  watchdog:
+    range: WatchdogConfig
+    inlined: true
+
+  timeout:
+    range: float
+
+  interval:
+    range: float
+
+  wait:
+    range: float
+
+  max_missed_heartbeats:
+    range: float
+
+  bad_state_tolerance:
+    range: float
+
+  missed_setpoint_tolerance:
+    range: float
+
+  firmware:
+    range: string
+
+  address:
+    range: string
+
+  simulate:
+    range: boolean
+
+  type:
+    range: string
+  min:
+    range: float
+  max:
+    range: float
+  unit:
+    range: string
+  default_setpoint:
+    range: float
+  safe_stop_setpoint:
+    range: float
+  tolerance:
+    range: float
+
+  external_sensor:
+    range: string
+    pattern: "^[^/]+/[^/]+$"
+  K_P:
+    range: float
+  K_I:
+    range: float
+  K_D:
+    range: float
+  K_DF:
+    range: float
+  K_AW:
+    range: float
+  MAX_RATE:
+    range: float

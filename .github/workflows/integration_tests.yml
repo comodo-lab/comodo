@@ -1,0 +1,46 @@
+name: integration tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["**"] # Does not run on tag pushes
+    paths:
+      - "integration_tests/**"
+      - "utils/**"
+      - "controller/**"
+      - "firmware/**"
+      - "monitor/**"
+      - "mqtt_probe/**"
+      - "setpoint_controller/**"
+      - "ui/**"
+      - "schemas/**"
+      - "compose/**"
+      - "telegraf/**"
+      - "grafana/**"
+  pull_request:
+    branches: ["main", "dev"]
+
+# --------------------------------------------------------------------------------- #
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v7
+
+      - name: Set up environment variables
+        run: |
+          cat > compose/.env <<'EOF'
+          MQTT_USER=comodo_mqtt_user
+          MQTT_PASS=comodo_mqtt_password
+          INFLUX_TOKEN=comodo_influx_token
+          INFLUX_BUCKET=comodo
+          INFLUX_ORG=comodo
+          EOF
+
+      - name: Run integration tests
+        run: ./integration_tests/run-integration-tests.sh --build

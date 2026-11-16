@@ -1,18 +1,23 @@
-from json import dumps
-from typing import Dict, Any, List
+import copy
+from typing import Any
 from datetime import datetime
+import time as t
+
+from utils.comodo_config import ComodoConfig
+
+import src.publish_error as pub_err
 
 
 class cstate:
     """
-    Represents the state of the controller, including the status, values being adjusted, and experiment configuration.
+    Represents the state of the controller, including the status and experiment configuration.
     """
 
     allowed_status = [
         "idle",
         "validating",
         "starting",
-        "awaiting_sensors",
+        "awaiting_instruments",
         "ready",
         "running",
         "stopping",
@@ -21,17 +26,20 @@ class cstate:
 
     __slots__ = [
         "_experiment_start_time",
-        "_experiment_uid",
+        "_experiment_id",
         "_exp_file",
         "_status",
         "_exp_config",
         "_setpoints",
         "_current_setpoint",
         "_past_setpoints",
-        "_sensors",
-        "_adjusting",
-        "schema_path",
-        "schema_sensor_heartbeat_path",
+        "_instrument_states",
+        "_spc_states",
+        "_config",
+        "_expected_heartbeats",
+        "_instruments_ready",
+        "_no_contact_tolerance",
+        "_adjusting_tolerance",
     ]
 
     def __init__(self) -> None:
@@ -39,49 +47,78 @@ class cstate:
         Initializes a new instance of the cstate class.
         """
         self.experiment_start_time: datetime = None
-        self.experiment_uid: str = None
+        self.experiment_id: str = None
         self.exp_file: str = None
         self.status: str = "idle"
-        self.exp_config: Dict[str, Any] = None
-        self.setpoints: List[Dict[str, Any]] = []
-        self.current_setpoint: Dict[str, Any] = None
-        self.past_setpoints: List[Dict[str, Any]] = []
-        self.sensors: Dict[str, Any] = {"configured": False}
-        self.adjusting: AdjustingDict = AdjustingDict()
-        self.schema_path: str = "schemas/schema_experiment.json"
-        self.schema_sensor_heartbeat_path: str = "schemas/schema_sensor_heartbeat.json"
+        self.exp_config: dict[str, Any] = None
+        self.setpoints: list[dict[str, Any]] = []
+        self.current_setpoint: dict[str, Any] = None
+        self.past_setpoints: list[dict[str, Any]] = []
+        self.instrument_states: dict[str, Any] = {}
+        self.spc_states: dict[str, Any] = {}
+        self.expected_heartbeats: dict[str, Any] = {}
+        self.instruments_ready: bool = False
+        self.config: ComodoConfig = None
+        self._no_contact_tolerance: float = None
+        self._adjusting_tolerance: float = None
 
-    def heartbeat(self) -> Dict[str, Any]:
+    @property
+    def config(self) -> ComodoConfig | None:
+        return self._config
+
+    @config.setter
+    def config(self, value: ComodoConfig | None) -> None:
+        """
+        Sets the configuration for the controller state.
+
+        Args:
+            value (ComodoConfig | None): The configuration to set. Must be an instance of ComodoConfig or None.
+        Raises:
+            TypeError: If the provided value is not an instance of ComodoConfig or None.
+        """
+        if not isinstance(value, (ComodoConfig, type(None))):
+            raise TypeError(
+                f"Config must be an instance of ComodoConfig or None, got {type(value).__name__}"
+            )
+        self._config = value
+        if value is not None:
+            self._no_contact_tolerance = (
+                value.globals["max_missed_heartbeats"]
+                * value.globals["heartbeat_interval"]
+            )
+
+    def heartbeat(self) -> dict[str, Any]:
         """
         Generates a dictionary with the attributes that will get added to the heartbeat mqtt messages.
         """
-        heartbeat = {
-            "experiment": self.experiment_uid,
-            "status": self.status,
-            "adjusting": self.adjusting,
+        variable_eval = self.evaluate_variables()
+        self.update_bad_instrument_counts(variable_eval)
+        return {
+            "config": {"experiment_id": self.experiment_id},
+            "setpoints": variable_eval["setpoints"],
+            "state": {
+                "status": self.status,
+                "variables": variable_eval["status"],
+            },
         }
-        return heartbeat
-
-    def __str__(self) -> str:
-        """
-        Returns the string representation (heartbeat) of the cstate object.
-        """
-        return dumps(self.heartbeat())
 
     def reset(self) -> None:
         """
         Resets the state of the controller to its initial values.
         """
         self.experiment_start_time = None
-        self.experiment_uid = None
+        self.experiment_id = None
         self.exp_file = None
         self.status = "idle"
         self.exp_config = None
         self.setpoints = []
         self.current_setpoint = None
         self.past_setpoints = []
-        self.sensors = {"configured": False}
-        self.adjusting = AdjustingDict()
+        self.instrument_states = {}
+        self.spc_states = {}
+        self.reset_expected_heartbeats()
+        self.instruments_ready = False
+        self._adjusting_tolerance = None
 
     @property
     def experiment_start_time(self) -> datetime:
@@ -105,11 +142,11 @@ class cstate:
         self._experiment_start_time = value
 
     @property
-    def experiment_uid(self) -> str:
-        return self._experiment_uid
+    def experiment_id(self) -> str:
+        return self._experiment_id
 
-    @experiment_uid.setter
-    def experiment_uid(self, value: str) -> None:
+    @experiment_id.setter
+    def experiment_id(self, value: str) -> None:
         """
         Sets the experiment UID.
 
@@ -123,7 +160,7 @@ class cstate:
             raise TypeError(
                 f"Experiment UID must be a string or None, cannot accept {type(value)}"
             )
-        self._experiment_uid = value
+        self._experiment_id = value
 
     @property
     def exp_file(self) -> str:
@@ -168,11 +205,11 @@ class cstate:
         self._status = value
 
     @property
-    def exp_config(self) -> Dict[str, Any]:
+    def exp_config(self) -> dict[str, Any]:
         return self._exp_config
 
     @exp_config.setter
-    def exp_config(self, value: Dict[str, Any]) -> None:
+    def exp_config(self, value: dict[str, Any]) -> None:
         """
         Sets the experiment configuration.
 
@@ -187,13 +224,19 @@ class cstate:
                 f"Experiment configuration must be a dictionary or None, cannot accept {type(value)}."
             )
         self._exp_config = value
+        if value is not None and self.config is not None:
+            self._adjusting_tolerance = (
+                self.config.globals["missed_setpoint_tolerance"]
+                * value["config"]["resolution"]
+                / self.config.globals["heartbeat_interval"]
+            )
 
     @property
-    def setpoints(self) -> List[Dict[str, Any]]:
+    def setpoints(self) -> list[dict[str, Any]]:
         return self._setpoints
 
     @setpoints.setter
-    def setpoints(self, value: List[Dict[str, Any]]) -> None:
+    def setpoints(self, value: list[dict[str, Any]]) -> None:
         """
         Sets the setpoints list.
 
@@ -210,11 +253,11 @@ class cstate:
         self._setpoints = value
 
     @property
-    def current_setpoint(self) -> Dict[str, Any]:
+    def current_setpoint(self) -> dict[str, Any]:
         return self._current_setpoint
 
     @current_setpoint.setter
-    def current_setpoint(self, value: Dict[str, Any]) -> None:
+    def current_setpoint(self, value: dict[str, Any]) -> None:
         """
         Sets the current setpoint.
 
@@ -231,11 +274,11 @@ class cstate:
         self._current_setpoint = value
 
     @property
-    def past_setpoints(self) -> List[Dict[str, Any]]:
+    def past_setpoints(self) -> list[dict[str, Any]]:
         return self._past_setpoints
 
     @past_setpoints.setter
-    def past_setpoints(self, value: List[Dict[str, Any]]) -> None:
+    def past_setpoints(self, value: list[dict[str, Any]]) -> None:
         """
         Sets the past setpoints list.
 
@@ -252,96 +295,250 @@ class cstate:
         self._past_setpoints = value
 
     @property
-    def sensors(self) -> Dict[str, Any]:
-        return self._sensors
+    def instrument_states(self) -> dict[str, Any]:
+        return self._instrument_states
 
-    @sensors.setter
-    def sensors(self, value: Dict[str, Any]) -> None:
+    @instrument_states.setter
+    def instrument_states(self, value: dict[str, Any]) -> None:
         """
-        Sets the sensors dictionary.
+        Sets the instrument states dictionary.
 
         Args:
-            value: The new value for the entire sensors dictionary.
+            value: The new value for the entire instrument states dictionary.
 
         Raises:
-            TypeError: If the provided sensors dictionary is not a dictionary.
+            TypeError: If the provided instrument states dictionary is not a dictionary.
         """
         if not isinstance(value, dict):
             raise TypeError(
-                f"Sensors must be a dictionary, cannot accept {type(value)}."
+                f"Instrument states must be a dictionary, cannot accept {type(value)}."
             )
-        self._sensors = value
+        self._instrument_states = value
 
     @property
-    def adjusting(self):
-        return self._adjusting
+    def spc_states(self) -> dict[str, Any]:
+        return self._spc_states
 
-    @adjusting.setter
-    def adjusting(self, value: Dict[str, int]) -> None:
+    @spc_states.setter
+    def spc_states(self, value: dict[str, Any]) -> None:
         """
-        Sets the adjusting dictionary.
-        It converts a plain dict to an AdjustingDict, to protect from unwanted elements or values.
+        Sets the setpoint controller states dictionary.
 
         Args:
-            value: The new value for the entire adjusting dictionary.
+            value: The new value for the entire setpoint controller states dictionary.
 
         Raises:
-            ValueError: If the provided adjusting dictionary is incomplete or contains invalid keys.
+            TypeError: If the provided setpoint controller states dictionary is not a dictionary.
         """
-        self._adjusting = AdjustingDict(value)
-
-
-class AdjustingDict(dict):
-    """
-    Represents a dictionary of adjusting values.
-    The purpose of this class is to protect the adjusting dictionary from unwanted elements or values.
-    """
-
-    required_adjusting = [
-        "T",
-        "P",
-        "D1",
-        "D2",
-    ]
-
-    def __init__(self, *args, **kwargs) -> None:
-        """
-        Initializes a new instance of the AdjustingDict class.
-
-        Raises:
-            ValueError: If the provided adjusting dictionary is incomplete or contains invalid keys.
-        """
-        super().__init__({key: 0 for key in self.required_adjusting})
-        if args or kwargs:
-            tmp = dict(*args, **kwargs)
-            if not all(key in tmp for key in self.required_adjusting):
-                raise ValueError(
-                    f"Incomplete adjusting keys. Adjusting must contain all of {self.required_adjusting}."
-                )
-            for key, value in tmp.items():
-                self.__setitem__(key, value)
-
-    def __setitem__(self, key: str, value: int) -> None:
-        """
-        Sets the value for the specified adjusting key.
-
-        Args:
-            key: The adjusting key.
-            value: The adjusting value.
-
-        Raises:
-            ValueError: If the provided adjusting key is invalid or the value is not 0 or 1.
-        """
-        if key not in self.required_adjusting:
-            raise ValueError(
-                f"Invalid adjusting key: {key}. Adjusting must be one of {self.required_adjusting}."
+        if not isinstance(value, dict):
+            raise TypeError(
+                f"SPC states must be a dictionary, cannot accept {type(value)}."
             )
-        elif value not in [0, 1]:
-            raise ValueError(f"Invalid value for {key}: {value}. It must be 0 or 1.")
-        super().__setitem__(key, value)
+        self._spc_states = value
 
-    def __delitem__(self, *args, **kwargs) -> None:
+    def get_expected_spc_config(self, spc_id: str) -> dict[str, Any] | None:
         """
-        Raises a runtime error when attempting to delete items from the adjusting dictionary.
+        Retrieves the live config sent to a setpoint controller for the current experiment.
+
+        Args:
+            spc_id: The id of the setpoint controller.
+
+        Returns:
+            The live config for the setpoint controller, or None if there is none.
         """
-        raise RuntimeError("Cannot delete items from the adjusting dict.")
+        if self.exp_config is None:
+            return None
+        return self.exp_config["config"].get("spcs", {}).get(spc_id, None)
+
+    @property
+    def expected_heartbeats(self) -> dict[str, Any]:
+        return self._expected_heartbeats
+
+    @expected_heartbeats.setter
+    def expected_heartbeats(self, value: dict[str, Any]) -> None:
+        """
+        Sets the expected heartbeats dictionary.
+
+        Args:
+            value: The new value for the entire expected heartbeats dictionary.
+
+        Raises:
+            TypeError: If the provided expected heartbeats dictionary is not a dictionary.
+        """
+        if not isinstance(value, dict):
+            raise TypeError(
+                f"Expected heartbeats must be a dictionary, cannot accept {type(value)}."
+            )
+        self._expected_heartbeats = value
+
+    def reset_expected_heartbeats(self) -> None:
+        """
+        Sets the expected heartbeats dictionary with an empty experiment section.
+        """
+        expected_heartbeats = {}
+        for instrument_name in self.config.instruments:
+            exp_hb = self.config.get_expected_heartbeat(instrument_name)
+            exp_hb["experiment"] = {}
+            expected_heartbeats[instrument_name] = exp_hb
+        self.expected_heartbeats = expected_heartbeats
+
+    def set_hb_experiment_config(self, instrument_name: str, experiment_config) -> None:
+        """
+        Sets the expected heartbeat's experiment configuration for a specific instrument.
+
+        Args:
+            instrument_name: The name of the instrument for which to set the expected heartbeat.
+            experiment_config: The experiment configuration for the expected heartbeat.
+        """
+        current_config = self._expected_heartbeats[instrument_name]["experiment"]
+        for key, value in experiment_config.items():
+            if current_config.get(key, None) is not None:
+                print(
+                    "WARNING: Replacing existing experiment configuration for "
+                    f"instrument {instrument_name} {key}: {current_config[key]} -> {value}."
+                )
+            self._expected_heartbeats[instrument_name]["experiment"][key] = value
+
+    def get_expected_heartbeat(self, instrument_name: str) -> dict[str, Any]:
+        """
+        Retrieves the expected heartbeat configuration for a specific instrument.
+
+        Args:
+            instrument_name: The name of the instrument for which to retrieve the expected heartbeat.
+
+        Returns:
+            The expected heartbeat configuration for the specified instrument or None if the instrument is not found.
+        """
+        return self._expected_heartbeats.get(instrument_name, None)
+
+    @property
+    def instruments_ready(self) -> bool:
+        return self._instruments_ready
+
+    @instruments_ready.setter
+    def instruments_ready(self, value: bool) -> None:
+        """
+        Sets the instruments_ready flag.
+
+        Args:
+            value: The new value for the instruments_ready flag. Must be a boolean.
+
+        Raises:
+            TypeError: If the provided value is not a boolean.
+        """
+        if not isinstance(value, bool):
+            raise TypeError(
+                f"Instruments ready flag must be a boolean, cannot accept {type(value)}."
+            )
+        self._instruments_ready = value
+
+    def evaluate_variables(self) -> dict[str, Any]:
+        """
+        Evaluates whether instruments are at the expected setpoints and returns a summary.
+
+        Returns:
+            A dictionary containing the setpoints used in the evaluation and the instrument evaluation.
+        """
+        if not self.current_setpoint:
+            return {"setpoints": {}, "status": {}}
+        t_now = t.time()
+        current_setpoints = {
+            k: v for k, v in self.current_setpoint.items() if k != "duration"
+        }
+        ins_states = self.instrument_states
+        inst_measurements = {
+            f"{inst}/{var}": ins_states[inst]["state"]["measurements"][var]
+            for inst in ins_states
+            for var in ins_states[inst]["state"]["measurements"]
+        }
+
+        variable_evaluation = {}
+        for variable, setpoint in current_setpoints.items():
+            inst, var = variable.split("/")
+            if t_now - ins_states[inst]["last_contact"] > self._no_contact_tolerance:
+                variable_evaluation[variable] = "no_heartbeat"
+            elif inst_measurements.get(variable, None) is None:
+                variable_evaluation[variable] = "no_measurement"
+            else:
+
+                if (
+                    abs(setpoint - inst_measurements[variable])
+                    <= self.exp_config["config"]["instruments"][inst][var]["tolerance"]
+                ):
+                    variable_evaluation[variable] = "at_setpoint"
+                else:
+                    variable_evaluation[variable] = "adjusting"
+        return {
+            "setpoints": current_setpoints,
+            "status": variable_evaluation,
+        }
+
+    def update_bad_instrument_counts(self, variable_evaluation: dict) -> None:
+        """
+        Updates the bad instrument count based on the variable evaluation,
+        and compares it to the bad instrument tolerance.
+        If any instrument exceeds the tolerance, the controller status is set to "error".
+        Once the controller is in error, or stopping, the experiment is already being stopped,
+        so the instruments are no longer evaluated, to not repeat the error on every heartbeat.
+        """
+        if variable_evaluation.get("status", {}) == {}:
+            return
+        if self.status in ["error", "stopping"]:
+            return
+        for inst, iconfig in self.config.instruments.items():
+            bad_state = False
+            adjusting = False
+            for var in iconfig["variables"]:
+                status = variable_evaluation["status"].get(f"{inst}/{var}", None)
+                if status is None or status == "at_setpoint":
+                    continue
+                if status in ["no_heartbeat", "no_measurement"]:
+                    bad_state = True
+                    continue
+                if status == "adjusting":
+                    adjusting = True
+                    continue
+
+            self.instrument_states[inst]["bad_count"] = {
+                "bad_state": (
+                    0
+                    if not bad_state
+                    else (
+                        self.instrument_states[inst]
+                        .get("bad_count", {})
+                        .get("bad_state", 0)
+                        + 1
+                    )
+                ),
+                "adjusting": (
+                    0
+                    if not adjusting and not bad_state
+                    else (
+                        self.instrument_states[inst]
+                        .get("bad_count", {})
+                        .get("adjusting", 0)
+                        + int(adjusting)
+                    )
+                ),
+            }
+            if bad_state or adjusting:
+                if (
+                    self.instrument_states[inst]["bad_count"]["bad_state"]
+                    > self.config.globals["bad_state_tolerance"]
+                ):
+                    pub_err.print_and_publish(
+                        topic="error/controller",
+                        code="experiment",
+                        message=f"Instrument {inst} in bad state for too long.",
+                    )
+                    self.status = "error"
+                if (
+                    self.instrument_states[inst]["bad_count"]["adjusting"]
+                    > self._adjusting_tolerance
+                ):
+                    pub_err.print_and_publish(
+                        topic="error/controller",
+                        code="experiment",
+                        message=f"Instrument {inst} not keeping up with setpoints.",
+                    )
+                    self.status = "error"

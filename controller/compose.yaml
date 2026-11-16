@@ -1,0 +1,24 @@
+
+# This compose file runs the tests for the controller and exits when done.
+# To run the tests, cd into controller/ and execute:
+#   docker compose up --build
+# To check coverage report, after tests have run, execute:
+#   xdg-open $(docker volume inspect controller-tests_memory -f '{{ .Mountpoint }}')/htmlcov/class_index.html
+
+name: controller-tests
+services:
+  controller-test:
+    image: comodo-controller:testing
+    build:
+      context: ../
+      dockerfile: controller/Dockerfile
+    container_name: controller-test
+    volumes:
+      - memory:/memory  # Used to persist pytest cache between runs
+
+    command: bash -c "coverage run --source=. --omit='tests/*,*/__*,utils/*' -m pytest
+      tests/ &&
+      echo '' && coverage report && coverage html -d /memory/htmlcov"
+
+volumes:
+  memory:

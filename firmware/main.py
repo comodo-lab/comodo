@@ -1,186 +1,155 @@
 # System imports
-import time as t
-import sys
-
-# Determine the board and set the watchdog timer
-board = sys.platform
-python_flavour = sys.executable
-
-if board == "rp2":
-    # Micropython imports
-    import ujson as json
-elif board == "linux":
-    # Python imports
-    import json
-
 import asyncio
+import json
+import os
 
-# Local imports
-import config as cfg
-import connect as con
-import state
+from src import config, state, watchdog
 
-# Test sensor import
-from sensors.test_sensor import TestSensor
-
-# Sensor imports (trigger sensor registration)
-from sensors.carbolite_gero_thermocouple import TempLeft, TempMain, TempRight
-from sensors.pfeiffer_mpt_200_pressure import PressureDownstream, PressureUpstream
-from sensors.el_flow_select_massflow import MassFlow, MassFlowTemp, MassFlowPressureUpstream, MassFlowPressureDownstream, MassFlowFluidTemp
-from sensors.pfeiffer_prismapro import MassSpec
-
-# Initialize the state
-state = state.SensorState()
-
-
-if board == "rp2":
-    from machine import Timer
-
-    from machine import Pin
-    led = machine.Pin("LED", machine.Pin.OUT)
-
-    from machine import WDT
-    watchdog = WDT(timeout=8000)
-
-## ----------------- Timer helper functions ----------------- ##
-
-
-def send_heartbeat():
-    """ Send the heartbeat
-
-    Returns:
-        None
-    """
-    if state.client is not None and "ready" in state.config:
-        heartbeat_structure = state.get_status()
-        # print(heartbeat_structure)
-        state.client.publish(f"heartbeat/sensor/{state.config['SENSOR_ID']}", heartbeat_structure)
-
-
-def send_measurement():
-    """ Send the measurement
-
-    Returns:
-        None
-    """
-    if (state.client is not None) and \
-       (state.sensor is not None):
-        measurement = state.sensor.get_measurement(state)
-        measurement_structure = {"value": measurement}
-        msg = json.dumps(measurement_structure)
-        state.client.publish(f"measurement/{state.config['SENSOR_ID']}", msg)
+from utils import mqtt_clients as mqtt
 
 ## ----------------- Timer functions ----------------- ##
 
 
-if board == "rp2":
-    def heartbeat_tick(timer):
-        watchdog.feed()
-        led.on()
-        t.sleep_ms(100)
-        led.off()
-        send_heartbeat()
+async def heartbeat_tick(istate):
+    while True:
+        istate.publish_heartbeat()
+        await asyncio.sleep(istate.instrument.config["HEARTBEAT_INTERVAL"])
 
-    def measurement_tick(timer):
-        watchdog.feed()
-        send_measurement()
-elif board == "linux":
-    async def heartbeat_tick(timer):
-        while True:
-            try:
-                send_heartbeat()
-            except Exception as e:
-                print(f"Error sending heartbeat: {e}")
-            if python_flavour == "micropython":
-                await asyncio.sleep_ms(int(state.config["HEARTBEAT_INTERVAL"]))
-            else:
-                await asyncio.sleep(int(state.config["HEARTBEAT_INTERVAL"])/1000)
 
-    async def measurement_tick(timer):
-        while True:
-            try:
-                send_measurement()
-            except Exception as e:
-                print(f"Error sending measurement: {e}")
-            if python_flavour == "micropython":
-                await asyncio.sleep_ms(int(state.config["MEASUREMENT_INTERVAL"]))
-            else:
-                await asyncio.sleep(int(state.config["MEASUREMENT_INTERVAL"])/1000)
+async def measurement_tick(istate, variable_name, interval, ready_event):
+    first_measurement = True
+
+    while True:
+        value = istate.instrument.measure_or_simulate(variable_name)
+        if value is None:
+            istate._can_measure = False
+            istate.status = "error"
+        else:
+            istate._can_measure = True
+            if istate.status == "error" and istate._can_set_setpoint:
+                if istate.instrument.config["experiment"].get("experiment_id") is None:
+                    istate.status = "awaiting_experiment"
+                else:
+                    istate.status = "running"
+        try:
+            mqtt.MQTTPublisher.get_instance().publish(
+                f"instruments/{istate.instrument.config['INSTRUMENT_NAME']}/"
+                f"{variable_name}/measurement",
+                json.dumps({"value": value}),
+            )
+        except mqtt.MQTTMessageError as e:
+            # Not raised, so the instrument keeps running, and can safe stop
+            print(f"WARNING: Could not publish {variable_name} measurement: {e}")
+        if first_measurement:
+            ready_event.set()
+            first_measurement = False
+        await asyncio.sleep(interval)
+
+
+# ----------------- Sensor Initialization ----------------- ##
+
+
+async def start_sensors_measurements(istate, instrument_ready_event, timeout=None):
+    sensors = istate.instrument.config["MEASUREMENT_INTERVALS"]
+    if not sensors:
+        raise RuntimeError(
+            f"No sensors configured for {istate.instrument.config['INSTRUMENT_NAME']}"
+        )
+    ready_events = {
+        sensor_name: asyncio.Event() for sensor_name in list(sensors.keys())
+    }
+    async with asyncio.TaskGroup() as tg:
+        # Create a measurement tick for each sensor in the instrument's configuration.
+        for sensor_name, measurement_interval in sensors.items():
+            tg.create_task(
+                measurement_tick(
+                    istate,
+                    sensor_name,
+                    measurement_interval,
+                    ready_events[sensor_name],
+                )
+            )
+        # Wait for all sensors to produce their first measurement, or timeout
+        try:
+            async with asyncio.timeout(timeout):
+                await asyncio.gather(*(event.wait() for event in ready_events.values()))
+        except TimeoutError as e:
+            raise RuntimeError("Sensors failed to initialise in time") from e
+        # Signal that the instrument is ready after all sensors have produced their first measurement
+        instrument_ready_event.set()
+
+        # Keep the measurement ticks TaskGroup alive indefinitely
+        await asyncio.Future()
+
 
 # ----------------- Main function ----------------- ##
 
 
-# The main function
-async def main():
-    """ The main function
+async def start_instrument():
+    istate = state.InstrumentState(config.load_config())
 
-    Returns:
-        int: The exit code
-    """
+    # Watchdog is disarmed until the first heartbeat from the controller is received
+    firmware_watchdog = watchdog.FirmwareWatchdog(istate)
+    firmware_watchdog.start()
+    try:
+        # Synchronously launch the measurement ticks for each variable
+        instrument_ready_event = asyncio.Event()
+        measurement_task = asyncio.create_task(
+            start_sensors_measurements(istate, instrument_ready_event, timeout=10)
+        )
+        # Wait until every sensor has produced its first measurement
+        ready_task = asyncio.create_task(instrument_ready_event.wait())
+        done, _ = await asyncio.wait(
+            {measurement_task, ready_task},
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+        # Propagate exceptions if any of the tasks failed
+        if measurement_task in done:
+            measurement_task.result()
 
-    ## Load the configuration file
-    state.config = cfg.load_config()
-    state.status["name"] = state.config['SENSOR_ID']
+        # Start instrument with default setpoints and reset live config, unless it already safe stopped
+        if istate.status != "safe_stop":
+            istate.reset()
 
-    ## Determine the board and connect to the wifi if it is a raspberry pi
-    if board == "rp2":
-        con.connect_wifi(state.config["WIFI_SSID"], state.config["WIFI_PASS"])
-        watchdog.feed()
-        print("Connected to wifi")
+        # Print the instrument creation success message
+        print(
+            f"Instrument {istate.instrument.config['INSTRUMENT_NAME']} created successfully "
+            f"using firmware {istate.instrument.config['FIRMWARE']}"
+        )
 
-    ## Connect to the mqtt broker
-    state.client = con.connect_mqtt(state.status["name"],
-                                    state.config["MQTT_HOST"],
-                                    port=1883,
-                                    user=state.config["MQTT_USER"],
-                                    password=state.config["MQTT_PASS"])
-    print("Connected to broker")
+        # Start the heartbeat ticks
+        heartbeat_task = asyncio.create_task(heartbeat_tick(istate))
 
-    ## Subscribe to the controller's instructions
-    state.client.set_callback(state.awaiting_config_cb)
-    state.client.subscribe(f"sensor/{state.config['SENSOR_ID']}/setup")
-    state.client.subscribe(f"sensor/{state.config['SENSOR_ID']}/setpoint_reached")
-    state.client.subscribe(f"sensor/setpoint")
-    state.client.subscribe(f"controller/end")
-    state.client.subscribe(f"controller/stop")
-    print("Subscribed to topics")
-
-    ## Set the ready flag
-    state.config['ready'] = True
-    print("Ready")
-
-    ## Setup heartbeat timer if on a pico or async timer if on linux
-    if board == "rp2":
-        heartbeat_timer = Timer(period=state.config["HEARTBEAT_INTERVAL"],
-                                mode=Timer.PERIODIC,
-                                callback=heartbeat_tick)
-        measurement_timer = Timer(period=state.config["MEASUREMENT_INTERVAL"],
-                                mode=Timer.PERIODIC,
-                                callback=measurement_tick)
-        print("Timers set up")
-    elif board == "linux":
-        asyncio.create_task(heartbeat_tick(None))
-        asyncio.create_task(measurement_tick(None))
-        print("Async timers set up")
-
-    ## Main loop
-    while True:
-        if board == "rp2":
-            # blocking wait for message (since the timer is in hardware)
-            state.client.wait_msg()
-        elif board == "linux":
-            # non-blocking check for message (since the timer is in software)
-            state.client.check_msg()
-            await asyncio.sleep(0.1)
+        # Keep running forever
+        await asyncio.gather(measurement_task, heartbeat_task)
+    finally:
+        firmware_watchdog.stop()
 
     return 0
 
+
+def main():
+    # Initialise publisher singleton
+    _ = mqtt.MQTTPublisher.get_instance(
+        broker_address=os.getenv("MQTT_HOST", "rabbitmq"),
+        user=os.getenv("MQTT_USER", "comodo"),
+        password=os.getenv("MQTT_PASS", "comodo"),
+        id=f"publisher_{os.getenv("INSTRUMENT_NAME", "no_name")}",
+    )
+    try:
+        asyncio.run(start_instrument())
+    except Exception as e:
+        mqtt.MQTTPublisher.get_instance().publish(
+            "error/instrument",
+            json.dumps(
+                {
+                    "code": "exception",
+                    "message": f"[{os.getenv('INSTRUMENT_NAME', 'no_name')}] {e}",
+                }
+            ),
+        )
+        raise
+
+
 if __name__ == "__main__":
-    while True:
-        try:
-            asyncio.run(main())
-        except Exception as e:
-            try:
-                state.client.publish(f"error/sensor/{state.config['SENSOR_ID']}", str(e))
-            except:
-                print(f"Error: {e}")
+    main()  # pragma: no cover

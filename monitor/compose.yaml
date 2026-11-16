@@ -1,0 +1,23 @@
+
+# This compose file runs the tests for the monitor and exits when done.
+# To run the tests, cd into monitor/ and execute:
+#   docker compose up --build
+# To check coverage report, after tests have run, execute:
+#   xdg-open $(docker volume inspect monitor-tests_memory -f '{{ .Mountpoint }}')/htmlcov/class_index.html
+
+name: monitor-tests
+services:
+  monitor-test:
+    image: comodo-monitor:testing
+    build:
+      context: ../
+      dockerfile: monitor/Dockerfile
+    container_name: monitor-test
+    volumes:
+      - memory:/memory  # Used to persist pytest cache between runs
+    command: bash -c "coverage run --source=. --omit='tests/*,*/__*,utils/*,utils/tests/*' -m pytest
+      tests/ &&
+      echo '' && coverage report && coverage html -d /memory/htmlcov"
+
+volumes:
+  memory:

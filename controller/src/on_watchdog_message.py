@@ -1,49 +1,54 @@
 import json
-from mqtt_clients import *
-from error_helper import *
+
+from utils import mqtt_clients as mqtt
+from utils import mqtt_validator as mqtt_val
+
+import src.publish_error as pub_err
 
 
 def on_watchdog_message(client, msg, obj):
     """
     The watchdog makes sure that the controller is alive and healthy.
-    It does so by listening to three topics:
-    - heartbeat/controller: to check if the controller is alive
-    - ERROR/exception: to check if the controller is healthy
-    - watchdog/restart: to take action if needed
+    It does so by listening to:
+    - controller/heartbeat: to check if the controller is alive
+    - error/exception: to check if the controller is healthy
+    - watchdog/timer/event/+: to react to watchdog events (e.g. timeout)
+    - watchdog/timer/command/+: to react to watchdog commands (e.g. restart)
     Every heartbeat triggers a timer that, if not reset, will trigger an error.
-    The watchdog can also be used to reset the controller.
     """
     try:
-        message = load_message(msg)
-    except json.JSONDecodeError as e:
-        wrong_json(msg, e, source="watchdog")
+        message = mqtt_val.validate_message(msg.topic, msg.payload)
+    except mqtt_val.MQTTValidationException as e:
+        pub_err.message_validation(e)
         return
 
-    if msg.topic == "heartbeat/controller":
-        obj["timer"] = obj["timeout"]
+    if msg.topic == "controller/heartbeat":
+        obj["time_remaining"] = obj["timeout"]
         return
-    elif msg.topic == "ERROR/exception":
-        # {"error": f"Unhandled exception in {name}: {str(e)}"}
-        error = load_message(msg)["error"]
-        print(f"WATCHDOG: Received ERROR: {error}")
-        MQTTPublisher.get_instance().publish(
-            "watchdog/restart", json.dumps({"message": "Restarting controller..."})
+
+    elif msg.topic == "error/exception":
+        print(f"WATCHDOG: Received error: {message['message']}")
+        mqtt.MQTTPublisher.get_instance().publish(
+            "watchdog/timer/event/restart_triggered",
+            json.dumps({"message": "Restarting controller..."}),
         )
-        return
-    elif msg.topic == "watchdog/timeout":
-        error = load_message(msg)["error"]
-        print(f"WATCHDOG: Timed out waiting for controller heartbeat. {error}")
-        MQTTPublisher.get_instance().publish(
-            "watchdog/restart", json.dumps({"message": "Restarting controller..."})
-        )
-        return
-    elif msg.topic == "watchdog/restart":
-        print("Restarting controller...")
         obj["healthy"] = False
         return
+
+    elif msg.topic.startswith("watchdog/timer/event/"):
+        if msg.topic == "watchdog/timer/event/timeout":
+            error = message["message"]
+            print(f"WATCHDOG: Timed out waiting for controller heartbeat. {error}")
+            mqtt.MQTTPublisher.get_instance().publish(
+                "watchdog/timer/event/restart_triggered",
+                json.dumps({"message": "Restarting controller..."}),
+            )
+            obj["healthy"] = False
+        return
+
+    elif msg.topic.startswith("watchdog/timer/command/"):
+        # Placeholder noop
+        return
+
     else:
-        error = f"WATCHDOG: Unexpected message received: {msg.topic}"
-        MQTTPublisher.get_instance().publish(
-            "error/watchdog",
-            json.dumps({"error": error}),
-        )
+        pub_err.incompatible_topic(obj, msg, "watchdog")

@@ -1,124 +1,67 @@
 global:
- error_timeout: 1s
+  heartbeat:
+    interval: 1
+  instrument_setup:
+    wait: 10
+  experiment_monitoring:
+    max_missed_heartbeats: 3
+    bad_state_tolerance: 7
+    missed_setpoint_tolerance: 7
+  watchdog:
+    timeout: 5
+    interval: 1
+
 instruments:
- furnace:
-   sensors:
-     temperature_centre:
-       address: "192.168.111.222"
-       measurement_interval: 1s
-       sensor: # experiment/sensor/temperature_centre
-         type: float
-         min: 0
-         max: 1000
-         unit: C
-         correction_multiplier: 10 # Does this fit here?
-       actuator: # experiment/actuator/temperature_centre
-         type: float
-         min: 0
-         max: 1000
-         unit: C
-         correction_multiplier: 0.1 # Does this fit here?
-     temperature_left:
-       address: "192.168.111.224"
-       measurement_interval: 1s
-       sensor:
-         type: float
-         min: 0
-         max: 1000
-         unit: C
-       actuator:
-         type: float
-         min: 0
-         max: 1000
-         unit: °C
-     temperature_right:
-       address: "192.168.111.225"
-       measurement_interval: 1s
-       sensor:
-         type: float
-         min: 0
-         max: 1000
-         unit: C
-       actuator:
-         type: float
-         min: 0
-         max: 1000
-         unit: C
- pressure_downstream:
-   sensors:
-     pressure_downstream:
-       address: "/dev/ttyUSB0"
-       measurement_interval: 1s
-       sensor:
-         type: float
-         min: 0
-         max: 10
-         unit: bar
- pressure_upstream:
-   sensors:
-     pressure_upstream:
-       address: "/dev/ttyUSB1"
-       measurement_interval: 1s
-       sensor:
-         type: float
-         min: 0
-         max: 10
-         unit: bar
- mass_flow:
-   sensors:
-     mass_flow:
-       address: "/dev/ttyUSB2"
-       measurement_interval: 1s
-       sensor:
-         type: float
-         min: 0
-         max: 100
-         unit: \%
-       actuator:
-         type: float
-         min: 0
-         max: 100
-         unit: \%
-     mass_flow_temp:
-       address: "/dev/ttyUSB2"
-       measurement_interval: 1s
-       sensor:
-         type: float
-         min: 0
-         max: 100
-         unit: °C
-     mass_flow_pressure_upstream:
-       address: "/dev/ttyUSB2"
-       measurement_interval: 1s
-       sensor:
-         type: float
-         min: 0
-         max: 10
-         unit: bar
-     mass_flow_pressure_downstream:
-       address: "/dev/ttyUSB2"
-       measurement_interval: 1s
-       sensor:
-         type: float
-         min: 0
-         max: 10
-         unit: bar
- mass_spec:
-   sensors:
-     mass_spec:
-       address: "192.168.1.100"
-       sensor:
-         type: array
-visualisations:
-  temperature_graph:
-    title: Temperature Control
-    type: graph
-    y_values:
-      - temperature_left
-      - temperature_centre
-      - temperature_right
-  gauge_1:
-    id: gauge_1
-    type: gauge
-    value:
-      - temperature_centre
+  furnace:
+    firmware: carbolite_gero.tg3
+    address: "192.168.111.222"
+    simulate: true
+    variables:
+      temperature:
+        min: 0
+        max: 1000
+        unit: C
+        tolerance: 1
+        default_setpoint: 25
+        sensor:
+          interval: 1
+          type: float
+        actuator:
+          type: float
+          safe_stop_setpoint: 0
+  pressure:
+    firmware: pfeiffer.mpt200
+    address: "/dev/ttyUSB0"
+    simulate: true
+    variables:
+      pressure:
+        min: 1
+        max: 200
+        unit: bar
+        tolerance: 0.5
+        default_setpoint: 1
+        sensor:
+          interval: 1
+          type: float
+  mass_flow:
+    firmware: bronkhorst.el_flow_select
+    address: "/dev/ttyUSB2"
+    simulate: true
+    variables:
+      mass_flow:
+        min: 0
+        max: 100
+        unit: \%
+        sensor:
+          interval: 1
+          type: float
+        actuator:
+          type: float
+          safe_stop_setpoint: 0
+        setpoint_controller:
+          external_sensor: pressure/pressure
+          K_P: 10.0
+          K_I: 1.0
+          K_D: 0.1
+          K_AW: 0.05
+          K_DF: 0.01

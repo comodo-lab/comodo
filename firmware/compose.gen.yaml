@@ -1,0 +1,17 @@
+services:
+  compose-gen:
+    build:
+      dockerfile_inline: |
+        FROM python:3.14-slim
+        RUN pip install jinja2-cli[yaml]
+    working_dir: /work
+    # Only renders the template, so it doesn't need a network
+    network_mode: none
+    volumes:
+      - ..:/work
+    command:
+      - jinja2
+      - firmware/templates/compose.firmware.yaml.j2
+      - comodo.yaml
+      - -o
+      - compose/firmware.yaml

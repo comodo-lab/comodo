@@ -1,0 +1,125 @@
+# Generated from comodo.yaml, using the template in 'firmware/templates/compose.firmware.yaml.j2'.
+# DO NOT EDIT DIRECTLY: Update comodo.yaml and regenerate it from the repository root with:
+#   docker compose -f firmware/compose.gen.yaml run --rm compose-gen
+# Alternatively, use the './utils/contexts.sh' script, which also regenerates it before printing the deployment commands.
+
+x-templates:
+  mqtt-env: &mqtt-env
+    MQTT_HOST: ${MQTT_HOST:-rabbitmq}
+    MQTT_USER: ${MQTT_USER}
+    MQTT_PASS: ${MQTT_PASS}
+  instrument-env: &instrument-env
+    <<: *mqtt-env
+  python-instrument-template: &python-instrument-template
+    image: comodolab/comodo-firmware:${COMODO_TAG:-latest}
+    build:
+      context: ../
+      dockerfile: firmware/Dockerfile
+    init: true
+    restart: unless-stopped
+    depends_on:
+      mqtt-probe-firmware:
+        condition: service_healthy
+
+name: comodo-firmware
+
+services:
+  mqtt-probe-firmware:
+    image: comodolab/comodo-mqtt_probe:${COMODO_TAG:-latest}
+    build:
+      context: ../
+      dockerfile: mqtt_probe/Dockerfile
+    init: true
+    environment:
+      <<: *mqtt-env
+      MQTT_PROBE_ID: firmware
+
+
+  furnace:
+    <<: *python-instrument-template
+    environment:
+      <<: *instrument-env
+      INSTRUMENT_NAME: "furnace"
+      FIRMWARE: carbolite_gero.tg3
+      ADDRESS: "192.168.111.222"
+      SIMULATE: "true"
+      ACTIVE_VARIABLES: '["temperature"]'
+      DEFAULT_SETPOINTS: '{"temperature": 25}'
+      EXTERNAL_ACTUATORS: 'null'
+      SAFE_STOP_SETPOINTS: '{"temperature": 0}'
+      MEASUREMENT_INTERVALS: '{"temperature": 1}'
+      HEARTBEAT_INTERVAL: 1.0
+      MAX_MISSED_HEARTBEATS: 3
+
+  pressure:
+    <<: *python-instrument-template
+    environment:
+      <<: *instrument-env
+      INSTRUMENT_NAME: "pressure"
+      FIRMWARE: pfeiffer.mpt200
+      ADDRESS: "/dev/ttyUSB0"
+      SIMULATE: "true"
+      ACTIVE_VARIABLES: '["pressure"]'
+      DEFAULT_SETPOINTS: '{"pressure": 1}'
+      EXTERNAL_ACTUATORS: '{"pressure": "mass_flow/mass_flow"}'
+      SAFE_STOP_SETPOINTS: 'null'
+      MEASUREMENT_INTERVALS: '{"pressure": 1}'
+      HEARTBEAT_INTERVAL: 1.0
+      MAX_MISSED_HEARTBEATS: 3
+    devices:
+      - "/dev/ttyUSB0:/dev/ttyUSB0"
+    privileged: true
+
+  mass_flow:
+    <<: *python-instrument-template
+    environment:
+      <<: *instrument-env
+      INSTRUMENT_NAME: "mass_flow"
+      FIRMWARE: bronkhorst.el_flow_select
+      ADDRESS: "/dev/ttyUSB2"
+      SIMULATE: "true"
+      ACTIVE_VARIABLES: '["mass_flow"]'
+      DEFAULT_SETPOINTS: 'null'
+      EXTERNAL_ACTUATORS: 'null'
+      SAFE_STOP_SETPOINTS: '{"mass_flow": 0}'
+      MEASUREMENT_INTERVALS: '{"mass_flow": 1}'
+      HEARTBEAT_INTERVAL: 1.0
+      MAX_MISSED_HEARTBEATS: 3
+    devices:
+      - "/dev/ttyUSB2:/dev/ttyUSB2"
+    privileged: true
+
+
+  spc-mass_flow-mass_flow:
+    image: comodolab/comodo-setpoint_controller:${COMODO_TAG:-latest}
+    build:
+      context: ../
+      dockerfile: setpoint_controller/Dockerfile
+    init: true
+    restart: unless-stopped
+    depends_on:
+      mqtt-probe-firmware:
+        condition: service_healthy
+    environment:
+      <<: *mqtt-env
+      HEARTBEAT_INTERVAL: 1.0
+      SENSOR: "pressure/pressure"
+      DEFAULT_SETPOINT: 1
+      ACTUATOR: "mass_flow/mass_flow"
+      K_P: 10.0
+      K_I: 1.0
+      K_D: 0.1
+      K_AW: 0.05
+      K_DF: 0.01
+      OUT_MIN: 0
+      OUT_MAX: 100
+
+
+volumes:
+  massflow_read:
+
+# Shared by all the stacks on the same host. The first stack to start creates it,
+# so the others warn that it "was not created for project ...", which is expected.
+networks:
+  default:
+    name: comodo

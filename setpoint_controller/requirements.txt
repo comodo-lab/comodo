@@ -1,0 +1,8 @@
+jsonschema
+paho-mqtt
+numpy
+pyyaml
+
+pytest
+pytest-rerunfailures
+coverage
