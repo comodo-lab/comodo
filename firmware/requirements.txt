@@ -17,3 +17,8 @@ pyserial # Pressure Gauge
 bronkhorst-propar # Mass Flow Controller
 
 requests # Mass Spectrometer
+
+adafruit-circuitpython-ads1x15 # Power meters (ADS1115)
+adafruit-blinka
+adafruit-platformdetect
+gpiod
