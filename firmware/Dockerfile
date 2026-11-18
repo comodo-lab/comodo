@@ -16,6 +16,7 @@ COPY firmware/main.py           /firmware/main.py
 COPY firmware/src               /firmware/src
 # Copy firmware tests and readme
 COPY firmware/tests             /firmware/tests
+COPY firmware/templates         /firmware/templates
 COPY firmware/README.md         /firmware/README.md
 
 # Start firmware

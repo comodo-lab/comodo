@@ -42,6 +42,7 @@ services:
       INSTRUMENT_NAME: "furnace"
       FIRMWARE: carbolite_gero.tg3
       ADDRESS: "192.168.111.222"
+      DEVICE_ID: ""
       SIMULATE: "true"
       ACTIVE_VARIABLES: '["temperature"]'
       DEFAULT_SETPOINTS: '{"temperature": 25}'
@@ -77,6 +78,7 @@ services:
       INSTRUMENT_NAME: "pressure"
       FIRMWARE: pfeiffer.mpt200
       ADDRESS: "/dev/ttyUSB0"
+      DEVICE_ID: ""
       SIMULATE: "true"
       ACTIVE_VARIABLES: '["pressure"]'
       DEFAULT_SETPOINTS: '{"pressure": 1}'
@@ -96,6 +98,7 @@ services:
       INSTRUMENT_NAME: "mass_flow"
       FIRMWARE: bronkhorst.el_flow_select
       ADDRESS: "/dev/ttyUSB2"
+      DEVICE_ID: "128"
       SIMULATE: "true"
       ACTIVE_VARIABLES: '["mass_flow"]'
       DEFAULT_SETPOINTS: 'null'

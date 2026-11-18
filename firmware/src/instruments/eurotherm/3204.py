@@ -30,6 +30,8 @@ class Instrument(BaseInstrument):
         if self.config["SIMULATE"]:
             self.client = None
         else:
+            # The controller's Modbus address, from the instrument's device_id (if given)
+            self.device_id = int(self.config["DEVICE_ID"] or DEFAULT_DEVICE_ID)
             self.client = ModbusSerialClient(
                 port=self.config["ADDRESS"],
                 baudrate=BAUDRATE,
@@ -41,7 +43,7 @@ class Instrument(BaseInstrument):
             # If it can't connect now, the client tries again on each read or write
             if self.client.connect():
                 print(
-                    f"Connected to Eurotherm 3204 on {self.config['ADDRESS']} (device {DEVICE_ID})"
+                    f"Connected to Eurotherm 3204 on {self.config['ADDRESS']} (device {self.device_id})"
                 )
             else:
                 print(
@@ -52,11 +54,14 @@ class Instrument(BaseInstrument):
         return self.default_sim(variable)
 
     def get_measurement(self, variable):
-        return read_register(self.client, self.available_variables[variable]["sensor"])
+        return read_register(
+            self.client, self.device_id, self.available_variables[variable]["sensor"]
+        )
 
     def go_to_setpoint(self, variable, setpoint):
         write_register(
             self.client,
+            self.device_id,
             self.available_variables[variable]["actuator"],
             setpoint,
         )
@@ -67,7 +72,7 @@ class Instrument(BaseInstrument):
 # ======================================================================================
 # 3204 configuration and helper functions
 # --------------------------------------------------------------------------------------
-DEVICE_ID = 1  # Modbus address of the controller
+DEFAULT_DEVICE_ID = 1  # Modbus address of the controller, if no device_id is given
 MODBUS_REGISTER_COUNT = 1
 BAUDRATE = 9600
 BYTESIZE = serial.EIGHTBITS
@@ -79,13 +84,13 @@ TIMEOUT = 1  # seconds
 # --------------------------------------------------------------------------------------
 # Helper functions
 # --------------------------------------------------------------------------------------
-def read_register(client, register):
+def read_register(client, device_id, register):
     """
     Returns the register's value, or None if it can't be read.
     """
     try:
         result = client.read_holding_registers(
-            address=register, count=MODBUS_REGISTER_COUNT, device_id=DEVICE_ID
+            address=register, count=MODBUS_REGISTER_COUNT, device_id=device_id
         )
         if result.isError():
             raise ValueError(result)
@@ -95,12 +100,12 @@ def read_register(client, register):
         return None
 
 
-def write_register(client, register, value):
+def write_register(client, device_id, register, value):
     """
     Writes the value to the register, raising an exception if it can't be written.
     """
     result = client.write_register(
-        address=register, value=int(value), device_id=DEVICE_ID
+        address=register, value=int(value), device_id=device_id
     )
     if result.isError():
         raise ValueError(f"Error writing register {register}: {result}")

@@ -52,6 +52,7 @@ class TestConfigLoad:
             "name": "furnace",
             "firmware": "carbolite_gero.tg3",
             "address": "192.168.111.222",
+            "device_id": "",
             "simulate": True,
             "variables": ["temperature"],
             "default_setpoints": {"temperature": 25},

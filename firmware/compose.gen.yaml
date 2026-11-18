@@ -3,7 +3,7 @@ services:
     build:
       dockerfile_inline: |
         FROM python:3.14-slim
-        RUN pip install jinja2-cli[yaml]
+        RUN pip install --no-cache jinja2-cli[yaml]==1.0.1 Jinja2==3.1.6
     working_dir: /work
     # Only renders the template, so it doesn't need a network
     network_mode: none

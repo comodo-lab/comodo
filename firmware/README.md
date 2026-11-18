@@ -22,6 +22,7 @@ The expected environment variables are:
 - `INSTRUMENT_NAME`: The instrument id.
 - `FIRMWARE`: The name of the [module](#instrument-modules) to be used (should match the name of the module in the `src/instruments` directory). If unset, or if "generic_instrument" is specified, the firmware will use the generic instrument class to simulate the instrument.
 - `ADDRESS`: The address at which the instrument is contacted (e.g. a serial port, an IP address, etc.).
+- `DEVICE_ID`: [optional] The id of the device at its `ADDRESS` (e.g. its Modbus address), for modules that need one. Empty if not given, in which case the module should use its own default.
 - `SIMULATE`: `true` if the instrument should be simulated, `false` otherwise. Defaults to `true`.
 - `ACTIVE_VARIABLES`: A list of the variables that the instrument should monitor and/or control.
 - `DEFAULT_SETPOINTS`: A dictionary of the default setpoints for each variable in the form `{variable: setpoint}`.
@@ -42,6 +43,9 @@ In a standard deployment, these are extracted from the `comodo.yaml` file and te
 docker compose -f "./firmware/compose.gen.yaml" run --rm compose-gen
 ```
 from the comodo repository root (where the `comodo.yaml` file is located). `./utils/contexts.sh` (and so `./comodo.sh --deploy`) also runs this step.
+
+The template is tested with the firmware's tests ([`tests/unit/test_compose_gen.py`](tests/unit/test_compose_gen.py)).
+For tests to be valid, both `compose.gen.yaml` and `requirements.txt` must have the same pinned versions for `jinja2-cli` and `Jinja2`.
 
 The `compose/firmware.yaml` file then provides the stack of instrument firmware containers, each with its own configuration,
 as well as a container for each setpoint controller.
@@ -224,6 +228,7 @@ They are selected with `FIRMWARE=<manufacturer>.<model>` (e.g. `pfeiffer.mpt200`
 Each module must define a class called `Instrument`, which is a subclass of the `BaseInstrument` class.
 It must define the `available_variables` of the instrument, as a dictionary of `{variable: {"sensor": ..., "actuator": ...}}`,
 where the values are whatever the module needs to read or write each variable (e.g. a register address), and `actuator` is `None` if the variable cannot be set.
+If the module needs the id of the device at its address (e.g. its Modbus address), it should read it from `self.config["DEVICE_ID"]`, or use its own default when the value is empty.
 It must also define the following methods:
 - `initialise(self)`: Must perform all required initialisation for the instrument, including establishing a connection to the instrument and setting up any required parameters. This method must also be safe to call whether the instrument is being simulated or not.
 - `simulate(self, variable)`: This method will only be called when the instrument is being simulated, and should return a simulated value for the given `variable`. It can immediately refer to the `self.default_sim(variable)`, but may be use to provide more realistic simulated behaviour of the instrument, which converges towards the variable's setpoint over time.
