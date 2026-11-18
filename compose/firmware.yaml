@@ -79,7 +79,7 @@ services:
       INSTRUMENT_NAME: "mass_flow"
       FIRMWARE: bronkhorst.el_flow_select
       ADDRESS: "/dev/ttyUSB2"
-      DEVICE_ID: ""
+      DEVICE_ID: "128"
       SIMULATE: "true"
       ACTIVE_VARIABLES: '["mass_flow"]'
       DEFAULT_SETPOINTS: 'null'

@@ -75,7 +75,7 @@ def mock_comodo_config(mock_comodo_yaml_dict):
         "mass_flow": {
             "firmware": "bronkhorst.el_flow_select",
             "address": "/dev/ttyUSB2",
-            "device_id": "",
+            "device_id": "128",
             "simulate": True,
             "variables": {
                 "mass_flow": {
