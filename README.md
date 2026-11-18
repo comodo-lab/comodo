@@ -219,6 +219,7 @@ Each instrument can have the following properties:
   To add support for a new instrument, see [instrument modules](firmware/README.md#instrument-modules) in the firmware README.
 - `address`: [required] The address of the instrument.
   This can be an IP address and port (e.g., `192.168.1.10:502`), a serial port (e.g., `/dev/ttyUSB0`), or any other identifier required to communicate with the instrument.
+  Serial addresses (e.g., `/dev/ttyUSB0`) cannot be shared by multiple instruments: each instrument's firmware runs in its own container, so instruments sharing one can mix up each other's messages. The configuration is rejected if several (not simulated) instruments share one.
 - `device_id`: [optional] The id of the device at its `address`, for instruments that need one (e.g., the Modbus address of a controller on a serial port).
   How it is used, and its default if not given, depends on the instrument's firmware.
 - `simulate`: [optional] A boolean flag indicating whether the instrument should be run in simulation mode.

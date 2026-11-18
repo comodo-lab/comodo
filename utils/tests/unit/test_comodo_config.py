@@ -255,6 +255,45 @@ class TestPopulateInstruments:
 
         assert config.instruments == mocks_for_inst["expected_instruments"]
 
+    def test_shared_address(self, mocks_for_inst):
+        config = mocks_for_inst["config_with_raw"]
+        instruments = config.raw["instruments"]
+        instruments["pressure"]["simulate"] = False
+        instruments["mass_flow"]["simulate"] = False
+        instruments["mass_flow"]["address"] = instruments["pressure"]["address"]
+
+        with pytest.raises(ValueError) as e:
+            config.populate_instruments()
+
+        assert str(e.value) == (
+            "Instruments pressure, mass_flow use the same address (/dev/ttyUSB0). "
+            "Each opens it from its own firmware container, so their messages would get mixed up, "
+            "causing errors or wrong measurements. Give each instrument its own address."
+        )
+
+    def test_shared_address_simulated_is_allowed(self, mocks_for_inst):
+        config = mocks_for_inst["config_with_raw"]
+        instruments = config.raw["instruments"]
+        # Simulated instruments don't open the port
+        instruments["pressure"]["simulate"] = False
+        instruments["mass_flow"]["address"] = instruments["pressure"]["address"]
+
+        config.populate_instruments()
+
+        assert config.instruments.keys() == instruments.keys()
+
+    def test_shared_network_address_is_allowed(self, mocks_for_inst):
+        config = mocks_for_inst["config_with_raw"]
+        instruments = config.raw["instruments"]
+        # A network address can be used by several clients at once
+        for instrument in instruments.values():
+            instrument["simulate"] = False
+            instrument["address"] = "192.168.111.222"
+
+        config.populate_instruments()
+
+        assert config.instruments.keys() == instruments.keys()
+
 
 class TestPopulateSensorsActuatorsSPCs:
     @pytest.fixture

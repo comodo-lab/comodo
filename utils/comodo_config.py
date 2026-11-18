@@ -164,6 +164,27 @@ class ComodoConfig:
                 },
             }
 
+        self.check_shared_addresses()
+
+    def check_shared_addresses(self):
+        """
+        Raises an error if several (not simulated) instruments use the same serial address (e.g. /dev/ttyUSB0).
+        Each instrument's firmware runs in its own container, which opens it, so their messages can get mixed up
+        (e.g. one reads the other's reply), causing intermittent errors, or even wrong measurements.
+        """
+        instruments_by_address = {}
+        for instrument_name, instrument in self.instruments.items():
+            address = str(instrument["address"])
+            if not instrument["simulate"] and address.startswith("/dev/"):
+                instruments_by_address.setdefault(address, []).append(instrument_name)
+        for address, instrument_names in instruments_by_address.items():
+            if len(instrument_names) > 1:
+                raise ValueError(
+                    f"Instruments {', '.join(instrument_names)} use the same address ({address}). "
+                    "Each opens it from its own firmware container, so their messages would get mixed up, "
+                    "causing errors or wrong measurements. Give each instrument its own address."
+                )
+
     def populate_sensors_actuators_spcs(self):
         """
         Populates the sensors, actuators and setpoint controllers from the configuration.
