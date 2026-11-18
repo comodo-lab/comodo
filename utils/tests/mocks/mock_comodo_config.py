@@ -27,6 +27,7 @@ def mock_comodo_config(mock_comodo_yaml_dict):
         "furnace": {
             "firmware": "carbolite_gero.tg3",
             "address": "192.168.111.222",
+            "device_id": "",
             "simulate": True,
             "variables": {
                 "temperature": {
@@ -52,6 +53,7 @@ def mock_comodo_config(mock_comodo_yaml_dict):
         "pressure": {
             "firmware": "pfeiffer.mpt200",
             "address": "/dev/ttyUSB0",
+            "device_id": "",
             "simulate": True,
             "variables": {
                 "pressure": {
@@ -73,6 +75,7 @@ def mock_comodo_config(mock_comodo_yaml_dict):
         "mass_flow": {
             "firmware": "bronkhorst.el_flow_select",
             "address": "/dev/ttyUSB2",
+            "device_id": "",
             "simulate": True,
             "variables": {
                 "mass_flow": {
@@ -158,6 +161,7 @@ def mock_comodo_config(mock_comodo_yaml_dict):
         "name": "test_instrument",
         "firmware": "test_firmware",
         "address": "1.2.3.4",
+        "device_id": "",
         "simulate": True,
         "variables": ["V_A", "V_B"],
         "default_setpoints": {"V_A": 25, "V_B": 1},

@@ -143,6 +143,7 @@ class ComodoConfig:
             self.instruments[instrument_name] = {
                 "firmware": instrument_data["firmware"],
                 "address": instrument_data["address"],
+                "device_id": str(instrument_data.get("device_id", "")),
                 "simulate": instrument_data.get("simulate", False),
                 "variables": instrument_data["variables"],
                 "default_setpoints": {
@@ -259,6 +260,7 @@ class ComodoConfig:
             "name": instrument_name,
             "firmware": inst["firmware"],
             "address": inst["address"],
+            "device_id": inst["device_id"],
             "simulate": inst["simulate"],
             "variables": list(inst["variables"].keys()),
             "default_setpoints": inst["default_setpoints"],
