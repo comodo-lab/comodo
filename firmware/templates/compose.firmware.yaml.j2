@@ -69,6 +69,7 @@ services:
       INSTRUMENT_NAME: "{{ name }}"
       FIRMWARE: {{ instr.firmware }}
       ADDRESS: "{{ instr.address }}"
+      DEVICE_ID: "{{ instr.device_id | default('') }}"
       SIMULATE: "{{ instr.simulate | default(false) | lower }}"
       ACTIVE_VARIABLES: '{{ instr.variables.keys() | list | tojson }}'
       DEFAULT_SETPOINTS: '{{ instrument_default_setpoints.get(name) | tojson }}'

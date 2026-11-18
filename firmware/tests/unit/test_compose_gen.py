@@ -57,6 +57,7 @@ class TestInstrumentService:
                 "furnace": {
                     "firmware": "carbolite_gero.tg3",
                     "address": "192.168.1.10",
+                    "device_id": 3,
                     "simulate": True,
                     "variables": {
                         "temperature": {
@@ -76,6 +77,7 @@ class TestInstrumentService:
             "INSTRUMENT_NAME": "furnace",
             "FIRMWARE": "carbolite_gero.tg3",
             "ADDRESS": "192.168.1.10",
+            "DEVICE_ID": "3",
             "SIMULATE": "true",
             "ACTIVE_VARIABLES": '["temperature"]',
             "DEFAULT_SETPOINTS": '{"temperature": 25}',
@@ -130,6 +132,7 @@ class TestInstrumentService:
         )
         env = compose["services"]["probe"]["environment"]
         assert env["SIMULATE"] == "false"
+        assert env["DEVICE_ID"] == ""
         for key in [
             "DEFAULT_SETPOINTS",
             "EXTERNAL_ACTUATORS",
@@ -258,6 +261,7 @@ class TestFirmwareConfig:
                 "pressure": {
                     "firmware": "esi.hp1410b",
                     "address": "/dev/ttyUSB0",
+                    "device_id": 2,
                     "simulate": True,
                     "variables": {
                         "pressure": {
@@ -297,6 +301,7 @@ class TestFirmwareConfig:
             "INSTRUMENT_NAME": "pressure",
             "FIRMWARE": "esi.hp1410b",
             "ADDRESS": "/dev/ttyUSB0",
+            "DEVICE_ID": "2",
             "SIMULATE": True,
             "ACTIVE_VARIABLES": ["pressure"],
             "DEFAULT_SETPOINTS": {"pressure": 1},
