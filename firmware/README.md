@@ -43,6 +43,9 @@ docker compose -f "./firmware/compose.gen.yaml" run --rm compose-gen
 ```
 from the comodo repository root (where the `comodo.yaml` file is located). `./utils/contexts.sh` (and so `./comodo.sh --deploy`) also runs this step.
 
+The template is tested with the firmware's tests ([`tests/unit/test_compose_gen.py`](tests/unit/test_compose_gen.py)).
+For tests to be valid, both `compose.gen.yaml` and `requirements.txt` must have the same pinned versions for `jinja2-cli` and `Jinja2`.
+
 The `compose/firmware.yaml` file then provides the stack of instrument firmware containers, each with its own configuration,
 as well as a container for each setpoint controller.
 

@@ -8,6 +8,9 @@ pytest
 pytest-asyncio
 pytest-rerunfailures
 coverage
+# For compose.gen.yaml tests
+jinja2-cli[yaml]==1.0.1
+Jinja2==3.1.6
 
 # Instruments
 pymodbus # Furnace
