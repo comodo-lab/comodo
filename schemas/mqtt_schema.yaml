@@ -522,6 +522,8 @@ channels:
                   type: string
                 address:
                   type: string
+                device_id:
+                  type: string
                 simulate:
                   type: boolean
                 variables:

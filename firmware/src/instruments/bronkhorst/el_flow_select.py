@@ -37,7 +37,13 @@ class Instrument(BaseInstrument):
             self.instrument = None
         else:
             self.device = self.config["ADDRESS"]
-            self.instrument = propar.instrument(self.device)
+            # Use device_id as the instrument's node address on the bus
+            if self.config["DEVICE_ID"]:
+                self.instrument = propar.instrument(
+                    self.device, address=int(self.config["DEVICE_ID"])
+                )
+            else:  # use propar's default node address
+                self.instrument = propar.instrument(self.device)
 
     def simulate(self, variable):
         """

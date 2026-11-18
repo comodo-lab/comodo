@@ -9,6 +9,7 @@ DEFAULT_CONFIG = {
     "INSTRUMENT_NAME": "No name",
     "FIRMWARE": "None specified",
     "ADDRESS": "",
+    "DEVICE_ID": "",
     "SIMULATE": True,
     "ACTIVE_VARIABLES": [],
     "DEFAULT_SETPOINTS": {},

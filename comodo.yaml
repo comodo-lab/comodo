@@ -46,6 +46,7 @@ instruments:
   mass_flow:
     firmware: bronkhorst.el_flow_select
     address: "/dev/ttyUSB2"
+    device_id: 128
     simulate: true
     variables:
       mass_flow:
