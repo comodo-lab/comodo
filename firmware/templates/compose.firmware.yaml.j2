@@ -42,7 +42,7 @@ services:
 {%- for name, instr in instruments.items() -%}
 {%- for v_name, v_cfg in instr.variables.items() -%}
 {%- if v_cfg.default_setpoint is defined -%}
-{%- set _ = instrument_default_setpoints.update({name: {v_name: v_cfg.default_setpoint}}) -%}
+{%- set _ = instrument_default_setpoints.setdefault(name, {}).update({v_name: v_cfg.default_setpoint}) -%}
 {%- set _ = all_default_setpoints.update({name + '/' + v_name: v_cfg.default_setpoint}) -%}
 {%- endif -%}
 {%- if v_cfg.setpoint_controller and v_cfg.setpoint_controller.external_sensor is defined -%}
@@ -53,10 +53,10 @@ services:
 {%- set _ = external_actuators[ext_ins].update({ext_var: name ~ '/' ~ v_name}) -%}
 {%- endif -%}
 {%- if v_cfg.actuator and v_cfg.actuator.safe_stop_setpoint is defined -%}
-{%- set _ = instrument_safe_stop_setpoints.update({name: {v_name: v_cfg.actuator.safe_stop_setpoint}}) -%}
+{%- set _ = instrument_safe_stop_setpoints.setdefault(name, {}).update({v_name: v_cfg.actuator.safe_stop_setpoint}) -%}
 {%- endif -%}
 {%- if v_cfg.sensor and v_cfg.sensor.interval is defined -%}
-{%- set _ = instrument_measurement_intervals.update({name: {v_name: v_cfg.sensor.interval}}) -%}
+{%- set _ = instrument_measurement_intervals.setdefault(name, {}).update({v_name: v_cfg.sensor.interval}) -%}
 {%- endif -%}
 {%- endfor -%}
 {%- endfor -%}
