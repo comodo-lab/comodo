@@ -349,6 +349,80 @@ class TestPopulateSensorsActuatorsSPCs:
         assert config.actuators == {}
         assert config.spcs == {}
 
+    @pytest.mark.parametrize("default_setpoint", [-1, 101])
+    def test_default_setpoint_outside_range(self, mocks_for_saspcs, default_setpoint):
+        config = ComodoConfig()
+        config.instruments = {
+            "I_A": {
+                "variables": {
+                    "V_A": {
+                        "min": 0,
+                        "max": 100,
+                        "default_setpoint": default_setpoint,
+                        "sensor": {"some": "config"},
+                    }
+                }
+            }
+        }
+
+        with pytest.raises(ValueError) as e:
+            config.populate_sensors_actuators_spcs()
+
+        assert (
+            f"The default_setpoint of variable 'I_A/V_A' ({default_setpoint}) "
+            "is outside its range (0 to 100)." in str(e.value)
+        )
+
+    @pytest.mark.parametrize("safe_stop_setpoint", [-1, 101])
+    def test_safe_stop_setpoint_outside_range(
+        self, mocks_for_saspcs, safe_stop_setpoint
+    ):
+        config = ComodoConfig()
+        config.instruments = {
+            "I_A": {
+                "variables": {
+                    "V_A": {
+                        "min": 0,
+                        "max": 100,
+                        "default_setpoint": 0,
+                        "tolerance": 1,
+                        "sensor": {"some": "config"},
+                        "actuator": {"safe_stop_setpoint": safe_stop_setpoint},
+                    }
+                }
+            }
+        }
+
+        with pytest.raises(ValueError) as e:
+            config.populate_sensors_actuators_spcs()
+
+        assert (
+            f"The safe_stop_setpoint of variable 'I_A/V_A' ({safe_stop_setpoint}) "
+            "is outside its range (0 to 100)." in str(e.value)
+        )
+
+    def test_setpoints_at_range_limits(self, mocks_for_saspcs):
+        config = ComodoConfig()
+        config.instruments = {
+            "I_A": {
+                "variables": {
+                    "V_A": {
+                        "min": 0,
+                        "max": 100,
+                        "default_setpoint": 100,
+                        "tolerance": 1,
+                        "sensor": {"some": "config"},
+                        "actuator": {"safe_stop_setpoint": 0},
+                    }
+                }
+            }
+        }
+
+        config.populate_sensors_actuators_spcs()
+
+        assert config.actuators["I_A/V_A"]["safe_stop_setpoint"] == 0
+        assert config.sensors["I_A/V_A"]["default_setpoint"] == 100
+
     def test_actuator_missing_safe_stop_setpoint(self, mocks_for_saspcs):
         config = ComodoConfig()
         config.instruments = {

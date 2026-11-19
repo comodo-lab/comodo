@@ -462,6 +462,39 @@ class TestBaseInstrument:
         captured = capsys.readouterr()
         assert "WARNING" not in captured.out
 
+    @pytest.mark.parametrize("new_setpoint", [-0.1, 10.1])
+    def test_set_and_go_to_setpoint_outside_range(self, bi_mocks, new_setpoint):
+        mock_config = bi_mocks["config"]
+        mock_config["SIMULATE"] = False
+        mock_config["VARIABLE_RANGES"] = {"some_variable": {"min": 0, "max": 10}}
+        ins = bi_mocks["ConcreteInstrument"](mock_config)
+        ins.available_variables = {"some_variable": {"actuator": "123"}}
+
+        with pytest.raises(ValueError) as e:
+            ins.set_and_go_to_setpoint("some_variable", new_setpoint)
+
+        assert (
+            f"Setpoint {new_setpoint} for 'some_variable' is outside its range (0 to 10)."
+            in str(e.value)
+        )
+        assert ins.setpoints.get("some_variable") == None
+        bi_mocks["go_to_setpoint"].assert_not_called()
+
+    @pytest.mark.parametrize("new_setpoint", [0, 10])
+    def test_set_and_go_to_setpoint_range_limits(self, bi_mocks, new_setpoint):
+        mock_config = bi_mocks["config"]
+        mock_config["SIMULATE"] = False
+        mock_config["VARIABLE_RANGES"] = {"some_variable": {"min": 0, "max": 10}}
+        ins = bi_mocks["ConcreteInstrument"](mock_config)
+        ins.available_variables = {"some_variable": {"actuator": "123"}}
+
+        ins.set_and_go_to_setpoint("some_variable", new_setpoint)
+
+        assert ins.setpoints.get("some_variable") == new_setpoint
+        bi_mocks["go_to_setpoint"].assert_called_once_with(
+            "some_variable", new_setpoint
+        )
+
     def test_set_and_go_to_setpoint_no_sim_no_actuator(self, bi_mocks, capsys):
         mock_config = bi_mocks["config"]
         mock_config["SIMULATE"] = False

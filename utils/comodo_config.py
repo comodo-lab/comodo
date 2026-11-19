@@ -200,6 +200,18 @@ class ComodoConfig:
                     raise KeyError(
                         f"Missing {missing_params} for variable '{var_key}' in configuration."
                     )
+                # Make sure default and safe setpoints are within variable's range
+                var_min, var_max = variable_data["min"], variable_data["max"]
+                actuator_data = variable_data.get("actuator") or {}
+                for setpoint_name, setpoint in [
+                    ("default_setpoint", variable_data.get("default_setpoint")),
+                    ("safe_stop_setpoint", actuator_data.get("safe_stop_setpoint")),
+                ]:
+                    if setpoint is not None and not var_min <= setpoint <= var_max:
+                        raise ValueError(
+                            f"The {setpoint_name} of variable '{var_key}' ({setpoint}) "
+                            f"is outside its range ({var_min} to {var_max})."
+                        )
 
                 # If there is a relevant tag, add the variable to the appropriate dictionary
                 if "sensor" in variable_data:

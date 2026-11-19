@@ -234,6 +234,8 @@ Variables represent specific measurement points in an instrument.
 Each variable can have the following properties:
 - `min`: [required] The minimum value the variable can take.
 - `max`: [required] The maximum value the variable can take.
+  The instrument's firmware refuses any setpoint outside `min` and `max`,
+  so the `default_setpoint` and `safe_stop_setpoint` must be within them.
 - `unit`: [optional] The unit of the variable (e.g., `°C`, `Pa`, `m/s`).
 - `default_setpoint`: The setpoint used as a baseline for the variable. Used as a default value, and at the end of any experiment.
   Required if the variable has an actuator, or if it is the `external_sensor` of a setpoint controller.

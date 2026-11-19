@@ -134,6 +134,15 @@ class BaseInstrument(ABC):
                 f"Cannot set setpoint for '{variable}'. "
                 "Variable not available in this instrument."
             )
+        # Reject setpoints outside the variable's range
+        variable_range = self.config["VARIABLE_RANGES"].get(variable)
+        if variable_range and not (
+            variable_range["min"] <= setpoint <= variable_range["max"]
+        ):
+            raise ValueError(
+                f"Setpoint {setpoint} for '{variable}' is outside its range "
+                f"({variable_range['min']} to {variable_range['max']})."
+            )
         self.setpoints[variable] = setpoint
         # If not in simulation mode, instruct the actuators to go to the setpoint.
         if not self.config["SIMULATE"]:
