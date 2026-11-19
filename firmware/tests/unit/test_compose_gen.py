@@ -61,6 +61,8 @@ class TestInstrumentService:
                     "simulate": True,
                     "variables": {
                         "temperature": {
+                            "min": 0,
+                            "max": 1000,
                             "default_setpoint": 25,
                             "sensor": {"interval": 1},
                             "actuator": {"safe_stop_setpoint": 0},
@@ -84,6 +86,7 @@ class TestInstrumentService:
             "EXTERNAL_ACTUATORS": "null",
             "SAFE_STOP_SETPOINTS": '{"temperature": 0}',
             "MEASUREMENT_INTERVALS": '{"temperature": 1}',
+            "VARIABLE_RANGES": '{"temperature": {"max": 1000, "min": 0}}',
             "HEARTBEAT_INTERVAL": 2.0,
             "MAX_MISSED_HEARTBEATS": 4,
         }
@@ -96,16 +99,20 @@ class TestInstrumentService:
                     "address": "/dev/i2c-1",
                     "variables": {
                         "current": {
+                            "min": 0,
+                            "max": 10,
                             "default_setpoint": 1,
                             "sensor": {"interval": 1},
                             "actuator": {"safe_stop_setpoint": 0},
                         },
                         "voltage": {
+                            "min": -5,
+                            "max": 5.5,
                             "default_setpoint": 2,
                             "sensor": {"interval": 3},
                             "actuator": {"safe_stop_setpoint": 4},
                         },
-                        "power": {"sensor": {"interval": 5}},
+                        "power": {"min": 0, "max": 100, "sensor": {"interval": 5}},
                     },
                 },
             }
@@ -118,6 +125,11 @@ class TestInstrumentService:
             "current": 1,
             "voltage": 3,
             "power": 5,
+        }
+        assert env_json(service, "VARIABLE_RANGES") == {
+            "current": {"min": 0, "max": 10},
+            "voltage": {"min": -5, "max": 5.5},
+            "power": {"min": 0, "max": 100},
         }
 
     def test_settings_not_given(self, render):
@@ -138,6 +150,7 @@ class TestInstrumentService:
             "EXTERNAL_ACTUATORS",
             "SAFE_STOP_SETPOINTS",
             "MEASUREMENT_INTERVALS",
+            "VARIABLE_RANGES",
         ]:
             assert env[key] == "null"
 
@@ -265,6 +278,8 @@ class TestFirmwareConfig:
                     "simulate": True,
                     "variables": {
                         "pressure": {
+                            "min": 1,
+                            "max": 200,
                             "default_setpoint": 1,
                             "sensor": {"interval": 1},
                         },
@@ -308,6 +323,7 @@ class TestFirmwareConfig:
             "EXTERNAL_ACTUATORS": {"pressure": "mass_flow/mass_flow"},
             "SAFE_STOP_SETPOINTS": {},
             "MEASUREMENT_INTERVALS": {"pressure": 1},
+            "VARIABLE_RANGES": {"pressure": {"min": 1, "max": 200}},
             "HEARTBEAT_INTERVAL": 2.0,
             "MAX_MISSED_HEARTBEATS": 4,
         }

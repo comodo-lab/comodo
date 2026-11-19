@@ -288,6 +288,10 @@ class ComodoConfig:
             "external_actuators": external_actuators,
             "safe_stop_setpoints": inst["safe_stop_setpoints"],
             "measurement_intervals": inst["measurement_intervals"],
+            "variable_ranges": {
+                var_name: {"min": var_data["min"], "max": var_data["max"]}
+                for var_name, var_data in inst["variables"].items()
+            },
             "heartbeat_interval": self.globals["heartbeat_interval"],
             "max_missed_heartbeats": self.globals["max_missed_heartbeats"],
             "experiment": {},  # This is reserved for the live experiment config, which is arbitrary

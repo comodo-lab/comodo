@@ -31,6 +31,7 @@ The expected environment variables are:
 - `SAFE_STOP_SETPOINTS`: A dictionary of the safe stop setpoints for each variable in the form `{variable: setpoint}`. Used when the instrument [safe stops](#safe-stop).
 - `MEASUREMENT_INTERVALS`: A dictionary of the measurement intervals, in seconds, for each variable in the form `{variable: interval}`.
   A measurement tick is started for each variable in this dictionary.
+- `VARIABLE_RANGES`: A dictionary of the range of each variable, from its `min` and `max` in `comodo.yaml`, in the form `{variable: {"min": min, "max": max}}`.
 - `HEARTBEAT_INTERVAL`: The interval, in seconds, at which the firmware publishes its heartbeat.
 - `MAX_MISSED_HEARTBEATS`: The number of controller heartbeats that can be missed before the instrument [safe stops](#safe-stop). Defaults to 3.
   Set from `global.experiment_monitoring.max_missed_heartbeats` in `comodo.yaml`.

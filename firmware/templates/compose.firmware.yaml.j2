@@ -38,6 +38,7 @@ services:
 {%- set external_actuators = {} -%}
 {%- set instrument_safe_stop_setpoints = {} -%}
 {%- set instrument_measurement_intervals = {} -%}
+{%- set instrument_variable_ranges = {} -%}
 {%- set all_default_setpoints = {} -%}
 {%- for name, instr in instruments.items() -%}
 {%- for v_name, v_cfg in instr.variables.items() -%}
@@ -58,6 +59,9 @@ services:
 {%- if v_cfg.sensor and v_cfg.sensor.interval is defined -%}
 {%- set _ = instrument_measurement_intervals.setdefault(name, {}).update({v_name: v_cfg.sensor.interval}) -%}
 {%- endif -%}
+{%- if v_cfg.min is defined and v_cfg.max is defined -%}
+{%- set _ = instrument_variable_ranges.setdefault(name, {}).update({v_name: {'min': v_cfg.min, 'max': v_cfg.max}}) -%}
+{%- endif -%}
 {%- endfor -%}
 {%- endfor -%}
 
@@ -76,6 +80,7 @@ services:
       EXTERNAL_ACTUATORS: '{{ external_actuators.get(name) | tojson }}'
       SAFE_STOP_SETPOINTS: '{{ instrument_safe_stop_setpoints.get(name) | tojson }}'
       MEASUREMENT_INTERVALS: '{{ instrument_measurement_intervals.get(name) | tojson }}'
+      VARIABLE_RANGES: '{{ instrument_variable_ranges.get(name) | tojson }}'
       HEARTBEAT_INTERVAL: {{ (global.heartbeat.interval) | float }}
       MAX_MISSED_HEARTBEATS: {{ global.experiment_monitoring.max_missed_heartbeats }}
 {%- if instr.address.startswith('/dev/') %}

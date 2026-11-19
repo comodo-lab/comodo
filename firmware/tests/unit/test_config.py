@@ -48,6 +48,7 @@ class TestConfig:
                 "EXTERNAL_ACTUATORS": '{"flow": "ext_inst/ext_var"}',
                 "SAFE_STOP_SETPOINTS": '{"flow": 0}',
                 "MEASUREMENT_INTERVALS": '{"flow": 0.5}',
+                "VARIABLE_RANGES": '{"flow": {"min": 0, "max": 10}}',
                 "HEARTBEAT_INTERVAL": "2.5",
                 "experiment": '{"experiment_id": "experiment-1"}',
             }
@@ -61,6 +62,7 @@ class TestConfig:
         assert result["EXTERNAL_ACTUATORS"] == {"flow": "ext_inst/ext_var"}
         assert result["SAFE_STOP_SETPOINTS"] == {"flow": 0}
         assert result["MEASUREMENT_INTERVALS"] == {"flow": 0.5}
+        assert result["VARIABLE_RANGES"] == {"flow": {"min": 0, "max": 10}}
         assert result["HEARTBEAT_INTERVAL"] == 2.5
         assert result["experiment"] == {"experiment_id": "experiment-1"}
 
@@ -83,6 +85,7 @@ class TestConfig:
             "EXTERNAL_ACTUATORS",
             "SAFE_STOP_SETPOINTS",
             "MEASUREMENT_INTERVALS",
+            "VARIABLE_RANGES",
             "experiment",
         ]
         for key in json_keys:
