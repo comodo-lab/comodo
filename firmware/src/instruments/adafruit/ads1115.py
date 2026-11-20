@@ -19,7 +19,6 @@ All variables are sensors only: none of them can be set.
 # System imports
 import math
 import re
-import threading
 import time
 from typing import ClassVar
 
@@ -41,17 +40,15 @@ class Instrument(BaseInstrument):
     # The meter's readings at 4 mA and at 20 mA are the variable's min and max in comodo.yaml
     # (check each meter's datasheet/nameplate for them).
     available_variables: ClassVar[dict[str, dict]] = {
-        "input_current": {"sensor": {"channel": 3}, "actuator": None},  # A
-        "output_current": {"sensor": {"channel": 2}, "actuator": None},  # A
-        "input_voltage": {"sensor": {"channel": 1}, "actuator": None},  # V
-        "output_voltage": {"sensor": {"channel": 0}, "actuator": None},  # V
+        "input_current": {"sensor": {"channel": 3}},  # A
+        "output_current": {"sensor": {"channel": 2}},  # A
+        "input_voltage": {"sensor": {"channel": 1}},  # V
+        "output_voltage": {"sensor": {"channel": 0}},  # V
     }
 
     def initialise(self):
         self.ads = None
         self.inputs = {}
-        # Measurement ticks for different variables share one I2C bus and ADC
-        self.lock = threading.Lock()
         self.sim_start = time.time()
         # The readings are scaled with each variable's range
         missing = [
@@ -89,14 +86,7 @@ class Instrument(BaseInstrument):
         return f"I2C bus {self.i2c_bus}, address {hex(self.i2c_address)}"
 
     def simulate(self, variable):
-        # With a setpoint or an external actuator, converge towards it as usual
-        if (
-            self.setpoints.get(variable) is not None
-            or variable in self.config["EXTERNAL_ACTUATORS"]
-        ):
-            return self.default_sim(variable)
-        # Otherwise, a slowly varying 4-20 mA signal, run through the same conversion
-        # as the real readings
+        # A slowly varying 4-20 mA signal, run through the same conversion as the real readings
         sensor = self.available_variables[variable]["sensor"]
         t = time.time() - self.sim_start
         ma = 12.0 + 7.5 * math.sin(t / 6.0 + sensor["channel"] * 1.3)
@@ -104,31 +94,30 @@ class Instrument(BaseInstrument):
 
     def get_measurement(self, variable):
         sensor = self.available_variables[variable]["sensor"]
-        with self.lock:
-            if self.ads is None and not self.connect():
-                return None
-            try:
-                voltage = self.inputs[sensor["channel"]].voltage
-            except Exception as e:
-                # Reconnect on the next measurement, in case the connection was lost
-                self.ads, self.inputs = None, {}
-                print(
-                    f"Error reading ADS1115 channel A{sensor['channel']}: {e}. Reconnecting."
-                )
-                return None
+        if self.ads is None and not self.connect():
+            return None
+        try:
+            voltage = self.inputs[sensor["channel"]].voltage
+        except Exception as e:
+            # Reconnect on the next measurement, in case the connection was lost
+            self.ads, self.inputs = None, {}
+            print(
+                f"Error reading ADS1115 channel A{sensor['channel']}: {e}. Reconnecting."
+            )
+            return None
 
         ma = voltage_to_ma(voltage)
         fault = loop_fault(ma)
         if fault:
-            print(f"Loop fault on '{variable}' (A{sensor['channel']}): {ma:.2f} mA, {fault}")
+            print(
+                f"Loop fault on '{variable}' (A{sensor['channel']}): {ma:.2f} mA, {fault}"
+            )
             return None
         return ma_to_engineering(ma, self.config["VARIABLE_RANGES"][variable])
 
     def go_to_setpoint(self, variable, setpoint):
-        # Never called: every variable has `actuator: None`
-        raise NotImplementedError(
-            f"ADS1115 has no actuator: '{variable}' cannot be set to {setpoint}."
-        )
+        # No actuators available
+        pass
 
 
 # ======================================================================================
