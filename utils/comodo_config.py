@@ -171,18 +171,27 @@ class ComodoConfig:
         Raises an error if several (not simulated) instruments use the same serial address (e.g. /dev/ttyUSB0).
         Each instrument's firmware runs in its own container, which opens it, so their messages can get mixed up
         (e.g. one reads the other's reply), causing intermittent errors, or even wrong measurements.
+        An I2C bus (e.g. /dev/i2c-1) can be shared, as each transfer is addressed to one device on it,
+        so it only raises if they also use the same device_id (their I2C address).
         """
         instruments_by_address = {}
         for instrument_name, instrument in self.instruments.items():
             address = str(instrument["address"])
-            if not instrument["simulate"] and address.startswith("/dev/"):
-                instruments_by_address.setdefault(address, []).append(instrument_name)
-        for address, instrument_names in instruments_by_address.items():
+            if instrument["simulate"] or not address.startswith("/dev/"):
+                continue
+            device_id = instrument["device_id"] if address.startswith("/dev/i2c-") else None
+            instruments_by_address.setdefault((address, device_id), []).append(
+                instrument_name
+            )
+        for (address, device_id), instrument_names in instruments_by_address.items():
             if len(instrument_names) > 1:
+                if device_id is not None:
+                    address = f"{address}, device_id '{device_id}'"
                 raise ValueError(
                     f"Instruments {', '.join(instrument_names)} use the same address ({address}). "
                     "Each opens it from its own firmware container, so their messages would get mixed up, "
-                    "causing errors or wrong measurements. Give each instrument its own address."
+                    "causing errors or wrong measurements. "
+                    "Give each instrument its own address (or device_id, on an I2C bus)."
                 )
 
     def populate_sensors_actuators_spcs(self):

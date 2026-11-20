@@ -268,8 +268,48 @@ class TestPopulateInstruments:
         assert str(e.value) == (
             "Instruments pressure, mass_flow use the same address (/dev/ttyUSB0). "
             "Each opens it from its own firmware container, so their messages would get mixed up, "
-            "causing errors or wrong measurements. Give each instrument its own address."
+            "causing errors or wrong measurements. "
+            "Give each instrument its own address (or device_id, on an I2C bus)."
         )
+
+    @pytest.mark.parametrize(
+        "device_ids, where",
+        [
+            (["0x48", "0x48"], "/dev/i2c-1, device_id '0x48'"),
+            ([None, None], "/dev/i2c-1, device_id ''"),
+        ],
+    )
+    def test_shared_i2c_address_and_device_id(self, mocks_for_inst, device_ids, where):
+        config = mocks_for_inst["config_with_raw"]
+        instruments = config.raw["instruments"]
+        for name, device_id in zip(["pressure", "mass_flow"], device_ids):
+            instruments[name]["simulate"] = False
+            instruments[name]["address"] = "/dev/i2c-1"
+            instruments[name].pop("device_id", None)
+            if device_id is not None:
+                instruments[name]["device_id"] = device_id
+
+        with pytest.raises(ValueError) as e:
+            config.populate_instruments()
+
+        assert f"Instruments pressure, mass_flow use the same address ({where})." in str(
+            e.value
+        )
+
+    def test_shared_i2c_address_with_different_device_ids_is_allowed(
+        self, mocks_for_inst
+    ):
+        config = mocks_for_inst["config_with_raw"]
+        instruments = config.raw["instruments"]
+        # Each transfer on an I2C bus is addressed to one device
+        for name, device_id in [("pressure", "0x48"), ("mass_flow", "0x49")]:
+            instruments[name]["simulate"] = False
+            instruments[name]["address"] = "/dev/i2c-1"
+            instruments[name]["device_id"] = device_id
+
+        config.populate_instruments()
+
+        assert config.instruments.keys() == instruments.keys()
 
     def test_shared_address_simulated_is_allowed(self, mocks_for_inst):
         config = mocks_for_inst["config_with_raw"]
