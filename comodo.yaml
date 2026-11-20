@@ -32,6 +32,7 @@ instruments:
   transformer:
     firmware: adafruit.ads1115
     address: /dev/i2c-1
+    device_id: "0x48"
     simulate: false
     variables:
       input_current:

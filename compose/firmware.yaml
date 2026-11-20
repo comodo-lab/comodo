@@ -60,7 +60,7 @@ services:
       INSTRUMENT_NAME: "transformer"
       FIRMWARE: adafruit.ads1115
       ADDRESS: "/dev/i2c-1"
-      DEVICE_ID: ""
+      DEVICE_ID: "0x48"
       SIMULATE: "false"
       ACTIVE_VARIABLES: '["input_current", "input_voltage", "output_current", "output_voltage"]'
       DEFAULT_SETPOINTS: 'null'

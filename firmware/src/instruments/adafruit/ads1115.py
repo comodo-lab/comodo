@@ -9,19 +9,21 @@ ADS1115 input, converted back to mA, then scaled to the meter's engineering unit
 Loop currents outside the 4-20 mA band (open loop, transmitter fault) are reported
 as a failed measurement (None), which sets the instrument status to `error`.
 
-ADDRESS is the ADS1115's I2C address (e.g. "0x48"); it defaults to 0x48 if unset.
+ADDRESS is the I2C bus device (e.g. "/dev/i2c-1"), and DEVICE_ID the ADS1115's I2C address
+on it (e.g. "0x48"), which defaults to 0x48 if unset.
 All variables are sensors only: none of them can be set.
 """
 
 # System imports
 import math
+import re
 import threading
 import time
 from typing import ClassVar
 
 # Instrument specific imports
-# `board` and `busio` (Adafruit Blinka) only import on supported hardware, so they
-# are imported in `connect_ads1115` instead, keeping simulation runnable anywhere.
+# `adafruit_extended_bus` (Adafruit Blinka) only imports on supported hardware, so it
+# is imported in `connect_ads1115` instead, keeping simulation runnable anywhere.
 import adafruit_ads1x15.ads1115 as ADS
 from adafruit_ads1x15.analog_in import AnalogIn
 
@@ -62,23 +64,27 @@ class Instrument(BaseInstrument):
         self.sim_start = time.time()
         if self.config["SIMULATE"]:
             return
-        self.i2c_address = parse_i2c_address(None)
+        self.i2c_bus = parse_i2c_bus(self.config["ADDRESS"])
+        self.i2c_address = parse_i2c_address(self.config["DEVICE_ID"])
         # If it can't connect now, it tries again on each measurement
         self.connect()
 
     def connect(self):
         try:
-            self.ads, self.inputs = connect_ads1115(self.i2c_address)
-            print(f"Connected to ADS1115 at I2C address {hex(self.i2c_address)}")
+            self.ads, self.inputs = connect_ads1115(self.i2c_bus, self.i2c_address)
+            print(f"Connected to ADS1115 at {self.where()}")
             return True
         except Exception as e:
             self.ads, self.inputs = None, {}
             print(
-                f"Could not connect to ADS1115 at I2C address {hex(self.i2c_address)}: {e}\n"
+                f"Could not connect to ADS1115 at {self.where()}: {e}\n"
                 "Check that I2C is enabled (raspi-config), the HAT is seated, and "
-                "'i2cdetect -y 1' shows the address."
+                f"'i2cdetect -y {self.i2c_bus}' shows the address."
             )
             return False
+
+    def where(self):
+        return f"I2C bus {self.i2c_bus}, address {hex(self.i2c_address)}"
 
     def simulate(self, variable):
         # With a setpoint or an external actuator, converge towards it as usual
@@ -141,6 +147,18 @@ HIGH_FAULT_MA = 20.5
 # --------------------------------------------------------------------------------------
 # Helper functions
 # --------------------------------------------------------------------------------------
+def parse_i2c_bus(address):
+    """
+    Returns the I2C bus number from its device, e.g. 1 from "/dev/i2c-1".
+    """
+    match = re.fullmatch(r"/dev/i2c-(\d+)", str(address).strip())
+    if match is None:
+        raise ValueError(
+            f"Invalid ADS1115 address '{address}'. Expected an I2C bus device, e.g. /dev/i2c-1."
+        )
+    return int(match.group(1))
+
+
 def parse_i2c_address(address):
     """
     Returns the I2C address as an int, from e.g. "0x48", "72" or 72.
@@ -152,15 +170,14 @@ def parse_i2c_address(address):
     return int(str(address).strip(), 0)
 
 
-def connect_ads1115(i2c_address):
+def connect_ads1115(i2c_bus, i2c_address):
     """
-    Opens the ADS1115 and returns it, with an AnalogIn for each of its 4 inputs.
+    Opens the ADS1115 on the I2C bus, and returns it with an AnalogIn for each of its 4 inputs.
     Raises an exception if it can't be opened.
     """
-    import board
-    import busio
+    from adafruit_extended_bus import ExtendedI2C
 
-    i2c = busio.I2C(board.SCL, board.SDA)
+    i2c = ExtendedI2C(i2c_bus)
     ads = ADS.ADS1115(i2c, address=i2c_address, gain=GAIN)
     inputs = {channel: AnalogIn(ads, channel) for channel in range(4)}
     return ads, inputs
