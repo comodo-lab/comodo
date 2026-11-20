@@ -3,12 +3,13 @@ Integration tests for the Firmware lifecycle.
 """
 
 import asyncio
+import copy
 import json
 import os
 
 import pytest
 
-import main, src.instrument, src.watchdog
+import main, src.config, src.instrument, src.watchdog
 
 from tests.conftest import (
     expected_config,
@@ -481,12 +482,9 @@ def test_create_instrument_for_all_instrument_subclasses(firmware_plugin):
     Also, repeated simulated measurements are requested, to ensure the simulation does not error.
     """
     config = {
+        **copy.deepcopy(src.config.DEFAULT_CONFIG),
         "FIRMWARE": firmware_plugin,
         "SIMULATE": True,
-        "ADDRESS": "",
-        "DEFAULT_SETPOINTS": {},
-        "EXTERNAL_ACTUATORS": {},
-        "VARIABLE_RANGES": {},
     }
     instrument_instance = src.instrument.create_instrument(config)
     assert instrument_instance is not None

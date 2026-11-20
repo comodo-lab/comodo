@@ -230,7 +230,7 @@ class TestInstrumentState:
         mock_config = is_mocks["config"]
         istate = state.InstrumentState(mock_config)
         istate.status = "awaiting_experiment"
-        istate.instrument.config["experiment"] = {"some": "info"}
+        is_mocks["instrument"].load_live_config.return_value = True
 
         mock_msg = MockMessage(
             topic=f"instruments/{mock_config['INSTRUMENT_NAME']}/configure",
@@ -239,12 +239,27 @@ class TestInstrumentState:
         istate.awaiting_experiment_cb(istate.client, mock_msg)
 
         is_mocks["mqtt_val"].validate_message.assert_called_once()
-        is_mocks["mqtt_val"].validate_message.assert_called_once()
-        assert istate.instrument.config["experiment"] == {
-            "some": "info",
-            "some_other": "data",
-        }
+        is_mocks["instrument"].load_live_config.assert_called_once_with(
+            {"some_other": "data"}
+        )
         assert istate.status == "awaiting_experiment"
+
+    def test_awaiting_experiment_configure_invalid(self, is_mocks):
+        mock_config = is_mocks["config"]
+        istate = state.InstrumentState(mock_config)
+        istate.status = "awaiting_experiment"
+        is_mocks["instrument"].load_live_config.return_value = False
+
+        mock_msg = MockMessage(
+            topic=f"instruments/{mock_config['INSTRUMENT_NAME']}/configure",
+            payload=json.dumps({"temperature": {"calibration": {"scaling": 0}}}),
+        )
+        istate.awaiting_experiment_cb(istate.client, mock_msg)
+
+        is_mocks["instrument"].load_live_config.assert_called_once_with(
+            {"temperature": {"calibration": {"scaling": 0}}}
+        )
+        assert istate.status == "error"
 
     def test_awaiting_experiment_start_missing_id(self, is_mocks, capsys):
         mock_config = is_mocks["config"]

@@ -100,9 +100,15 @@ def expected_config(firmware_env, experiment=None):
     firmware_env values are raw (JSON-encoded) environment variable strings, so they are
     parsed here the same way config.load_config() parses them, to match the real types.
     """
-    if experiment is None:
-        experiment = {"experiment_id": None}
     config = mock_load_config(firmware_env)
+    experiment = {
+        "experiment_id": None,
+        **{
+            variable: {"calibration": {"offset": 0, "scaling": 1}}
+            for variable in config["ACTIVE_VARIABLES"]
+        },
+        **(experiment or {}),
+    }
     printable_config = {
         "name": config["INSTRUMENT_NAME"],
         "firmware": config["FIRMWARE"],

@@ -6,6 +6,9 @@ An instrument is understood as a device with a unique address, which may monitor
 
 - [Firmware](#firmware)
   - [Configuration](#configuration)
+    - [Experiment's live configuration](#experiments-live-configuration)
+      - [Tolerance](#tolerance)
+      - [Calibration](#calibration)
     - [Generating the compose/firmware.yaml](#generating-the-composefirmwareyaml)
   - [Structure and life cycle](#structure-and-life-cycle)
     - [Safe stop](#safe-stop)
@@ -36,6 +39,50 @@ The expected environment variables are:
 - `MAX_MISSED_HEARTBEATS`: The number of controller heartbeats that can be missed before the instrument [safe stops](#safe-stop). Defaults to 3.
   Set from `global.experiment_monitoring.max_missed_heartbeats` in `comodo.yaml`.
 
+### Experiment's live configuration
+Further configuration can be set for each instrument via the `instruments/{name}/configure` topic.
+The controller sends it before starting an experiment, from the `config.instruments` section of the experiment,
+and the firmware only accepts it while awaiting an experiment.
+Its `load_live_config` method saves each key of the message under `experiment` in the instrument's configuration,
+which is reported in the heartbeat.
+Anything can be passed, as long as it is valid JSON, but the firmware needs to be set up to use it.
+Per variable, the controller uses [`tolerance`](#tolerance), and the base instrument class uses [`calibration`](#calibration).
+For example, the message for an instrument with `temperature` and `power` variables could be:
+```json
+{
+  "temperature": {
+    "tolerance": 0.1,
+    "calibration": {
+      "offset": 273,
+      "scaling": 0.7
+    }
+  },
+  "power": {
+    "tolerance": 1.5
+  }
+}
+```
+Before sending it, the controller rejects live configuration for instruments that are not in `comodo.yaml`,
+calibrations for variables the instrument does not have, and variable configurations that are not objects.
+
+#### Tolerance
+The tolerance is a value that defines the acceptable deviation from the setpoint.
+It is used to determine when a measurement is considered to be within the acceptable range.
+This check is performed outside of the firmware, by the controller,
+so a tolerance is required for every variable that drives an actuator.
+
+#### Calibration
+Each variable can be calibrated with an `offset` and a `scaling`.
+Real measurements are then reported as `offset + scaling * measurement`, and setpoints are converted back
+(`(setpoint - offset) / scaling`) before being sent to the instrument, so that the instrument measures the setpoint.
+Setpoints are checked against the variable's range before being converted.
+Simulated measurements are not calibrated, they are considered *true* values.
+The calibration is applied by the `calibrate` and `anti_calibrate` methods of the base instrument class.
+
+Calibrations are optional, and default to no calibration (an `offset` of 0 and a `scaling` of 1):
+If a calibration has a value that is not a number, or a `scaling` of 0, nothing is saved, and the status is set to `error`.
+The calibration in use is reported in the heartbeat, under `experiment`.
+The controller compares it with the one it sent, and stops the experiment if they differ.
 
 ### Generating the compose/firmware.yaml
 

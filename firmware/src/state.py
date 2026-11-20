@@ -163,9 +163,8 @@ class InstrumentState:
         """
         payload = mqtt_val.validate_message(msg.topic, msg.payload)
         if msg.topic.endswith("configure"):
-            # Save live config
-            for key, value in payload.items():
-                self.instrument.config["experiment"][key] = value
+            if not self.instrument.load_live_config(payload):
+                self.status = "error"
         elif msg.topic.endswith("start"):
             # Save experiment id and move to running
             try:
