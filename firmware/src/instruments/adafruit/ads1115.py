@@ -108,7 +108,11 @@ class Instrument(BaseInstrument):
             try:
                 voltage = self.inputs[sensor["channel"]].voltage
             except Exception as e:
-                print(f"Error reading ADS1115 channel A{sensor['channel']}: {e}")
+                # Reconnect on the next measurement, in case the connection was lost
+                self.ads, self.inputs = None, {}
+                print(
+                    f"Error reading ADS1115 channel A{sensor['channel']}: {e}. Reconnecting."
+                )
                 return None
 
         ma = voltage_to_ma(voltage)
