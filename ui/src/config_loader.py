@@ -58,21 +58,20 @@ class UiConfig:
         """
         Default instrument live config rows ({name, key, value}), where name is an
         instrument or one of its variables (instrument/variable).
+        Every variable driving an actuator gets a tolerance row, with its tolerance in comodo.yaml.
         Every variable gets a calibration row with no calibration, so it is explicit what is
         sent and easy to change. The value is JSON text, as it is edited as text in the table.
         """
         result = []
-        for name, sensor in self.config.sensors.items():
+        driving_sensors = {a["driving_sensor"] for a in self.config.actuators.values()}
+        for name in driving_sensors:
             result.append(
                 {
                     "name": name,
                     "key": "tolerance",
-                    "value": sensor.get("tolerance", 1.0),
+                    "value": self.config.sensors[name]["tolerance"],
                 }
             )
-        for name in self.config.actuators:
-            if name not in self.config.sensors:
-                result.append({"name": name, "key": "tolerance", "value": 1.0})
         for instrument_name, instrument in self.config.instruments.items():
             for variable in instrument["variables"]:
                 result.append(

@@ -48,7 +48,6 @@ class TestUiConfig:
                 "key": "calibration",
                 "value": '{"offset": 0, "scaling": 1}',
             },
-            {"name": "test_spc/output", "key": "tolerance", "value": 1.0},
         ]
 
     def test_pid_target_uses_sensor_range(self, sample_config_with_pid):
@@ -102,7 +101,6 @@ class TestUiConfig:
                 "key": "calibration",
                 "value": '{"offset": 0, "scaling": 1}',
             },
-            {"name": "test_sensor/reading", "key": "tolerance", "value": 1.0},
         ]
 
     def test_ini_spc_dict(self, sample_config_with_pid):
