@@ -9,7 +9,12 @@ def mock_experiment_dict():
         "config": {
             "resolution": 2,
             "instruments": {
-                "furnace": {"temperature": {"tolerance": 5, "offset": 273}},
+                "furnace": {
+                    "temperature": {
+                        "tolerance": 5,
+                        "calibration": {"offset": 273, "scaling": 1.0},
+                    }
+                },
                 "pressure": {"pressure": {"tolerance": 0.2}},
                 "mass_flow": {"mass_flow": {"tolerance": 1}},
             },
