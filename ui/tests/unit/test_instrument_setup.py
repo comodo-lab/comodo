@@ -30,14 +30,18 @@ class TestToInstrumentConfig:
     def test_groups_rows_per_instrument_and_variable(self):
         rows = [
             {"name": "furnace/temperature", "key": "tolerance", "value": 1},
-            {"name": "furnace", "key": "offset", "value": "273"},
+            {"name": "furnace", "key": "resolution", "value": "2"},
             {"name": "pressure/pressure", "key": "tolerance", "value": "0.5"},
-            {"name": "furnace/temperature", "key": "gain", "value": "fast"},
+            {
+                "name": "furnace/temperature",
+                "key": "calibration",
+                "value": '{"offset": 273}',
+            },
         ]
         assert ins.to_instrument_config(rows) == {
             "furnace": {
-                "temperature": {"tolerance": 1, "gain": "fast"},
-                "offset": 273,
+                "temperature": {"tolerance": 1, "calibration": {"offset": 273}},
+                "resolution": 2,
             },
             "pressure": {"pressure": {"tolerance": 0.5}},
         }
@@ -46,13 +50,15 @@ class TestToInstrumentConfig:
         rows = [
             {"name": "", "key": "", "value": ""},
             {"name": "furnace", "key": " ", "value": 1},
-            {"name": None, "key": "offset", "value": 1},
+            {"name": None, "key": "tolerance", "value": 1},
         ]
         assert ins.to_instrument_config(rows) == {}
 
     def test_strips_names_and_keys(self):
-        rows = [{"name": " furnace ", "key": " offset ", "value": 1}]
-        assert ins.to_instrument_config(rows) == {"furnace": {"offset": 1}}
+        rows = [{"name": " furnace/temperature ", "key": " tolerance ", "value": 1}]
+        assert ins.to_instrument_config(rows) == {
+            "furnace": {"temperature": {"tolerance": 1}}
+        }
 
     def test_no_rows(self):
         assert ins.to_instrument_config(None) == {}
@@ -69,7 +75,11 @@ class TestToInstrumentConfig:
 class TestAddDeleteRows:
     ROWS = [
         {"name": "furnace/temperature", "key": "tolerance", "value": 1},
-        {"name": "furnace", "key": "offset", "value": 273},
+        {
+            "name": "furnace/temperature",
+            "key": "calibration",
+            "value": '{"offset": 273}',
+        },
     ]
 
     def test_add_row(self):
@@ -114,7 +124,9 @@ class TestCheckTolerances:
 
     def test_all_tolerances(self):
         config = {
-            "furnace": {"temperature": {"tolerance": 1}, "offset": 273},
+            "furnace": {
+                "temperature": {"tolerance": 1, "calibration": {"offset": 273}}
+            },
             "pressure": {"pressure": {"tolerance": 0.5}},
         }
         ins.check_tolerances(config, self.VARIABLES)

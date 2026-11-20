@@ -35,8 +35,9 @@ def to_instrument_config(rows):
     """
     Groups instrument live config rows ({name, key, value}) per instrument, as expected
     by the controller. Rows for a variable (instrument/variable) are nested under it:
-        furnace              offset     273  ->  {"furnace": {"offset": 273,
-        furnace/temperature  tolerance  1                     "temperature": {"tolerance": 1}}}
+        furnace              resolution   2                 ->  {"furnace": {"resolution": 2,
+        furnace/temperature  tolerance    1                         "temperature": {"tolerance": 1,
+        furnace/temperature  calibration  {"offset": 273}               "calibration": {"offset": 273}}}}
     Rows without a name or key are ignored.
     """
     config = {}

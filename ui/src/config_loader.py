@@ -4,6 +4,7 @@ import uuid
 from utils.comodo_config import ComodoConfig
 from utils.pid import PID
 
+CALIBRATION_DEFAULTS = '{"offset": 0, "scaling": 1}'
 PID_DEFAULTS = PID().get_config()
 PID_NAME_MAP = {
     "k_p": "Proportional",
@@ -57,6 +58,8 @@ class UiConfig:
         """
         Default instrument live config rows ({name, key, value}), where name is an
         instrument or one of its variables (instrument/variable).
+        Every variable gets a calibration row with no calibration, so it is explicit what is
+        sent and easy to change. The value is JSON text, as it is edited as text in the table.
         """
         result = []
         for name, sensor in self.config.sensors.items():
@@ -70,7 +73,16 @@ class UiConfig:
         for name in self.config.actuators:
             if name not in self.config.sensors:
                 result.append({"name": name, "key": "tolerance", "value": 1.0})
-        return result
+        for instrument_name, instrument in self.config.instruments.items():
+            for variable in instrument["variables"]:
+                result.append(
+                    {
+                        "name": f"{instrument_name}/{variable}",
+                        "key": "calibration",
+                        "value": CALIBRATION_DEFAULTS,
+                    }
+                )
+        return sorted(result, key=lambda row: (row["name"], row["key"]))
 
     @property
     def ini_spc_dict(self):
@@ -82,8 +94,7 @@ class UiConfig:
             {
                 "name": spc_id,
                 **{
-                    key: spc.get(key.upper(), PID_DEFAULTS[key])
-                    for key in PID_NAME_MAP
+                    key: spc.get(key.upper(), PID_DEFAULTS[key]) for key in PID_NAME_MAP
                 },
             }
             for spc_id, spc in self.config.spcs.items()

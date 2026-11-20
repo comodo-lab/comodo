@@ -33,6 +33,9 @@ These pages define an experiment. They are pre-filled from `comodo.yaml`, and ea
   Each row has a `time` (in seconds from the start), a setpoint for each variable that drives an actuator, and how to reach it (`linear`, `exponential`, `logarithmic` or `step`).
 - **Instruments**: The live configuration sent to each instrument, as rows of `name`, `key` and `value`.
   `name` is an instrument (`instrument`), or one of its variables (`instrument/variable`).
+  Every variable has a `calibration` row, which defaults to no calibration (`{"offset": 0, "scaling": 1}`),
+  and can be changed to calibrate it, e.g. to `{"offset": -0.5, "scaling": 1.02}`
+  (see [calibration](../firmware/README.md#calibration) in the firmware's README).
   Every variable in the timeline needs a numeric `tolerance`, which defaults to the one in `comodo.yaml`.
 - **PID Controllers**: The PID parameters of each setpoint controller, which default to the ones in `comodo.yaml` (or the setpoint controller's defaults).
 - **Global**: Settings for the whole experiment. Currently the `resolution`: the time in seconds between the setpoints sent to the instruments.
