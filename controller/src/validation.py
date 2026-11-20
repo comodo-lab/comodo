@@ -47,6 +47,36 @@ def generate_row_schema(config):
     return json_schema
 
 
+def validate_calibration(variable, calibration):
+    """
+    Returns the variable's calibration, with missing keys filled in with the defaults
+    (no calibration): an offset of 0 and a scaling of 1.
+    Raises an ExperimentValidationError if it is not in the form
+    {"offset": number, "scaling": number}, with a non-zero scaling.
+    """
+    expected = 'Expected {"offset": number, "scaling": number}.'
+    if not isinstance(calibration, dict):
+        raise ExperimentValidationError(
+            f"Invalid calibration for '{variable}': {calibration}. {expected}"
+        )
+    unknown = [key for key in calibration if key not in ["offset", "scaling"]]
+    if unknown:
+        raise ExperimentValidationError(
+            f"Unknown calibration key(s) {', '.join(unknown)} for '{variable}'. {expected}"
+        )
+    calibration = {"offset": 0, "scaling": 1, **calibration}
+    for key, value in calibration.items():
+        if not isinstance(value, (int, float)) or isinstance(value, bool):
+            raise ExperimentValidationError(
+                f"Invalid calibration {key} for '{variable}': {value}. Expected a number."
+            )
+    if calibration["scaling"] == 0:
+        raise ExperimentValidationError(
+            f"Invalid calibration scaling for '{variable}': it can't be 0."
+        )
+    return calibration
+
+
 def validate_experiment(file_path, config):
     # --------------------------------------------------------------------------
     # Read experiment file
@@ -80,13 +110,31 @@ def validate_experiment(file_path, config):
         raise ExperimentValidationError(f"Experiment row validation failed: {e}")
 
     # --------------------------------------------------------------------------
-    # Check the live config is for instruments in comodo.yaml
+    # Check the live config is for instruments in comodo.yaml, and their variables.
 
-    instruments_config = experiment_dict["config"].get("instruments", {})
-    for instrument_name in instruments_config:
+    instruments_config = experiment_dict["config"].setdefault("instruments", {})
+    for instrument_name, instrument_config in instruments_config.items():
         if instrument_name not in config.instruments:
             raise ExperimentValidationError(
                 f"Live config for unknown instrument '{instrument_name}'."
+            )
+        variables = config.instruments[instrument_name]["variables"]
+        for key, value in instrument_config.items():
+            if key in variables and not isinstance(value, dict):
+                raise ExperimentValidationError(
+                    f"Invalid live config for variable '{instrument_name}/{key}': "
+                    f"{value}. Expected an object."
+                )
+
+    # --------------------------------------------------------------------------
+    # Validate the calibrations, and complete them with the defaults for every variable.
+
+    for instrument_name, instrument in config.instruments.items():
+        instrument_config = instruments_config.setdefault(instrument_name, {})
+        for variable in instrument["variables"]:
+            variable_config = instrument_config.setdefault(variable, {})
+            variable_config["calibration"] = validate_calibration(
+                f"{instrument_name}/{variable}", variable_config.get("calibration", {})
             )
 
     # --------------------------------------------------------------------------

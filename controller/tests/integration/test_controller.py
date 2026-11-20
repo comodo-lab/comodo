@@ -138,7 +138,10 @@ def test_control_loop(
     }
     assert messages[2].topic == "instruments/furnace/configure"
     assert json.loads(messages[2].payload) == {
-        "temperature": {"tolerance": 5, "offset": 273}
+        "temperature": {
+            "tolerance": 5,
+            "calibration": {"offset": 273, "scaling": 1.0},
+        }
     }
     assert messages[3].topic == "instruments/pressure/configure"
     assert json.loads(messages[3].payload) == {"pressure": {"tolerance": 0.2}}

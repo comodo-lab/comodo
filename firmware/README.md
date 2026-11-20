@@ -63,7 +63,7 @@ For example, the message for an instrument with `temperature` and `power` variab
 }
 ```
 Before sending it, the controller rejects live configuration for instruments that are not in `comodo.yaml`,
-calibrations for variables the instrument does not have, and variable configurations that are not objects.
+and variable configurations that are not objects.
 
 #### Tolerance
 The tolerance is a value that defines the acceptable deviation from the setpoint.
