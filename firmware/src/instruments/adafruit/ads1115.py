@@ -5,9 +5,11 @@ https://www.ti.com/product/ADS1115
 https://docs.circuitpython.org/projects/ads1x15/en/latest/
 
 Each 4-20 mA loop is read as the voltage across a precision burden resistor on one
-ADS1115 input, converted back to mA, then scaled to the meter's engineering unit.
-Loop currents outside the 4-20 mA band (open loop, transmitter fault) are reported
-as a failed measurement (None), which sets the instrument status to `error`.
+ADS1115 input, converted back to mA, then scaled to the meter's engineering unit,
+using the variable's range (VARIABLE_RANGES, from min and max in comodo.yaml) as the
+meter's readings at 4 mA and at 20 mA. Readings are clamped to that range.
+Loop currents at the NAMUR NE43 failure levels (open loop, transmitter fault) are
+reported as a failed measurement (None), which sets the instrument status to `error`.
 
 ADDRESS is the I2C bus device (e.g. "/dev/i2c-1"), and DEVICE_ID the ADS1115's I2C address
 on it (e.g. "0x48"), which defaults to 0x48 if unset.
@@ -35,25 +37,14 @@ from src.instrument import BaseInstrument
 # Instrument Class
 # --------------------------------------------------------------------------------------
 class Instrument(BaseInstrument):
-    # sensor: ADS1115 input (A0-A3) and the meter's reading at 4 mA and at 20 mA.
-    # Check each meter's datasheet/nameplate for its 4 mA and 20 mA values.
+    # sensor: ADS1115 input (A0-A3) of each meter.
+    # The meter's readings at 4 mA and at 20 mA are the variable's min and max in comodo.yaml
+    # (check each meter's datasheet/nameplate for them).
     available_variables: ClassVar[dict[str, dict]] = {
-        "input_current": {
-            "sensor": {"channel": 3, "eng_min": 0.0, "eng_max": 13.0},  # A
-            "actuator": None,
-        },
-        "output_current": {
-            "sensor": {"channel": 2, "eng_min": 0.0, "eng_max": 200.0},  # A
-            "actuator": None,
-        },
-        "input_voltage": {
-            "sensor": {"channel": 1, "eng_min": 0.0, "eng_max": 300.0},  # V
-            "actuator": None,
-        },
-        "output_voltage": {
-            "sensor": {"channel": 0, "eng_min": 0.0, "eng_max": 200.0},  # V
-            "actuator": None,
-        },
+        "input_current": {"sensor": {"channel": 3}, "actuator": None},  # A
+        "output_current": {"sensor": {"channel": 2}, "actuator": None},  # A
+        "input_voltage": {"sensor": {"channel": 1}, "actuator": None},  # V
+        "output_voltage": {"sensor": {"channel": 0}, "actuator": None},  # V
     }
 
     def initialise(self):
@@ -62,6 +53,17 @@ class Instrument(BaseInstrument):
         # Measurement ticks for different variables share one I2C bus and ADC
         self.lock = threading.Lock()
         self.sim_start = time.time()
+        # The readings are scaled with each variable's range
+        missing = [
+            variable
+            for variable in self.config["ACTIVE_VARIABLES"]
+            if variable not in self.config["VARIABLE_RANGES"]
+        ]
+        if missing:
+            raise ValueError(
+                f"Missing the range (min and max) of {', '.join(missing)}: "
+                "they are the meter's readings at 4 mA and at 20 mA."
+            )
         if self.config["SIMULATE"]:
             return
         self.i2c_bus = parse_i2c_bus(self.config["ADDRESS"])
@@ -98,7 +100,7 @@ class Instrument(BaseInstrument):
         sensor = self.available_variables[variable]["sensor"]
         t = time.time() - self.sim_start
         ma = 12.0 + 7.5 * math.sin(t / 6.0 + sensor["channel"] * 1.3)
-        return ma_to_engineering(ma, sensor)
+        return ma_to_engineering(ma, self.config["VARIABLE_RANGES"][variable])
 
     def get_measurement(self, variable):
         sensor = self.available_variables[variable]["sensor"]
@@ -120,7 +122,7 @@ class Instrument(BaseInstrument):
         if fault:
             print(f"Loop fault on '{variable}' (A{sensor['channel']}): {ma:.2f} mA, {fault}")
             return None
-        return ma_to_engineering(ma, sensor)
+        return ma_to_engineering(ma, self.config["VARIABLE_RANGES"][variable])
 
     def go_to_setpoint(self, variable, setpoint):
         # Never called: every variable has `actuator: None`
@@ -142,10 +144,11 @@ DEFAULT_I2C_ADDRESS = 0x48  # ADDR pin tied to GND, the default on most HATs
 BURDEN_RESISTOR_OHMS = 160.0
 GAIN = 1
 
-# Loop current outside this band is a fault, not a reading:
-# below 4 mA usually means an open loop, above 20 mA a transmitter fault.
-LOW_FAULT_MA = 3.8
-HIGH_FAULT_MA = 20.5
+# Loop currents at the NAMUR NE43 failure levels are a fault, not a reading:
+# at or below 3.6 mA usually means an open loop, at or above 21 mA a transmitter fault.
+# In between, readings outside 4-20 mA are clamped to the variable's range.
+LOW_FAULT_MA = 3.6
+HIGH_FAULT_MA = 21.0
 
 
 # --------------------------------------------------------------------------------------
@@ -191,18 +194,23 @@ def voltage_to_ma(voltage):
     return voltage / BURDEN_RESISTOR_OHMS * 1000.0
 
 
-def ma_to_engineering(ma, sensor):
-    span = sensor["eng_max"] - sensor["eng_min"]
-    return sensor["eng_min"] + (ma - 4.0) / 16.0 * span
+def ma_to_engineering(ma, variable_range):
+    """
+    Returns the reading for the loop current, scaled linearly from 4-20 mA to the
+    variable's range (min at 4 mA, max at 20 mA), and clamped to it.
+    """
+    ma = min(max(ma, 4.0), 20.0)
+    span = variable_range["max"] - variable_range["min"]
+    return variable_range["min"] + (ma - 4.0) / 16.0 * span
 
 
 def loop_fault(ma):
     """
     Returns a description of the loop fault, or None if the current is in range.
     """
-    if ma < LOW_FAULT_MA:
+    if ma <= LOW_FAULT_MA:
         return "LOW (open loop?)"
-    if ma > HIGH_FAULT_MA:
+    if ma >= HIGH_FAULT_MA:
         return "HIGH (transmitter fault?)"
     return None
 
