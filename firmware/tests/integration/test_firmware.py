@@ -4,6 +4,7 @@ Integration tests for the Firmware lifecycle.
 
 import asyncio
 import copy
+import importlib
 import json
 import os
 
@@ -481,10 +482,15 @@ def test_create_instrument_for_all_instrument_subclasses(firmware_plugin):
     mode. This is enough to check at least that their ABC implementation is correct.
     Also, repeated simulated measurements are requested, to ensure the simulation does not error.
     """
+    # All its variables active, each with a range, as from comodo.yaml
+    module = importlib.import_module(f"src.instruments.{firmware_plugin}")
+    variables = list(module.Instrument.available_variables)
     config = {
         **copy.deepcopy(src.config.DEFAULT_CONFIG),
         "FIRMWARE": firmware_plugin,
         "SIMULATE": True,
+        "ACTIVE_VARIABLES": variables,
+        "VARIABLE_RANGES": {var: {"min": 0, "max": 100} for var in variables},
     }
     instrument_instance = src.instrument.create_instrument(config)
     assert instrument_instance is not None
@@ -492,6 +498,11 @@ def test_create_instrument_for_all_instrument_subclasses(firmware_plugin):
     # Iterate simulated measurements per variable, checking they converge towards a setpoint
     target_setpoint = 42.0
     for variable in instrument_instance.available_variables:
+        # Sensor only variables can't be set, so just check they can be measured
+        if instrument_instance.available_variables[variable].get("actuator") is None:
+            value = instrument_instance.measure_or_simulate(variable)
+            assert isinstance(value, (int, float, dict))
+            continue
         instrument_instance.set_and_go_to_setpoint(variable, target_setpoint)
         previous_error = None
         max_iterations = 1000
