@@ -259,6 +259,54 @@ class TestBaseInstrument:
         )
         assert ins.previous_measurements == {"ext_ins/ext_var": 123.45}
 
+    def test_init_with_simulation_inputs_simulating(self, bi_mocks):
+        mock_config = bi_mocks["config"]
+        mock_config["SIMULATE"] = True
+        mock_config["SIMULATION_INPUTS"] = {
+            "heat": {"source": "ext_inst/ext_var", "min": 0, "max": 10}
+        }
+
+        with patch.object(
+            bi_mocks["ConcreteInstrument"], "external_measurements_client"
+        ) as mock_ext_client:
+            ins = bi_mocks["ConcreteInstrument"](mock_config)
+
+        mock_ext_client.assert_called_once_with()
+        assert ins.ext_client == mock_ext_client.return_value
+
+    def test_external_measurements_client_with_simulation_inputs(self, bi_mocks):
+        mock_config = bi_mocks["config"]
+        ins = bi_mocks["ConcreteInstrument"](mock_config)
+        ins.config["EXTERNAL_ACTUATORS"] = {"some_variable": "ext_inst/ext_var"}
+        ins.config["SIMULATION_INPUTS"] = {
+            "heat": {"source": "ext_inst/ext_var", "min": 0, "max": 10},
+            "power": {"source": "other_inst/other_var", "min": 0, "max": 5},
+        }
+
+        ins.external_measurements_client()
+
+        # Each subscribed to once
+        assert bi_mocks["client_class"].call_args.kwargs["topics"] == [
+            "instruments/ext_inst/ext_var/measurement",
+            "instruments/other_inst/other_var/measurement",
+        ]
+
+    def test_simulation_input(self, bi_mocks):
+        mock_config = bi_mocks["config"]
+        ins = bi_mocks["ConcreteInstrument"](mock_config)
+        ins.config["SIMULATION_INPUTS"] = {
+            "heat": {"source": "ext_inst/ext_var", "min": 0, "max": 10},
+            "power": {"source": "other_inst/other_var", "min": 0, "max": 5},
+        }
+        ins.previous_measurements["ext_inst/ext_var"] = 7
+
+        # By the name the module expects
+        assert ins.simulation_input("heat") == 7
+        # Not measured yet
+        assert ins.simulation_input("power") is None
+        # Not configured
+        assert ins.simulation_input("pressure") is None
+
     def test_external_measurements_client(self, bi_mocks):
         mock_config = bi_mocks["config"]
         mock_config["EXTERNAL_ACTUATORS"] = {}

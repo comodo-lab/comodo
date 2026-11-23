@@ -60,6 +60,7 @@ class TestConfigLoad:
             "safe_stop_setpoints": {"temperature": 0},
             "measurement_intervals": {"temperature": 1},
             "variable_ranges": {"temperature": {"min": 0, "max": 1000}},
+            "simulation_inputs": {},
             "heartbeat_interval": 1.0,
             "max_missed_heartbeats": 3,
             "experiment": {},

@@ -555,6 +555,22 @@ channels:
                         type: number
                       max:
                         type: number
+                simulation_inputs:
+                  type: object
+                  additionalProperties:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - source
+                      - min
+                      - max
+                    properties:
+                      source:
+                        type: string
+                      min:
+                        type: number
+                      max:
+                        type: number
                 heartbeat_interval:
                   type: number
                 max_missed_heartbeats:

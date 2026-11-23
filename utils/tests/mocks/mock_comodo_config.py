@@ -29,6 +29,7 @@ def mock_comodo_config(mock_comodo_yaml_dict):
             "address": "192.168.111.222",
             "device_id": "",
             "simulate": True,
+            "simulation_inputs": {},
             "variables": {
                 "temperature": {
                     "min": 0,
@@ -55,6 +56,7 @@ def mock_comodo_config(mock_comodo_yaml_dict):
             "address": "/dev/ttyUSB0",
             "device_id": "",
             "simulate": True,
+            "simulation_inputs": {},
             "variables": {
                 "pressure": {
                     "min": 1,
@@ -77,6 +79,7 @@ def mock_comodo_config(mock_comodo_yaml_dict):
             "address": "/dev/ttyUSB2",
             "device_id": "128",
             "simulate": True,
+            "simulation_inputs": {},
             "variables": {
                 "mass_flow": {
                     "min": 0,
@@ -167,7 +170,11 @@ def mock_comodo_config(mock_comodo_yaml_dict):
         "default_setpoints": {"V_A": 25, "V_B": 1},
         "safe_stop_setpoints": {"V_B": 0},
         "measurement_intervals": {"V_A": 1},
-        "variable_ranges": {"V_A": {"min": 0, "max": 1000}, "V_B": {"min": 0, "max": 10}},
+        "variable_ranges": {
+            "V_A": {"min": 0, "max": 1000},
+            "V_B": {"min": 0, "max": 10},
+        },
+        "simulation_inputs": {},
         "heartbeat_interval": 1.0,
         "max_missed_heartbeats": 3,
         "experiment": {},
