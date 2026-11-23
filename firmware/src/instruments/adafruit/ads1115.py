@@ -14,6 +14,8 @@ reported as a failed measurement (None), which sets the instrument status to `er
 ADDRESS is the I2C bus device (e.g. "/dev/i2c-1"), and DEVICE_ID the ADS1115's I2C address
 on it (e.g. "0x48"), which defaults to 0x48 if unset.
 All variables are sensors only: none of them can be set.
+In simulation, the input voltage is fixed at mains (MAINS_VOLTAGE), and the other variables
+follow the "power" simulation input. If no input is available, a default signal is used.
 """
 
 # System imports
@@ -86,11 +88,27 @@ class Instrument(BaseInstrument):
         return f"I2C bus {self.i2c_bus}, address {hex(self.i2c_address)}"
 
     def simulate(self, variable):
-        # A slowly varying 4-20 mA signal, run through the same conversion as the real readings
-        sensor = self.available_variables[variable]["sensor"]
-        t = time.time() - self.sim_start
-        ma = 12.0 + 7.5 * math.sin(t / 6.0 + sensor["channel"] * 1.3)
-        return ma_to_engineering(ma, self.config["VARIABLE_RANGES"][variable])
+        variable_range = self.config["VARIABLE_RANGES"][variable]
+        if variable == "input_voltage":
+            # Mains, before the power controller: fixed
+            return min(max(MAINS_VOLTAGE, variable_range["min"]), variable_range["max"])
+        # Other variables: a 4-20 mA signal, run through the same conversion as the real readings
+        # If a simulation input is provided (and measured)
+        power = self.simulation_input("power")
+        if isinstance(power, (int, float)) and not isinstance(power, bool):
+            # Voltage and current both scale with the square root of the power,
+            # as a fraction of the simulation input's range
+            power_range = self.config["SIMULATION_INPUTS"]["power"]
+            fraction = (power - power_range["min"]) / (
+                power_range["max"] - power_range["min"]
+            )
+            ma = 4.0 + 16.0 * math.sqrt(min(max(fraction, 0.0), 1.0))
+        else:
+            # If no simulation input is available, use a default signal
+            sensor = self.available_variables[variable]["sensor"]
+            t = time.time() - self.sim_start
+            ma = 12.0 + 7.5 * math.sin(t / 6.0 + sensor["channel"] * 1.3)
+        return ma_to_engineering(ma, variable_range)
 
     def get_measurement(self, variable):
         sensor = self.available_variables[variable]["sensor"]
@@ -126,6 +144,7 @@ class Instrument(BaseInstrument):
 # ADS1115 configuration and helper functions
 # --------------------------------------------------------------------------------------
 DEFAULT_I2C_ADDRESS = 0x48  # ADDR pin tied to GND, the default on most HATs
+MAINS_VOLTAGE = 230.0  # V, the simulated input voltage
 
 # Precision burden resistor (ohms) across each input: V = I * R.
 # With GAIN = 1 (+/-4.096 V full scale) and the ADS1115 powered from 3.3 V, keep
