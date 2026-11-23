@@ -47,16 +47,21 @@ It also enables the components to communicate internally.
 
 Laboratory experiments remain the bedrock of scientific endeavour and discovery.
 Despite this noble status, the reality of experimental undertaking can be unglamorous and inefficient.
-Early career researchers often spend long hours running and maintaining experiments.
-Data is not always preserved and often not analysed.
-The collection of metadata and provenance is not standard and not widely practised.
+Early career researchers often spend long hours running experiments.
+Data is not always collected, let alone preserved, or analysed.
+The collection of metadata and provenance is not consistent and not widely practised.
+Many more hours are then spent trying to re-run an experiment to confirm a result.
 
-Most significantly of all, many experiments are run manually or with limited, manufacturer produced interfaces.
-Alternatively, some groups create homebrewed automations, but this is time consuming and removes scientists from their primary purpose.
+Many experiments are run manually, often through multiple manufacturer provided interfaces.
+When automation is implemented, it is often with scripts only useful for their specific setup.
+This tends to be very time consuming, it often results in duplicate work, and is rarely thoroughly tested or efficient.
+What's more important, it removes scientists from their primary purpose.
 
-There is a need for a generalised framework for running laboratory experiments, using modern technologies and architectures, easily extended to the hardware used in each unique experiment.
-
-`comodo` is designed for users of laboratories employing bespoke experimental setups, where proprietary software from a single manufacturer cannot provide a complete solution.
+`comodo` proposes a generalised framework for automating the running of laboratory experiments, using modern technologies and architectures.
+It is designed to be easily extendable and commune with the hardware used in bespoke experimental setups.
+At the same time, it is meant to completely take care of the control, automation, and data gathering layers.
+This greatly reduces the complexity and time needed to digitally enable any laboratory.
+As a result, it gives time back to the researchers to focus on designing experiments and interpreting results.
 
 # State of the field
 
