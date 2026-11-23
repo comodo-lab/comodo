@@ -37,8 +37,17 @@ class TestUiConfig:
         config = UiConfig(sample_config_with_pid)
         instruments = config.ini_instrument_dict
         assert instruments == [
+            {
+                "name": "test_sensor/value",
+                "key": "calibration",
+                "value": '{"offset": 0, "scaling": 1}',
+            },
             {"name": "test_sensor/value", "key": "tolerance", "value": 0.5},
-            {"name": "test_spc/output", "key": "tolerance", "value": 1.0},
+            {
+                "name": "test_spc/output",
+                "key": "calibration",
+                "value": '{"offset": 0, "scaling": 1}',
+            },
         ]
 
     def test_pid_target_uses_sensor_range(self, sample_config_with_pid):
@@ -81,8 +90,17 @@ class TestUiConfig:
         config = UiConfig(sample_config_yaml)
         instruments = config.ini_instrument_dict
         assert instruments == [
-            {"name": "test_sensor/reading", "key": "tolerance", "value": 1.0},
+            {
+                "name": "test_actuator/output",
+                "key": "calibration",
+                "value": '{"offset": 0, "scaling": 1}',
+            },
             {"name": "test_actuator/output", "key": "tolerance", "value": 0.5},
+            {
+                "name": "test_sensor/reading",
+                "key": "calibration",
+                "value": '{"offset": 0, "scaling": 1}',
+            },
         ]
 
     def test_ini_spc_dict(self, sample_config_with_pid):
@@ -103,14 +121,23 @@ class TestUiConfig:
         with open(sample_config_with_pid) as f:
             content = f.read()
         with open(sample_config_with_pid, "w") as f:
-            f.write(content.replace("          K_DF: 0.01\n", "          K_DF: 0.01\n          MAX_RATE: 5.0\n"))
+            f.write(
+                content.replace(
+                    "          K_DF: 0.01\n",
+                    "          K_DF: 0.01\n          MAX_RATE: 5.0\n",
+                )
+            )
         assert UiConfig(sample_config_with_pid).ini_spc_dict[0]["max_rate"] == 5.0
 
     def test_ini_spc_dict_defaults_missing_values(self, sample_config_with_pid):
         with open(sample_config_with_pid) as f:
             content = f.read()
         with open(sample_config_with_pid, "w") as f:
-            f.write(content.replace("          K_AW: 0.05\n", "").replace("          K_DF: 0.01\n", ""))
+            f.write(
+                content.replace("          K_AW: 0.05\n", "").replace(
+                    "          K_DF: 0.01\n", ""
+                )
+            )
         config = UiConfig(sample_config_with_pid)
         row = config.ini_spc_dict[0]
         assert row["k_p"] == 10.0

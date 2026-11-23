@@ -268,8 +268,49 @@ class TestPopulateInstruments:
         assert str(e.value) == (
             "Instruments pressure, mass_flow use the same address (/dev/ttyUSB0). "
             "Each opens it from its own firmware container, so their messages would get mixed up, "
-            "causing errors or wrong measurements. Give each instrument its own address."
+            "causing errors or wrong measurements. "
+            "Give each instrument its own address (or device_id, on an I2C bus)."
         )
+
+    @pytest.mark.parametrize(
+        "device_ids, where",
+        [
+            (["0x48", "0x48"], "/dev/i2c-1, device_id '0x48'"),
+            ([None, None], "/dev/i2c-1, device_id ''"),
+        ],
+    )
+    def test_shared_i2c_address_and_device_id(self, mocks_for_inst, device_ids, where):
+        config = mocks_for_inst["config_with_raw"]
+        instruments = config.raw["instruments"]
+        for name, device_id in zip(["pressure", "mass_flow"], device_ids):
+            instruments[name]["simulate"] = False
+            instruments[name]["address"] = "/dev/i2c-1"
+            instruments[name].pop("device_id", None)
+            if device_id is not None:
+                instruments[name]["device_id"] = device_id
+
+        with pytest.raises(ValueError) as e:
+            config.populate_instruments()
+
+        assert (
+            f"Instruments pressure, mass_flow use the same address ({where})."
+            in str(e.value)
+        )
+
+    def test_shared_i2c_address_with_different_device_ids_is_allowed(
+        self, mocks_for_inst
+    ):
+        config = mocks_for_inst["config_with_raw"]
+        instruments = config.raw["instruments"]
+        # Each transfer on an I2C bus is addressed to one device
+        for name, device_id in [("pressure", "0x48"), ("mass_flow", "0x49")]:
+            instruments[name]["simulate"] = False
+            instruments[name]["address"] = "/dev/i2c-1"
+            instruments[name]["device_id"] = device_id
+
+        config.populate_instruments()
+
+        assert config.instruments.keys() == instruments.keys()
 
     def test_shared_address_simulated_is_allowed(self, mocks_for_inst):
         config = mocks_for_inst["config_with_raw"]
@@ -293,6 +334,63 @@ class TestPopulateInstruments:
         config.populate_instruments()
 
         assert config.instruments.keys() == instruments.keys()
+
+    def test_simulation_inputs(self, mocks_for_inst):
+        config = mocks_for_inst["config_with_raw"]
+        instruments = config.raw["instruments"]
+        instruments["pressure"]["simulation_inputs"] = {"heat": "furnace/temperature"}
+
+        config.populate_instruments()
+
+        assert config.instruments["pressure"]["simulation_inputs"] == {
+            "heat": "furnace/temperature"
+        }
+        assert config.instruments["furnace"]["simulation_inputs"] == {}
+
+    @pytest.mark.parametrize(
+        "simulation_inputs, message",
+        [
+            (
+                ["furnace/temperature"],
+                "Invalid simulation_inputs for instrument 'pressure': ['furnace/temperature']. "
+                "Expected a map of {name: instrument/variable}.",
+            ),
+            (
+                {"a": "pressure/pressure"},
+                "Invalid simulation input 'a' (pressure/pressure)",
+            ),
+            (
+                {"a": "oven/temperature"},
+                "Invalid simulation input 'a' (oven/temperature)",
+            ),
+            ({"a": "furnace/power"}, "Invalid simulation input 'a' (furnace/power)"),
+            ({"a": "furnace"}, "Invalid simulation input 'a' (furnace)"),
+        ],
+    )
+    def test_invalid_simulation_inputs(
+        self, mocks_for_inst, simulation_inputs, message
+    ):
+        config = mocks_for_inst["config_with_raw"]
+        config.raw["instruments"]["pressure"]["simulation_inputs"] = simulation_inputs
+
+        with pytest.raises(ValueError) as e:
+            config.populate_instruments()
+
+        assert message in str(e.value)
+
+    def test_simulation_input_without_sensor(self, mocks_for_inst):
+        config = mocks_for_inst["config_with_raw"]
+        instruments = config.raw["instruments"]
+        instruments["furnace"]["variables"]["temperature"].pop("sensor")
+        instruments["pressure"]["simulation_inputs"] = {"heat": "furnace/temperature"}
+
+        with pytest.raises(ValueError) as e:
+            config.populate_instruments()
+
+        assert (
+            "Invalid simulation input 'heat' (furnace/temperature) for instrument 'pressure'."
+            in str(e.value)
+        )
 
 
 class TestPopulateSensorsActuatorsSPCs:
@@ -348,6 +446,80 @@ class TestPopulateSensorsActuatorsSPCs:
         assert config.sensors == {"I_A/V_A": {"some": "config", "min": 0, "max": 100}}
         assert config.actuators == {}
         assert config.spcs == {}
+
+    @pytest.mark.parametrize("default_setpoint", [-1, 101])
+    def test_default_setpoint_outside_range(self, mocks_for_saspcs, default_setpoint):
+        config = ComodoConfig()
+        config.instruments = {
+            "I_A": {
+                "variables": {
+                    "V_A": {
+                        "min": 0,
+                        "max": 100,
+                        "default_setpoint": default_setpoint,
+                        "sensor": {"some": "config"},
+                    }
+                }
+            }
+        }
+
+        with pytest.raises(ValueError) as e:
+            config.populate_sensors_actuators_spcs()
+
+        assert (
+            f"The default_setpoint of variable 'I_A/V_A' ({default_setpoint}) "
+            "is outside its range (0 to 100)." in str(e.value)
+        )
+
+    @pytest.mark.parametrize("safe_stop_setpoint", [-1, 101])
+    def test_safe_stop_setpoint_outside_range(
+        self, mocks_for_saspcs, safe_stop_setpoint
+    ):
+        config = ComodoConfig()
+        config.instruments = {
+            "I_A": {
+                "variables": {
+                    "V_A": {
+                        "min": 0,
+                        "max": 100,
+                        "default_setpoint": 0,
+                        "tolerance": 1,
+                        "sensor": {"some": "config"},
+                        "actuator": {"safe_stop_setpoint": safe_stop_setpoint},
+                    }
+                }
+            }
+        }
+
+        with pytest.raises(ValueError) as e:
+            config.populate_sensors_actuators_spcs()
+
+        assert (
+            f"The safe_stop_setpoint of variable 'I_A/V_A' ({safe_stop_setpoint}) "
+            "is outside its range (0 to 100)." in str(e.value)
+        )
+
+    def test_setpoints_at_range_limits(self, mocks_for_saspcs):
+        config = ComodoConfig()
+        config.instruments = {
+            "I_A": {
+                "variables": {
+                    "V_A": {
+                        "min": 0,
+                        "max": 100,
+                        "default_setpoint": 100,
+                        "tolerance": 1,
+                        "sensor": {"some": "config"},
+                        "actuator": {"safe_stop_setpoint": 0},
+                    }
+                }
+            }
+        }
+
+        config.populate_sensors_actuators_spcs()
+
+        assert config.actuators["I_A/V_A"]["safe_stop_setpoint"] == 0
+        assert config.sensors["I_A/V_A"]["default_setpoint"] == 100
 
     def test_actuator_missing_safe_stop_setpoint(self, mocks_for_saspcs):
         config = ComodoConfig()
@@ -674,6 +846,8 @@ class TestGetExpectedHeartbeat:
             "external_actuators": {"pressure": "mass_flow/mass_flow"},
             "safe_stop_setpoints": {},
             "measurement_intervals": {"pressure": 1},
+            "variable_ranges": {"pressure": {"min": 1, "max": 200}},
+            "simulation_inputs": {},
             "heartbeat_interval": 1,
             "max_missed_heartbeats": 3,
             "experiment": {},
@@ -695,9 +869,24 @@ class TestGetExpectedHeartbeat:
             "external_actuators": {},
             "safe_stop_setpoints": {"temperature": 0},
             "measurement_intervals": {"temperature": 1},
+            "variable_ranges": {"temperature": {"min": 0, "max": 1000}},
+            "simulation_inputs": {},
             "heartbeat_interval": 1.0,
             "max_missed_heartbeats": 3,
             "experiment": {},
+        }
+
+    def test_simulation_inputs(self, mocks_for_gehb):
+        config = mocks_for_gehb["config_with_insts"]
+        config.instruments["pressure"]["simulation_inputs"] = {
+            "heat": "furnace/temperature"
+        }
+
+        heartbeat = config.get_expected_heartbeat("pressure")
+
+        # With the source's range, as the firmware gets it
+        assert heartbeat["simulation_inputs"] == {
+            "heat": {"source": "furnace/temperature", "min": 0, "max": 1000}
         }
 
 

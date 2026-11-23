@@ -35,6 +35,8 @@ def firmware_env():
         "EXTERNAL_ACTUATORS": "null",
         "SAFE_STOP_SETPOINTS": '{"temperature": 0}',
         "MEASUREMENT_INTERVALS": '{"temperature": 1, "pressure": 1}',
+        "VARIABLE_RANGES": '{"temperature": {"min": 0, "max": 1000}, "pressure": {"min": 0, "max": 10}}',
+        "SIMULATION_INPUTS": "null",
         "HEARTBEAT_INTERVAL": 1.0,
         "MAX_MISSED_HEARTBEATS": 3,
     }
@@ -59,6 +61,8 @@ def mock_load_config(firmware_env):
         "SAFE_STOP_SETPOINTS": json.loads(firmware_env["SAFE_STOP_SETPOINTS"]) or {},
         "MEASUREMENT_INTERVALS": json.loads(firmware_env["MEASUREMENT_INTERVALS"])
         or {},
+        "VARIABLE_RANGES": json.loads(firmware_env["VARIABLE_RANGES"]) or {},
+        "SIMULATION_INPUTS": json.loads(firmware_env["SIMULATION_INPUTS"]) or {},
         "HEARTBEAT_INTERVAL": float(firmware_env["HEARTBEAT_INTERVAL"]),
         "MAX_MISSED_HEARTBEATS": int(firmware_env["MAX_MISSED_HEARTBEATS"]),
         "experiment": {"experiment_id": None},
@@ -98,9 +102,15 @@ def expected_config(firmware_env, experiment=None):
     firmware_env values are raw (JSON-encoded) environment variable strings, so they are
     parsed here the same way config.load_config() parses them, to match the real types.
     """
-    if experiment is None:
-        experiment = {"experiment_id": None}
     config = mock_load_config(firmware_env)
+    experiment = {
+        "experiment_id": None,
+        **{
+            variable: {"calibration": {"offset": 0, "scaling": 1}}
+            for variable in config["ACTIVE_VARIABLES"]
+        },
+        **(experiment or {}),
+    }
     printable_config = {
         "name": config["INSTRUMENT_NAME"],
         "firmware": config["FIRMWARE"],
@@ -112,6 +122,8 @@ def expected_config(firmware_env, experiment=None):
         "external_actuators": config["EXTERNAL_ACTUATORS"],
         "safe_stop_setpoints": config["SAFE_STOP_SETPOINTS"],
         "measurement_intervals": config["MEASUREMENT_INTERVALS"],
+        "variable_ranges": config["VARIABLE_RANGES"],
+        "simulation_inputs": config["SIMULATION_INPUTS"],
         "heartbeat_interval": config["HEARTBEAT_INTERVAL"],
         "max_missed_heartbeats": config["MAX_MISSED_HEARTBEATS"],
         "experiment": experiment,

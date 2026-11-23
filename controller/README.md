@@ -175,6 +175,11 @@ An experiment is started with a `ui/start` message, normally sent by the UI. For
 - `config`: The live configuration of the experiment.
   - `resolution`: Time in seconds between setpoints.
   - `instruments`: Live configuration sent to each instrument. It must include a `tolerance` for every variable that drives an actuator.
+    The configuration of each of the instrument's variables in `comodo.yaml` must be an object. Any other keys are sent as they are.
+    A variable's `calibration`, if given, must be `{"offset": number, "scaling": number}` (both optional), with a `scaling` other than 0
+    (see [calibration](../firmware/README.md#calibration) in the firmware's README).
+    The controller completes it with the defaults (`{"offset": 0, "scaling": 1}`) for every variable of every instrument in `comodo.yaml`,
+    so every instrument is sent its full calibration.
   - `spcs`: The PID parameters for each setpoint controller in `comodo.yaml`. All of them must be included.
     The id of a setpoint controller is `<sensor instrument>-<sensor variable>--<actuator instrument>-<actuator variable>`.
 - `experiment_definition`: The list of setpoints. Each row has:

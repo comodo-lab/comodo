@@ -16,6 +16,8 @@ DEFAULT_CONFIG = {
     "EXTERNAL_ACTUATORS": {},
     "SAFE_STOP_SETPOINTS": {},
     "MEASUREMENT_INTERVALS": {},
+    "VARIABLE_RANGES": {},
+    "SIMULATION_INPUTS": {},
     "HEARTBEAT_INTERVAL": 1.0,
     "MAX_MISSED_HEARTBEATS": 3,
     "experiment": {"experiment_id": None},

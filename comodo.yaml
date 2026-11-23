@@ -29,6 +29,45 @@ instruments:
         actuator:
           type: float
           safe_stop_setpoint: 0
+  transformer:
+    firmware: adafruit.ads1115
+    address: /dev/i2c-1
+    device_id: "0x48"
+    simulate: true
+    simulation_inputs: { power: furnace/temperature }
+    variables:
+      input_current:
+        min: 0
+        max: 13
+        unit: A
+        tolerance: 0.1
+        sensor:
+          interval: 1
+          type: float
+      input_voltage:
+        min: 0
+        max: 300
+        unit: V
+        tolerance: 1
+        sensor:
+          interval: 1
+          type: float
+      output_current:
+        min: 0
+        max: 200
+        unit: A
+        tolerance: 1
+        sensor:
+          interval: 1
+          type: float
+      output_voltage:
+        min: 0
+        max: 200
+        unit: V
+        tolerance: 1
+        sensor:
+          interval: 1
+          type: float
   pressure:
     firmware: pfeiffer.mpt200
     address: "/dev/ttyUSB0"

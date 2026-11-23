@@ -453,7 +453,7 @@ class TestHeartbeatValid:
         state.status = "awaiting_instruments"
         state.get_expected_heartbeat("furnace")["experiment"] = {
             "experiment_id": "D123-456",
-            "temperature": {"offset": 273},
+            "temperature": {"calibration": {"offset": 273}},
         }
         heartbeat = {"config": copy.deepcopy(hb_valid_mocks["expected_hb_config"])}
         heartbeat["config"]["experiment"] = {

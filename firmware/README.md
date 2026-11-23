@@ -6,6 +6,9 @@ An instrument is understood as a device with a unique address, which may monitor
 
 - [Firmware](#firmware)
   - [Configuration](#configuration)
+    - [Experiment's live configuration](#experiments-live-configuration)
+      - [Tolerance](#tolerance)
+      - [Calibration](#calibration)
     - [Generating the compose/firmware.yaml](#generating-the-composefirmwareyaml)
   - [Structure and life cycle](#structure-and-life-cycle)
     - [Safe stop](#safe-stop)
@@ -31,10 +34,77 @@ The expected environment variables are:
 - `SAFE_STOP_SETPOINTS`: A dictionary of the safe stop setpoints for each variable in the form `{variable: setpoint}`. Used when the instrument [safe stops](#safe-stop).
 - `MEASUREMENT_INTERVALS`: A dictionary of the measurement intervals, in seconds, for each variable in the form `{variable: interval}`.
   A measurement tick is started for each variable in this dictionary.
+- `VARIABLE_RANGES`: A dictionary of the range of each variable, from its `min` and `max` in `comodo.yaml`, in the form `{variable: {"min": min, "max": max}}`.
+- `SIMULATION_INPUTS`: A dictionary of the inputs the instrument's simulation may follow (its `simulation_inputs` in `comodo.yaml`),
+  using expected names as keys, and `instrument/variable` sources as values, with their range,
+  in the form `{name: {"source": "instrument/variable", "min": min, "max": max}}`.
+  In simulation mode, the instrument listens to their measurements, and saves them in `previous_measurements` (as `"instrument/variable"`).
+  The instrument modules may use them, in the `simulate` method, getting each by name with `simulation_input(name)`.
 - `HEARTBEAT_INTERVAL`: The interval, in seconds, at which the firmware publishes its heartbeat.
 - `MAX_MISSED_HEARTBEATS`: The number of controller heartbeats that can be missed before the instrument [safe stops](#safe-stop). Defaults to 3.
   Set from `global.experiment_monitoring.max_missed_heartbeats` in `comodo.yaml`.
 
+### Experiment's live configuration
+Further configuration can be set for each instrument via the `instruments/{name}/configure` topic.
+The controller sends it before starting an experiment, from the `config.instruments` section of the experiment,
+and the firmware only accepts it while awaiting an experiment.
+Its `load_live_config` method saves each key of the message under `experiment` in the instrument's configuration,
+which is reported in the heartbeat.
+Anything can be passed, as long as it is valid JSON, but the firmware needs to be set up to use it.
+Per variable, the controller uses [`tolerance`](#tolerance), and the base instrument class uses [`calibration`](#calibration).
+For example, the message for an instrument with `temperature` and `power` variables could be:
+```json
+{
+  "temperature": {
+    "tolerance": 0.1,
+    "calibration": {
+      "offset": 273,
+      "scaling": 0.7
+    }
+  },
+  "power": {
+    "tolerance": 1.5
+  }
+}
+```
+Before sending it, the controller rejects live configuration for instruments that are not in `comodo.yaml`,
+and variable configurations that are not objects.
+
+#### Tolerance
+The tolerance is a value that defines the acceptable deviation from the setpoint.
+It is used to determine when a measurement is considered to be within the acceptable range.
+This check is performed outside of the firmware, by the controller,
+so a tolerance is required for every variable that drives an actuator.
+
+#### Calibration
+Each variable can be calibrated with an `offset` and a `scaling`.
+Real measurements are then reported as `offset + scaling * measurement`, and setpoints are converted back
+(`(setpoint - offset) / scaling`) before being sent to the instrument, so that the instrument measures the setpoint.
+Setpoints are checked against the variable's range before being converted.
+Simulated measurements are not calibrated, they are considered *true* values.
+The calibration is applied by the `calibrate` and `anti_calibrate` methods of the base instrument class.
+
+Calibrations are optional, and default to no calibration (an `offset` of 0 and a `scaling` of 1):
+If a calibration has a value that is not a number, or a `scaling` of 0, nothing is saved, and the status is set to `error`.
+The calibration in use is reported in the heartbeat, under `experiment`.
+The controller compares it with the one it sent, and stops the experiment if they differ.
+
+> [!WARNING]
+> **The value sent to the instrument is not checked against its range.**
+> The range (`min` and `max` in `comodo.yaml`) is checked on the calibrated setpoint, before it is converted,
+> so with a calibration the value sent to the instrument can be outside its range.
+> For example, with an `offset` of 273 and a range of 0 to 1000, a setpoint of 100 sends -173 to the instrument.
+>
+> **Safe stop and default setpoints are calibrated too.**
+> They are converted with the calibration in use, like any other setpoint, and the calibration stays in use after the experiment ends.
+> This may be intended (e.g. a valve whose closed state reads 1, with an `offset` of -1, still closes on a safe stop setpoint of 0),
+> but with the example above, a safe stop setpoint of 0 sends -273 to the instrument.
+>
+> Only use calibrations you are sure of, and check what the calibrated setpoints send to each instrument,
+> _especially the safe stop and default setpoints_.
+> The firmware logs every setpoint sent to a real instrument, with the value it receives, e.g.
+> `Setting setpoint for 'furnace/temperature': 100.0. Instrument will receive: -173.0.`
+> (see the instrument's logs with `docker compose -f compose/firmware.yaml logs -f furnace`).
 
 ### Generating the compose/firmware.yaml
 
@@ -96,7 +166,7 @@ The instrument will continue to take measurements and set setpoints.
 When an experiment ends or is stopped (`controller/event/end` or `controller/command/stop`), the instrument goes back to its default setpoints,
 clears the experiment id, and the status is set back to `awaiting_experiment`.
 
-At any point, if the instrument cannot take a measurement (the measurement is `None`) or set a setpoint (`go_to_setpoint` raises an exception), the status is set to `error`. The instrument will nonetheless continue to try to take measurements and set setpoints, and if it succeeds, the status will be set back to `awaiting_experiment` or `running`, depending on whether an experiment is running or not.
+At any point, if the instrument cannot take a measurement (the measurement is `None`) or set a setpoint (`go_to_setpoint` raises an exception, or the setpoint is outside the variable's range in `VARIABLE_RANGES`), the status is set to `error`. The instrument will nonetheless continue to try to take measurements and set setpoints, and if it succeeds, the status will be set back to `awaiting_experiment` or `running`, depending on whether an experiment is running or not.
 
 The measurement and heartbeat ticks, and the watchdog, will continue to run indefinitely, unless an unexpected error occurs.
 Failing to publish a message (e.g. if the broker can't be reached) is not one: it is only logged, so the instrument keeps running, and can safe stop, while offline.
@@ -204,7 +274,7 @@ The firmware subscribes to the following MQTT topics:
 - `instruments/<instrument_name>/+/setpoint`: The desired setpoint for the variable identified by the wildcard.
   Setpoints are sent by the controller, or by a setpoint controller for actuators driven by another variable.
 - `controller/event/end` and `controller/command/stop`: To end/stop the current experiment (move to `awaiting_experiment` status).
-- `instruments/<instrument>/<variable>/measurement`: Only in simulation mode, for each of the `EXTERNAL_ACTUATORS`.
+- `instruments/<instrument>/<variable>/measurement`: Only in simulation mode, for each of the `EXTERNAL_ACTUATORS` and `SIMULATION_INPUTS`.
 
 And publishes to:
 - `instruments/<instrument_name>/<variable>/measurement`: Each measurement, as `{"value": <measurement>}`.

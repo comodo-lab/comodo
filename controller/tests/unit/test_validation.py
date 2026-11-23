@@ -7,6 +7,7 @@ from unittest.mock import patch, MagicMock
 
 from src.validation import (
     validate_experiment,
+    validate_calibration,
     generate_row_schema,
     ExperimentValidationError,
 )
@@ -149,6 +150,7 @@ class TestValidateExperiment:
             )
             mock_gen.return_value = None
             mock_config = MagicMock()
+            mock_config.instruments = {}
 
             yield {
                 "experiment": valid_experiment_json,
@@ -226,23 +228,36 @@ class TestValidateExperiment:
             (({"time": 10, "I_A/V_A": 800, "I_B/V_B": 80}, None),),
         ]
 
-        assert result == json.loads(ve_mocks["experiment"])
+        expected = json.loads(ve_mocks["experiment"])
+        expected["config"]["instruments"] = {}
+        assert result == expected
 
     def test_valid_instruments_live_config(self, ve_mocks):
         experiment = json.loads(ve_mocks["experiment"])
-        experiment["config"]["instruments"] = {"I_A": {"offset": 273}}
+        experiment["config"]["instruments"] = {
+            "I_A": {"V_A": {"calibration": {"offset": 273}}}
+        }
         ve_mocks["open"].return_value.__enter__.return_value.read.return_value = (
             json.dumps(experiment)
         )
-        ve_mocks["config"].instruments = {"I_A": {}, "I_B": {}}
+        ve_mocks["config"].instruments = {
+            "I_A": {"variables": {"V_A": {}}},
+            "I_B": {"variables": {"V_B": {}}},
+        }
 
         result = validate_experiment("/fake/path", ve_mocks["config"])
 
-        assert result["config"]["instruments"] == {"I_A": {"offset": 273}}
+        # Every variable of every instrument gets the default calibration (completed if partial)
+        assert result["config"]["instruments"] == {
+            "I_A": {"V_A": {"calibration": {"offset": 273, "scaling": 1}}},
+            "I_B": {"V_B": {"calibration": {"offset": 0, "scaling": 1}}},
+        }
 
     def test_raises_on_unknown_instrument_live_config(self, ve_mocks):
         experiment = json.loads(ve_mocks["experiment"])
-        experiment["config"]["instruments"] = {"I_C": {"offset": 273}}
+        experiment["config"]["instruments"] = {
+            "I_C": {"V_C": {"calibration": {"offset": 273}}}
+        }
         ve_mocks["open"].return_value.__enter__.return_value.read.return_value = (
             json.dumps(experiment)
         )
@@ -253,13 +268,94 @@ class TestValidateExperiment:
 
         assert "Live config for unknown instrument 'I_C'" in str(e.value)
 
-    def test_raises_on_missing_tolerance_in_live_config(self, ve_mocks):
+    def test_valid_calibration_in_live_config(self, ve_mocks):
         experiment = json.loads(ve_mocks["experiment"])
-        experiment["config"]["instruments"] = {"I_A": {"offset": 273}}
+        experiment["config"]["instruments"] = {
+            "I_A": {
+                "V_A": {"tolerance": 1, "calibration": {"offset": 1, "scaling": 2}},
+                "V_B": {"calibration": {"scaling": 2}},
+            }
+        }
         ve_mocks["open"].return_value.__enter__.return_value.read.return_value = (
             json.dumps(experiment)
         )
-        ve_mocks["config"].instruments = {"I_A": {}}
+        ve_mocks["config"].instruments = {
+            "I_A": {"variables": {"V_A": {}, "V_B": {}, "V_C": {}}}
+        }
+
+        result = validate_experiment("/fake/path", ve_mocks["config"])
+
+        # Completed with the defaults
+        assert result["config"]["instruments"] == {
+            "I_A": {
+                "V_A": {"tolerance": 1, "calibration": {"offset": 1, "scaling": 2}},
+                "V_B": {"calibration": {"offset": 0, "scaling": 2}},
+                "V_C": {"calibration": {"offset": 0, "scaling": 1}},
+            }
+        }
+
+    def test_other_keys_in_live_config_passed_as_they_are(self, ve_mocks):
+        experiment = json.loads(ve_mocks["experiment"])
+        experiment["config"]["instruments"] = {
+            "I_A": {"resolution": 2, "V_X": {"tolerance": 1}}
+        }
+        ve_mocks["open"].return_value.__enter__.return_value.read.return_value = (
+            json.dumps(experiment)
+        )
+        ve_mocks["config"].instruments = {"I_A": {"variables": {"V_A": {}}}}
+
+        result = validate_experiment("/fake/path", ve_mocks["config"])
+
+        assert result["config"]["instruments"] == {
+            "I_A": {
+                "resolution": 2,
+                "V_X": {"tolerance": 1},
+                "V_A": {"calibration": {"offset": 0, "scaling": 1}},
+            }
+        }
+
+    def test_raises_on_variable_live_config_not_an_object(self, ve_mocks):
+        experiment = json.loads(ve_mocks["experiment"])
+        experiment["config"]["instruments"] = {"I_A": {"V_A": 5}}
+        ve_mocks["open"].return_value.__enter__.return_value.read.return_value = (
+            json.dumps(experiment)
+        )
+        ve_mocks["config"].instruments = {"I_A": {"variables": {"V_A": {}}}}
+
+        with pytest.raises(ExperimentValidationError) as e:
+            validate_experiment("/fake/path", ve_mocks["config"])
+
+        assert (
+            "Invalid live config for variable 'I_A/V_A': 5. Expected an object."
+            in str(e.value)
+        )
+
+    def test_raises_on_invalid_calibration_in_live_config(self, ve_mocks):
+        experiment = json.loads(ve_mocks["experiment"])
+        experiment["config"]["instruments"] = {
+            "I_A": {"V_A": {"calibration": {"scaling": 0}}}
+        }
+        ve_mocks["open"].return_value.__enter__.return_value.read.return_value = (
+            json.dumps(experiment)
+        )
+        ve_mocks["config"].instruments = {"I_A": {"variables": {"V_A": {}}}}
+
+        with pytest.raises(ExperimentValidationError) as e:
+            validate_experiment("/fake/path", ve_mocks["config"])
+
+        assert "Invalid calibration scaling for 'I_A/V_A': it can't be 0." in str(
+            e.value
+        )
+
+    def test_raises_on_missing_tolerance_in_live_config(self, ve_mocks):
+        experiment = json.loads(ve_mocks["experiment"])
+        experiment["config"]["instruments"] = {
+            "I_A": {"V_A": {"calibration": {"offset": 273}}}
+        }
+        ve_mocks["open"].return_value.__enter__.return_value.read.return_value = (
+            json.dumps(experiment)
+        )
+        ve_mocks["config"].instruments = {"I_A": {"variables": {"V_A": {}}}}
         ve_mocks["config"].actuators = {"I_A": {"driving_sensor": "I_A/V_A"}}
         ve_mocks["config"].sensors = {"I_A/V_A": {}}
 
@@ -305,3 +401,55 @@ class TestValidateExperiment:
             "Missing PID config for setpoint controller(s) I_A-V_A--I_B-V_B "
             "in the live config" in str(e.value)
         )
+
+
+class TestValidateCalibration:
+    @pytest.mark.parametrize(
+        "calibration, completed",
+        [
+            ({}, {"offset": 0, "scaling": 1}),
+            ({"offset": -1}, {"offset": -1, "scaling": 1}),
+            ({"scaling": 1.02}, {"offset": 0, "scaling": 1.02}),
+            ({"offset": 0.5, "scaling": -2}, {"offset": 0.5, "scaling": -2}),
+        ],
+    )
+    def test_valid(self, calibration, completed):
+        # Completed with the defaults
+        assert validate_calibration("I_A/V_A", calibration) == completed
+
+    @pytest.mark.parametrize(
+        "calibration, message",
+        [
+            (
+                [1, 2],
+                "Invalid calibration for 'I_A/V_A': [1, 2]. "
+                'Expected {"offset": number, "scaling": number}.',
+            ),
+            (
+                {"offset": 1, "scale": 2, "gain": 3},
+                "Unknown calibration key(s) scale, gain for 'I_A/V_A'. "
+                'Expected {"offset": number, "scaling": number}.',
+            ),
+            (
+                {"offset": "1"},
+                "Invalid calibration offset for 'I_A/V_A': 1. Expected a number.",
+            ),
+            (
+                {"scaling": True},
+                "Invalid calibration scaling for 'I_A/V_A': True. Expected a number.",
+            ),
+            (
+                {"scaling": None},
+                "Invalid calibration scaling for 'I_A/V_A': None. Expected a number.",
+            ),
+            (
+                {"scaling": 0},
+                "Invalid calibration scaling for 'I_A/V_A': it can't be 0.",
+            ),
+        ],
+    )
+    def test_invalid(self, calibration, message):
+        with pytest.raises(ExperimentValidationError) as e:
+            validate_calibration("I_A/V_A", calibration)
+
+        assert message in str(e.value)

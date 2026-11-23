@@ -365,7 +365,12 @@ class TestIdle:
         idle_mocks["validate_experiment"].return_value = {
             "temp_id": "123",
             "experiment_definition": ["some data"],
-            "config": {"resolution": 42, "instruments": {"furnace": {"offset": 273}}},
+            "config": {
+                "resolution": 42,
+                "instruments": {
+                    "furnace": {"temperature": {"calibration": {"offset": 273}}}
+                },
+            },
         }
 
         c_idle(idle_mocks["controller_client"], idle_mocks["msg"], idle_mocks["state"])
@@ -391,11 +396,13 @@ class TestIdle:
             in messages[0].payload
         )
         assert messages[1].topic == "instruments/furnace/configure"
-        assert messages[1].payload == '{"offset": 273}'
+        assert (
+            messages[1].payload == '{"temperature": {"calibration": {"offset": 273}}}'
+        )
         assert messages[2].topic == "controller/command/start"
         assert '{"experiment_id": "D123-456"}' in messages[2].payload
         assert idle_mocks["state"].set_hb_experiment_config.call_args_list == [
-            (("furnace", {"offset": 273}),),
+            (("furnace", {"temperature": {"calibration": {"offset": 273}}}),),
             (("furnace", {"experiment_id": "D123-456"}),),
             (("pressure", {"experiment_id": "D123-456"}),),
             (("mass_flow", {"experiment_id": "D123-456"}),),

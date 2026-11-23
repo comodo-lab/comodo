@@ -119,11 +119,11 @@ class TestReconcile:
 
     def test_instrument_rows_kept_and_missing_defaults_added(self):
         rows = [
-            {"name": "a", "key": "offset", "value": 273},
+            {"name": "a/x", "key": "calibration", "value": '{"offset": 273}'},
             {"name": "a/x", "key": "tolerance", "value": 5.0},
         ]
         assert sc.reconcile("instruments", rows, DEFAULT_INSTRUMENTS) == [
-            {"name": "a", "key": "offset", "value": 273},
+            {"name": "a/x", "key": "calibration", "value": '{"offset": 273}'},
             {"name": "a/x", "key": "tolerance", "value": 5.0},
             {"name": "b/y", "key": "tolerance", "value": 1.0},
         ]

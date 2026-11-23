@@ -80,6 +80,7 @@ classes:
       - device_id
       - variables
       - simulate
+      - simulation_inputs
     slot_usage:
       id:
         required: true
@@ -88,6 +89,14 @@ classes:
       address:
         required: true
       variables:
+        required: true
+
+  SimulationInput:
+    slots:
+      - id
+      - source
+    slot_usage:
+      source:
         required: true
 
   Variable:
@@ -219,6 +228,16 @@ slots:
 
   simulate:
     range: boolean
+
+  simulation_inputs:
+    range: SimulationInput
+    multivalued: true
+    inlined: true
+    inlined_as_list: false
+
+  source:
+    range: string
+    pattern: "^[^/]+/[^/]+$"
 
   type:
     range: string

@@ -48,15 +48,18 @@ class BaseInstrument(ABC):
         self.available_variables = copy.deepcopy(self.available_variables)
         self.setpoints = {var: None for var in self.config["DEFAULT_SETPOINTS"]}
         self.previous_measurements = {}
-        if config["SIMULATE"] and config["EXTERNAL_ACTUATORS"]:
+        self.load_live_config({})  # Sets default calibration
+        if config["SIMULATE"] and (
+            config["EXTERNAL_ACTUATORS"] or config["SIMULATION_INPUTS"]
+        ):
             self.ext_client = self.external_measurements_client()
 
         self.initialise()
 
     def external_measurement_cb(self, _client, msg, _obj=None):
         """
-        Callback function to handle external sensor measurements.
-        This function is called when a new measurement is received from an external sensor.
+        Callback function to handle external measurements (of external actuators and simulation inputs).
+        Saves them in previous_measurements, as "instrument/variable".
         """
         # Extract instrument/variable from topic
         _, ins, var, _ = msg.topic.split("/")
@@ -66,12 +69,19 @@ class BaseInstrument(ABC):
 
     def external_measurements_client(self):
         """
-        Creates a client subscribed to the external sensor measurements, which saves them
-        into the previous_measurements dictionary.
+        Creates a client subscribed to the measurements of the external actuators and the simulation
+        inputs, which saves them into the previous_measurements dictionary.
         """
+        external_variables = [
+            *self.config["EXTERNAL_ACTUATORS"].values(),
+            *(
+                simulation_input["source"]
+                for simulation_input in self.config["SIMULATION_INPUTS"].values()
+            ),
+        ]
         topics = [
             f"instruments/{instrument_variable}/measurement"
-            for instrument_variable in self.config["EXTERNAL_ACTUATORS"].values()
+            for instrument_variable in dict.fromkeys(external_variables)
         ]
         return mqtt.MQTTClient(
             id=f"{self.config['INSTRUMENT_NAME']}_external",
@@ -82,6 +92,17 @@ class BaseInstrument(ABC):
             password=self.config["MQTT_PASS"],
             connection_timeout=60,
         )
+
+    def simulation_input(self, name):
+        """
+        Returns the latest measurement of the simulation input with the given name (as expected by
+        the module), or None if it is not configured or it hasn't been measured yet.
+        May be used in the simulate method of subclasses, to follow other instruments.
+        """
+        simulation_input = self.config["SIMULATION_INPUTS"].get(name)
+        if simulation_input is None:
+            return None
+        return self.previous_measurements.get(simulation_input["source"])
 
     def default_sim(self, variable):
         """
@@ -118,7 +139,8 @@ class BaseInstrument(ABC):
         if self.config["SIMULATE"]:
             new_value = self.simulate(variable)
         else:
-            new_value = self.get_measurement(variable)
+            raw_value = self.get_measurement(variable)
+            new_value = self.calibrate(variable, raw_value)
         self.previous_measurements[variable] = new_value
         return new_value
 
@@ -134,17 +156,84 @@ class BaseInstrument(ABC):
                 f"Cannot set setpoint for '{variable}'. "
                 "Variable not available in this instrument."
             )
+        # Reject setpoints outside the variable's range
+        variable_range = self.config["VARIABLE_RANGES"].get(variable)
+        if variable_range and not (
+            variable_range["min"] <= setpoint <= variable_range["max"]
+        ):
+            raise ValueError(
+                f"Setpoint {setpoint} for '{variable}' is outside its range "
+                f"({variable_range['min']} to {variable_range['max']})."
+            )
         self.setpoints[variable] = setpoint
         # If not in simulation mode, instruct the actuators to go to the setpoint.
         if not self.config["SIMULATE"]:
             # Only real actuators are instructed to go to setpoint
             if self.available_variables[variable].get("actuator") is not None:
-                self.go_to_setpoint(variable, setpoint)
+                ac_setpoint = self.anti_calibrate(variable, setpoint)
+                print(
+                    f"Setting setpoint for '{self.config['INSTRUMENT_NAME']}/{variable}': {setpoint}."
+                    f" Instrument will receive: {ac_setpoint}."
+                )
+                self.go_to_setpoint(variable, ac_setpoint)
             elif not variable in self.config["EXTERNAL_ACTUATORS"]:
                 print(
                     f"WARNING: No actuator defined for '{variable}'. "
                     "Setpoint stored but not applied to any actuator."
                 )
+
+    def load_live_config(self, live_config):
+        """
+        Saves the live config (sent by the controller before an experiment) under `experiment`,
+        where it is reported in the heartbeat. Each variable's calibration is completed with the defaults
+        (an offset of 0 and a scaling of 1).
+
+        Returns False (saving nothing) if a calibration has a value that is not a number,
+        or a scaling of 0. Returns True otherwise.
+        """
+        live_config = dict(live_config)
+        for var in self.config["ACTIVE_VARIABLES"]:
+            variable_config = live_config.get(var, {})
+            calibration = variable_config.get("calibration", {})
+            # Check for invalid values
+            for key, value in calibration.items():
+                if not isinstance(value, (int, float)) or isinstance(value, bool):
+                    print(f"ERROR: Invalid calibration {key} for '{var}': {value}.")
+                    return False
+            if calibration.get("scaling") == 0:
+                print(f"ERROR: Invalid calibration for '{var}': scaling is 0.")
+                return False
+            # Add defaults if missing
+            live_config[var] = {
+                **variable_config,
+                "calibration": {
+                    "offset": calibration.get("offset", 0),
+                    "scaling": calibration.get("scaling", 1),
+                },
+            }
+        # Save the rest of the config as passed
+        for key, value in live_config.items():
+            self.config["experiment"][key] = value
+
+        return True
+
+    def calibrate(self, variable, value):
+        """
+        Returns the calibrated value of a real measurement: `offset + scaling * value`.
+        Non-numeric measurements (e.g. None, for a failed measurement) are returned as they are.
+        """
+        if not isinstance(value, (int, float)) or isinstance(value, bool):
+            return value
+        calibration = self.config["experiment"][variable]["calibration"]
+        return calibration["offset"] + calibration["scaling"] * value
+
+    def anti_calibrate(self, variable, setpoint):
+        """
+        Reverses the calibration for a given variable and setpoint.
+        A sensor at such setpoint will then read the original setpoint after calibration.
+        """
+        calibration = self.config["experiment"][variable]["calibration"]
+        return (setpoint - calibration["offset"]) / calibration["scaling"]
 
     def print_config(self):
         """

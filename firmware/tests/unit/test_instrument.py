@@ -259,6 +259,54 @@ class TestBaseInstrument:
         )
         assert ins.previous_measurements == {"ext_ins/ext_var": 123.45}
 
+    def test_init_with_simulation_inputs_simulating(self, bi_mocks):
+        mock_config = bi_mocks["config"]
+        mock_config["SIMULATE"] = True
+        mock_config["SIMULATION_INPUTS"] = {
+            "heat": {"source": "ext_inst/ext_var", "min": 0, "max": 10}
+        }
+
+        with patch.object(
+            bi_mocks["ConcreteInstrument"], "external_measurements_client"
+        ) as mock_ext_client:
+            ins = bi_mocks["ConcreteInstrument"](mock_config)
+
+        mock_ext_client.assert_called_once_with()
+        assert ins.ext_client == mock_ext_client.return_value
+
+    def test_external_measurements_client_with_simulation_inputs(self, bi_mocks):
+        mock_config = bi_mocks["config"]
+        ins = bi_mocks["ConcreteInstrument"](mock_config)
+        ins.config["EXTERNAL_ACTUATORS"] = {"some_variable": "ext_inst/ext_var"}
+        ins.config["SIMULATION_INPUTS"] = {
+            "heat": {"source": "ext_inst/ext_var", "min": 0, "max": 10},
+            "power": {"source": "other_inst/other_var", "min": 0, "max": 5},
+        }
+
+        ins.external_measurements_client()
+
+        # Each subscribed to once
+        assert bi_mocks["client_class"].call_args.kwargs["topics"] == [
+            "instruments/ext_inst/ext_var/measurement",
+            "instruments/other_inst/other_var/measurement",
+        ]
+
+    def test_simulation_input(self, bi_mocks):
+        mock_config = bi_mocks["config"]
+        ins = bi_mocks["ConcreteInstrument"](mock_config)
+        ins.config["SIMULATION_INPUTS"] = {
+            "heat": {"source": "ext_inst/ext_var", "min": 0, "max": 10},
+            "power": {"source": "other_inst/other_var", "min": 0, "max": 5},
+        }
+        ins.previous_measurements["ext_inst/ext_var"] = 7
+
+        # By the name the module expects
+        assert ins.simulation_input("heat") == 7
+        # Not measured yet
+        assert ins.simulation_input("power") is None
+        # Not configured
+        assert ins.simulation_input("pressure") is None
+
     def test_external_measurements_client(self, bi_mocks):
         mock_config = bi_mocks["config"]
         mock_config["EXTERNAL_ACTUATORS"] = {}
@@ -381,12 +429,15 @@ class TestBaseInstrument:
         bi_mocks["simulate"].return_value = new_measurement
         assert ins.previous_measurements == {}
 
-        result = ins.measure_or_simulate("some_variable")
+        with patch.object(ins, "calibrate") as mock_calibrate:
+            result = ins.measure_or_simulate("some_variable")
 
+        # Simulated measurements are not calibrated
         assert result == new_measurement
         assert ins.previous_measurements["some_variable"] == new_measurement
         bi_mocks["simulate"].assert_called_once_with("some_variable")
         bi_mocks["get_measurement"].assert_not_called()
+        mock_calibrate.assert_not_called()
 
     def test_measure_or_simulate_getting_measurement(self, bi_mocks):
         mock_config = bi_mocks["config"]
@@ -397,12 +448,15 @@ class TestBaseInstrument:
         bi_mocks["get_measurement"].return_value = new_measurement
         assert ins.previous_measurements == {}
 
-        result = ins.measure_or_simulate("some_variable")
+        with patch.object(ins, "calibrate", return_value=84.84) as mock_calibrate:
+            result = ins.measure_or_simulate("some_variable")
 
-        assert result == new_measurement
-        assert ins.previous_measurements["some_variable"] == new_measurement
+        # Real measurements are calibrated
+        assert result == 84.84
+        assert ins.previous_measurements["some_variable"] == 84.84
         bi_mocks["simulate"].assert_not_called()
         bi_mocks["get_measurement"].assert_called_once_with("some_variable")
+        mock_calibrate.assert_called_once_with("some_variable", new_measurement)
 
     def test_set_and_go_to_setpoint_undefined_variable(self, bi_mocks):
         mock_config = bi_mocks["config"]
@@ -439,11 +493,17 @@ class TestBaseInstrument:
         new_setpoint = 10.0
         assert ins.setpoints.get("some_variable") == None
 
-        ins.set_and_go_to_setpoint("some_variable", new_setpoint)
+        with patch.object(ins, "anti_calibrate", return_value=5.0) as mock_anti:
+            ins.set_and_go_to_setpoint("some_variable", new_setpoint)
 
+        # The true setpoint is stored, and the instrument is sent the anti-calibrated one
         assert ins.setpoints.get("some_variable") == new_setpoint
-        bi_mocks["go_to_setpoint"].assert_called_once_with(
-            "some_variable", new_setpoint
+        mock_anti.assert_called_once_with("some_variable", new_setpoint)
+        bi_mocks["go_to_setpoint"].assert_called_once_with("some_variable", 5.0)
+        captured = capsys.readouterr()
+        assert (
+            "Setting setpoint for 'test_instrument/some_variable': 10.0. "
+            "Instrument will receive: 5.0." in captured.out
         )
 
     def test_set_and_go_to_setpoint_no_sim_with_ext_actuator(self, bi_mocks, capsys):
@@ -461,6 +521,162 @@ class TestBaseInstrument:
         bi_mocks["go_to_setpoint"].assert_not_called()
         captured = capsys.readouterr()
         assert "WARNING" not in captured.out
+
+    def test_set_and_go_to_setpoint_anti_calibrate_fails(self, bi_mocks):
+        mock_config = bi_mocks["config"]
+        mock_config["SIMULATE"] = False
+        ins = bi_mocks["ConcreteInstrument"](mock_config)
+        ins.available_variables = {"some_variable": {"actuator": "123"}}
+
+        # Raised, so the instrument's status is set to error
+        with patch.object(ins, "anti_calibrate", side_effect=ZeroDivisionError):
+            with pytest.raises(ZeroDivisionError):
+                ins.set_and_go_to_setpoint("some_variable", 19)
+
+        bi_mocks["go_to_setpoint"].assert_not_called()
+
+    def test_init_default_calibrations(self, bi_mocks):
+        mock_config = bi_mocks["config"]
+        ins = bi_mocks["ConcreteInstrument"](mock_config)
+
+        no_calibration = {"calibration": {"offset": 0, "scaling": 1}}
+        assert ins.config["experiment"] == {
+            "experiment_id": None,
+            "temperature": no_calibration,
+            "pressure": no_calibration,
+        }
+
+    def test_load_live_config(self, bi_mocks, capsys):
+        mock_config = bi_mocks["config"]
+        ins = bi_mocks["ConcreteInstrument"](mock_config)
+
+        valid = ins.load_live_config(
+            {
+                "temperature": {"tolerance": 1, "calibration": {"offset": -1}},
+                "some_variable": {"calibration": {"offset": 1, "scaling": 2}},
+            }
+        )
+
+        assert valid is True
+        assert ins.config["experiment"] == {
+            "experiment_id": None,
+            # Completed with the defaults
+            "temperature": {
+                "tolerance": 1,
+                "calibration": {"offset": -1, "scaling": 1},
+            },
+            # Not in the live config, so set to the defaults
+            "pressure": {"calibration": {"offset": 0, "scaling": 1}},
+            # Not an active variable, so saved as passed
+            "some_variable": {"calibration": {"offset": 1, "scaling": 2}},
+        }
+        captured = capsys.readouterr()
+        assert "ERROR" not in captured.out
+
+    def test_load_live_config_without_calibration(self, bi_mocks):
+        mock_config = bi_mocks["config"]
+        ins = bi_mocks["ConcreteInstrument"](mock_config)
+        ins.config["experiment"]["temperature"] = {
+            "calibration": {"offset": 1, "scaling": 2}
+        }
+
+        valid = ins.load_live_config({"temperature": {"tolerance": 1}})
+
+        # The variable's live config is replaced, so it goes back to no calibration
+        assert valid is True
+        assert ins.config["experiment"]["temperature"] == {
+            "tolerance": 1,
+            "calibration": {"offset": 0, "scaling": 1},
+        }
+
+    @pytest.mark.parametrize(
+        "calibration, error",
+        [
+            ({"scaling": 0}, "Invalid calibration for 'temperature': scaling is 0."),
+            (
+                {"offset": "a lot"},
+                "Invalid calibration offset for 'temperature': a lot.",
+            ),
+            ({"scaling": None}, "Invalid calibration scaling for 'temperature': None."),
+            ({"offset": True}, "Invalid calibration offset for 'temperature': True."),
+        ],
+    )
+    def test_load_live_config_invalid_calibration(
+        self, bi_mocks, capsys, calibration, error
+    ):
+        mock_config = bi_mocks["config"]
+        ins = bi_mocks["ConcreteInstrument"](mock_config)
+
+        valid = ins.load_live_config(
+            {"some_setting": 1, "temperature": {"calibration": calibration}}
+        )
+
+        assert valid is False
+        captured = capsys.readouterr()
+        assert f"ERROR: {error}" in captured.out
+        # Nothing saved
+        assert "some_setting" not in ins.config["experiment"]
+        assert ins.config["experiment"]["temperature"] == {
+            "calibration": {"offset": 0, "scaling": 1}
+        }
+
+    @pytest.mark.parametrize(
+        "value, expected", [(10, 19), (2.5, 4.0), (None, None), (True, True)]
+    )
+    def test_calibrate(self, bi_mocks, value, expected):
+        mock_config = bi_mocks["config"]
+        ins = bi_mocks["ConcreteInstrument"](mock_config)
+        ins.config["experiment"]["some_variable"] = {
+            "calibration": {"offset": -1, "scaling": 2}
+        }
+
+        assert ins.calibrate("some_variable", value) == expected
+
+    def test_anti_calibrate(self, bi_mocks):
+        mock_config = bi_mocks["config"]
+        ins = bi_mocks["ConcreteInstrument"](mock_config)
+        ins.config["experiment"]["some_variable"] = {
+            "calibration": {"offset": -1, "scaling": 2}
+        }
+
+        assert ins.anti_calibrate("some_variable", 19) == 10
+        assert (
+            ins.calibrate("some_variable", ins.anti_calibrate("some_variable", 7)) == 7
+        )
+
+    @pytest.mark.parametrize("new_setpoint", [-0.1, 10.1])
+    def test_set_and_go_to_setpoint_outside_range(self, bi_mocks, new_setpoint):
+        mock_config = bi_mocks["config"]
+        mock_config["SIMULATE"] = False
+        mock_config["VARIABLE_RANGES"] = {"some_variable": {"min": 0, "max": 10}}
+        ins = bi_mocks["ConcreteInstrument"](mock_config)
+        ins.available_variables = {"some_variable": {"actuator": "123"}}
+
+        with pytest.raises(ValueError) as e:
+            ins.set_and_go_to_setpoint("some_variable", new_setpoint)
+
+        assert (
+            f"Setpoint {new_setpoint} for 'some_variable' is outside its range (0 to 10)."
+            in str(e.value)
+        )
+        assert ins.setpoints.get("some_variable") == None
+        bi_mocks["go_to_setpoint"].assert_not_called()
+
+    @pytest.mark.parametrize("new_setpoint", [0, 10])
+    def test_set_and_go_to_setpoint_range_limits(self, bi_mocks, new_setpoint):
+        mock_config = bi_mocks["config"]
+        mock_config["SIMULATE"] = False
+        mock_config["VARIABLE_RANGES"] = {"some_variable": {"min": 0, "max": 10}}
+        ins = bi_mocks["ConcreteInstrument"](mock_config)
+        ins.available_variables = {"some_variable": {"actuator": "123"}}
+
+        with patch.object(ins, "anti_calibrate", side_effect=lambda _var, sp: sp):
+            ins.set_and_go_to_setpoint("some_variable", new_setpoint)
+
+        assert ins.setpoints.get("some_variable") == new_setpoint
+        bi_mocks["go_to_setpoint"].assert_called_once_with(
+            "some_variable", new_setpoint
+        )
 
     def test_set_and_go_to_setpoint_no_sim_no_actuator(self, bi_mocks, capsys):
         mock_config = bi_mocks["config"]

@@ -220,11 +220,17 @@ Each instrument can have the following properties:
 - `address`: [required] The address of the instrument.
   This can be an IP address and port (e.g., `192.168.1.10:502`), a serial port (e.g., `/dev/ttyUSB0`), or any other identifier required to communicate with the instrument.
   Serial addresses (e.g., `/dev/ttyUSB0`) cannot be shared by multiple instruments: each instrument's firmware runs in its own container, so instruments sharing one can mix up each other's messages. The configuration is rejected if several (not simulated) instruments share one.
+  An I2C bus (e.g., `/dev/i2c-1`) can be shared, as long as each instrument on it has its own `device_id` (its I2C address).
 - `device_id`: [optional] The id of the device at its `address`, for instruments that need one (e.g., the Modbus address of a controller on a serial port).
   How it is used, and its default if not given, depends on the instrument's firmware.
 - `simulate`: [optional] A boolean flag indicating whether the instrument should be run in simulation mode.
   If set to `true`, the instrument will not attempt to communicate with the physical device, and will instead simulate its behavior.
   Defaults to `false`.
+- `simulation_inputs`: [optional] A map of the inputs the instrument's firmware may follow in simulation mode,
+  using expected names as keys, and variable sources as values (as `instrument/variable`, each with a sensor),
+  e.g., `{power: furnace/temperature}` for a transformer powering a furnace.
+  In simulation mode, the instrument receives their measurements.
+  Which names are expected, and how they are used, depends on the instrument's firmware.
 - [`variables`](#variables): [required] The list of named variable(s) monitored or controlled by the instrument.
 
 #### Variables
@@ -234,6 +240,8 @@ Variables represent specific measurement points in an instrument.
 Each variable can have the following properties:
 - `min`: [required] The minimum value the variable can take.
 - `max`: [required] The maximum value the variable can take.
+  The instrument's firmware refuses any setpoint outside `min` and `max`,
+  so the `default_setpoint` and `safe_stop_setpoint` must be within them.
 - `unit`: [optional] The unit of the variable (e.g., `°C`, `Pa`, `m/s`).
 - `default_setpoint`: The setpoint used as a baseline for the variable. Used as a default value, and at the end of any experiment.
   Required if the variable has an actuator, or if it is the `external_sensor` of a setpoint controller.
