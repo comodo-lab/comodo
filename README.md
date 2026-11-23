@@ -441,6 +441,9 @@ Useful options (run `./comodo.sh --help` for all of them):
 - `-f`: Recreate every container (always use if `comodo.yaml` changed), rather than only those whose compose configuration changed.
 - `-l`: Deploy all the stacks on this machine, ignoring the `*_HOST` variables.
 - `-b`: Build the Comodo images from this repository, rather than using the published ones (always true if `DEVELOPER=true`).
+- `-o <stacks>`: Only deploy these stacks (comma separated, from `mqtt`, `data`, `firmware` and `core`), leaving the others as they are.
+  e.g. `./comodo.sh --deploy -f -o firmware` after changing an instrument in `comodo.yaml` or a firmware module.
+  The stacks deployed still need the others running, e.g. the broker. It can't be used with `-t`, as the tests replace every stack.
 
 To deploy by hand instead, `./utils/contexts.sh` prints the commands to run, in order (see [manual deployment](#manual-deployment)).
 
@@ -462,7 +465,7 @@ To deploy Comodo by hand, follow these steps:
 
 ### Bringing Comodo down
 To bring the stacks down, run `./comodo.sh --down`, which brings down the core, firmware, data and MQTT stacks, in that order.
-Add `-l` if they were deployed with it, and `-y` to bring them down without being asked.
+Add `-l` if they were deployed with it, `-y` to bring them down without being asked, and `-o <stacks>` to only bring down some of them.
 By hand, run the `down` equivalent of the deployment commands from `./utils/contexts.sh`, in reverse order (with the same contexts for remote stacks).
 
 If you want to start from scratch, add `-v` to the `down` commands, which also removes the volumes:

@@ -14,16 +14,20 @@ with ones matching '.env', and regenerates 'compose/firmware.yaml'. In order, st
 
 By default, it tries to pull the published comodo images (comodolab/comodo-*). With -b, it builds them from the local code.
 With --down, it asks before bringing down any running stacks (unless --yes), and brings them down in reverse order.
+With --only, it does all of the above for the given stacks only, e.g. to quickly redeploy the firmware after changing an instrument.
 
 Usage:
-  ./comodo.sh --deploy [--yes|-y] [--local|-l] [--force|-f] [--test|-t] [--build|-b]
-  ./comodo.sh --down [--yes|-y] [--local|-l]
+  ./comodo.sh --deploy [--yes|-y] [--local|-l] [--only|-o <stacks>] [--force|-f] [--test|-t] [--build|-b]
+  ./comodo.sh --down [--yes|-y] [--local|-l] [--only|-o <stacks>]
   ./comodo.sh --help|-h
 
 Options for --deploy and --down:
   --yes,   -y       Replace (or bring down) running stacks without asking.
   --local, -l       Use this machine for all the stacks, ignoring the *_HOST variables (see 'utils/contexts.sh --local').
                       To bring down stacks deployed with --local, use --local too.
+  --only,  -o       Only deploy (or bring down) these stacks, comma separated, from: mqtt, data, firmware and core.
+                      e.g. '--only firmware,core'. The other stacks are left as they are, so make sure the stacks
+                      they need are running (e.g. they all need the broker, in the mqtt stack).
 Options for --deploy only:
   --force, -f       Recreate every container, rather than only those whose compose configuration changed
                       (e.g. after editing 'comodo.yaml', which is mounted).
@@ -40,6 +44,7 @@ force=false
 build=false
 test=false
 local_only=false
+only=()
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -66,6 +71,15 @@ while [[ $# -gt 0 ]]; do
   --local|-l)
     local_only=true
     shift
+    ;;
+  --only|-o)
+    if [[ $# -lt 2 || "$2" == -* ]]; then
+      echo "--only needs the stacks to deploy (or bring down), e.g. '--only firmware,core'."
+      exit 1
+    fi
+    IFS=, read -r -a selected <<< "$2"
+    only+=("${selected[@]}")
+    shift 2
     ;;
   --deploy|--down)
     if [[ -n "$action" && "$action" != "$1" ]]; then
@@ -103,8 +117,26 @@ if [[ "$test" == true && "$local_only" == true ]]; then
   echo "--test runs the integration tests on the hosts in .env, so it can't be used with --local."
   exit 1
 fi
+if [[ "$test" == true && ${#only[@]} -gt 0 ]]; then
+  echo "--test replaces all the stacks, so it can't be used with --only."
+  exit 1
+fi
 
 stacks=(mqtt data firmware core)
+# Only the stacks given with --only (if any), in the order they are deployed
+if [[ ${#only[@]} -gt 0 ]]; then
+  for stack in "${only[@]}"; do
+    if [[ ! " ${stacks[*]} " == *" $stack "* ]]; then
+      echo "Unknown stack '$stack' in --only. Use: ${stacks[*]}."
+      exit 1
+    fi
+  done
+  selected=()
+  for stack in "${stacks[@]}"; do
+    [[ " ${only[*]} " == *" $stack "* ]] && selected+=("$stack")
+  done
+  stacks=("${selected[@]}")
+fi
 # The compose command for each stack, as printed by contexts.sh
 declare -A commands
 source utils/stacks.sh
@@ -207,4 +239,8 @@ for stack in "${stacks[@]}"; do
 done
 
 echo
-echo "Comodo is deployed. The UI is available at http://localhost:8501 on this machine."
+if [[ ${#only[@]} -gt 0 ]]; then
+  echo "Deployed the ${stacks[*]} stack(s)."
+else
+  echo "Comodo is deployed. The UI is available at http://localhost:8501 on this machine."
+fi
