@@ -145,6 +145,7 @@ class ComodoConfig:
                 "address": instrument_data["address"],
                 "device_id": str(instrument_data.get("device_id", "")),
                 "simulate": instrument_data.get("simulate", False),
+                "simulation_inputs": instrument_data.get("simulation_inputs") or {},
                 "variables": instrument_data["variables"],
                 "default_setpoints": {
                     var_name: var_data["default_setpoint"]
@@ -165,6 +166,37 @@ class ComodoConfig:
             }
 
         self.check_shared_addresses()
+        self.check_simulation_inputs()
+
+    def check_simulation_inputs(self):
+        """
+        Raises an error if an instrument's simulation_inputs is not a map of names (the ones its firmware expects)
+        to variables with a sensor of other instruments, as "instrument/variable".
+        In simulation, the instrument receives their measurements, which its firmware may use to simulate its own.
+        """
+        for instrument_name, instrument in self.instruments.items():
+            simulation_inputs = instrument["simulation_inputs"]
+            if not isinstance(simulation_inputs, dict):
+                raise ValueError(
+                    f"Invalid simulation_inputs for instrument '{instrument_name}': {simulation_inputs}. "
+                    "Expected a map of {name: instrument/variable}."
+                )
+            for input_name, source in simulation_inputs.items():
+                input_instrument, _, input_variable = str(source).partition("/")
+                variable = (
+                    self.instruments.get(input_instrument, {})
+                    .get("variables", {})
+                    .get(input_variable)
+                )
+                if (
+                    input_instrument == instrument_name
+                    or not isinstance(variable, dict)
+                    or "sensor" not in variable
+                ):
+                    raise ValueError(
+                        f"Invalid simulation input '{input_name}' ({source}) for instrument '{instrument_name}'. "
+                        "Expected a variable with a sensor of another instrument, as 'instrument/variable'."
+                    )
 
     def check_shared_addresses(self):
         """
@@ -298,6 +330,17 @@ class ComodoConfig:
             if instrument_name == instr:
                 external_actuators[var] = spc["actuator"]
 
+        # With the range of each input's source, as the firmware gets it
+        simulation_inputs = {}
+        for input_name, source in inst["simulation_inputs"].items():
+            input_instrument, input_variable = source.split("/")
+            variable = self.instruments[input_instrument]["variables"][input_variable]
+            simulation_inputs[input_name] = {
+                "source": source,
+                "min": variable["min"],
+                "max": variable["max"],
+            }
+
         return {
             "name": instrument_name,
             "firmware": inst["firmware"],
@@ -313,6 +356,7 @@ class ComodoConfig:
                 var_name: {"min": var_data["min"], "max": var_data["max"]}
                 for var_name, var_data in inst["variables"].items()
             },
+            "simulation_inputs": simulation_inputs,
             "heartbeat_interval": self.globals["heartbeat_interval"],
             "max_missed_heartbeats": self.globals["max_missed_heartbeats"],
             "experiment": {},  # This is reserved for the live experiment config, which is arbitrary

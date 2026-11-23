@@ -292,8 +292,9 @@ class TestPopulateInstruments:
         with pytest.raises(ValueError) as e:
             config.populate_instruments()
 
-        assert f"Instruments pressure, mass_flow use the same address ({where})." in str(
-            e.value
+        assert (
+            f"Instruments pressure, mass_flow use the same address ({where})."
+            in str(e.value)
         )
 
     def test_shared_i2c_address_with_different_device_ids_is_allowed(
@@ -333,6 +334,63 @@ class TestPopulateInstruments:
         config.populate_instruments()
 
         assert config.instruments.keys() == instruments.keys()
+
+    def test_simulation_inputs(self, mocks_for_inst):
+        config = mocks_for_inst["config_with_raw"]
+        instruments = config.raw["instruments"]
+        instruments["pressure"]["simulation_inputs"] = {"heat": "furnace/temperature"}
+
+        config.populate_instruments()
+
+        assert config.instruments["pressure"]["simulation_inputs"] == {
+            "heat": "furnace/temperature"
+        }
+        assert config.instruments["furnace"]["simulation_inputs"] == {}
+
+    @pytest.mark.parametrize(
+        "simulation_inputs, message",
+        [
+            (
+                ["furnace/temperature"],
+                "Invalid simulation_inputs for instrument 'pressure': ['furnace/temperature']. "
+                "Expected a map of {name: instrument/variable}.",
+            ),
+            (
+                {"a": "pressure/pressure"},
+                "Invalid simulation input 'a' (pressure/pressure)",
+            ),
+            (
+                {"a": "oven/temperature"},
+                "Invalid simulation input 'a' (oven/temperature)",
+            ),
+            ({"a": "furnace/power"}, "Invalid simulation input 'a' (furnace/power)"),
+            ({"a": "furnace"}, "Invalid simulation input 'a' (furnace)"),
+        ],
+    )
+    def test_invalid_simulation_inputs(
+        self, mocks_for_inst, simulation_inputs, message
+    ):
+        config = mocks_for_inst["config_with_raw"]
+        config.raw["instruments"]["pressure"]["simulation_inputs"] = simulation_inputs
+
+        with pytest.raises(ValueError) as e:
+            config.populate_instruments()
+
+        assert message in str(e.value)
+
+    def test_simulation_input_without_sensor(self, mocks_for_inst):
+        config = mocks_for_inst["config_with_raw"]
+        instruments = config.raw["instruments"]
+        instruments["furnace"]["variables"]["temperature"].pop("sensor")
+        instruments["pressure"]["simulation_inputs"] = {"heat": "furnace/temperature"}
+
+        with pytest.raises(ValueError) as e:
+            config.populate_instruments()
+
+        assert (
+            "Invalid simulation input 'heat' (furnace/temperature) for instrument 'pressure'."
+            in str(e.value)
+        )
 
 
 class TestPopulateSensorsActuatorsSPCs:
@@ -789,6 +847,7 @@ class TestGetExpectedHeartbeat:
             "safe_stop_setpoints": {},
             "measurement_intervals": {"pressure": 1},
             "variable_ranges": {"pressure": {"min": 1, "max": 200}},
+            "simulation_inputs": {},
             "heartbeat_interval": 1,
             "max_missed_heartbeats": 3,
             "experiment": {},
@@ -811,9 +870,23 @@ class TestGetExpectedHeartbeat:
             "safe_stop_setpoints": {"temperature": 0},
             "measurement_intervals": {"temperature": 1},
             "variable_ranges": {"temperature": {"min": 0, "max": 1000}},
+            "simulation_inputs": {},
             "heartbeat_interval": 1.0,
             "max_missed_heartbeats": 3,
             "experiment": {},
+        }
+
+    def test_simulation_inputs(self, mocks_for_gehb):
+        config = mocks_for_gehb["config_with_insts"]
+        config.instruments["pressure"]["simulation_inputs"] = {
+            "heat": "furnace/temperature"
+        }
+
+        heartbeat = config.get_expected_heartbeat("pressure")
+
+        # With the source's range, as the firmware gets it
+        assert heartbeat["simulation_inputs"] == {
+            "heat": {"source": "furnace/temperature", "min": 0, "max": 1000}
         }
 
 
