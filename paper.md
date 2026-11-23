@@ -1,11 +1,11 @@
 ---
-title: 'Comodo-Lab: A Python framework for experiment control and automation'
+title: 'comodo: A Python framework for experiment control and automation'
 tags:
-  - Python
   - experiments
-  - firmware
-  - provenance
+  - automation
   - telemetry
+  - Python
+  - firmware
 authors:
   - name: Francisco Herrerías-Azcué
     orcid: 0000-0002-5906-221X
@@ -20,24 +20,28 @@ affiliations:
  - name: University of Manchester
    index: 1
    ror: 027m9bs27
-date: 9 Novermber 2026
+date: 23 November 2026
 bibliography: paper.bib
 
 ---
 
 # Summary
 
-`comodo` is a software stack for specifying, executing and developing laboratory experiments.
+`comodo` is a software stack that allows you to control, monitor, design and oversee laboratory experiments.
+Users can specify a desired experiment timeline and simply trigger its automatic execution and data gathering.
+
 It employs a distributed architecture;
-a server-hosted controller module performs orchestration and executes the experiment, edge-hardware hosted firmware controls instruments and users interact with the experiment via a web interface.
+Users interact with the experiment via a web interface.
+A server-hosted controller module performs orchestration and executes the experiment;
+Edge-hardware-hosted firmware controls the instruments.
 
-The components of `comodo` communicate with each other via MQTT messages.
-In addition to providing experiment command and control this allows the automated recording of lab data and metadata, arranging it for later queries or the application of machine learning.
+The components of `comodo` communicate with each other via MQTT messages, both for control and data exchange.
+This allows for automated recording of lab data and metadata, which we implement using influxdB.
+Since the data is recorded live, it can be easily queried and further processed.
 
-`comodo` is designed for users of laboratories employing bespoke experimental setups, where proprietary software from a single manufacturer cannot provide a complete solution.
-
-`comodo` is run and deployed using Docker Compose, this provides a repeatable setup and easy running. It also enables the components to
-communicate internally.
+The software stack is run and deployed using Docker Compose.
+This provides a repeatable, versionable setup, and makes it easy to run.
+It also enables the components to communicate internally.
 
 # Statement of need
 
@@ -51,6 +55,8 @@ Most significantly of all, many experiments are run manually or with limited, ma
 Alternatively, some groups create homebrewed automations, but this is time consuming and removes scientists from their primary purpose.
 
 There is a need for a generalised framework for running laboratory experiments, using modern technologies and architectures, easily extended to the hardware used in each unique experiment.
+
+`comodo` is designed for users of laboratories employing bespoke experimental setups, where proprietary software from a single manufacturer cannot provide a complete solution.
 
 # State of the field
 
