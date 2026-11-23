@@ -500,6 +500,11 @@ class TestBaseInstrument:
         assert ins.setpoints.get("some_variable") == new_setpoint
         mock_anti.assert_called_once_with("some_variable", new_setpoint)
         bi_mocks["go_to_setpoint"].assert_called_once_with("some_variable", 5.0)
+        captured = capsys.readouterr()
+        assert (
+            "Setting setpoint for 'test_instrument/some_variable': 10.0. "
+            "Instrument will receive: 5.0." in captured.out
+        )
 
     def test_set_and_go_to_setpoint_no_sim_with_ext_actuator(self, bi_mocks, capsys):
         mock_config = bi_mocks["config"]

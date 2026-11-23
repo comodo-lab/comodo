@@ -170,7 +170,12 @@ class BaseInstrument(ABC):
         if not self.config["SIMULATE"]:
             # Only real actuators are instructed to go to setpoint
             if self.available_variables[variable].get("actuator") is not None:
-                self.go_to_setpoint(variable, self.anti_calibrate(variable, setpoint))
+                ac_setpoint = self.anti_calibrate(variable, setpoint)
+                print(
+                    f"Setting setpoint for '{self.config['INSTRUMENT_NAME']}/{variable}': {setpoint}."
+                    f" Instrument will receive: {ac_setpoint}."
+                )
+                self.go_to_setpoint(variable, ac_setpoint)
             elif not variable in self.config["EXTERNAL_ACTUATORS"]:
                 print(
                     f"WARNING: No actuator defined for '{variable}'. "

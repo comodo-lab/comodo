@@ -89,6 +89,23 @@ If a calibration has a value that is not a number, or a `scaling` of 0, nothing 
 The calibration in use is reported in the heartbeat, under `experiment`.
 The controller compares it with the one it sent, and stops the experiment if they differ.
 
+> [!WARNING]
+> **The value sent to the instrument is not checked against its range.**
+> The range (`min` and `max` in `comodo.yaml`) is checked on the calibrated setpoint, before it is converted,
+> so with a calibration the value sent to the instrument can be outside its range.
+> For example, with an `offset` of 273 and a range of 0 to 1000, a setpoint of 100 sends -173 to the instrument.
+>
+> **Safe stop and default setpoints are calibrated too.**
+> They are converted with the calibration in use, like any other setpoint, and the calibration stays in use after the experiment ends.
+> This may be intended (e.g. a valve whose closed state reads 1, with an `offset` of -1, still closes on a safe stop setpoint of 0),
+> but with the example above, a safe stop setpoint of 0 sends -273 to the instrument.
+>
+> Only use calibrations you are sure of, and check what the calibrated setpoints send to each instrument,
+> _especially the safe stop and default setpoints_.
+> The firmware logs every setpoint sent to a real instrument, with the value it receives, e.g.
+> `Setting setpoint for 'furnace/temperature': 100.0. Instrument will receive: -173.0.`
+> (see the instrument's logs with `docker compose -f compose/firmware.yaml logs -f furnace`).
+
 ### Generating the compose/firmware.yaml
 
 In a standard deployment, these are extracted from the `comodo.yaml` file and templated into the `compose/firmware.yaml` file using the `firmware/templates/compose.firmware.yaml.j2` jinja template. This can be accomplished by running:
