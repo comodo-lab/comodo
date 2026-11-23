@@ -49,15 +49,17 @@ class BaseInstrument(ABC):
         self.setpoints = {var: None for var in self.config["DEFAULT_SETPOINTS"]}
         self.previous_measurements = {}
         self.load_live_config({})  # Sets default calibration
-        if config["SIMULATE"] and config["EXTERNAL_ACTUATORS"]:
+        if config["SIMULATE"] and (
+            config["EXTERNAL_ACTUATORS"] or config["SIMULATION_INPUTS"]
+        ):
             self.ext_client = self.external_measurements_client()
 
         self.initialise()
 
     def external_measurement_cb(self, _client, msg, _obj=None):
         """
-        Callback function to handle external sensor measurements.
-        This function is called when a new measurement is received from an external sensor.
+        Callback function to handle external measurements (of external actuators and simulation inputs).
+        Saves them in previous_measurements, as "instrument/variable".
         """
         # Extract instrument/variable from topic
         _, ins, var, _ = msg.topic.split("/")
@@ -67,12 +69,19 @@ class BaseInstrument(ABC):
 
     def external_measurements_client(self):
         """
-        Creates a client subscribed to the external sensor measurements, which saves them
-        into the previous_measurements dictionary.
+        Creates a client subscribed to the measurements of the external actuators and the simulation
+        inputs, which saves them into the previous_measurements dictionary.
         """
+        external_variables = [
+            *self.config["EXTERNAL_ACTUATORS"].values(),
+            *(
+                simulation_input["source"]
+                for simulation_input in self.config["SIMULATION_INPUTS"].values()
+            ),
+        ]
         topics = [
             f"instruments/{instrument_variable}/measurement"
-            for instrument_variable in self.config["EXTERNAL_ACTUATORS"].values()
+            for instrument_variable in dict.fromkeys(external_variables)
         ]
         return mqtt.MQTTClient(
             id=f"{self.config['INSTRUMENT_NAME']}_external",
@@ -83,6 +92,17 @@ class BaseInstrument(ABC):
             password=self.config["MQTT_PASS"],
             connection_timeout=60,
         )
+
+    def simulation_input(self, name):
+        """
+        Returns the latest measurement of the simulation input with the given name (as expected by
+        the module), or None if it is not configured or it hasn't been measured yet.
+        May be used in the simulate method of subclasses, to follow other instruments.
+        """
+        simulation_input = self.config["SIMULATION_INPUTS"].get(name)
+        if simulation_input is None:
+            return None
+        return self.previous_measurements.get(simulation_input["source"])
 
     def default_sim(self, variable):
         """

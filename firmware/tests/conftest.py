@@ -36,6 +36,7 @@ def firmware_env():
         "SAFE_STOP_SETPOINTS": '{"temperature": 0}',
         "MEASUREMENT_INTERVALS": '{"temperature": 1, "pressure": 1}',
         "VARIABLE_RANGES": '{"temperature": {"min": 0, "max": 1000}, "pressure": {"min": 0, "max": 10}}',
+        "SIMULATION_INPUTS": "null",
         "HEARTBEAT_INTERVAL": 1.0,
         "MAX_MISSED_HEARTBEATS": 3,
     }
@@ -61,6 +62,7 @@ def mock_load_config(firmware_env):
         "MEASUREMENT_INTERVALS": json.loads(firmware_env["MEASUREMENT_INTERVALS"])
         or {},
         "VARIABLE_RANGES": json.loads(firmware_env["VARIABLE_RANGES"]) or {},
+        "SIMULATION_INPUTS": json.loads(firmware_env["SIMULATION_INPUTS"]) or {},
         "HEARTBEAT_INTERVAL": float(firmware_env["HEARTBEAT_INTERVAL"]),
         "MAX_MISSED_HEARTBEATS": int(firmware_env["MAX_MISSED_HEARTBEATS"]),
         "experiment": {"experiment_id": None},
@@ -121,6 +123,7 @@ def expected_config(firmware_env, experiment=None):
         "safe_stop_setpoints": config["SAFE_STOP_SETPOINTS"],
         "measurement_intervals": config["MEASUREMENT_INTERVALS"],
         "variable_ranges": config["VARIABLE_RANGES"],
+        "simulation_inputs": config["SIMULATION_INPUTS"],
         "heartbeat_interval": config["HEARTBEAT_INTERVAL"],
         "max_missed_heartbeats": config["MAX_MISSED_HEARTBEATS"],
         "experiment": experiment,

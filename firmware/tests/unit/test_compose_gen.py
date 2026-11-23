@@ -87,6 +87,7 @@ class TestInstrumentService:
             "SAFE_STOP_SETPOINTS": '{"temperature": 0}',
             "MEASUREMENT_INTERVALS": '{"temperature": 1}',
             "VARIABLE_RANGES": '{"temperature": {"max": 1000, "min": 0}}',
+            "SIMULATION_INPUTS": "null",
             "HEARTBEAT_INTERVAL": 2.0,
             "MAX_MISSED_HEARTBEATS": 4,
         }
@@ -151,8 +152,34 @@ class TestInstrumentService:
             "SAFE_STOP_SETPOINTS",
             "MEASUREMENT_INTERVALS",
             "VARIABLE_RANGES",
+            "SIMULATION_INPUTS",
         ]:
             assert env[key] == "null"
+
+    def test_simulation_inputs(self, render):
+        compose = render(
+            {
+                "furnace": {
+                    "firmware": "carbolite_gero.tg3",
+                    "address": "192.168.1.10",
+                    "variables": {"temperature": {"min": 0, "max": 1000, "sensor": {}}},
+                },
+                "transformer": {
+                    "firmware": "adafruit.ads1115",
+                    "address": "/dev/i2c-1",
+                    "simulation_inputs": {"power": "furnace/temperature"},
+                    "variables": {"current": {"min": 0, "max": 10, "sensor": {}}},
+                },
+            }
+        )
+        # With the source and range of each input
+        transformer = compose["services"]["transformer"]
+        assert env_json(transformer, "SIMULATION_INPUTS") == {
+            "power": {"source": "furnace/temperature", "min": 0, "max": 1000}
+        }
+        assert (
+            compose["services"]["furnace"]["environment"]["SIMULATION_INPUTS"] == "null"
+        )
 
     def test_device_address_is_mapped(self, render):
         compose = render(

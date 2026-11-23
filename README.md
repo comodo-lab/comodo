@@ -226,6 +226,11 @@ Each instrument can have the following properties:
 - `simulate`: [optional] A boolean flag indicating whether the instrument should be run in simulation mode.
   If set to `true`, the instrument will not attempt to communicate with the physical device, and will instead simulate its behavior.
   Defaults to `false`.
+- `simulation_inputs`: [optional] A map of the inputs the instrument's firmware may follow in simulation mode,
+  using expected names as keys, and variable sources as values (as `instrument/variable`, each with a sensor),
+  e.g., `{power: furnace/temperature}` for a transformer powering a furnace.
+  In simulation mode, the instrument receives their measurements.
+  Which names are expected, and how they are used, depends on the instrument's firmware.
 - [`variables`](#variables): [required] The list of named variable(s) monitored or controlled by the instrument.
 
 #### Variables

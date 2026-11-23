@@ -49,6 +49,7 @@ class TestConfig:
                 "SAFE_STOP_SETPOINTS": '{"flow": 0}',
                 "MEASUREMENT_INTERVALS": '{"flow": 0.5}',
                 "VARIABLE_RANGES": '{"flow": {"min": 0, "max": 10}}',
+                "SIMULATION_INPUTS": '{"heat": {"source": "ins/var", "min": 0, "max": 5}}',
                 "HEARTBEAT_INTERVAL": "2.5",
                 "experiment": '{"experiment_id": "experiment-1"}',
             }
@@ -63,6 +64,9 @@ class TestConfig:
         assert result["SAFE_STOP_SETPOINTS"] == {"flow": 0}
         assert result["MEASUREMENT_INTERVALS"] == {"flow": 0.5}
         assert result["VARIABLE_RANGES"] == {"flow": {"min": 0, "max": 10}}
+        assert result["SIMULATION_INPUTS"] == {
+            "heat": {"source": "ins/var", "min": 0, "max": 5}
+        }
         assert result["HEARTBEAT_INTERVAL"] == 2.5
         assert result["experiment"] == {"experiment_id": "experiment-1"}
 
@@ -86,6 +90,7 @@ class TestConfig:
             "SAFE_STOP_SETPOINTS",
             "MEASUREMENT_INTERVALS",
             "VARIABLE_RANGES",
+            "SIMULATION_INPUTS",
             "experiment",
         ]
         for key in json_keys:

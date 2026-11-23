@@ -35,6 +35,11 @@ The expected environment variables are:
 - `MEASUREMENT_INTERVALS`: A dictionary of the measurement intervals, in seconds, for each variable in the form `{variable: interval}`.
   A measurement tick is started for each variable in this dictionary.
 - `VARIABLE_RANGES`: A dictionary of the range of each variable, from its `min` and `max` in `comodo.yaml`, in the form `{variable: {"min": min, "max": max}}`.
+- `SIMULATION_INPUTS`: A dictionary of the inputs the instrument's simulation may follow (its `simulation_inputs` in `comodo.yaml`),
+  using expected names as keys, and `instrument/variable` sources as values, with their range,
+  in the form `{name: {"source": "instrument/variable", "min": min, "max": max}}`.
+  In simulation mode, the instrument listens to their measurements, and saves them in `previous_measurements` (as `"instrument/variable"`).
+  The instrument modules may use them, in the `simulate` method, getting each by name with `simulation_input(name)`.
 - `HEARTBEAT_INTERVAL`: The interval, in seconds, at which the firmware publishes its heartbeat.
 - `MAX_MISSED_HEARTBEATS`: The number of controller heartbeats that can be missed before the instrument [safe stops](#safe-stop). Defaults to 3.
   Set from `global.experiment_monitoring.max_missed_heartbeats` in `comodo.yaml`.
@@ -252,7 +257,7 @@ The firmware subscribes to the following MQTT topics:
 - `instruments/<instrument_name>/+/setpoint`: The desired setpoint for the variable identified by the wildcard.
   Setpoints are sent by the controller, or by a setpoint controller for actuators driven by another variable.
 - `controller/event/end` and `controller/command/stop`: To end/stop the current experiment (move to `awaiting_experiment` status).
-- `instruments/<instrument>/<variable>/measurement`: Only in simulation mode, for each of the `EXTERNAL_ACTUATORS`.
+- `instruments/<instrument>/<variable>/measurement`: Only in simulation mode, for each of the `EXTERNAL_ACTUATORS` and `SIMULATION_INPUTS`.
 
 And publishes to:
 - `instruments/<instrument_name>/<variable>/measurement`: Each measurement, as `{"value": <measurement>}`.
