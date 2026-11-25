@@ -9,7 +9,7 @@ x-templates:
     INFLUX_BUCKET: ${INFLUX_BUCKET}
     INFLUX_ORG: ${INFLUX_ORG}
   grafana-env: &grafana-env
-    GRAFANA_HOST: ${DATA_HOST:-localhost}
+    GRAFANA_HOST: ${DATA_HOST:-}
     GRAFANA_DASHBOARD_URL: ${GRAFANA_DASHBOARD_URL:-}
 
 name: comodo-core

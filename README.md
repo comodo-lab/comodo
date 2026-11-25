@@ -372,7 +372,8 @@ The following environment variables can be set in `compose/.env`:
 - `DATA_HOST` is the address of your InfluxDB and Grafana instances (the data stack).
     If the data stack runs on this machine, leave this empty.
     If you're using a remote InfluxDB instance, set this to the appropriate IP address or FQDN.
-    It is also used by your browser to show the Grafana dashboard in the UI (as `localhost` if empty).
+    It is also used by your browser to show the Grafana dashboard in the UI, so it must be reachable from it.
+    If empty, the UI uses the address you opened it with (e.g. `http://10.1.2.3:3000` for the UI at `http://10.1.2.3:8501`).
 - `FIRMWARE_HOST` is optional. If you're running the Comodo stack locally, leave this empty or comment it out.
     It is only needed if you are deploying the stack from the controller host to a remote host.
     It should be the address of the host where the firmware for the sensors and actuators will run.
@@ -391,6 +392,7 @@ The following environment variables can be set in `compose/.env`:
 - `INFLUX_ORG` is the organization name in InfluxDB.  You can set this to whatever you like.
 - `GRAFANA_DASHBOARD_URL` is optional. If not set (empty or commented out), the default dashboard will be used.
   If set, it overrides the URL of the Grafana dashboard to be embedded in the Comodo UI.
+  It is used as is, so use an address every browser can reach (not `localhost`, which only works on the machine running Grafana).
   See [how to generate a url in this section](#publishing-a-grafana-dashboard).
 - `COMODO_TAG` is optional. The tag of the published Comodo images to deploy, `latest` if not set.
   It is not used when the images are built from the local code (`./comodo.sh --deploy -b`), which are tagged `local`.

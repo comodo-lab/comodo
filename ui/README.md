@@ -90,7 +90,9 @@ And publishes to:
 The UI reads `comodo.yaml` from `/app/comodo.yaml`, and the following environment variables:
 - `MQTT_HOST`, `MQTT_USER` and `MQTT_PASS`: The MQTT broker and its credentials.
 - `GRAFANA_HOST`: The host of Grafana, as seen from the browser, used to embed the default dashboard.
-  Set from `DATA_HOST` (or `localhost` if empty) in the core stack's [`compose/core.yaml`](../compose/core.yaml).
+  Set from `DATA_HOST` in the core stack's [`compose/core.yaml`](../compose/core.yaml).
+  If empty (the data stack runs on the same machine as the UI), the host the browser used to open the UI is used instead,
+  so the dashboard also loads from other machines.
 - `GRAFANA_DASHBOARD_URL`: [optional] Overrides the URL of the embedded dashboard.
 - `UI_DATA_DIR`: [optional] Where saved settings are stored. Defaults to `/ui_data`.
 

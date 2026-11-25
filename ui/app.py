@@ -219,7 +219,6 @@ def initialize_experiment_store(pathname, current_data):
 
 
 control_window = cw.get_control_panel(PARAM_DICT)
-graph_layout = gv.get_experiment_graph()
 log_window = lw.get_log_window()
 
 
@@ -253,7 +252,7 @@ def render_page(pathname, *states):
     elif pathname == "/control":
         return control_window
     elif pathname == "/data":
-        return graph_layout
+        return gv.get_experiment_graph()
     elif pathname == "/global":
         return with_selector("config", "experiment-config-wrapper")
     elif pathname == lw.LOG_PATH:
