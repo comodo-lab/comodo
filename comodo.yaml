@@ -13,16 +13,16 @@ global:
 
 instruments:
   furnace:
-    firmware: carbolite_gero.tg3
-    address: "192.168.111.222"
-    simulate: true
+    firmware: eurotherm.3204
+    address: "/dev/ttyAMA0"
+    simulate: false
     variables:
       temperature:
         min: 0
         max: 1000
         unit: C
         tolerance: 1
-        default_setpoint: 25
+        default_setpoint: 10
         sensor:
           interval: 1
           type: float
@@ -33,7 +33,7 @@ instruments:
     firmware: adafruit.ads1115
     address: /dev/i2c-1
     device_id: "0x48"
-    simulate: true
+    simulate: false
     simulation_inputs: { power: furnace/temperature }
     variables:
       input_current:

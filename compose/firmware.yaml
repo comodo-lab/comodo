@@ -40,12 +40,12 @@ services:
     environment:
       <<: *instrument-env
       INSTRUMENT_NAME: "furnace"
-      FIRMWARE: carbolite_gero.tg3
-      ADDRESS: "192.168.111.222"
+      FIRMWARE: eurotherm.3204
+      ADDRESS: "/dev/ttyAMA0"
       DEVICE_ID: ""
-      SIMULATE: "true"
+      SIMULATE: "false"
       ACTIVE_VARIABLES: '["temperature"]'
-      DEFAULT_SETPOINTS: '{"temperature": 25}'
+      DEFAULT_SETPOINTS: '{"temperature": 10}'
       EXTERNAL_ACTUATORS: 'null'
       SAFE_STOP_SETPOINTS: '{"temperature": 0}'
       MEASUREMENT_INTERVALS: '{"temperature": 1}'
@@ -53,6 +53,9 @@ services:
       SIMULATION_INPUTS: 'null'
       HEARTBEAT_INTERVAL: 1.0
       MAX_MISSED_HEARTBEATS: 3
+    devices:
+      - "/dev/ttyAMA0:/dev/ttyAMA0"
+    privileged: true
 
   transformer:
     <<: *python-instrument-template
@@ -62,7 +65,7 @@ services:
       FIRMWARE: adafruit.ads1115
       ADDRESS: "/dev/i2c-1"
       DEVICE_ID: "0x48"
-      SIMULATE: "true"
+      SIMULATE: "false"
       ACTIVE_VARIABLES: '["input_current", "input_voltage", "output_current", "output_voltage"]'
       DEFAULT_SETPOINTS: 'null'
       EXTERNAL_ACTUATORS: 'null'
