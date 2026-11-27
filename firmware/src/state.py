@@ -227,17 +227,36 @@ class InstrumentState:
             )
 
     def reset(self):
-        # Reset setpoints to default
-        for variable, setpoint in self.instrument.config["DEFAULT_SETPOINTS"].items():
-            self.instrument.set_and_go_to_setpoint(variable, setpoint)
-        # Reset experiment id and move to awaiting_experiment
+        # Reset setpoints to default. A failure is not raised (e.g. the instrument is not
+        # responding), so the firmware keeps running, and moves to error instead.
+        default_setpoints = self.instrument.config["DEFAULT_SETPOINTS"]
+        failed = []
+        for variable, setpoint in default_setpoints.items():
+            try:
+                self.instrument.set_and_go_to_setpoint(variable, setpoint)
+            except Exception as e:
+                failed.append(variable)
+                print(
+                    f"ERROR: Failed to set the default setpoint for {variable}: {e}"
+                )
+        if default_setpoints:
+            self._can_set_setpoint = not failed
+        # Reset experiment id
         self.instrument.config["experiment"]["experiment_id"] = None
-        # Bypass status setter to allow status change from safe_stop to awaiting_experiment
-        self._status = "awaiting_experiment"
-        self.client.callback = self.awaiting_experiment_cb
-        print(
-            f"Instrument {self.instrument.config['INSTRUMENT_NAME']} awaiting experiment."
-        )
+        # Bypass status setter to allow leaving safe_stop
+        if failed:
+            self._status = "error"
+            self.client.callback = self.error_cb
+            print(
+                f"Instrument {self.instrument.config['INSTRUMENT_NAME']} in error: "
+                f"could not set the default setpoints for {', '.join(failed)}."
+            )
+        else:
+            self._status = "awaiting_experiment"
+            self.client.callback = self.awaiting_experiment_cb
+            print(
+                f"Instrument {self.instrument.config['INSTRUMENT_NAME']} awaiting experiment."
+            )
 
     def error_cb(self, _client, msg, _obj=None):
         """

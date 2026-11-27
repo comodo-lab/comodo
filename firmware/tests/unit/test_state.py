@@ -546,6 +546,31 @@ class TestInstrumentState:
         assert istate._status == "awaiting_experiment"
         assert istate.client.callback == istate.awaiting_experiment_cb
 
+    def test_reset_setpoint_failure_moves_to_error(self, is_mocks, capsys):
+        istate = state.InstrumentState(is_mocks["config"])
+        istate.status = "safe_stop"
+        istate.instrument.config["experiment"]["experiment_id"] = "e-123"
+        is_mocks["instrument"].set_and_go_to_setpoint.side_effect = ValueError(
+            "No response"
+        )
+
+        istate.reset()  # Does not raise
+
+        assert istate.status == "error"
+        assert istate.client.callback == istate.error_cb
+        assert istate._can_set_setpoint == False
+        assert istate.instrument.config["experiment"]["experiment_id"] is None
+        assert "ERROR: Failed to set the default setpoint" in capsys.readouterr().out
+
+    def test_reset_success_clears_setpoint_failure(self, is_mocks):
+        istate = state.InstrumentState(is_mocks["config"])
+        istate._can_set_setpoint = False
+
+        istate.reset()
+
+        assert istate._can_set_setpoint == True
+        assert istate.status == "awaiting_experiment"
+
     def test_error_cb_awaiting_experiment(self, is_mocks):
         mock_config = is_mocks["config"]
         with (
